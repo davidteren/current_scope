@@ -1,26 +1,23 @@
-<div id="<%= dom_id report %>">
-  <div>
-    <strong>Title:</strong>
-    <%= report.title %>
-  </div>
-
-  <div>
-    <strong>Project:</strong>
-    <%= report.project.name %>
-  </div>
-
-  <div>
-    <strong>Requested by:</strong>
-    <%= report.requested_by.email_address %>
-  </div>
-
-  <div>
-    <strong>Status:</strong>
+<article class="record" id="<%= dom_id report %>">
+  <header>
+    <p class="title"><%= report.title %></p>
     <% if report.approved? %>
-      Approved by <%= report.approved_by.email_address %>
-      on <%= report.approved_at.to_date %>
+      <span class="stamp stamp--approved <%= "just-stamped" if flash[:notice] == "Report approved." %>">
+        Approved
+        <small><%= report.approved_by.email_address %> · <%= report.approved_at.to_date %></small>
+      </span>
     <% else %>
-      Pending approval
+      <span class="stamp stamp--pending">Pending approval</span>
     <% end %>
-  </div>
-</div>
+  </header>
+  <dl>
+    <dt>No.</dt>
+    <dd class="mono"><%= format("%04d", report.id) %></dd>
+
+    <dt>Project</dt>
+    <dd><%= report.project.name %></dd>
+
+    <dt>Requested by</dt>
+    <dd class="mono"><%= report.requested_by.email_address %></dd>
+  </dl>
+</article>

@@ -2,11 +2,9 @@
 
 <h1>Editing report</h1>
 
-<%= render "form", report: @report %>
+<%= render "form", report: @report, projects: @projects %>
 
-<br>
-
-<div>
-  <%= link_to "Show this report", @report %> |
+<div class="actions-row">
+  <%= link_to "Show this report", @report %>
   <%= link_to "Back to reports", reports_path %>
 </div>

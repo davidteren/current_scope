@@ -1,20 +1,44 @@
-<p style="color: green"><%= notice %></p>
-
 <% content_for :title, "Projects" %>
 
-<h1>Projects</h1>
-
-<div id="projects">
-  <% @projects.each do |project| %>
-    <%= render project %>
-    <p>
-      <% if allowed_to?(:show, project) %>
-        <%= link_to "Show this project", project %>
-      <% end %>
-    </p>
+<div class="page-head">
+  <h1>Projects</h1>
+  <% if allowed_to?(:new, Project) %>
+    <%= link_to "New project", new_project_path, class: "button" %>
   <% end %>
 </div>
 
-<% if allowed_to?(:new, Project) %>
-  <%= link_to "New project", new_project_path %>
+<% if @projects.any? %>
+  <table class="ledger" id="projects">
+    <thead>
+      <tr>
+        <th scope="col">No.</th>
+        <th scope="col">Name</th>
+        <th scope="col" class="actions"><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @projects.each do |project| %>
+        <tr id="<%= dom_id project %>">
+          <td class="num"><%= format("%04d", project.id) %></td>
+          <td>
+            <% if allowed_to?(:show, project) %>
+              <%= link_to project.name, project %>
+            <% else %>
+              <%= project.name %>
+            <% end %>
+          </td>
+          <td class="actions">
+            <% if allowed_to?(:edit, project) %>
+              <%= link_to "Edit", edit_project_path(project), class: "button--quiet button" %>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% else %>
+  <div class="empty">
+    <b>No projects on file.</b> Projects hold reports; create one to start
+    the ledger.
+  </div>
 <% end %>

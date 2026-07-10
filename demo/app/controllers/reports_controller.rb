@@ -10,9 +10,11 @@ class ReportsController < ApplicationController
 
   def new
     @report = Report.new(project_id: params[:project_id])
+    @projects = Project.order(:name)
   end
 
   def edit
+    @projects = Project.order(:name)
   end
 
   def create
@@ -21,6 +23,7 @@ class ReportsController < ApplicationController
     if @report.save
       redirect_to @report, notice: "Report was successfully created."
     else
+      @projects = Project.order(:name)
       render :new, status: :unprocessable_content
     end
   end
@@ -29,6 +32,7 @@ class ReportsController < ApplicationController
     if @report.update(report_params)
       redirect_to @report, notice: "Report was successfully updated.", status: :see_other
     else
+      @projects = Project.order(:name)
       render :edit, status: :unprocessable_content
     end
   end

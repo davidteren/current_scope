@@ -1,8 +1,7 @@
-<%= form_with(model: project) do |form| %>
+<%= form_with(model: project, class: "sheet-form") do |form| %>
   <% if project.errors.any? %>
-    <div style="color: red">
-      <h2><%= pluralize(project.errors.count, "error") %> prohibited this project from being saved:</h2>
-
+    <div class="errors">
+      <h2><%= pluralize(project.errors.count, "error") %> prohibited this project from being saved</h2>
       <ul>
         <% project.errors.each do |error| %>
           <li><%= error.full_message %></li>
@@ -11,12 +10,12 @@
     </div>
   <% end %>
 
-  <div>
-    <%= form.label :name, style: "display: block" %>
+  <div class="field">
+    <%= form.label :name %>
     <%= form.text_field :name %>
   </div>
 
-  <div>
-    <%= form.submit %>
+  <div class="field">
+    <%= form.submit class: "button--primary" %>
   </div>
 <% end %>

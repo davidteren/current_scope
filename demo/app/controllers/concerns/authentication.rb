@@ -31,7 +31,9 @@ module Authentication
 
     def request_authentication
       session[:return_to_after_authenticating] = request.url
-      redirect_to new_session_path
+      # main_app: this concern also runs inside the mounted CurrentScope
+      # engine, where bare route helpers resolve against the engine's routes.
+      redirect_to main_app.new_session_path
     end
 
     def after_authentication_url

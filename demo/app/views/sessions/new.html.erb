@@ -1,11 +1,27 @@
-<%= tag.div(flash[:alert], style: "color:red") if flash[:alert] %>
-<%= tag.div(flash[:notice], style: "color:green") if flash[:notice] %>
+<% content_for :title, "Sign in" %>
 
-<%= form_with url: session_path do |form| %>
-  <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", placeholder: "Enter your email address", value: params[:email_address] %><br>
-  <%= form.password_field :password, required: true, autocomplete: "current-password", placeholder: "Enter your password", maxlength: 72 %><br>
-  <%= form.submit "Sign in" %>
-<% end %>
-<br>
+<div class="credentials">
+  <h1>Present credentials</h1>
+  <p class="lede">The ledger opens only to known signatories.</p>
 
-<%= link_to "Forgot password?", new_password_path %>
+  <%= form_with url: session_path do |form| %>
+    <div class="field">
+      <%= form.label :email_address, "Email address" %>
+      <%= form.email_field :email_address, required: true, autofocus: true,
+            autocomplete: "username", value: params[:email_address] %>
+    </div>
+    <div class="field">
+      <%= form.label :password, "Password" %>
+      <%= form.password_field :password, required: true,
+            autocomplete: "current-password", maxlength: 72 %>
+    </div>
+    <%= form.submit "Sign in", class: "button--primary" %>
+  <% end %>
+
+  <p class="aux"><%= link_to "Forgot password?", new_password_path %></p>
+
+  <p class="hint">
+    seeded signatories · password&nbsp;"password"<br>
+    owner@ · reviewer@ · member@ · scoped@example.com
+  </p>
+</div>

@@ -1,0 +1,43 @@
+showcase/config/application.rb
+  s_b081cbfee96db8::t_6c88c5facce553 9
+showcase/app/views/layouts/current_scope/application.html.erb
+  s_b081cbfee96db8::t_a60f471abc1a16 6
+showcase/Dockerfile
+  s_b081cbfee96db8::t_ebd79e4d4c8bc8 5-6
+STATUS.md
+  s_b081cbfee96db8::t_2c458233ad843a 109-110
+  s_b081cbfee96db8::t_d397fbcf5f8eb5 41
+  s_b081cbfee96db8::t_66aca6a04c92df 58
+PRODUCT.md
+  s_b081cbfee96db8::t_9ddd2053818a9c 28
+showcase/app/views/pwa/manifest.json.erb
+  s_b081cbfee96db8::t_b058f5b4b89fdb 19
+  s_b081cbfee96db8::t_a9ef65681e9cd6 2
+showcase/app/assets/stylesheets/application.css
+  s_b081cbfee96db8::t_4427b71f70d3e3 4
+  s_b081cbfee96db8::t_3d306e1c77174b 1
+.claude/launch.json
+  s_b081cbfee96db8::t_92cbcd5601362e 5,7
+showcase/app/views/layouts/application.html.erb
+  s_b081cbfee96db8::t_b7bef996f96242 30
+  s_b081cbfee96db8::t_1b2e6664246a69 4
+  s_b081cbfee96db8::t_982dd4bec2e38c 7
+README.md
+  s_b081cbfee96db8::t_36b99f949c0ad0 180-189
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "e5b3f6afcb6b4cd5fea9f7e25cbbbcf474ebc8af",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

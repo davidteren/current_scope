@@ -1,0 +1,19 @@
+app/assets/stylesheets/current_scope/application.css
+  s_b081cbfee96db8::t_325af279866e24 1-302
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "7f747085b8ff29ef9b2c64ee25e479a4ba741d69",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+PRODUCT.md
+  s_b081cbfee96db8::t_71fff416d96cfa 1-122
+.impeccable/live/config.json
+  s_b081cbfee96db8::t_f0f3eb5edb8294 1-6,9
+  s_b081cbfee96db8::t_7252d310246b35 7-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "4bfe06ca32e7fbe98ae30e32bda1e546b45598c3",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

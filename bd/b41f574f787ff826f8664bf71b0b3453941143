@@ -1,0 +1,32 @@
+lib/current_scope/engine.rb
+  s_b081cbfee96db8::t_f734c23956299c 6-8,11
+lib/current_scope.rb
+  s_b081cbfee96db8::t_7a3de41afc3099 51-70
+  s_b081cbfee96db8::t_e79f21eb7c1c11 7
+test/dummy/app/models/widget.rb
+  s_b081cbfee96db8::t_fc60fdff95acbd 1-9
+test/dummy/app/models/gadget.rb
+  s_b081cbfee96db8::t_abc0425d5c7c32 1-12
+lib/current_scope/scopeable.rb
+  s_b081cbfee96db8::t_64360e8499e6ac 1-23
+README.md
+  s_b081cbfee96db8::t_e774b1caf4ba69 131-148
+test/scopeable_test.rb
+  s_b081cbfee96db8::t_b9b5e79153a74b 1-64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "bdb41f574f787ff826f8664bf71b0b3453941143",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

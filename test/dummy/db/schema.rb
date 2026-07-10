@@ -17,15 +17,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_10_000100) do
     t.integer "subject_id", null: false
     t.string "subject_type", null: false
     t.datetime "updated_at", null: false
-    t.index ["role_id"], name: "index_current_scope_role_assignments_on_role_id"
-    t.index ["subject_type", "subject_id"], name: "index_current_scope_one_role_per_subject", unique: true
+    t.index [ "role_id" ], name: "index_current_scope_role_assignments_on_role_id"
+    t.index [ "subject_type", "subject_id" ], name: "index_current_scope_one_role_per_subject", unique: true
   end
 
   create_table "current_scope_role_permissions", force: :cascade do |t|
     t.string "permission_key", null: false
     t.integer "role_id", null: false
-    t.index ["role_id", "permission_key"], name: "idx_on_role_id_permission_key_5fd185cc5b", unique: true
-    t.index ["role_id"], name: "index_current_scope_role_permissions_on_role_id"
+    t.index [ "role_id", "permission_key" ], name: "idx_on_role_id_permission_key_5fd185cc5b", unique: true
+    t.index [ "role_id" ], name: "index_current_scope_role_permissions_on_role_id"
   end
 
   create_table "current_scope_roles", force: :cascade do |t|
@@ -33,7 +33,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_10_000100) do
     t.boolean "full_access", default: false, null: false
     t.string "name", null: false
     t.datetime "updated_at", null: false
-    t.index ["name"], name: "index_current_scope_roles_on_name", unique: true
+    t.index [ "name" ], name: "index_current_scope_roles_on_name", unique: true
   end
 
   create_table "current_scope_scoped_role_assignments", force: :cascade do |t|
@@ -44,10 +44,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_10_000100) do
     t.integer "subject_id", null: false
     t.string "subject_type", null: false
     t.datetime "updated_at", null: false
-    t.index ["resource_type", "resource_id"], name: "index_current_scope_scoped_role_assignments_on_resource"
-    t.index ["role_id"], name: "index_current_scope_scoped_role_assignments_on_role_id"
-    t.index ["subject_type", "subject_id", "resource_type", "resource_id", "role_id"], name: "index_current_scope_unique_scoped_assignment", unique: true
-    t.index ["subject_type", "subject_id"], name: "index_current_scope_scoped_role_assignments_on_subject"
+    t.index [ "resource_type", "resource_id" ], name: "index_current_scope_scoped_role_assignments_on_resource"
+    t.index [ "role_id" ], name: "index_current_scope_scoped_role_assignments_on_role_id"
+    t.index [ "subject_type", "subject_id", "resource_type", "resource_id", "role_id" ], name: "index_current_scope_unique_scoped_assignment", unique: true
+    t.index [ "subject_type", "subject_id" ], name: "index_current_scope_scoped_role_assignments_on_subject"
   end
 
   create_table "projects", force: :cascade do |t|
@@ -62,8 +62,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_10_000100) do
     t.integer "requested_by_id", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
-    t.index ["project_id"], name: "index_reports_on_project_id"
-    t.index ["requested_by_id"], name: "index_reports_on_requested_by_id"
+    t.index [ "project_id" ], name: "index_reports_on_project_id"
+    t.index [ "requested_by_id" ], name: "index_reports_on_requested_by_id"
   end
 
   create_table "users", force: :cascade do |t|

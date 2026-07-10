@@ -1,0 +1,19 @@
+STATUS.md
+  s_faaed79c011663::t_ccdcef27f910bc 1-106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "d1236265d2767a06585410b4e67e257426310c9c",
+  "prompts": {},
+  "sessions": {
+    "s_faaed79c011663": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "19bc6b87-21c1-4dda-ae07-90555bf0fac1",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

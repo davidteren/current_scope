@@ -1,15 +1,14 @@
-/*
- * This is a manifest file that'll be compiled into application.css, which will include all the files
- * listed below.
- *
- * Any CSS and SCSS file within this directory, lib/assets/stylesheets, vendor/assets/stylesheets,
- * or any plugin's vendor/assets/stylesheets directory can be referenced here using a relative path.
- *
- * You're free to add application-wide styles to this file and they'll appear at the bottom of the
- * compiled file so the styles you add here take precedence over styles defined in any other CSS/SCSS
- * files in this directory. Styles in this file should be added after the last require_* statement.
- * It is generally better to create a new file per style scope.
- *
- *= require_tree .
- *= require_self
- */
+/* Functional scaffold styles — meant to be overridden by the host app. */
+
+.cs-header { display: flex; gap: 1.5rem; align-items: baseline; padding: 1rem 1.5rem; border-bottom: 1px solid #ddd; }
+.cs-header nav { display: flex; gap: 1rem; }
+.cs-main { padding: 1rem 1.5rem; max-width: 72rem; }
+.cs-notice { padding: .5rem 1.5rem; background: #e6f6e6; }
+.cs-alert { padding: .5rem 1.5rem; background: #fde8e8; }
+.cs-hint { color: #666; font-size: .9em; }
+.cs-table { border-collapse: collapse; }
+.cs-table th, .cs-table td { border: 1px solid #ddd; padding: .4rem .6rem; text-align: left; vertical-align: top; }
+.cs-grid label { white-space: nowrap; }
+.cs-chip { display: inline-flex; align-items: center; gap: .25rem; border: 1px solid #bbb; border-radius: 1rem; padding: 0 .6rem; margin: 0 .25rem .25rem 0; }
+.cs-chip form { display: inline; }
+.cs-chip-remove { border: none; background: none; cursor: pointer; padding: 0; }

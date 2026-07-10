@@ -1,0 +1,43 @@
+<h1>Edit role: <%= @role.name %></h1>
+
+<%= form_with model: @role do |f| %>
+  <% if @role.errors.any? %>
+    <p class="cs-alert"><%= @role.errors.full_messages.to_sentence %></p>
+  <% end %>
+
+  <p><%= f.label :name %> <%= f.text_field :name %></p>
+  <p>
+    <%= f.label :full_access do %>
+      <%= f.check_box :full_access %> Full access — every permission, present and future
+      (the grid below is ignored while this is on)
+    <% end %>
+  </p>
+
+  <h2>Permission grid</h2>
+  <p class="cs-hint">
+    One row per controller, one checkbox per action — derived from the app's
+    routes, so new controllers appear here automatically.
+  </p>
+
+  <%= hidden_field_tag "role[permission_keys][]", "" %>
+  <table class="cs-table cs-grid">
+    <% granted = @role.permission_keys.to_set %>
+    <% CurrentScope.catalog.grouped.sort.each do |controller, actions| %>
+      <tr>
+        <th><%= controller %></th>
+        <% actions.sort.each do |action| %>
+          <% key = "#{controller}##{action}" %>
+          <td>
+            <label>
+              <%= check_box_tag "role[permission_keys][]", key, granted.include?(key),
+                    id: "perm_#{key.parameterize(separator: "_")}" %>
+              <%= action %>
+            </label>
+          </td>
+        <% end %>
+      </tr>
+    <% end %>
+  </table>
+
+  <p><%= f.submit "Save role" %></p>
+<% end %>

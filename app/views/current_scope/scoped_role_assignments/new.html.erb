@@ -1,0 +1,31 @@
+<h1>Grant a scoped role</h1>
+
+<p class="cs-hint">
+  A scoped role applies only when acting on the chosen record — it never
+  changes the subject's org-wide role.
+</p>
+
+<%= form_with url: scoped_role_assignments_path, method: :post do %>
+  <p>
+    <label>Subject</label>
+    <%= select_tag :subject_gid,
+          options_for_select(@subjects.map { |s| [ current_scope_label(s), s.to_gid.to_s ] },
+                             params[:subject_gid]) %>
+  </p>
+  <p>
+    <label>Role</label>
+    <%= select_tag :role_id, options_from_collection_for_select(@roles, :id, :name) %>
+  </p>
+  <p>
+    <label>Record (GlobalID)</label>
+    <% if @resource %>
+      <%= hidden_field_tag :resource_gid, params[:resource_gid] %>
+      <strong><%= current_scope_label(@resource) %></strong>
+    <% else %>
+      <%= text_field_tag :resource_gid, nil,
+            placeholder: "gid://app-name/Project/7", size: 40 %>
+      <span class="cs-hint">Link here from a record's page to prefill this.</span>
+    <% end %>
+  </p>
+  <p><%= submit_tag "Grant scoped role" %></p>
+<% end %>

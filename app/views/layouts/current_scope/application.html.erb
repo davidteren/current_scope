@@ -1,17 +1,28 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Current scope</title>
+  <title>CurrentScope</title>
   <%= csrf_meta_tags %>
   <%= csp_meta_tag %>
 
   <%= yield :head %>
 
-  <%= stylesheet_link_tag    "current_scope/application", media: "all" %>
+  <%= stylesheet_link_tag "current_scope/application", media: "all" %>
 </head>
 <body>
+  <header class="cs-header">
+    <strong>CurrentScope</strong>
+    <nav>
+      <%= link_to "Roles", current_scope.roles_path %>
+      <%= link_to "Subjects", current_scope.subjects_path %>
+    </nav>
+  </header>
 
-<%= yield %>
+  <% if notice.present? %><p class="cs-notice"><%= notice %></p><% end %>
+  <% if alert.present? %><p class="cs-alert"><%= alert %></p><% end %>
 
+  <main class="cs-main">
+    <%= yield %>
+  </main>
 </body>
 </html>

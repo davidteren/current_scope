@@ -1,0 +1,15 @@
+<h1>New role</h1>
+
+<%= form_with model: @role do |f| %>
+  <% if @role.errors.any? %>
+    <p class="cs-alert"><%= @role.errors.full_messages.to_sentence %></p>
+  <% end %>
+
+  <p><%= f.label :name %> <%= f.text_field :name %></p>
+  <p>
+    <%= f.label :full_access do %>
+      <%= f.check_box :full_access %> Full access — every permission, present and future
+    <% end %>
+  </p>
+  <p><%= f.submit "Create role" %></p>
+<% end %>

@@ -157,6 +157,77 @@ either stop excluding it or `skip_before_action :current_scope_check!`. And a
 `user_method` that the controller doesn't respond to raises instead of
 silently turning every request into a 403.
 
+### Impersonation (act-as)
+
+`Current` distinguishes the **effective subject** (`current_scope_user` — who
+the request acts as) from the **real actor** (`current_scope_actor` — who is
+actually behind it). They're the same person until an admin impersonates
+someone; then permission checks read the subject while attribution reads the
+actor. `current_scope_actor` falls back to the subject, so it's never nil and
+you never write a nil branch. `impersonating?` is the read-only-state signal
+for views (show a banner, disable destructive controls).
+
+Point `actor_method` at the host method that returns the real actor:
+
+```ruby
+# config/initializers/current_scope.rb
+config.actor_method = :true_user
+```
+
+The host owns the act-as switch — CurrentScope only reads it. The recipe:
+
+```ruby
+class ApplicationController < ActionController::Base
+  include CurrentScope::Context
+  include CurrentScope::Guard
+
+  private
+
+  # The real actor: always the signed-in account, never the impersonated one.
+  def true_user = current_user
+
+  # The effective subject: re-resolved from the session EVERY request, never
+  # cached in Current (which is per-request and must not be trusted across
+  # requests). Falls back to the real actor when not impersonating.
+  def current_scope_user
+    return true_user unless session[:impersonated_subject_id]
+
+    User.find_by(id: session[:impersonated_subject_id]) || true_user
+  end
+end
+```
+
+Wire `current_scope_user` in as your `user_method`, or override the reader as
+above. Start and stop act-as through state-changing verbs (CSRF-protected),
+and authorize **who** may impersonate — this is a privilege escalation surface:
+
+```ruby
+class ImpersonationsController < ApplicationController
+  def create   # POST /impersonation
+    head :forbidden and return unless allowed_to?(:create, controller: "impersonations")
+    session[:impersonated_subject_id] = params.expect(:subject_id)
+    redirect_to root_path
+  end
+
+  def destroy  # DELETE /impersonation
+    session.delete(:impersonated_subject_id)
+    redirect_to root_path
+  end
+end
+```
+
+Clear the impersonation on **both** sign-in and sign-out
+(`session.delete(:impersonated_subject_id)`) so an act-as session can never
+outlive the login that started it or bleed into the next one.
+
+> The audit boundary events for act-as (recording who impersonated whom, and
+> when it stopped) land in a later unit — this section is the resolution
+> plumbing only.
+
+`Current` is request-scoped and does **not** flow into Active Job. When a job
+needs the subject or actor, pass GlobalIDs (or ids) as arguments and re-resolve
+inside `perform` — never read `CurrentScope::Current` from a job.
+
 ### Testing your app
 
 ```ruby

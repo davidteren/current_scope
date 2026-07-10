@@ -2,6 +2,12 @@ CurrentScope.configure do |config|
   # Controller method that returns the authenticated subject.
   # config.user_method = :current_user
 
+  # Controller method returning the REAL actor while impersonating (act-as).
+  # Leave unset when no one impersonates — actor then equals the subject, so
+  # attribution reads current_scope_actor with no nil branch. See the
+  # "Impersonation (act-as)" section of the README for the host recipe.
+  # config.actor_method = :true_user
+
   # Class whose instances hold roles, used by the management UI.
   # config.subject_class = "User"
 

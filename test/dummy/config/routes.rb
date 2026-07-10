@@ -5,6 +5,7 @@ Rails.application.routes.draw do
 
   resources :webhooks, only: :create
   get "bare", to: "bare#show"
+  get "identity", to: "identity#show"
 
   mount CurrentScope::Engine => "/current_scope"
 end

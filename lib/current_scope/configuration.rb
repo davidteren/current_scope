@@ -3,6 +3,11 @@ module CurrentScope
     # Host controller method that returns the authenticated subject.
     attr_accessor :user_method
 
+    # Host controller method returning the REAL actor while impersonating
+    # (the pretender's true_user). nil means actor == user (no impersonation),
+    # so the actor is never resolved and falls back to the subject.
+    attr_accessor :actor_method
+
     # Action names subject to the separation-of-duties veto: whoever initiated
     # a record can never perform these actions on it. Not editable in the UI
     # by design — SoD is a structural guarantee, not a preference. Records hit
@@ -26,6 +31,7 @@ module CurrentScope
 
     def initialize
       @user_method = :current_user
+      @actor_method = nil
       @sod_actions = %w[approve]
       @excluded_controllers = [
         %r{\Arails/}, %r{\Aactive_storage/}, %r{\Aaction_mailbox/},

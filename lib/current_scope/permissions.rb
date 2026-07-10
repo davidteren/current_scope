@@ -18,5 +18,18 @@ module CurrentScope
     def current_scope_user
       CurrentScope::Current.user
     end
+
+    # The REAL actor behind the request (never nil when a subject is set — it
+    # falls back to the subject). Read this for attribution, not Current.
+    def current_scope_actor
+      CurrentScope::Current.actor
+    end
+
+    # True only while a distinct real actor stands behind the effective
+    # subject (act-as). Views use it as the read-only-state signal.
+    def impersonating?
+      CurrentScope::Current.user.present? &&
+        CurrentScope::Current.actor != CurrentScope::Current.user
+    end
   end
 end

@@ -1,0 +1,89 @@
+module CurrentScope
+  # Append-only authorization event ledger. Design rules:
+  #
+  #   - Append-only: there is no updated_at; persisted rows are never mutated.
+  #   - Identities and target are stored as GlobalID strings, alongside a
+  #     denormalized `target_label`, so the history outlives the records it
+  #     names (a deleted role still renders in the ledger).
+  #   - `actor` and `subject` are ALWAYS present. subject == actor unless
+  #     impersonating; impersonated rows are exactly the ones where
+  #     subject <> actor.
+  #   - NORMATIVE target mapping: assignment events (org_role.*, scoped_role.*)
+  #     target the GRANTEE (the subject being granted); role.* events target the
+  #     role. Role/resource ride in `details`.
+  #
+  # The AR-level `readonly?` ceiling is honest but NOT total. These BYPASS it:
+  #   update_all / delete_all / update_column(s) / insert_all / raw SQL.
+  # The sandbox reset job (a later unit) is the one sanctioned `delete_all`
+  # caller. DB-level hardening is adapter-honest: REVOKE UPDATE/DELETE covers
+  # PostgreSQL and MySQL hosts; SQLite hosts get file permissions only.
+  # Hash-chain tamper-evidence is deferred.
+  class Event < ApplicationRecord
+    # Once written, a row is immutable — blocks update / save / destroy at the
+    # AR layer. See the class header for the operations that bypass this.
+    def readonly? = persisted?
+
+    class << self
+      # The ONE recording entry point. Reads the ambient actor/subject from
+      # CurrentScope::Current, serializes actor/subject/target as GlobalID
+      # strings, denormalizes a human label for the target, and — when
+      # config.audit is on — appends exactly one row.
+      #
+      #   CurrentScope::Event.record!(event: "role.created", target: role,
+      #                               details: { name: "Owner" })
+      #
+      # Raises ConfigurationError (loud, matching the SoD posture) when there is
+      # no ambient actor. Silent no-op (returns nil) when config.audit is false.
+      def record!(event:, target:, details: nil)
+        return unless CurrentScope.config.audit
+
+        actor = CurrentScope::Current.actor
+        if actor.nil?
+          raise CurrentScope::ConfigurationError,
+                "CurrentScope::Event.record! has no actor — CurrentScope::Current.actor is nil. " \
+                "Set the ambient context (the controller hook, or with_current_user in tests) before recording."
+        end
+
+        # Current.user is the effective subject; fall back to actor so subject
+        # is never nil (it equals actor whenever not impersonating).
+        subject = CurrentScope::Current.user || actor
+
+        create!(
+          event: event.to_s,
+          actor: actor.to_gid.to_s,
+          subject: subject.to_gid.to_s,
+          target: target.to_gid.to_s,
+          target_label: label_for(target),
+          details: details,
+          request_id: CurrentScope::Current.request_id
+        )
+      rescue ActiveRecord::StatementInvalid => e
+        raise unless missing_events_table?(e)
+
+        raise CurrentScope::ConfigurationError,
+              "CurrentScope audit is on but the current_scope_events table is missing. " \
+              "Run `rails current_scope:install:migrations` and migrate, or set " \
+              "`CurrentScope.config.audit = false`."
+      end
+
+      private
+
+      # Prefer a record's own view-agnostic label; then the AR default; then
+      # a plain to_s for anything else.
+      def label_for(record)
+        return record.current_scope_label if record.respond_to?(:current_scope_label)
+        return "#{record.model_name.human} ##{record.id}" if record.respond_to?(:model_name)
+
+        record.to_s
+      end
+
+      # Recognizes "table is missing" across adapters and Rails' own schema
+      # reflection: SQLite ("no such table" / "Could not find table"),
+      # PostgreSQL ("does not exist"), MySQL ("Unknown table" / "doesn't exist").
+      def missing_events_table?(error)
+        error.message.include?("current_scope_events") &&
+          error.message.match?(/no such table|could not find table|does(?:n't| not) exist|unknown table|undefined table/i)
+      end
+    end
+  end
+end

@@ -47,6 +47,12 @@ module CurrentScope
     # assignable subjects.
     attr_accessor :subject_class
 
+    # When true (the default), CurrentScope::Event.record! appends a row to the
+    # append-only audit ledger for every recorded authorization event. When
+    # false, record! is a silent no-op — hosts that don't want the ledger set
+    # this and skip the events migration.
+    attr_accessor :audit
+
     def initialize
       @user_method = :current_user
       @actor_method = nil
@@ -59,6 +65,7 @@ module CurrentScope
       ]
       @parent_controller = "::ApplicationController"
       @subject_class = "User"
+      @audit = true
     end
   end
 end

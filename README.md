@@ -177,14 +177,16 @@ end
 `CurrentAttributes` resets around every request, job, and test — the ambient
 subject cannot leak between executions.
 
-## The demo app
+## The showcase app
 
-[`demo/`](demo/) is a full Rails 8.1 host app (Hotwire, ViewComponent, the
-built-in authentication generator) validating every mechanism end to end —
-RBAC matrix, SoD veto at the gate and in the view, scoped roles opening
-exactly one record, and the management UI. `bin/rails db:setup` seeds four
-users (`owner@` / `reviewer@` / `member@` / `scoped@example.com`, password
-`password`) exercising each path.
+[`showcase/`](showcase/) is a standalone, deployable Rails 8.1 host app
+(Hotwire, ViewComponent, the built-in authentication generator) validating
+every mechanism end to end — RBAC matrix, SoD veto at the gate and in the view,
+scoped roles opening exactly one record, and the management UI. It depends on
+the engine via a local path gem and runs on its own: `cd showcase && bin/rails
+db:setup && bin/rails server`. `db:setup` seeds four users (`owner@` /
+`reviewer@` / `member@` / `scoped@example.com`, password `password`) exercising
+each path.
 
 ## Design notes
 

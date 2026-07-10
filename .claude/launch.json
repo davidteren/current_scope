@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "demo",
+      "name": "showcase",
       "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "cd demo && bin/rails server -p 3050"],
+      "runtimeArgs": ["-c", "cd showcase && bin/rails server -p 3050"],
       "port": 3050
     }
   ]

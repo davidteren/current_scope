@@ -38,7 +38,7 @@ ambient authorization context (`ActiveSupport::CurrentAttributes`) so
 - [x] `current_scope:install` generator (initializer + mount + next steps);
       standard `current_scope:install:migrations` flow
 - [x] Engine test suite against `test/dummy` — 49 runs green; RuboCop omakase clean
-- [x] Gem packages cleanly (`gem build`; demo excluded)
+- [x] Gem packages cleanly (`gem build`; showcase excluded)
 
 ### Hardening (29-agent multi-lens review, 21 confirmed findings fixed)
 
@@ -55,7 +55,7 @@ ambient authorization context (`ActiveSupport::CurrentAttributes`) so
 - [x] Management UI refuses to delete the last full-access role; dead
       scaffolding and the `initiator_method` config knob removed
 
-### Demo app (`demo/` — Rails 8.1, Hotwire, ViewComponent, built-in auth, no Devise)
+### Showcase app (`showcase/` — Rails 8.1, Hotwire, ViewComponent, built-in auth, no Devise)
 
 - [x] Projects/Reports domain with `approve` flow; `ApproveButtonComponent`
       proves the ambient context (no `current_user` threading)
@@ -106,5 +106,5 @@ ambient authorization context (`ActiveSupport::CurrentAttributes`) so
   keeps its SCRIPT_NAME — use literal paths (`post "/session"`) for host routes.
 - Inside the mounted engine, bare host route helpers resolve against engine
   routes — use `main_app.` (bit us once: `request_authentication`).
-- Run the demo: `.claude/launch.json` config `demo` (port 3050), or
-  `cd demo && bin/rails server`.
+- Run the showcase: `.claude/launch.json` config `showcase` (port 3050), or
+  `cd showcase && bin/rails server`.

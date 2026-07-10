@@ -1,0 +1,21 @@
+resources/DESIGN.md
+  s_7d9a45dedcbcef::t_5fd80992411034 1-568
+resources/visualizer.html
+  s_7d9a45dedcbcef::t_a101c2ce004258 1-900
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "d82f8602bfd99f6ecb9f6a87ac01ab5239656f35",
+  "prompts": {},
+  "sessions": {
+    "s_7d9a45dedcbcef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bc332417-1147-486b-9316-26d8cf493e57",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

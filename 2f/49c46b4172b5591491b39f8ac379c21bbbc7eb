@@ -1,0 +1,52 @@
+app/views/current_scope/scoped_role_assignments/new.html.erb
+  s_faaed79c011663::t_d22c732a17cbc3 1-31
+app/views/layouts/current_scope/application.html.erb
+  s_faaed79c011663::t_af6768aeb5c3aa 4,10,13-19,21-22,24-26
+app/assets/stylesheets/current_scope/application.css
+  s_faaed79c011663::t_192c8c88afef02 1-14
+lib/generators/current_scope/install/templates/initializer.rb
+  s_faaed79c011663::t_464a0a6f75496a 1-20
+app/views/current_scope/roles/edit.html.erb
+  s_faaed79c011663::t_013d7b98719d84 1-43
+app/controllers/current_scope/scoped_role_assignments_controller.rb
+  s_faaed79c011663::t_e85fc26c61aa04 1-37
+test/integration/management_ui_test.rb
+  s_faaed79c011663::t_41d0338374100e 1-28,30-73
+  s_faaed79c011663::t_d4b4fa07c69643 29
+app/controllers/current_scope/application_controller.rb
+  s_faaed79c011663::t_7e156358e83670 2-15
+app/controllers/current_scope/role_assignments_controller.rb
+  s_faaed79c011663::t_b909c4f01eb2fb 1-17
+lib/generators/current_scope/install/install_generator.rb
+  s_faaed79c011663::t_3e2e03d0a8d8cc 1-33
+app/controllers/current_scope/roles_controller.rb
+  s_faaed79c011663::t_8f8eb71c90d1ab 1-44
+app/views/current_scope/subjects/index.html.erb
+  s_faaed79c011663::t_73a7031b9e41e2 1-34
+config/routes.rb
+  s_faaed79c011663::t_9009c378d51643 2-7
+app/controllers/current_scope/subjects_controller.rb
+  s_faaed79c011663::t_c5ded11510abda 1-8
+app/views/current_scope/roles/index.html.erb
+  s_faaed79c011663::t_86280a7061311b 1-27
+app/views/current_scope/roles/new.html.erb
+  s_faaed79c011663::t_35fd026ae8ce24 1-15
+app/helpers/current_scope/application_helper.rb
+  s_faaed79c011663::t_7ac0684384f0e6 3-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "2f49c46b4172b5591491b39f8ac379c21bbbc7eb",
+  "prompts": {},
+  "sessions": {
+    "s_faaed79c011663": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "19bc6b87-21c1-4dda-ae07-90555bf0fac1",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

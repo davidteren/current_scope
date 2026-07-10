@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grantwork — an authorization engine for Rails</title>
+<style>
+  :root{
+    --bg:#0d1117; --bg2:#161b22; --bg3:#1c2230; --panel:#141a24;
+    --ink:#e6edf3; --muted:#9aa7b4; --dim:#6b7684;
+    --line:#2a3240; --line2:#39424f;
+    --accent:#7aa2ff; --accent2:#8b7bff;
+    --allow:#3fb950; --allow-bg:#12261a; --allow-line:#245c33;
+    --deny:#f85149; --deny-bg:#2a1517; --deny-line:#6e2a2a;
+    --warn:#e3b341; --warn-bg:#2a2410; --warn-line:#5c4d1c;
+    --chip:#22304a; --chip-line:#33507e;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:var(--sans); line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:0 20px 96px}
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ---- header ---- */
+  header.hero{
+    background:
+      radial-gradient(1200px 400px at 20% -10%, rgba(122,162,255,.16), transparent 60%),
+      radial-gradient(900px 380px at 90% -20%, rgba(139,123,255,.14), transparent 55%),
+      var(--bg2);
+    border-bottom:1px solid var(--line);
+    padding:64px 20px 52px;
+  }
+  .hero-inner{max-width:1080px; margin:0 auto}
+  .badge{
+    display:inline-block; font-family:var(--mono); font-size:12px;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--accent);
+    border:1px solid var(--chip-line); background:var(--chip);
+    padding:4px 10px; border-radius:999px; margin-bottom:18px;
+  }
+  h1{font-size:clamp(30px,5vw,48px); margin:0 0 8px; line-height:1.1; letter-spacing:-.02em}
+  h1 .mod{color:var(--accent2)}
+  .tagline{font-size:clamp(17px,2.4vw,22px); color:var(--ink); margin:0 0 6px; font-weight:600}
+  .subline{color:var(--muted); font-size:16px; max-width:720px; margin:0}
+  .kv{
+    display:flex; flex-wrap:wrap; gap:10px; margin-top:24px;
+  }
+  .kv span{
+    font-family:var(--mono); font-size:12.5px; color:var(--muted);
+    background:var(--bg3); border:1px solid var(--line); border-radius:8px;
+    padding:7px 11px;
+  }
+  .kv b{color:var(--ink); font-weight:600}
+  .disclaimer{
+    margin-top:22px; font-size:13px; color:var(--dim);
+    border-left:2px solid var(--line2); padding:2px 0 2px 12px; max-width:760px;
+  }
+
+  /* ---- section scaffolding ---- */
+  section{padding-top:56px}
+  .eyebrow{
+    font-family:var(--mono); font-size:12px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--dim); margin:0 0 6px;
+  }
+  h2{font-size:clamp(22px,3vw,30px); margin:0 0 10px; letter-spacing:-.01em}
+  .lead{color:var(--muted); font-size:16px; margin:0 0 22px; max-width:820px}
+  h3{font-size:17px; margin:26px 0 12px}
+
+  /* ---- cards ---- */
+  .grid{display:grid; gap:16px}
+  .cols-2{grid-template-columns:repeat(2,1fr)}
+  .cols-3{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:820px){.cols-2,.cols-3{grid-template-columns:1fr}}
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:18px 18px 16px;
+  }
+  .card h4{margin:0 0 6px; font-size:15.5px; display:flex; align-items:center; gap:9px}
+  .card .icon{
+    width:26px; height:26px; flex:0 0 26px; border-radius:7px; display:grid; place-items:center;
+    background:var(--bg3); border:1px solid var(--line2); font-family:var(--mono); font-size:13px; color:var(--accent);
+  }
+  .card p{margin:0; color:var(--muted); font-size:14px}
+  .card .eg{
+    margin-top:10px; font-family:var(--mono); font-size:12.5px; color:var(--ink);
+    background:var(--bg3); border:1px solid var(--line); border-radius:8px; padding:8px 10px;
+  }
+  .sod-card{border-color:var(--warn-line); background:linear-gradient(180deg,var(--warn-bg),var(--panel) 70%)}
+  .sod-card .icon{color:var(--warn); border-color:var(--warn-line)}
+
+  /* ---- ascii / diagram blocks ---- */
+  pre.diagram{
+    background:var(--bg2); border:1px solid var(--line); border-radius:12px;
+    padding:18px; overflow-x:auto; font-family:var(--mono);
+    font-size:13px; line-height:1.5; color:var(--ink); margin:0;
+  }
+  .caption{color:var(--dim); font-size:13px; margin:8px 2px 0}
+
+  /* ---- pattern positioning ---- */
+  .pattern-row{display:grid; grid-template-columns:130px 1fr; gap:0; border:1px solid var(--line); border-radius:12px; overflow:hidden}
+  .pattern-row + .pattern-row{margin-top:10px}
+  .pattern-row .tag{
+    background:var(--bg3); padding:12px 14px; font-family:var(--mono); font-size:12.5px;
+    color:var(--accent); border-right:1px solid var(--line); display:flex; align-items:center; font-weight:600;
+  }
+  .pattern-row .desc{padding:12px 14px; color:var(--muted); font-size:14px}
+  .pattern-row .desc b{color:var(--ink); font-weight:600}
+  .compose{
+    margin-top:16px; background:linear-gradient(180deg,rgba(122,162,255,.08),transparent);
+    border:1px solid var(--chip-line); border-radius:12px; padding:16px 18px;
+  }
+  .compose h4{margin:0 0 8px; font-size:15px; color:var(--ink)}
+  .compose .parts{display:flex; flex-wrap:wrap; gap:8px; margin-top:4px}
+  .compose .parts span{
+    font-family:var(--mono); font-size:12px; background:var(--chip); border:1px solid var(--chip-line);
+    color:var(--ink); border-radius:8px; padding:6px 10px;
+  }
+  .tool-note{margin-top:14px; font-size:13.5px; color:var(--muted)}
+  .tool-note code{color:var(--ink)}
+
+  code{font-family:var(--mono); font-size:.92em; background:var(--bg3); border:1px solid var(--line); border-radius:5px; padding:1px 6px}
+  pre.diagram code{background:none;border:none;padding:0}
+
+  /* ---- wireframes ---- */
+  .wire{
+    background:#0f1420; border:1px solid var(--line2); border-radius:12px; overflow:hidden;
+    box-shadow:0 8px 30px rgba(0,0,0,.35);
+  }
+  .wire-bar{
+    display:flex; align-items:center; gap:7px; padding:9px 12px;
+    background:var(--bg3); border-bottom:1px solid var(--line);
+  }
+  .wire-bar .dot{width:10px;height:10px;border-radius:50%;background:#2f3a49}
+  .wire-bar .url{
+    margin-left:8px; font-family:var(--mono); font-size:11.5px; color:var(--dim);
+    background:var(--bg2); border:1px solid var(--line); border-radius:6px; padding:3px 10px; flex:1;
+  }
+  .wire-body{padding:18px}
+  .wire h5{margin:0 0 4px; font-size:16px; color:var(--ink)}
+  .wire .hint{margin:0 0 16px; font-size:12.5px; color:var(--dim)}
+  .field{margin-bottom:14px}
+  .field label{display:block; font-size:12px; color:var(--muted); margin-bottom:5px; font-family:var(--mono)}
+  .field .input{
+    background:var(--bg2); border:1px solid var(--line2); border-radius:8px; padding:9px 12px;
+    font-size:14px; color:var(--ink);
+  }
+  .toggle-row{display:flex; align-items:center; justify-content:space-between; gap:12px;
+    background:var(--bg2); border:1px solid var(--line2); border-radius:8px; padding:10px 12px; margin-bottom:14px}
+  .toggle-row .t-label b{display:block; font-size:14px}
+  .toggle-row .t-label small{color:var(--dim); font-size:12px}
+  .switch{width:44px;height:24px;border-radius:999px;background:var(--allow);position:relative;flex:0 0 44px}
+  .switch::after{content:"";position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:#fff}
+  .switch.off{background:#39424f}
+  .switch.off::after{right:auto;left:2px}
+
+  /* permission grid */
+  .permwrap{overflow-x:auto; border:1px solid var(--line); border-radius:10px}
+  table.perm{border-collapse:collapse; width:100%; font-size:13px; min-width:640px}
+  table.perm th, table.perm td{border:1px solid var(--line); padding:8px 10px; text-align:center}
+  table.perm thead th{background:var(--bg3); color:var(--muted); font-weight:600; font-family:var(--mono); font-size:11.5px}
+  table.perm tbody th{background:var(--bg2); text-align:left; font-family:var(--mono); color:var(--ink); font-weight:600; white-space:nowrap}
+  table.perm td.on{background:var(--allow-bg); color:var(--allow); font-weight:700}
+  table.perm td.off{color:var(--dim)}
+  table.perm td.na{color:#4a5462; background:repeating-linear-gradient(45deg,transparent,transparent 5px,rgba(255,255,255,.02) 5px,rgba(255,255,255,.02) 10px)}
+  .rowtick{display:inline-block; margin-left:8px; font-size:11px; color:var(--accent); font-family:var(--mono); border:1px solid var(--chip-line); border-radius:5px; padding:1px 6px; cursor:default}
+
+  /* chips */
+  .chips{display:flex; flex-wrap:wrap; gap:9px; align-items:center}
+  .chip{
+    display:inline-flex; align-items:center; gap:8px; font-size:13px;
+    background:var(--chip); border:1px solid var(--chip-line); border-radius:999px; padding:6px 13px;
+  }
+  .chip.org{background:rgba(122,162,255,.14); border-color:var(--accent)}
+  .chip .k{font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim)}
+  .chip .x{color:var(--dim); font-size:14px; margin-left:2px}
+  .chip.add{background:transparent; border-style:dashed; color:var(--accent)}
+
+  /* REST table */
+  .restwrap{overflow-x:auto; border:1px solid var(--line); border-radius:10px}
+  table.rest{border-collapse:collapse; width:100%; font-size:13.5px; min-width:620px}
+  table.rest th, table.rest td{border-bottom:1px solid var(--line); padding:10px 12px; text-align:left; vertical-align:top}
+  table.rest thead th{background:var(--bg3); color:var(--muted); font-family:var(--mono); font-size:11.5px}
+  table.rest td code{font-size:12.5px}
+  table.rest tbody tr:hover{background:var(--bg2)}
+  .verb{font-family:var(--mono); color:var(--accent); font-size:12px}
+
+  /* resolver flow */
+  .flow{display:flex; flex-direction:column; gap:0}
+  .step{
+    position:relative; background:var(--panel); border:1px solid var(--line);
+    border-radius:12px; padding:14px 16px; padding-left:56px;
+  }
+  .step + .conn{height:26px; display:flex; align-items:center; justify-content:flex-start; padding-left:26px}
+  .conn .line{width:2px; height:100%; background:var(--line2); margin-left:0}
+  .conn .lbl{font-family:var(--mono); font-size:11px; color:var(--dim); margin-left:12px; align-self:center}
+  .step .num{
+    position:absolute; left:14px; top:14px; width:28px; height:28px; border-radius:8px;
+    display:grid; place-items:center; font-family:var(--mono); font-weight:700; font-size:13px;
+    background:var(--bg3); border:1px solid var(--line2); color:var(--accent);
+  }
+  .step h4{margin:0 0 3px; font-size:15px}
+  .step p{margin:0; color:var(--muted); font-size:13.5px}
+  .step .outcome{font-family:var(--mono); font-size:11.5px; padding:2px 8px; border-radius:6px; margin-left:8px; font-weight:700; vertical-align:middle}
+  .out-allow{background:var(--allow-bg); color:var(--allow); border:1px solid var(--allow-line)}
+  .out-deny{background:var(--deny-bg); color:var(--deny); border:1px solid var(--deny-line)}
+  .step.veto{border-color:var(--warn-line); background:linear-gradient(180deg,var(--warn-bg),var(--panel) 80%)}
+  .step.veto .num{color:var(--warn); border-color:var(--warn-line)}
+  .step.deny-final{border-color:var(--deny-line); background:linear-gradient(180deg,var(--deny-bg),var(--panel) 80%)}
+  .step.deny-final .num{color:var(--deny); border-color:var(--deny-line)}
+
+  /* worked examples */
+  .ex{border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:14px}
+  .ex-head{display:flex; align-items:center; gap:12px; padding:13px 16px; background:var(--bg2)}
+  .ex-head .verdict{font-family:var(--mono); font-size:12px; font-weight:700; padding:3px 10px; border-radius:6px; flex:0 0 auto}
+  .ex-head.allow{border-left:4px solid var(--allow)}
+  .ex-head.deny{border-left:4px solid var(--deny)}
+  .ex-head.allow .verdict{background:var(--allow-bg); color:var(--allow); border:1px solid var(--allow-line)}
+  .ex-head.deny .verdict{background:var(--deny-bg); color:var(--deny); border:1px solid var(--deny-line)}
+  .ex-head .scenario{font-size:14.5px; color:var(--ink)}
+  .ex-head .scenario b{font-weight:600}
+  .ex-trace{padding:12px 16px; background:var(--panel); font-family:var(--mono); font-size:12.5px; color:var(--muted)}
+  .ex-trace .t{display:flex; gap:10px; padding:2px 0}
+  .ex-trace .t .s{color:var(--dim); flex:0 0 62px}
+  .ex-trace .hit{color:var(--allow)}
+  .ex-trace .miss{color:var(--dim)}
+  .ex-trace .veto{color:var(--warn)}
+  .ex-trace .final-allow{color:var(--allow); font-weight:700}
+  .ex-trace .final-deny{color:var(--deny); font-weight:700}
+
+  .scaffold{display:grid; gap:14px; grid-template-columns:repeat(3,1fr)}
+  @media(max-width:820px){.scaffold{grid-template-columns:1fr}}
+  .gen{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px}
+  .gen .cmd{font-family:var(--mono); font-size:12px; color:var(--accent); background:var(--bg3); border:1px solid var(--line); border-radius:7px; padding:6px 9px; margin-bottom:10px; display:inline-block}
+  .gen h4{margin:0 0 5px; font-size:14.5px}
+  .gen p{margin:0; color:var(--muted); font-size:13px}
+
+  /* ---- ideas / not-yet-decided treatment ---- */
+  .ideas-band{
+    border:1px dashed var(--line2); border-radius:14px; padding:20px;
+    background:repeating-linear-gradient(45deg,transparent,transparent 14px,rgba(139,123,255,.03) 14px,rgba(139,123,255,.03) 28px);
+  }
+  .idea-flag{
+    display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:11.5px;
+    letter-spacing:.06em; text-transform:uppercase; color:var(--accent2);
+    border:1px dashed var(--accent2); border-radius:999px; padding:4px 11px; margin-bottom:14px;
+  }
+  .idea-card{
+    background:var(--panel); border:1px dashed var(--line2); border-radius:14px; padding:18px;
+  }
+  .idea-card h4{margin:0 0 4px; font-size:16px; display:flex; align-items:center; gap:9px}
+  .idea-card > p{margin:0 0 12px; color:var(--muted); font-size:14px}
+  .idea-card .tag-idea{font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.07em;
+    color:var(--accent2); border:1px solid var(--accent2); border-radius:5px; padding:2px 7px; font-weight:700}
+  .qs{margin:12px 0 0; padding:0; list-style:none}
+  .qs li{font-size:13px; color:var(--muted); padding-left:20px; position:relative; margin-bottom:5px}
+  .qs li::before{content:"?"; position:absolute; left:0; top:0; color:var(--accent2); font-family:var(--mono); font-weight:700}
+  .qs .qh{font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); margin:0 0 6px; padding:0}
+
+  /* stacked gates */
+  .gates{display:flex; flex-direction:column; gap:0; margin-top:6px}
+  .gate{
+    border:1px solid var(--line); border-radius:10px; padding:11px 14px; background:var(--bg2);
+  }
+  .gate .gt{font-family:var(--mono); font-size:12px; font-weight:700; color:var(--ink)}
+  .gate .gd{font-size:12.5px; color:var(--muted); margin-top:2px}
+  .gate.g-flag{border-color:var(--accent2)}
+  .gate.g-flag .gt{color:var(--accent2)}
+  .gate.g-perm{border-color:var(--chip-line)}
+  .gate.g-perm .gt{color:var(--accent)}
+  .gate.g-sod{border-color:var(--warn-line); background:var(--warn-bg)}
+  .gate.g-sod .gt{color:var(--warn)}
+  .gate-arrow{align-self:center; color:var(--dim); font-family:var(--mono); font-size:14px; padding:5px 0}
+  .gate-final{align-self:center; margin-top:6px; font-family:var(--mono); font-size:12px; font-weight:700; color:var(--allow); border:1px solid var(--allow-line); background:var(--allow-bg); border-radius:7px; padding:5px 12px}
+
+  /* ambient flow */
+  .ambient{display:flex; align-items:stretch; gap:0; flex-wrap:wrap}
+  .anode{flex:1; min-width:150px; background:var(--bg2); border:1px solid var(--line); border-radius:10px; padding:12px 14px; text-align:center}
+  .anode .an-k{font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim)}
+  .anode .an-t{font-size:14px; color:var(--ink); margin-top:3px; font-weight:600}
+  .anode code{font-size:11.5px}
+  .aarrow{align-self:center; color:var(--dim); font-family:var(--mono); padding:0 8px; font-size:16px}
+  @media(max-width:560px){.aarrow{transform:rotate(90deg); padding:6px 0} .ambient{flex-direction:column}}
+  .ambient-ctx{margin-top:12px; text-align:center; font-family:var(--mono); font-size:12px; color:var(--accent2);
+    border:1px dashed var(--accent2); border-radius:8px; padding:8px 12px}
+  .opt-chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px}
+  .opt-chips span{font-family:var(--mono); font-size:11.5px; background:var(--bg3); border:1px solid var(--line2);
+    color:var(--ink); border-radius:8px; padding:6px 10px}
+  .attrib{margin-top:12px; font-size:12.5px; color:var(--dim)}
+  .attrib b{color:var(--muted)}
+
+  hr.div{border:none; border-top:1px solid var(--line); margin:0}
+  footer{margin-top:64px; padding-top:22px; border-top:1px solid var(--line); color:var(--dim); font-size:13px}
+
+  /* nav */
+  nav.toc{
+    display:flex; flex-wrap:wrap; gap:8px; margin-top:28px;
+  }
+  nav.toc a{
+    font-size:12.5px; font-family:var(--mono); color:var(--muted);
+    border:1px solid var(--line); background:var(--bg3); border-radius:7px; padding:5px 10px;
+  }
+  nav.toc a:hover{border-color:var(--chip-line); color:var(--ink); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="badge">Concept &middot; Rails engine + generators</span>
+    <h1><span class="mod">Grantwork</span> — authorization as an engine</h1>
+    <p class="tagline">Devise, but for authorization.</p>
+    <p class="subline">
+      A mountable Rails engine that ships data-driven roles, controller-action permissions
+      derived automatically from your routes, resource-scoped role assignments, a
+      Separation-of-Duties veto, and a full set of scaffolded management screens — installed and
+      generated the same way Devise gives you authentication.
+    </p>
+    <div class="kv">
+      <span><b>Delivery</b> engine + generators</span>
+      <span><b>Module</b> <code style="background:none;border:none;padding:0">Grantwork</code></span>
+      <span><b>Model</b> data-driven RBAC + scoped roles</span>
+      <span><b>Gem name</b> TBD</span>
+    </div>
+    <p class="disclaimer">
+      Illustrative concept. Every name below — <code style="background:none;border:none;padding:0">projects</code>,
+      <code style="background:none;border:none;padding:0">reports</code>, <code style="background:none;border:none;padding:0">documents</code>,
+      Owner, Member, Editor, Reviewer, Approver — is a generic placeholder for documentation only.
+    </p>
+    <nav class="toc">
+      <a href="#ideas">Core ideas</a>
+      <a href="#pattern">Known pattern?</a>
+      <a href="#model">Data model</a>
+      <a href="#role">Create a role</a>
+      <a href="#subject">Subject page</a>
+      <a href="#scoped">Attach scoped role</a>
+      <a href="#rest">REST rights</a>
+      <a href="#resolver">Resolver</a>
+      <a href="#examples">Worked examples</a>
+      <a href="#scaffold">Scaffolded UI</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- 2. CORE IDEAS -->
+  <section id="ideas">
+    <p class="eyebrow">The mechanism</p>
+    <h2>Six core ideas</h2>
+    <p class="lead">
+      The whole engine is built from a handful of small, orthogonal concepts. Learn these six and
+      you understand the entire model.
+    </p>
+    <div class="grid cols-3">
+      <div class="card">
+        <h4><span class="icon">P</span>Permission</h4>
+        <p>A single <b>controller#action</b> pair. Permissions are <b>auto-derived</b> by walking your routes — you never hand-maintain a list.</p>
+        <div class="eg">reports#index<br>documents#approve</div>
+      </div>
+      <div class="card">
+        <h4><span class="icon">R</span>Role</h4>
+        <p>A named, editable <b>bundle of permissions</b>. Each subject has exactly <b>one org-wide role</b>.</p>
+        <div class="eg">Member = { projects#index,<br>&nbsp;&nbsp;reports#index, reports#create&hellip; }</div>
+      </div>
+      <div class="card">
+        <h4><span class="icon">S</span>Scoped role</h4>
+        <p>The <i>same</i> role definition, attached to <b>one specific record</b>. A subject can hold <b>zero to many</b>.</p>
+        <div class="eg">Reviewer <b>of Report #42</b><br>Editor <b>of Project X</b></div>
+      </div>
+      <div class="card">
+        <h4><span class="icon">&starf;</span>Owner</h4>
+        <p>A role <b>flagged full-access</b>. Every permission granted, present and future — no per-action ticking.</p>
+        <div class="eg">Owner &rarr; full_access: true</div>
+      </div>
+      <div class="card">
+        <h4><span class="icon">&equiv;</span>Member</h4>
+        <p>The <b>baseline role</b> every subject starts with. A normal editable bundle — nothing special about it structurally.</p>
+        <div class="eg">Member &rarr; baseline bundle</div>
+      </div>
+      <div class="card sod-card">
+        <h4><span class="icon">&#9760;</span>SoD veto</h4>
+        <p><b>Separation of Duties (four-eyes):</b> the subject who <b>requested</b> a thing <b>cannot approve it</b>. A non-configurable veto that overrides every role, including full-access.</p>
+        <div class="eg">the author of a document<br>cannot approve it</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. KNOWN PATTERN -->
+  <section id="pattern">
+    <p class="eyebrow">Positioning</p>
+    <h2>Is this a known pattern?</h2>
+    <p class="lead">
+      Yes — but no single one. Grantwork is a deliberate <b>composition</b> of established access-control
+      models. Here is where each piece sits.
+    </p>
+
+    <div class="pattern-row">
+      <div class="tag">RBAC</div>
+      <div class="desc"><b>Role-Based Access Control.</b> Permissions grouped into roles, roles assigned to subjects. Grantwork's org-wide role is textbook RBAC — but <b>data-driven</b> (roles live in the database and are edited in the UI, not hard-coded).</div>
+    </div>
+    <div class="pattern-row">
+      <div class="tag">Hierarchical<br>RBAC</div>
+      <div class="desc">Roles inherit from parent roles. Grantwork deliberately <b>avoids a hierarchy</b> — a "manager" is expressed as a <b>scoped role on the records they manage</b>, not a rank that inherits everything below it.</div>
+    </div>
+    <div class="pattern-row">
+      <div class="tag">ReBAC</div>
+      <div class="desc"><b>Relationship-Based Access Control.</b> Access depends on a relationship between subject and a specific resource ("Reviewer <i>of this report</i>"). Grantwork's scoped roles are exactly this.</div>
+    </div>
+    <div class="pattern-row">
+      <div class="tag">ABAC / PBAC</div>
+      <div class="desc"><b>Attribute / Policy-Based.</b> Decisions from attributes and rules evaluated at request time. Grantwork borrows the flavour in <b>one place only</b>: the SoD veto is an attribute rule (requester ≠ approver) that runs before roles.</div>
+    </div>
+
+    <div class="compose">
+      <h4>Grantwork = a composition, not a category</h4>
+      <div class="parts">
+        <span>data-driven RBAC</span><span>+ ReBAC scoped roles</span><span>+ action-level permissions</span><span>+ SoD veto</span>
+      </div>
+    </div>
+
+    <p class="tool-note">
+      It also sits at a different layer than most Ruby authorization tools. An <b>enforcement layer</b>
+      (like <code>Pundit</code> / <code>ActionPolicy</code>) asks <i>"is this allowed?"</i> but leaves you to
+      store roles. A <b>role-storage</b> library (like <code>rolify</code>) stores roles but not action-level
+      permissions or scoped resolution. An <b>ability DSL</b> (like <code>CanCanCan</code>) is code you write and
+      maintain. An <b>external PDP</b> (like <code>Cerbos</code> / <code>OpenFGA</code>) is a separate service.
+      Grantwork combines the pieces those keep separate — <b>storage + derivation + scoped resolution + a
+      managed UI</b> — in one mountable engine.
+    </p>
+  </section>
+
+  <!-- 4. DATA MODEL -->
+  <section id="model">
+    <p class="eyebrow">Structure</p>
+    <h2>Data model</h2>
+    <p class="lead">Three relationships carry the whole system.</p>
+    <pre class="diagram"><code>                         one org-wide role                bundle of permissions
+   +-----------+   (belongs_to :role)   +-----------+   (has_many)    +---------------+
+   |  SUBJECT  |----------------------->|   ROLE    |---------------->|  PERMISSION   |
+   |  (a user) |          1 : 1         |           |     1 : many    | controller +  |
+   +-----------+                        | full_     |                 | action        |
+        |                               | access?   |                 | (auto-derived |
+        |                               +-----------+                 |  from routes) |
+        |                                     ^                        +---------------+
+        | has_many :scoped_roles              |
+        |                                     | (same role definition,
+        v                                     |  reused when scoped)
+   +------------------+                       |
+   |  SCOPED_ROLE     |-----------------------+
+   |                  |
+   |  role_id ........+---> ROLE
+   |  resource (polymorphic: resource_type + resource_id)
+   |     e.g. Report #42, Project X, Document #7
+   +------------------+
+       0 .. many per subject
+
+   Reading it:
+     - A SUBJECT has exactly ONE org-wide ROLE.
+     - A ROLE is a named set of PERMISSIONS (the grid).
+     - A SUBJECT has ZERO-to-MANY SCOPED_ROLEs, each = (a ROLE) + (one polymorphic RESOURCE).</code></pre>
+    <p class="caption">Permissions are rows in a join of role &rarr; permission; scoped roles reuse the very same role definitions, just pinned to a record.</p>
+  </section>
+
+  <!-- 5. CREATE A ROLE -->
+  <section id="role">
+    <p class="eyebrow">Wireframe</p>
+    <h2>Create a role</h2>
+    <p class="lead">
+      A role is a name, an optional full-access flag, and a grid of every
+      <code>controller &times; action</code> the app exposes. Tick the cells the role may perform.
+    </p>
+    <div class="wire">
+      <div class="wire-bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="url">/grantwork/roles/new</span>
+      </div>
+      <div class="wire-body">
+        <h5>New role</h5>
+        <p class="hint">Permissions grid is generated from your routes — new controllers/actions appear here automatically.</p>
+
+        <div class="field">
+          <label>NAME</label>
+          <div class="input">Reviewer</div>
+        </div>
+
+        <div class="toggle-row">
+          <div class="t-label">
+            <b>Full access</b>
+            <small>Grant every permission, including ones added later. (This is what makes a role an "Owner".)</small>
+          </div>
+          <div class="switch off" title="off"></div>
+        </div>
+
+        <div class="permwrap">
+          <table class="perm">
+            <thead>
+              <tr>
+                <th style="text-align:left">controller</th>
+                <th>index<br><small>(list)</small></th>
+                <th>show<br><small>(view)</small></th>
+                <th>new / create<br><small>(add)</small></th>
+                <th>edit / update<br><small>(change)</small></th>
+                <th>destroy<br><small>(remove)</small></th>
+                <th>approve<br><small>(custom)</small></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th>projects <span class="rowtick">tick row</span></th>
+                <td class="on">&#10003;</td><td class="on">&#10003;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="na">n/a</td>
+              </tr>
+              <tr>
+                <th>reports <span class="rowtick">tick row</span></th>
+                <td class="on">&#10003;</td><td class="on">&#10003;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="on">&#10003;</td>
+              </tr>
+              <tr>
+                <th>documents <span class="rowtick">tick row</span></th>
+                <td class="on">&#10003;</td><td class="on">&#10003;</td><td class="on">&#10003;</td><td class="on">&#10003;</td><td class="off">&mdash;</td><td class="on">&#10003;</td>
+              </tr>
+              <tr>
+                <th>orders <span class="rowtick">tick row</span></th>
+                <td class="on">&#10003;</td><td class="on">&#10003;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="na">n/a</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="caption">
+          <b>&#10003;</b> granted &nbsp;&middot;&nbsp; <b>&mdash;</b> not granted &nbsp;&middot;&nbsp;
+          <b>n/a</b> = the action doesn't exist on that controller (crosshatched, un-tickable) &nbsp;&middot;&nbsp;
+          <b>tick row</b> grants the whole controller in one click.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. SUBJECT PAGE -->
+  <section id="subject">
+    <p class="eyebrow">Wireframe</p>
+    <h2>Subject page</h2>
+    <p class="lead">
+      Every subject shows <b>one org-wide role chip</b> plus any number of <b>scoped-role chips</b>,
+      each naming the record it applies to.
+    </p>
+    <div class="wire">
+      <div class="wire-bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="url">/grantwork/subjects/128</span>
+      </div>
+      <div class="wire-body">
+        <h5>Jordan Avery</h5>
+        <p class="hint">Access is the org-wide role, plus every scoped role, plus the SoD veto at request time.</p>
+
+        <div class="field">
+          <label>ORG-WIDE ROLE (exactly one)</label>
+          <div class="chips">
+            <span class="chip org"><span class="k">role</span> Member <span class="x">&#9662;</span></span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>SCOPED ROLES (zero to many)</label>
+          <div class="chips">
+            <span class="chip"><span class="k">scoped</span> Editor of Project X <span class="x">&times;</span></span>
+            <span class="chip"><span class="k">scoped</span> Reviewer of Report #42 <span class="x">&times;</span></span>
+            <span class="chip"><span class="k">scoped</span> Approver of Document #7 <span class="x">&times;</span></span>
+            <span class="chip add">+ give a role on a record</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. ATTACH SCOPED ROLE -->
+  <section id="scoped">
+    <p class="eyebrow">Wireframe</p>
+    <h2>Attach a scoped role — two doors, one row</h2>
+    <p class="lead">
+      A scoped role is a single row: <code>(subject, role, resource)</code>. You can create it from
+      either end — the record's page, or the subject's page. Same row, either way.
+    </p>
+    <div class="grid cols-2">
+      <div class="wire">
+        <div class="wire-bar">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="url">/reports/42</span>
+        </div>
+        <div class="wire-body">
+          <h5>Report #42 &middot; Access</h5>
+          <p class="hint">From the resource: "add a person with a role to this record."</p>
+          <div class="field">
+            <label>PERSON</label>
+            <div class="input">Jordan Avery&nbsp; &#9662;</div>
+          </div>
+          <div class="field">
+            <label>ROLE ON THIS REPORT</label>
+            <div class="input">Reviewer&nbsp; &#9662;</div>
+          </div>
+          <div class="toggle-row" style="justify-content:flex-start;background:var(--chip);border-color:var(--chip-line)">
+            <span style="font-family:var(--mono);font-size:12.5px;color:var(--accent)">+ Add to Report #42</span>
+          </div>
+          <p class="caption">Writes: Jordan &rarr; Reviewer of <b>Report&nbsp;#42</b>.</p>
+        </div>
+      </div>
+
+      <div class="wire">
+        <div class="wire-bar">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="url">/grantwork/subjects/128</span>
+        </div>
+        <div class="wire-body">
+          <h5>Jordan Avery &middot; Give a scoped role</h5>
+          <p class="hint">From the subject: "give this person a role on a record."</p>
+          <div class="field">
+            <label>ROLE</label>
+            <div class="input">Reviewer&nbsp; &#9662;</div>
+          </div>
+          <div class="field">
+            <label>ON WHICH RECORD</label>
+            <div class="input">Report #42&nbsp; &#9662;</div>
+          </div>
+          <div class="toggle-row" style="justify-content:flex-start;background:var(--chip);border-color:var(--chip-line)">
+            <span style="font-family:var(--mono);font-size:12.5px;color:var(--accent)">+ Grant to Jordan</span>
+          </div>
+          <p class="caption">Writes the <b>identical row</b>: Jordan &rarr; Reviewer of Report&nbsp;#42.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. REST RIGHTS -->
+  <section id="rest">
+    <p class="eyebrow">Reference</p>
+    <h2>What each right means</h2>
+    <p class="lead">
+      Because permissions are controller actions, granting them maps cleanly onto the seven RESTful
+      actions — plus any custom action your controller defines.
+    </p>
+    <div class="restwrap">
+      <table class="rest">
+        <thead>
+          <tr><th>REST action</th><th>HTTP</th><th>Granting it means the subject can&hellip;</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>index</code></td><td><span class="verb">GET</span> /reports</td><td><b>List</b> the records</td></tr>
+          <tr><td><code>show</code></td><td><span class="verb">GET</span> /reports/:id</td><td><b>View</b> a single record</td></tr>
+          <tr><td><code>new</code></td><td><span class="verb">GET</span> /reports/new</td><td>Open the <b>add</b> form</td></tr>
+          <tr><td><code>create</code></td><td><span class="verb">POST</span> /reports</td><td><b>Add</b> a new record</td></tr>
+          <tr><td><code>edit</code></td><td><span class="verb">GET</span> /reports/:id/edit</td><td>Open the <b>edit</b> form</td></tr>
+          <tr><td><code>update</code></td><td><span class="verb">PATCH</span> /reports/:id</td><td><b>Edit</b> an existing record</td></tr>
+          <tr><td><code>destroy</code></td><td><span class="verb">DELETE</span> /reports/:id</td><td><b>Remove</b> a record</td></tr>
+          <tr><td><code>approve</code> <small style="color:var(--dim)">(custom)</small></td><td><span class="verb">POST</span> /reports/:id/approve</td><td>Perform a <b>custom</b> action (subject to the SoD veto)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="caption"><code>new</code>+<code>create</code> and <code>edit</code>+<code>update</code> are usually ticked together — the grid presents them as one column pair.</p>
+  </section>
+
+  <!-- 9. RESOLVER -->
+  <section id="resolver">
+    <p class="eyebrow">The decision</p>
+    <h2>How a request is resolved</h2>
+    <p class="lead">
+      For every <code>controller#action</code>, the resolver runs these steps <b>in order</b> and
+      stops at the first that decides. It is <b>fail-closed</b>: no matching grant means DENY.
+    </p>
+
+    <div class="flow">
+      <div class="step veto">
+        <div class="num">1</div>
+        <h4>Separation of Duties veto <span class="outcome out-deny">DENY (wins over all)</span></h4>
+        <p>Is the current subject the one who <b>requested</b> the thing being approved? If yes &rarr; <b>DENY immediately</b>. This beats everything below, <b>including full-access</b>. The author of a document cannot approve it.</p>
+      </div>
+      <div class="conn"><div class="line"></div><span class="lbl">if not vetoed &darr;</span></div>
+
+      <div class="step">
+        <div class="num">2</div>
+        <h4>Full-access role <span class="outcome out-allow">ALLOW</span></h4>
+        <p>Does the subject's org-wide role have <code>full_access</code>? If yes &rarr; <b>ALLOW</b> (an Owner).</p>
+      </div>
+      <div class="conn"><div class="line"></div><span class="lbl">else &darr;</span></div>
+
+      <div class="step">
+        <div class="num">3</div>
+        <h4>Org-wide role has the permission <span class="outcome out-allow">ALLOW</span></h4>
+        <p>Does the subject's one org-wide role include this <code>controller#action</code>? If yes &rarr; <b>ALLOW</b>.</p>
+      </div>
+      <div class="conn"><div class="line"></div><span class="lbl">else &darr;</span></div>
+
+      <div class="step">
+        <div class="num">4</div>
+        <h4>Scoped role on <i>this record</i> has it <span class="outcome out-allow">ALLOW</span></h4>
+        <p>Does the subject hold a scoped role <b>on the exact record being acted on</b> whose bundle includes this action? If yes &rarr; <b>ALLOW</b>. (A scoped role on a <i>different</i> record does not count.)</p>
+      </div>
+      <div class="conn"><div class="line"></div><span class="lbl">else &darr;</span></div>
+
+      <div class="step deny-final">
+        <div class="num">&times;</div>
+        <h4>Default <span class="outcome out-deny">DENY (fail-closed)</span></h4>
+        <p>Nothing granted it &rarr; <b>DENY</b>. The safe default is always "no".</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10. WORKED EXAMPLES -->
+  <section id="examples">
+    <p class="eyebrow">Proof by example</p>
+    <h2>Worked examples</h2>
+    <p class="lead">Five requests through the resolver. Watch which step decides.</p>
+
+    <div class="ex">
+      <div class="ex-head allow">
+        <span class="verdict">ALLOW</span>
+        <span class="scenario"><b>Member creates a report.</b> Their org-wide Member role includes <code>reports#create</code>.</span>
+      </div>
+      <div class="ex-trace">
+        <div class="t"><span class="s">step 1</span><span class="miss">SoD: not an approval &rarr; no veto</span></div>
+        <div class="t"><span class="s">step 2</span><span class="miss">full_access? no</span></div>
+        <div class="t"><span class="s">step 3</span><span class="hit">org role Member has reports#create &rarr; ALLOW</span></div>
+        <div class="t"><span class="s">result</span><span class="final-allow">ALLOW (via org-wide role)</span></div>
+      </div>
+    </div>
+
+    <div class="ex">
+      <div class="ex-head deny">
+        <span class="verdict">DENY</span>
+        <span class="scenario"><b>Member approves a report they have no scoped role on.</b> Member's bundle lacks <code>reports#approve</code>, and no scoped role ties them to this report.</span>
+      </div>
+      <div class="ex-trace">
+        <div class="t"><span class="s">step 1</span><span class="miss">SoD: they didn't request it &rarr; no veto</span></div>
+        <div class="t"><span class="s">step 2</span><span class="miss">full_access? no</span></div>
+        <div class="t"><span class="s">step 3</span><span class="miss">org role Member lacks reports#approve</span></div>
+        <div class="t"><span class="s">step 4</span><span class="miss">no scoped role on THIS report</span></div>
+        <div class="t"><span class="s">result</span><span class="final-deny">DENY (fail-closed)</span></div>
+      </div>
+    </div>
+
+    <div class="ex">
+      <div class="ex-head allow">
+        <span class="verdict">ALLOW</span>
+        <span class="scenario"><b>Member who is "Reviewer of THIS report" approves it.</b> A scoped Reviewer role on Report #42 includes <code>reports#approve</code>.</span>
+      </div>
+      <div class="ex-trace">
+        <div class="t"><span class="s">step 1</span><span class="miss">SoD: they didn't request it &rarr; no veto</span></div>
+        <div class="t"><span class="s">step 2</span><span class="miss">full_access? no</span></div>
+        <div class="t"><span class="s">step 3</span><span class="miss">org role Member lacks reports#approve</span></div>
+        <div class="t"><span class="s">step 4</span><span class="hit">scoped Reviewer of Report #42 has reports#approve &rarr; ALLOW</span></div>
+        <div class="t"><span class="s">result</span><span class="final-allow">ALLOW (via scoped role on this record)</span></div>
+      </div>
+    </div>
+
+    <div class="ex">
+      <div class="ex-head allow">
+        <span class="verdict">ALLOW</span>
+        <span class="scenario"><b>Owner approves someone else's report.</b> Owner is full-access, and they did not request this report.</span>
+      </div>
+      <div class="ex-trace">
+        <div class="t"><span class="s">step 1</span><span class="miss">SoD: requester &ne; this Owner &rarr; no veto</span></div>
+        <div class="t"><span class="s">step 2</span><span class="hit">full_access? yes &rarr; ALLOW</span></div>
+        <div class="t"><span class="s">result</span><span class="final-allow">ALLOW (via full-access role)</span></div>
+      </div>
+    </div>
+
+    <div class="ex">
+      <div class="ex-head deny">
+        <span class="verdict">DENY</span>
+        <span class="scenario"><b>Owner approves their OWN report.</b> Full-access — but they are the requester, so SoD vetoes it.</span>
+      </div>
+      <div class="ex-trace">
+        <div class="t"><span class="s">step 1</span><span class="veto">SoD: requester == this Owner &rarr; VETO</span></div>
+        <div class="t"><span class="s">result</span><span class="final-deny">DENY (SoD beats full_access)</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11. SCAFFOLDED UI -->
+  <section id="scaffold">
+    <p class="eyebrow">Delivery</p>
+    <h2>Scaffolded management UI</h2>
+    <p class="lead">
+      Like Devise ships views you can generate and customise, Grantwork's generators emit the management
+      screens — mounted, styled, and yours to override.
+    </p>
+    <div class="scaffold">
+      <div class="gen">
+        <span class="cmd">rails g grantwork:install</span>
+        <h4>Roles index</h4>
+        <p>Lists every role, its permission count, and whether it is full-access. New / edit / delete from here.</p>
+      </div>
+      <div class="gen">
+        <span class="cmd">rails g grantwork:views</span>
+        <h4>Role editor (the grid)</h4>
+        <p>The name + full-access toggle + auto-derived <code>controller &times; action</code> permission grid shown above.</p>
+      </div>
+      <div class="gen">
+        <span class="cmd">rails g grantwork:views</span>
+        <h4>Resource assignment</h4>
+        <p>The subject page and the two attach-scoped-role screens — from a record, or from a subject.</p>
+      </div>
+    </div>
+    <p class="caption">Generated views are plain Rails templates; override any of them in your app just as you would Devise's.</p>
+  </section>
+
+  <!-- ADDITIONAL IDEAS -->
+  <section id="ideas-explore">
+    <p class="eyebrow">Parking lot</p>
+    <h2>Additional ideas &amp; concepts</h2>
+    <p class="lead">
+      Captured for exploration — <b>not yet decided, not part of the core mechanism above</b>.
+      Everything in this section is a sketch of a direction we might take, with open questions still on it.
+    </p>
+
+    <div class="ideas-band">
+      <span class="idea-flag">&#9998; Ideas &middot; not yet decided</span>
+      <div class="grid cols-2">
+
+        <!-- A. FEATURE FLAGS -->
+        <div class="idea-card">
+          <h4><span class="tag-idea">idea</span> A. Feature flags (complementary layer)</h4>
+          <p>
+            A feature flag answers a <i>different</i> question than permissions: <b>"is this capability
+            even live for this actor?"</b> — global, per-role, per-subject, or a % rollout. It would sit
+            <b>in front of</b> the permission check, not replace it. Flag decides whether the feature
+            exists; permissions then decide who may act; SoD still vetoes last.
+          </p>
+
+          <div class="gates">
+            <div class="gate g-flag">
+              <div class="gt">1 &middot; Feature flag</div>
+              <div class="gd">Is <code>report_approvals</code> live for this actor? (global / per-role / per-subject / % rollout)</div>
+            </div>
+            <div class="gate-arrow">&darr; if live</div>
+            <div class="gate g-perm">
+              <div class="gt">2 &middot; Permission check</div>
+              <div class="gd">May this actor do <code>reports#approve</code>? (org role or scoped role)</div>
+            </div>
+            <div class="gate-arrow">&darr; if allowed</div>
+            <div class="gate g-sod">
+              <div class="gt">3 &middot; SoD veto</div>
+              <div class="gd">Requester &ne; approver? (the author of a report can't approve it)</div>
+            </div>
+            <div class="gate-final">&rarr; capability runs</div>
+          </div>
+
+          <ul class="qs">
+            <p class="qh">Open sub-questions</p>
+            <li>Where does the flag store live — inside the engine, or a separate flag gem it just reads?</li>
+            <li>If a flag is off, is the action hidden entirely or shown-but-blocked (and how does that differ from a permission "no")?</li>
+          </ul>
+        </div>
+
+        <!-- B. AMBIENT CURRENT USER -->
+        <div class="idea-card">
+          <h4><span class="tag-idea">idea</span> B. Ambient / portable authorization context</h4>
+          <p>
+            The same authorization context — <b>subject = current_user + the resolver</b> — flows from the
+            controller down into views and <b>ViewComponents</b> without being threaded through by hand.
+            A component just asks <code>allowed_to?(:approve, report)</code> / <code>can?</code> to hide a
+            button the subject can't use, hitting the <b>same engine</b> as the controller gate.
+            <b>One authorization truth, top to bottom.</b>
+          </p>
+
+          <div class="ambient">
+            <div class="anode"><div class="an-k">gate</div><div class="an-t">Controller</div><div><code>authorize! :approve, report</code></div></div>
+            <div class="aarrow">&rarr;</div>
+            <div class="anode"><div class="an-k">render</div><div class="an-t">View</div><div><code>can?(:approve, report)</code></div></div>
+            <div class="aarrow">&rarr;</div>
+            <div class="anode"><div class="an-k">render</div><div class="an-t">ViewComponent</div><div><code>allowed_to?(:approve, report)</code></div></div>
+          </div>
+          <div class="ambient-ctx">all three read ONE ambient context (subject + resolver) &mdash; no manual threading</div>
+
+          <p class="qh" style="margin:16px 0 0">Likely mechanisms to explore (options, not a decision)</p>
+          <div class="opt-chips">
+            <span>ActionPolicy implicit authorization context &mdash; <code>authorize :user, through: :current_user</code> + ViewComponent integration</span>
+            <span>dry-effects "Reader" ambient context</span>
+            <span>Rails <code>CurrentAttributes</code></span>
+          </div>
+
+          <p class="attrib">
+            Attribution: a pattern popularized by <b>Evil Martians</b>. Specific author/source: <b>TBD</b>
+            (to be confirmed &mdash; not invented here).
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p><b>Grantwork</b> — concept for an open-source Rails authorization engine. Data-driven roles &middot; auto-derived permissions &middot; resource-scoped assignments &middot; SoD veto &middot; scaffolded UI. "Devise, but for authorization." All examples generic and illustrative.</p>
+  </footer>
+
+</div>
+</body>
+</html>

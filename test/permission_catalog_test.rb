@@ -31,6 +31,10 @@ class PermissionKeyTest < ActiveSupport::TestCase
     assert_equal "reports#approve", CurrentScope.permission_key(:approve, record: report)
   end
 
+  test "derives the key from a model class" do
+    assert_equal "reports#create", CurrentScope.permission_key(:create, record: Report)
+  end
+
   test "falls back to the controller path" do
     assert_equal "reports#index", CurrentScope.permission_key(:index, controller_path: "reports")
   end

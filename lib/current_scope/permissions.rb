@@ -6,6 +6,7 @@ module CurrentScope
   # with the controller gate.
   #
   #   allowed_to?(:approve, report)          # key derived from the record
+  #   allowed_to?(:create, Report)           # class works for collection actions
   #   allowed_to?("admin/reports#approve")   # explicit full key
   #   allowed_to?(:index, controller: "reports")
   module Permissions

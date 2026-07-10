@@ -4,9 +4,15 @@ module CurrentScope
   # so new controllers are gated (fail-closed) the moment they exist.
   #
   # Member actions that need record-level decisions (scoped roles, SoD)
-  # declare a private current_scope_record method returning the record. The
-  # hook runs for EVERY gated action, collection actions included — return
-  # nil when there is no record (e.g. `report if params[:id]`).
+  # declare a private current_scope_record method returning the record. Two
+  # rules for the hook:
+  #   - it runs for EVERY gated action, collection actions included — return
+  #     nil when there is no record
+  #   - it runs BEFORE the controller's own before_actions, so it must load
+  #     the record itself (memoize so set_* callbacks reuse it), e.g.
+  #       def current_scope_record
+  #         set_report if params[:id]
+  #       end
   # Skip the gate for public endpoints with skip_before_action :current_scope_check!.
   module Guard
     extend ActiveSupport::Concern

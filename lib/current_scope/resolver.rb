@@ -43,7 +43,9 @@ module CurrentScope
     end
 
     def scoped_grant?(subject:, permission:, record:)
-      return false if record.nil? || record.new_record?
+      # `record` may be a class (allowed_to?(:create, Report)) — classes can't
+      # hold scoped grants, only persisted records can.
+      return false unless record.respond_to?(:new_record?) && record.persisted?
 
       held = Role.where(
         id: ScopedRoleAssignment.where(subject: subject, resource: record).select(:role_id)

@@ -1,0 +1,21 @@
+<p style="color: green"><%= notice %></p>
+
+<% content_for :title, "Reports" %>
+
+<h1>Reports</h1>
+
+<div id="reports">
+  <% @reports.each do |report| %>
+    <%= render report %>
+    <p>
+      <% if allowed_to?(:show, report) %>
+        <%= link_to "Show this report", report %>
+      <% end %>
+      <%= render ApproveButtonComponent.new(report: report) %>
+    </p>
+  <% end %>
+</div>
+
+<% if allowed_to?(:new, Report) %>
+  <%= link_to "New report", new_report_path %>
+<% end %>

@@ -1,0 +1,26 @@
+<div id="<%= dom_id report %>">
+  <div>
+    <strong>Title:</strong>
+    <%= report.title %>
+  </div>
+
+  <div>
+    <strong>Project:</strong>
+    <%= report.project.name %>
+  </div>
+
+  <div>
+    <strong>Requested by:</strong>
+    <%= report.requested_by.email_address %>
+  </div>
+
+  <div>
+    <strong>Status:</strong>
+    <% if report.approved? %>
+      Approved by <%= report.approved_by.email_address %>
+      on <%= report.approved_at.to_date %>
+    <% else %>
+      Pending approval
+    <% end %>
+  </div>
+</div>

@@ -80,6 +80,12 @@ class ResolverTest < ActiveSupport::TestCase
     assert @resolver.allow?(subject: @alice, permission: "reports#destroy", record: @report)
   end
 
+  test "a class as record works for collection-action checks" do
+    assign(@alice, role("Member", "reports#create"))
+    assert @resolver.allow?(subject: @alice, permission: "reports#create", record: Report)
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#destroy", record: Report)
+  end
+
   test "scoped role never leaks to org-wide checks" do
     editor = role("Editor", "reports#index")
     CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: editor, resource: @report)

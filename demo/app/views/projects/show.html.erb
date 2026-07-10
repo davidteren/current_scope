@@ -1,0 +1,18 @@
+<p style="color: green"><%= notice %></p>
+
+<%= render @project %>
+
+<div>
+  <% if allowed_to?(:edit, @project) %>
+    <%= link_to "Edit this project", edit_project_path(@project) %> |
+  <% end %>
+  <%= link_to "Back to projects", projects_path %>
+
+  <% if allowed_to?(:new, Report) %>
+    <%= link_to "New report for this project", new_report_path(project_id: @project.id) %>
+  <% end %>
+
+  <% if allowed_to?(:destroy, @project) %>
+    <%= button_to "Destroy this project", @project, method: :delete %>
+  <% end %>
+</div>

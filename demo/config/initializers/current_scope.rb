@@ -13,7 +13,9 @@ CurrentScope.configure do |config|
   # config.initiator_method = :current_scope_initiator
 
   # Controller paths (regexps) excluded from the permission grid.
-  # config.excluded_controllers += [%r{\Awebhooks/}]
+  # Sessions/passwords are authentication (they skip the guard), and
+  # view_components is ViewComponent's dev-only preview controller.
+  config.excluded_controllers += [ %r{\Asessions\z}, %r{\Apasswords\z}, %r{\Aview_components\z} ]
 
   # Controller the management UI inherits from (for host auth + before_actions).
   # config.parent_controller = "::ApplicationController"

@@ -1,0 +1,44 @@
+showcase/config/initializers/current_scope.rb
+  s_b081cbfee96db8::t_ce31dea6dffcca 5-8
+test/dummy/config/routes.rb
+  s_b081cbfee96db8::t_26adefcdad1a62 8
+test/dummy/app/controllers/identity_controller.rb
+  s_b081cbfee96db8::t_002a3fa43c1ce3 1-11
+test/integration/impersonation_context_test.rb
+  s_b081cbfee96db8::t_2399c79fbde5a7 1-63
+lib/current_scope/permissions.rb
+  s_b081cbfee96db8::t_03181a12d01786 21-33
+README.md
+  s_b081cbfee96db8::t_38ad44cf28838d 160-230
+app/models/current_scope/current.rb
+  s_b081cbfee96db8::t_5ed8af9efd4d68 5-11,13-19
+test/dummy/app/controllers/application_controller.rb
+  s_b081cbfee96db8::t_c91c3aeea6ad62 10-15
+lib/current_scope/test_helpers.rb
+  s_b081cbfee96db8::t_7c056b4aa5507f 10-13,16-26
+test/current_test.rb
+  s_b081cbfee96db8::t_95e42e83726399 1-54
+lib/generators/current_scope/install/templates/initializer.rb
+  s_b081cbfee96db8::t_bed7cf55a7b7b1 5-10
+lib/current_scope/context.rb
+  s_b081cbfee96db8::t_91fca91cefbac2 12-14,20-33
+lib/current_scope/configuration.rb
+  s_b081cbfee96db8::t_9bdc4a1d8f33d0 34
+  s_b081cbfee96db8::t_4892d45d7774c3 6-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "271fc6fa02633ec97f8e1a0fb63113261a8902a3",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

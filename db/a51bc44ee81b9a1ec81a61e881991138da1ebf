@@ -1,0 +1,25 @@
+test/dummy/db/schema.rb
+  s_faaed79c011663::t_5f567fc2502f5b 20-21,27-28,36,47-50,65-66
+demo/db/cache_schema.rb
+  s_faaed79c011663::t_5f567fc2502f5b 8-10
+demo/db/schema.rb
+  s_faaed79c011663::t_5f567fc2502f5b 20-21,27-28,36,47-50,67-69,78,86
+demo/db/cable_schema.rb
+  s_faaed79c011663::t_5f567fc2502f5b 7-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "dba51bc44ee81b9a1ec81a61e881991138da1ebf",
+  "prompts": {},
+  "sessions": {
+    "s_faaed79c011663": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "19bc6b87-21c1-4dda-ae07-90555bf0fac1",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

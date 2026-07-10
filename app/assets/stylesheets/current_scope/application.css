@@ -1,14 +1,302 @@
-/* Functional scaffold styles — meant to be overridden by the host app. */
+/* CurrentScope — scaffold styles for the mounted management UI.
+ *
+ * Decent by default, yours by override. This ships a restrained,
+ * host-agnostic look so the mounted UI is presentable the moment you mount
+ * it — no build step, no web fonts, system stack only. It commits no brand.
+ *
+ * Two override paths, both first-class:
+ *   1. Redefine the `--cs-*` custom properties below (a light retheme).
+ *   2. Override the `.cs-*` classes, or the engine layout, with your own
+ *      stylesheet (a full retheme — see the demo app for a worked example).
+ * Either way this file is a floor, never a ceiling.
+ */
 
-.cs-header { display: flex; gap: 1.5rem; align-items: baseline; padding: 1rem 1.5rem; border-bottom: 1px solid #ddd; }
-.cs-header nav { display: flex; gap: 1rem; }
-.cs-main { padding: 1rem 1.5rem; max-width: 72rem; }
-.cs-notice { padding: .5rem 1.5rem; background: #e6f6e6; }
-.cs-alert { padding: .5rem 1.5rem; background: #fde8e8; }
-.cs-hint { color: #666; font-size: .9em; }
-.cs-table { border-collapse: collapse; }
-.cs-table th, .cs-table td { border: 1px solid #ddd; padding: .4rem .6rem; text-align: left; vertical-align: top; }
-.cs-grid label { white-space: nowrap; }
-.cs-chip { display: inline-flex; align-items: center; gap: .25rem; border: 1px solid #bbb; border-radius: 1rem; padding: 0 .6rem; margin: 0 .25rem .25rem 0; }
-.cs-chip form { display: inline; }
-.cs-chip-remove { border: none; background: none; cursor: pointer; padding: 0; }
+:root {
+  color-scheme: light;
+
+  /* Palette — ink on paper, one restrained accent. Not brand colors;
+     override these to make the UI your own. */
+  --cs-bg:           oklch(1 0 0);
+  --cs-surface:      oklch(0.976 0.002 264);
+  --cs-surface-2:    oklch(0.962 0.003 264);
+  --cs-line:         oklch(0.905 0.004 264);
+  --cs-line-strong:  oklch(0.795 0.007 264);
+  --cs-ink:          oklch(0.27 0.012 264);
+  --cs-muted:        oklch(0.455 0.014 264);   /* ~5.4:1 on --cs-bg */
+
+  --cs-accent:        oklch(0.505 0.14 264);
+  --cs-accent-strong: oklch(0.43 0.14 264);
+  --cs-accent-wash:   oklch(0.965 0.021 264);
+
+  --cs-danger:       oklch(0.52 0.18 25);
+  --cs-danger-line:  oklch(0.8 0.09 25);
+  --cs-danger-wash:  oklch(0.966 0.017 25);
+  --cs-ok-line:      oklch(0.8 0.07 150);
+  --cs-ok-wash:      oklch(0.964 0.02 150);
+
+  --cs-radius: 5px;
+  --cs-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --cs-mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  --cs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--cs-bg);
+  color: var(--cs-ink);
+  font-family: var(--cs-font);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 { font-size: 1.375rem; font-weight: 650; letter-spacing: -0.01em; margin: 0 0 1rem; text-wrap: balance; }
+h2 { font-size: 1.0625rem; font-weight: 600; margin: 1.75rem 0 0.625rem; text-wrap: balance; }
+
+a { color: var(--cs-accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { color: var(--cs-accent-strong); }
+
+:focus-visible {
+  outline: 2px solid var(--cs-accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* ---- Header ----------------------------------------------------------- */
+
+.cs-header {
+  display: flex;
+  gap: 1.5rem;
+  align-items: baseline;
+  padding: 0.875rem 1.75rem;
+  background: var(--cs-surface);
+  border-bottom: 2px solid var(--cs-ink);
+}
+
+.cs-header > strong {
+  font-size: 1.0625rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.cs-header nav { display: flex; gap: 1.25rem; }
+
+.cs-header nav a {
+  color: var(--cs-muted);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding-bottom: 0.125rem;
+  border-bottom: 2px solid transparent;
+}
+
+.cs-header nav a:hover { color: var(--cs-ink); }
+.cs-header nav a[aria-current="page"] { color: var(--cs-ink); border-bottom-color: var(--cs-accent); }
+
+/* ---- Main + flashes --------------------------------------------------- */
+
+.cs-main { padding: 1.75rem; max-width: 72rem; margin-inline: auto; }
+
+.cs-notice, .cs-alert {
+  max-width: 72rem;
+  margin: 1rem auto -0.5rem;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--cs-line);
+  border-radius: var(--cs-radius);
+  font-size: 0.875rem;
+}
+.cs-notice { border-color: var(--cs-ok-line); background: var(--cs-ok-wash); }
+.cs-alert  { border-color: var(--cs-danger-line); background: var(--cs-danger-wash); }
+
+.cs-hint { color: var(--cs-muted); font-size: 0.8125rem; max-width: 68ch; }
+
+/* ---- Tables ----------------------------------------------------------- */
+
+.cs-table { border-collapse: collapse; width: 100%; }
+
+.cs-table th {
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--cs-muted);
+  border-bottom: 2px solid var(--cs-ink);
+  padding: 0.5rem 0.75rem 0.375rem;
+}
+
+.cs-table td {
+  border-bottom: 1px solid var(--cs-line);
+  padding: 0.625rem 0.75rem;
+  vertical-align: middle;
+}
+
+.cs-table tbody tr:hover { background: var(--cs-surface); }
+
+/* ---- Permission grid --------------------------------------------------
+ * The dense core surface. Legibility under density is the whole job: a
+ * clear controller column, quiet cell borders, monospace action keys.
+ */
+
+.cs-grid { table-layout: auto; }
+
+.cs-grid th, .cs-grid td {
+  border: 1px solid var(--cs-line);
+  padding: 0.4375rem 0.625rem;
+  vertical-align: middle;
+}
+
+.cs-grid th {
+  position: sticky;
+  left: 0;
+  background: var(--cs-surface-2);
+  color: var(--cs-ink);
+  font-family: var(--cs-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.cs-grid td { text-align: center; }
+.cs-grid tr:hover td { background: var(--cs-surface); }
+
+.cs-grid label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  white-space: nowrap;
+  font-family: var(--cs-mono);
+  font-size: 0.8125rem;
+  color: var(--cs-ink);
+  cursor: pointer;
+}
+
+input[type="checkbox"], input[type="radio"] {
+  accent-color: var(--cs-accent);
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+/* ---- Chips (scoped-role assignments) ---------------------------------- */
+
+.cs-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--cs-line-strong);
+  background: var(--cs-surface);
+  border-radius: 999px;
+  padding: 0.0625rem 0.25rem 0.0625rem 0.625rem;
+  margin: 0 0.25rem 0.25rem 0;
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+
+.cs-chip form { display: inline; margin: 0; }
+
+.cs-chip-remove {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  line-height: 1;
+  color: var(--cs-muted);
+  font-size: 0.9375rem;
+  border-radius: 999px;
+}
+.cs-chip-remove:hover { color: var(--cs-danger); background: var(--cs-danger-wash); }
+
+/* ---- Forms ------------------------------------------------------------ */
+
+.cs-main form p { margin: 0 0 1rem; max-width: 30rem; }
+
+.cs-main form p > label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--cs-muted);
+  margin-bottom: 0.3125rem;
+}
+
+/* Labels that wrap their own control (checkbox toggles) stay inline. */
+.cs-main form p > label:has(input) {
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--cs-ink);
+  cursor: pointer;
+}
+
+input[type="text"], input[type="email"], input[type="password"],
+input[type="search"], select, textarea {
+  font: inherit;
+  color: var(--cs-ink);
+  background: var(--cs-bg);
+  border: 1px solid var(--cs-line-strong);
+  border-radius: var(--cs-radius);
+  padding: 0.4375rem 0.625rem;
+  max-width: 100%;
+}
+
+.cs-main form p > input[type="text"],
+.cs-main form p > input[type="email"],
+.cs-main form p > input[type="password"],
+.cs-main form p > select { width: 100%; }
+
+input::placeholder { color: var(--cs-muted); opacity: 1; }
+
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--cs-accent);
+  outline-offset: 0;
+  border-color: var(--cs-accent);
+}
+
+/* ---- Buttons ---------------------------------------------------------- */
+
+button, input[type="submit"] {
+  appearance: none;
+  font: 500 0.875rem var(--cs-font);
+  color: var(--cs-ink);
+  background: var(--cs-bg);
+  border: 1px solid var(--cs-line-strong);
+  border-radius: var(--cs-radius);
+  padding: 0.4375rem 0.875rem;
+  cursor: pointer;
+  transition: background 140ms var(--cs-ease), border-color 140ms var(--cs-ease);
+}
+
+button:hover, input[type="submit"]:hover { background: var(--cs-surface); border-color: var(--cs-ink); }
+button:active, input[type="submit"]:active { translate: 0 1px; }
+button:disabled, input[type="submit"]:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Primary submit — the one committed action per form. */
+.cs-main form > p:last-child input[type="submit"] {
+  color: oklch(0.99 0 0);
+  background: var(--cs-accent);
+  border-color: var(--cs-accent);
+}
+.cs-main form > p:last-child input[type="submit"]:hover {
+  background: var(--cs-accent-strong);
+  border-color: var(--cs-accent-strong);
+}
+
+/* Inline row actions (Set, ×, Delete) shouldn't shout. */
+.cs-table form { display: inline; margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; }
+}
+
+/* ---- Responsive ------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .cs-main { padding: 1.25rem; }
+  .cs-header { padding: 0.75rem 1.25rem; flex-wrap: wrap; gap: 0.75rem 1.25rem; }
+  .cs-grid { display: block; overflow-x: auto; }
+}

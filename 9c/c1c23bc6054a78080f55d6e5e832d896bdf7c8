@@ -1,0 +1,103 @@
+test/dummy/config/initializers/current_scope.rb
+  s_faaed79c011663::t_e7bb6c5de653ef 1-5
+lib/current_scope/context.rb
+  s_faaed79c011663::t_fc744f070d62c4 19-24
+demo/app/controllers/projects_controller.rb
+  s_faaed79c011663::t_21f28933aa2190 67-68,70
+lib/generators/current_scope/install/templates/initializer.rb
+  s_faaed79c011663::t_c86e45b65a3ca6 9-11,14-16
+test/dummy/app/controllers/bare_controller.rb
+  s_faaed79c011663::t_acea49d59ad705 1-8
+app/controllers/current_scope/application_controller.rb
+  s_faaed79c011663::t_0c6dbcda7f5abf 9-12
+test/integration/management_ui_test.rb
+  s_faaed79c011663::t_da29c7c6190f09 68-77
+app/controllers/current_scope/role_assignments_controller.rb
+  s_faaed79c011663::t_77690cbd4a7b19 10,13
+test/dummy/config/routes.rb
+  s_faaed79c011663::t_d9d82b218f61d3 6-8
+app/views/current_scope/subjects/index.html.erb
+  s_faaed79c011663::t_4c3642fce577a4 9,16,22
+test/permission_catalog_test.rb
+  s_faaed79c011663::t_862dde1bc250ca 42,48-51
+  s_faaed79c011663::t_507c225bbc371a 52-53
+test/integration/guard_test.rb
+  s_faaed79c011663::t_260e10cc976946 54-76
+lib/current_scope/configuration.rb
+  s_faaed79c011663::t_375f671d276b8c 8-10,14-16
+lib/current_scope/resolver.rb
+  s_faaed79c011663::t_382f2fddcad0a1 39-41
+  s_faaed79c011663::t_7fcb783d556d38 13-14,43-52,54-55
+demo/log/development.log
+  s_faaed79c011663::t_660656fe8947ad 3326-3364
+  s_faaed79c011663::t_486e8e7a59bdee 3278-3305
+  s_faaed79c011663::t_0e61e1f08fe989 3322-3325
+  s_faaed79c011663::t_b5b2f56fc072b6 3234-3277
+  s_faaed79c011663::t_1eff6de54cce9f 3306-3321
+app/models/current_scope/role.rb
+  s_faaed79c011663::t_46a76387a5f79b 29-33
+  s_faaed79c011663::t_65fba46c7cd435 12-13,19,22-24,26-28,34-41
+lib/current_scope/test_helpers.rb
+  s_faaed79c011663::t_8ce73df7ec7428 12-13
+app/controllers/current_scope/roles_controller.rb
+  s_faaed79c011663::t_d91f76435db0b2 47-50
+  s_faaed79c011663::t_e40a057637d1f6 34-42
+test/dummy/app/controllers/reports_controller.rb
+  s_faaed79c011663::t_33f846e7e25f75 28
+demo/app/controllers/reports_controller.rb
+  s_faaed79c011663::t_8e4d77496d7510 52-54,56
+test/models/role_test.rb
+  s_faaed79c011663::t_25c99d27a8e253 1-23
+demo/log/test.log
+  s_faaed79c011663::t_5137859b09d9c8 2605-4034
+  s_faaed79c011663::t_388e3a820c714d 7509-7981
+  s_faaed79c011663::t_c8755fde76fdc2 7054-7091
+  s_faaed79c011663::t_dc2e6bc5c90bac 4035-7053
+  s_faaed79c011663::t_18f0e716389a39 7450-7508
+  s_faaed79c011663::t_cfcee4f1ff7f35 7982-8454
+  s_faaed79c011663::t_9ccbc8fb4c4c51 8455-9405
+  s_faaed79c011663::t_2d8da00388a95a 7403-7449
+  s_faaed79c011663::t_724a251b1e9561 7092-7402
+  s_faaed79c011663::t_69e7404ba4af71 9406-10111
+  s_faaed79c011663::t_1d1f4b2d5425d5 10112-11086
+README.md
+  s_faaed79c011663::t_f1b0e82cbde472 115-117,126,142-145
+  s_faaed79c011663::t_b4663aa154c41c 151-158
+  s_faaed79c011663::t_fabd75a7c5461a 95-102
+  s_faaed79c011663::t_21979f67226775 146
+app/controllers/current_scope/subjects_controller.rb
+  s_faaed79c011663::t_6786d4c8ad76c3 3,7-11
+test/resolver_test.rb
+  s_faaed79c011663::t_4be0cdcb06a4fe 66-102
+demo/db/seeds.rb
+  s_faaed79c011663::t_36061825540ef0 22,25,28,31,34
+config/routes.rb
+  s_faaed79c011663::t_782bcc46ef6ccb 4
+demo/test/integration/authorization_flow_test.rb
+  s_faaed79c011663::t_1cd6763511eb82 12,14,85,87
+lib/current_scope/guard.rb
+  s_faaed79c011663::t_de236c0070628a 7,12-15,17,19,33-42
+test/dummy/app/controllers/webhooks_controller.rb
+  s_faaed79c011663::t_beb8017585d78d 1-8
+lib/current_scope.rb
+  s_faaed79c011663::t_61e506fca65550 56-65
+  s_faaed79c011663::t_efa46c72cf9fab 15-19
+demo/test/components/approve_button_component_test.rb
+  s_faaed79c011663::t_1cd6763511eb82 13,33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "9cc1c23bc6054a78080f55d6e5e832d896bdf7c8",
+  "prompts": {},
+  "sessions": {
+    "s_faaed79c011663": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "19bc6b87-21c1-4dda-ae07-90555bf0fac1",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

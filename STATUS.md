@@ -15,6 +15,10 @@ ambient authorization context (`ActiveSupport::CurrentAttributes`) so
 - Research basis: [docs/RESEARCH.md](docs/RESEARCH.md) — palkan / Evil Martians
   on CurrentAttributes vs dry-effects vs explicit passing, Action Policy ideas
 - Usage: [README.md](README.md)
+- **What's next / gaps / proposals: [docs/ROADMAP.md](docs/ROADMAP.md)** — coverage
+  vs open gaps (audit, impersonation/act-as, resource-hierarchy cascade, resolver
+  memoization, feature flags) + two proposals: a demo-app redesign and a
+  model→record scoped-assignment picker (replacing the raw-GlobalID field).
 
 ## Done (v0.1, all committed on `main`)
 

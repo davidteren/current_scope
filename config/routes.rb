@@ -3,6 +3,7 @@ CurrentScope::Engine.routes.draw do
 
   resources :roles, except: :show
   resources :subjects, only: :index
+  resources :events, only: :index
   resource :role_assignment, only: :create
   resources :scoped_role_assignments, only: [ :new, :create, :destroy ]
 end

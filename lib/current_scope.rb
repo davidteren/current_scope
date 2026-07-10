@@ -80,6 +80,19 @@ module CurrentScope
             "a full \"controller#action\" string, or call from a controller/view"
     end
 
+    # Impersonation boundary events. The impersonated identity is an EXPLICIT
+    # argument (not read from the ambient pair): at act-as START the ambient
+    # actor still equals the effective user — Current re-resolves next request —
+    # so an ambient-only recorder would lose who was impersonated. Call these
+    # from the host's start/stop-impersonation endpoints.
+    def record_impersonation_started!(subject)
+      Event.record!(event: "impersonation.started", target: subject)
+    end
+
+    def record_impersonation_stopped!(subject)
+      Event.record!(event: "impersonation.stopped", target: subject)
+    end
+
     # Creates the two baseline roles every install needs: an Owner with
     # full_access (present and future permissions) and a Member baseline.
     # Call from db/seeds.rb.

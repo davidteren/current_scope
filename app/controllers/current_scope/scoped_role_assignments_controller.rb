@@ -13,18 +13,29 @@ module CurrentScope
     end
 
     def create
-      ScopedRoleAssignment.create!(
-        subject: GlobalID::Locator.locate(params.expect(:subject_gid)),
-        resource: GlobalID::Locator.locate(params.expect(:resource_gid)),
-        role_id: params.expect(:role_id)
-      )
+      subject = GlobalID::Locator.locate(params.expect(:subject_gid))
+      resource = GlobalID::Locator.locate(params.expect(:resource_gid))
+      role = Role.find(params.expect(:role_id))
+
+      ScopedRoleAssignment.transaction do
+        ScopedRoleAssignment.create!(subject: subject, resource: resource, role: role)
+        Event.record!(event: "scoped_role.granted", target: subject,
+                      details: { role: role.name, resource: helpers.current_scope_label(resource) })
+      end
       redirect_to subjects_path, notice: "Scoped role granted."
     rescue ActiveRecord::RecordInvalid => e
       redirect_to subjects_path, alert: e.message
     end
 
     def destroy
-      ScopedRoleAssignment.find(params[:id]).destroy!
+      assignment = ScopedRoleAssignment.find(params[:id])
+      subject, role, resource = assignment.subject, assignment.role, assignment.resource
+
+      ScopedRoleAssignment.transaction do
+        assignment.destroy!
+        Event.record!(event: "scoped_role.revoked", target: subject,
+                      details: { role: role.name, resource: helpers.current_scope_label(resource) })
+      end
       redirect_to subjects_path, notice: "Scoped role revoked."
     end
 

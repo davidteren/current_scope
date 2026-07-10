@@ -1,0 +1,63 @@
+showcase/app/controllers/sessions_controller.rb
+  s_b081cbfee96db8::t_fbd724c68fe51a 5-7
+lib/generators/current_scope/install/templates/initializer.rb
+  s_b081cbfee96db8::t_56717311baa9a2 8-35
+  s_b081cbfee96db8::t_79a30a54e5ec12 36
+lib/current_scope.rb
+  s_b081cbfee96db8::t_cb5f328cd4777f 54,58-59
+  s_b081cbfee96db8::t_e2b12cef6ed24d 7,13-22
+lib/current_scope/mutation_guard.rb
+  s_b081cbfee96db8::t_12186dbe9603ab 1-55
+test/integration/guard_test.rb
+  s_b081cbfee96db8::t_56dd6f3f0f4d30 53
+  s_b081cbfee96db8::t_29bbdd60bd75aa 31
+test/dummy/config/routes.rb
+  s_b081cbfee96db8::t_a890bd1b68968b 9-10
+test/dummy/app/controllers/writes_controller.rb
+  s_b081cbfee96db8::t_12f6803ec050aa 1-18
+lib/current_scope/permissions.rb
+  s_b081cbfee96db8::t_1d934d0b1c5fd9 15-16
+app/controllers/current_scope/application_controller.rb
+  s_b081cbfee96db8::t_e6872f9ec6c5df 7-13
+lib/current_scope/resolver.rb
+  s_b081cbfee96db8::t_7685a77c17802f 50,69-77
+  s_b081cbfee96db8::t_4f7e0ce8ea9996 6-8
+  s_b081cbfee96db8::t_af8f04ddb719b6 17-30,33-35,37
+lib/current_scope/configuration.rb
+  s_b081cbfee96db8::t_e3f43323a5f9be 54-55
+  s_b081cbfee96db8::t_4489678e743451 18-35
+showcase/config/initializers/current_scope.rb
+  s_b081cbfee96db8::t_080d68fac82990 8-29
+  s_b081cbfee96db8::t_acaf1724ae3132 30
+README.md
+  s_b081cbfee96db8::t_d83ac5747263cc 160-165
+  s_b081cbfee96db8::t_1788424fbf7fbb 236-270
+  s_b081cbfee96db8::t_715f41a7b0e4f9 147-154
+test/resolver_test.rb
+  s_b081cbfee96db8::t_61414f5c8d244e 9-13
+  s_b081cbfee96db8::t_a093bc29b6e5ee 137-193
+lib/current_scope/guard.rb
+  s_b081cbfee96db8::t_96901e38b757d6 21-22,25,47-52,54
+test/integration/impersonation_gate_test.rb
+  s_b081cbfee96db8::t_cd439c16cbdd44 1-62,67-110
+  s_b081cbfee96db8::t_464f56ee79d630 63-66
+test/permissions_mixin_test.rb
+  s_b081cbfee96db8::t_85eb8ff2eef023 36-39
+  s_b081cbfee96db8::t_c396fd0481fb18 33-35,40-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "083fe0feaf50d788b19d7561bc4908540c55a31d",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

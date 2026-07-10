@@ -4,6 +4,7 @@ require "current_scope/permission_catalog"
 require "current_scope/resolver"
 require "current_scope/permissions"
 require "current_scope/context"
+require "current_scope/scopeable"
 require "current_scope/mutation_guard"
 require "current_scope/guard"
 require "current_scope/engine"
@@ -45,6 +46,26 @@ module CurrentScope
 
     def reset_catalog!
       @catalog = nil
+    end
+
+    # Models that opted into the scoped-role picker via CurrentScope::Scopeable.
+    # Stored as class-name strings and resolved lazily so dev-mode reloading
+    # never pins a stale constant. Rebuilt from scratch on every engine
+    # to_prepare (see reset_scopeable_registry!).
+    def scopeable_registry
+      @scopeable_registry ||= Set.new
+    end
+
+    def register_scopeable(model_name)
+      scopeable_registry << model_name.to_s
+    end
+
+    def scopeable_resources
+      scopeable_registry.map(&:constantize).sort_by(&:name)
+    end
+
+    def reset_scopeable_registry!
+      @scopeable_registry = Set.new
     end
 
     # The single entry point behind every allowed_to? call.

@@ -128,6 +128,24 @@ class ReportsController < ApplicationController
 end
 ```
 
+### Scopeable models
+
+`include CurrentScope::Scopeable` in a host model to list it in the scoped-role
+picker's type dropdown, and give records a nice label with `current_scope_label`:
+
+```ruby
+class Project < ApplicationRecord
+  include CurrentScope::Scopeable
+
+  def current_scope_label = "#{name} (##{id})"   # optional; defaults to "Project ##{id}"
+end
+```
+
+This is **browse-only sugar** — it does *not* gate anything. The raw-GlobalID
+path still accepts **any** model as a scoped-role target whether or not it opts
+in; the mixin only decides what shows up in the dropdown. `current_scope_label`
+is a plain instance method, so your own definition always wins over the default.
+
 ### Separation of duties
 
 Declare who initiated a record; the resolver does the rest for the configured

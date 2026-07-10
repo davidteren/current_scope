@@ -1,0 +1,46 @@
+app/controllers/current_scope/roles_controller.rb
+  s_b081cbfee96db8::t_44f161f35f0005 13-25,38-45,58-66,68-75,77,82-97
+  s_b081cbfee96db8::t_f6a896b95c561e 98
+app/controllers/current_scope/role_assignments_controller.rb
+  s_b081cbfee96db8::t_fe32f070a491b7 7,10,13,17-44
+app/controllers/current_scope/events_controller.rb
+  s_b081cbfee96db8::t_e34ef2c92dfbd1 1-11
+app/helpers/current_scope/application_helper.rb
+  s_b081cbfee96db8::t_f08d777e9fa53a 8-15
+app/views/layouts/current_scope/application.html.erb
+  s_b081cbfee96db8::t_6a0f8394ded490 18
+test/integration/audit_events_test.rb
+  s_b081cbfee96db8::t_5f8e04d8b76d8f 4-7,37,39,42-43,45-51,58-104,106-107,109-120,122-234,236-285,287-294,299-303
+  s_b081cbfee96db8::t_6fd1cc110f3d14 27-36
+  s_b081cbfee96db8::t_18eafcecdeef66 1-3,8-26,38,40-41,44,52-57,286,304-305
+  s_b081cbfee96db8::t_a539c93d2c3d3a 105,108,121
+  s_b081cbfee96db8::t_fd6769646cbd64 295-298
+  s_b081cbfee96db8::t_d9b0bcaf697675 235
+config/routes.rb
+  s_b081cbfee96db8::t_9004577bf3f468 6
+app/models/current_scope/role.rb
+  s_b081cbfee96db8::t_35cad5a19a3fdc 14-19
+  s_b081cbfee96db8::t_81162296d30ef4 45-49,51
+app/views/current_scope/events/index.html.erb
+  s_b081cbfee96db8::t_190720a4d506da 1-34
+app/controllers/current_scope/scoped_role_assignments_controller.rb
+  s_b081cbfee96db8::t_bc6f9dba135e55 16-24,31-38
+lib/current_scope.rb
+  s_b081cbfee96db8::t_e17da8d3ec697d 83-95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "d9799e814feb08c9c468f59626320cc25a526c12",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

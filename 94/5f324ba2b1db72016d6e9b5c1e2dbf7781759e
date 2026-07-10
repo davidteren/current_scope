@@ -1,0 +1,208 @@
+Rakefile
+  s_faaed79c011663::t_24ccecad77e8ca 1-6
+test/dummy/app/views/layouts/mailer.text.erb
+  s_faaed79c011663::t_24ccecad77e8ca 1
+test/dummy/config/cable.yml
+  s_faaed79c011663::t_24ccecad77e8ca 1-10
+app/models/current_scope/current.rb
+  s_faaed79c011663::t_8da83682b827f9 1-8
+test/dummy/bin/setup
+  s_faaed79c011663::t_24ccecad77e8ca 1-35
+test/permissions_mixin_test.rb
+  s_faaed79c011663::t_524ab68f1082f9 1-37
+test/dummy/app/assets/stylesheets/application.css
+  s_faaed79c011663::t_24ccecad77e8ca 1-15
+test/dummy/app/models/project.rb
+  s_faaed79c011663::t_b8a1f78db61ad5 1-2
+test/integration/navigation_test.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-7
+test/dummy/config/environments/production.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-89
+app/helpers/current_scope/application_helper.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-4
+test/test_helper.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-15
+test/dummy/public/400.html
+  s_faaed79c011663::t_24ccecad77e8ca 1-135
+lib/current_scope/permissions.rb
+  s_faaed79c011663::t_976ed738573f6a 1-21
+db/migrate/20260710000001_create_current_scope_tables.rb
+  s_faaed79c011663::t_bcaadb26cbc439 1-31
+app/models/current_scope/scoped_role_assignment.rb
+  s_faaed79c011663::t_9044e726802195 1-14
+test/dummy/config/storage.yml
+  s_faaed79c011663::t_24ccecad77e8ca 1-27
+test/dummy/app/controllers/application_controller.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1,10
+  s_faaed79c011663::t_b4c36c2a3cc25b 2-9
+test/dummy/config.ru
+  s_faaed79c011663::t_24ccecad77e8ca 1-6
+test/dummy/public/422.html
+  s_faaed79c011663::t_24ccecad77e8ca 1-135
+lib/current_scope/configuration.rb
+  s_faaed79c011663::t_1b4eac0fb095df 1-39
+app/models/current_scope/application_record.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-5
+test/dummy/app/models/application_record.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-3
+current_scope.gemspec
+  s_faaed79c011663::t_181860f9b1e403 6-13,17,23-24
+  s_faaed79c011663::t_24ccecad77e8ca 1-5,14-16,18-22,25
+lib/current_scope/version.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-3
+test/dummy/app/views/pwa/manifest.json.erb
+  s_faaed79c011663::t_24ccecad77e8ca 1-22
+test/dummy/config/initializers/inflections.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-16
+MIT-LICENSE
+  s_faaed79c011663::t_24ccecad77e8ca 1-20
+lib/current_scope/test_helpers.rb
+  s_faaed79c011663::t_0ef232c2038355 1-20
+test/dummy/bin/ci
+  s_faaed79c011663::t_24ccecad77e8ca 1-6
+test/dummy/config/locales/en.yml
+  s_faaed79c011663::t_24ccecad77e8ca 1-31
+test/dummy/config/application.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-29
+lib/current_scope/guard.rb
+  s_faaed79c011663::t_0137d86c53418f 7-9
+  s_faaed79c011663::t_e8c637139ab95e 1-6,10-35
+test/permission_catalog_test.rb
+  s_faaed79c011663::t_a98a220a462383 1-47
+test/dummy/config/environments/development.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-75
+app/models/current_scope/role.rb
+  s_faaed79c011663::t_20d8c6c30f7742 1-30
+app/assets/stylesheets/current_scope/application.css
+  s_faaed79c011663::t_24ccecad77e8ca 1-15
+test/dummy/config/environments/test.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-53
+app/controllers/current_scope/application_controller.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-4
+app/mailers/current_scope/application_mailer.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-6
+test/dummy/public/404.html
+  s_faaed79c011663::t_24ccecad77e8ca 1-135
+test/dummy/public/500.html
+  s_faaed79c011663::t_24ccecad77e8ca 1-135
+test/dummy/config/routes.rb
+  s_faaed79c011663::t_aaba812d7a7c16 2-5
+  s_faaed79c011663::t_24ccecad77e8ca 1,6-7
+config/routes.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-2
+test/dummy/app/mailers/application_mailer.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-4
+README.md
+  s_faaed79c011663::t_24ccecad77e8ca 1-28
+test/dummy/config/initializers/filter_parameter_logging.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-8
+test/dummy/db/schema.rb
+  s_faaed79c011663::t_6cf92d002f7e7a 1-80
+test/dummy/app/models/user.rb
+  s_faaed79c011663::t_ac073ffd401bac 1-2
+test/dummy/app/views/pwa/service-worker.js
+  s_faaed79c011663::t_24ccecad77e8ca 1-26
+bin/rails
+  s_faaed79c011663::t_24ccecad77e8ca 1-14
+lib/current_scope.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1,8-10,67
+  s_faaed79c011663::t_09cf2812256544 2-7,11-66
+test/dummy/config/puma.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-39
+test/dummy/config/database.yml
+  s_faaed79c011663::t_24ccecad77e8ca 1-31
+test/integration/guard_test.rb
+  s_faaed79c011663::t_f4b7ed2b552914 1-66
+.github/workflows/ci.yml
+  s_faaed79c011663::t_24ccecad77e8ca 1-69
+test/dummy/app/jobs/application_job.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-7
+test/dummy/app/helpers/application_helper.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-2
+app/models/current_scope/role_assignment.rb
+  s_faaed79c011663::t_2539d988141355 1-11
+app/views/layouts/current_scope/application.html.erb
+  s_faaed79c011663::t_24ccecad77e8ca 1-17
+Gemfile
+  s_faaed79c011663::t_24ccecad77e8ca 1-16
+lib/current_scope/engine.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-3,10-11
+  s_faaed79c011663::t_044e4923f064eb 4-9
+test/dummy/public/icon.svg
+  s_faaed79c011663::t_24ccecad77e8ca 1-3
+test/dummy/config/boot.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-5
+test/dummy/config/initializers/assets.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-7
+test/dummy/bin/rails
+  s_faaed79c011663::t_24ccecad77e8ca 1-4
+test/current_scope_test.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-7
+test/dummy/public/406-unsupported-browser.html
+  s_faaed79c011663::t_24ccecad77e8ca 1-135
+test/dummy/config/ci.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-19
+lib/current_scope/permission_catalog.rb
+  s_faaed79c011663::t_b55ef776f7db10 1-37
+.github/dependabot.yml
+  s_faaed79c011663::t_24ccecad77e8ca 1-12
+test/dummy/bin/rake
+  s_faaed79c011663::t_24ccecad77e8ca 1-4
+app/jobs/current_scope/application_job.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-4
+test/dummy/app/controllers/reports_controller.rb
+  s_faaed79c011663::t_af318fccb9169c 26-29
+  s_faaed79c011663::t_d4a8501099b44c 1-25,30
+lib/tasks/current_scope_tasks.rake
+  s_faaed79c011663::t_24ccecad77e8ca 1-4
+test/dummy/config/environment.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-5
+lib/current_scope/resolver.rb
+  s_faaed79c011663::t_a33b750025554d 29
+  s_faaed79c011663::t_3abf274cd9f3c8 1-28,30-47,50-56
+  s_faaed79c011663::t_e942d19036e8b0 48-49
+test/resolver_test.rb
+  s_faaed79c011663::t_f4c802abf106ef 1-89
+test/dummy/config/initializers/content_security_policy.rb
+  s_faaed79c011663::t_24ccecad77e8ca 1-29
+test/dummy/app/views/layouts/application.html.erb
+  s_faaed79c011663::t_24ccecad77e8ca 1-28
+.rubocop.yml
+  s_faaed79c011663::t_24ccecad77e8ca 1-8
+bin/rubocop
+  s_faaed79c011663::t_24ccecad77e8ca 1-8
+test/dummy/bin/dev
+  s_faaed79c011663::t_24ccecad77e8ca 1-2
+lib/current_scope/context.rb
+  s_faaed79c011663::t_389022187884ca 1-22
+app/models/current_scope/role_permission.rb
+  s_faaed79c011663::t_ae64b5c8a36537 1-9
+test/dummy/app/views/layouts/mailer.html.erb
+  s_faaed79c011663::t_24ccecad77e8ca 1-13
+test/dummy/app/models/report.rb
+  s_faaed79c011663::t_28973429b8cbac 1-9
+test/dummy/Rakefile
+  s_faaed79c011663::t_24ccecad77e8ca 1-6
+.gitignore
+  s_faaed79c011663::t_48e97a7350b1d1 1-9
+Gemfile.lock
+  s_faaed79c011663::t_44c07faf8be906 1-288
+test/dummy/db/migrate/20260710000100_create_dummy_tables.rb
+  s_faaed79c011663::t_4d973023286436 1-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "945f324ba2b1db72016d6e9b5c1e2dbf7781759e",
+  "prompts": {},
+  "sessions": {
+    "s_faaed79c011663": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "19bc6b87-21c1-4dda-ae07-90555bf0fac1",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

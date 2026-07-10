@@ -6,6 +6,11 @@ class ResolverTest < ActiveSupport::TestCase
     @alice = User.create!(name: "Alice")
     @bob = User.create!(name: "Bob")
     @report = Report.create!(title: "Q3", requested_by: @bob)
+    @original_sod_identity = CurrentScope.config.sod_identity
+  end
+
+  teardown do
+    CurrentScope.config.sod_identity = @original_sod_identity
   end
 
   def assign(user, role)
@@ -128,5 +133,62 @@ class ResolverTest < ActiveSupport::TestCase
     CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: editor, resource: @report)
 
     assert_not @resolver.allow?(subject: @alice, permission: "reports#index")
+  end
+
+  # --- SoD with two identities (:either default) ---
+
+  test "SoD :either vetoes a record the real actor initiated while impersonating" do
+    CurrentScope.config.sod_identity = :either
+    assign(@alice, role("Reviewer", "reports#approve"))   # the effective subject may approve
+
+    # @report was initiated by @bob, the REAL actor standing behind @alice.
+    assert_not @resolver.allow?(
+      subject: @alice, permission: "reports#approve", record: @report, actor: @bob
+    )
+  end
+
+  test "SoD :subject ignores the real actor's initiation" do
+    CurrentScope.config.sod_identity = :subject
+    assign(@alice, role("Reviewer", "reports#approve"))
+
+    assert @resolver.allow?(
+      subject: @alice, permission: "reports#approve", record: @report, actor: @bob
+    )
+  end
+
+  test "SoD does not veto when neither subject nor actor initiated the record" do
+    CurrentScope.config.sod_identity = :either
+    carol = User.create!(name: "Carol")
+    assign(@alice, role("Reviewer", "reports#approve"))
+
+    assert @resolver.allow?(
+      subject: @alice, permission: "reports#approve", record: @report, actor: carol
+    )
+  end
+
+  test "SoD :either still vetoes the subject's own record when not impersonating" do
+    CurrentScope.config.sod_identity = :either
+    assign(@bob, role("Reviewer", "reports#approve"))
+
+    # actor omitted -> defaults to the subject -> not impersonating -> :either == :subject.
+    assert_not @resolver.allow?(subject: @bob, permission: "reports#approve", record: @report)
+  end
+
+  # --- Internal decision method reports a machine-readable reason ---
+
+  test "decide reports :sod_veto, :no_grant, and grants with no reason" do
+    assign(@bob, role("Reviewer", "reports#approve"))
+    allowed, reason = @resolver.decide(subject: @bob, permission: "reports#approve", record: @report)
+    assert_not allowed
+    assert_equal :sod_veto, reason
+
+    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index")
+    assert_not allowed
+    assert_equal :no_grant, reason
+
+    assign(@alice, role("Member", "reports#index"))
+    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index")
+    assert allowed
+    assert_nil reason
   end
 end

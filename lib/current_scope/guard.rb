@@ -18,12 +18,14 @@ module CurrentScope
   #       end
   #
   # Skip the gate for public endpoints with skip_before_action :current_scope_check!.
+  # MutationGuard (included here) adds the read-only-while-impersonating gate as
+  # its OWN before_action, so it runs first and survives that skip.
   module Guard
     extend ActiveSupport::Concern
+    include MutationGuard
 
     included do
       before_action :current_scope_check!
-      rescue_from CurrentScope::AccessDenied, with: :current_scope_denied
     end
 
     private
@@ -42,14 +44,14 @@ module CurrentScope
 
       record = respond_to?(:current_scope_record, true) ? send(:current_scope_record) : nil
 
-      allowed = CurrentScope.resolver.allow?(
-        subject: CurrentScope::Current.user, permission: permission, record: record
+      # The real actor (Current.actor) enters here explicitly — the resolver
+      # never reads Current itself (PDP purity). It only matters under SoD
+      # :either while impersonating; otherwise actor == subject.
+      allowed, reason = CurrentScope.resolver.decide(
+        subject: CurrentScope::Current.user, permission: permission,
+        record: record, actor: CurrentScope::Current.actor
       )
-      raise CurrentScope::AccessDenied, permission unless allowed
-    end
-
-    def current_scope_denied
-      head :forbidden
+      raise CurrentScope::AccessDenied.new(permission, reason: reason) unless allowed
     end
   end
 end

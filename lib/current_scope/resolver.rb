@@ -3,7 +3,9 @@ module CurrentScope
   # here, in a fixed order:
   #
   #   1. SoD veto      — the record's initiator can never perform an SoD action
-  #                      on it. Overrides everything, including full_access.
+  #                      on it. Reads two identities: the effective subject and
+  #                      (under sod_identity :either) the real actor behind an
+  #                      impersonated session. Overrides everything, incl. full_access.
   #   2. full_access   — the subject's org-wide role grants all permissions,
   #                      present and future.
   #   3. org-wide role — the role's permission set includes this permission.
@@ -12,15 +14,27 @@ module CurrentScope
   class Resolver
     INITIATOR_METHOD = :current_scope_initiator
 
-    def allow?(subject:, permission:, record: nil)
-      return false if subject.nil?
-      return false if sod_veto?(subject: subject, permission: permission, record: record)
+    # Public contract: boolean. `actor` is the REAL principal behind the
+    # request (defaults to the subject — no impersonation); it only widens the
+    # SoD veto under config.sod_identity == :either.
+    def allow?(subject:, permission:, record: nil, actor: nil)
+      decide(subject: subject, permission: permission, record: record, actor: actor).first
+    end
+
+    # Internal decision: returns [allowed_bool, reason_or_nil]. The reason is
+    # populated only on denial (:sod_veto or :no_grant) so callers (Guard) can
+    # surface a machine-readable cause without the resolver — memoized and
+    # shared across threads — holding any per-decision state.
+    def decide(subject:, permission:, record: nil, actor: nil)
+      return [ false, :no_grant ] if subject.nil?
+      return [ false, :sod_veto ] if sod_veto?(subject: subject, actor: actor, permission: permission, record: record)
 
       role = org_role(subject)
-      return true if role&.full_access?
-      return true if role&.grants?(permission)
+      return [ true, nil ] if role&.full_access?
+      return [ true, nil ] if role&.grants?(permission)
+      return [ true, nil ] if scoped_grant?(subject: subject, permission: permission, record: record)
 
-      scoped_grant?(subject: subject, permission: permission, record: record)
+      [ false, :no_grant ]
     end
 
     def org_role(subject)
@@ -33,7 +47,7 @@ module CurrentScope
 
     private
 
-    def sod_veto?(subject:, permission:, record:)
+    def sod_veto?(subject:, actor:, permission:, record:)
       action = permission.split("#").last
       return false unless CurrentScope.config.sod_actions.include?(action)
       # No veto without an actual record instance (collection actions get nil,
@@ -52,7 +66,15 @@ module CurrentScope
       end
 
       initiator = record.send(INITIATOR_METHOD)
-      initiator.present? && initiator == subject
+      return false if initiator.blank?
+
+      # The subject can never approve their own record. Under :either, neither
+      # can a real actor who initiated it while impersonating a different
+      # subject — impersonation must not become a self-approval loophole. Not
+      # impersonating (actor == subject) collapses both checks to the same test.
+      actor ||= subject
+      initiator == subject ||
+        (CurrentScope.config.sod_identity == :either && actor != subject && initiator == actor)
     end
 
     def scoped_grant?(subject:, permission:, record:)

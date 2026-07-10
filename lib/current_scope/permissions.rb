@@ -12,7 +12,8 @@ module CurrentScope
   module Permissions
     def allowed_to?(action, record = nil, controller: nil)
       controller ||= controller_path if respond_to?(:controller_path)
-      CurrentScope.allowed?(action, subject: current_scope_user, record: record, controller_path: controller)
+      CurrentScope.allowed?(action, subject: current_scope_user, record: record,
+        controller_path: controller, actor: current_scope_actor)
     end
 
     def current_scope_user

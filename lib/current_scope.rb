@@ -4,13 +4,22 @@ require "current_scope/permission_catalog"
 require "current_scope/resolver"
 require "current_scope/permissions"
 require "current_scope/context"
+require "current_scope/mutation_guard"
 require "current_scope/guard"
 require "current_scope/engine"
 
 module CurrentScope
   # Raised when the resolver denies an action gated by Guard (or when the
-  # management UI is accessed without a full-access role).
-  class AccessDenied < StandardError; end
+  # management UI is accessed without a full-access role). Carries an optional
+  # machine-readable reason (:sod_veto, :no_grant, :impersonation_gate).
+  class AccessDenied < StandardError
+    attr_reader :reason
+
+    def initialize(message = nil, reason: nil)
+      super(message)
+      @reason = reason
+    end
+  end
 
   # Raised when the host is wired up wrong (missing hook, bad config). Always
   # raised loudly — an authorization library must never turn a configuration
@@ -42,11 +51,12 @@ module CurrentScope
     # `action` is either a full permission key ("admin/reports#approve") or a
     # bare action name resolved against `record`'s route key, falling back to
     # `controller_path`.
-    def allowed?(action, subject:, record: nil, controller_path: nil)
+    def allowed?(action, subject:, record: nil, controller_path: nil, actor: nil)
       resolver.allow?(
         subject: subject,
         permission: permission_key(action, record: record, controller_path: controller_path),
-        record: record
+        record: record,
+        actor: actor
       )
     end
 

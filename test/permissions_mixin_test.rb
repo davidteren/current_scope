@@ -30,6 +30,27 @@ class PermissionsMixinTest < ActiveSupport::TestCase
     assert_not FakeComponent.new.allowed_to?(:show, @report)
   end
 
+  test "under impersonation, allowed_to? and the resolver agree on an actor-initiated record" do
+    admin = User.create!(name: "Admin")
+    report = Report.create!(title: "Q9", requested_by: admin)   # initiated by the actor
+    # @alice already holds an org-wide role (setup); widen it rather than adding
+    # a second assignment (one org-wide role per subject).
+    CurrentScope::RoleAssignment.find_by(subject: @alice).role
+                                .role_permissions.create!(permission_key: "reports#approve")
+
+    # View helper reads the ambient actor and honours the SoD :either veto...
+    with_current_user(@alice, actor: admin) do   # admin acts as @alice
+      assert_not FakeComponent.new.allowed_to?(:approve, report)
+    end
+
+    # ...and the resolver the Guard consults reaches the same verdict + reason.
+    allowed, reason = CurrentScope::Resolver.new.decide(
+      subject: @alice, permission: "reports#approve", record: report, actor: admin
+    )
+    assert_not allowed
+    assert_equal :sod_veto, reason
+  end
+
   test "with_current_user restores the previous subject" do
     with_current_user(@alice) { nil }
     assert_nil CurrentScope::Current.user

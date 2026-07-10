@@ -15,6 +15,24 @@ module CurrentScope
     # exempt a record type).
     attr_accessor :sod_actions
 
+    # Which identities the separation-of-duties veto weighs:
+    #   :either  (default) — veto if the effective subject OR (while
+    #                        impersonating) the REAL actor initiated the record,
+    #                        so impersonation can never approve the actor's own
+    #                        record.
+    #   :subject           — veto only on the effective subject.
+    # The two are identical when not impersonating (actor == subject).
+    attr_accessor :sod_identity
+
+    # When false (the default), an impersonated session is read-only: any
+    # non-GET/HEAD request is denied while a real actor acts as a different
+    # subject — INCLUDING the engine's own management UI. The host's
+    # stop-impersonation, sign-out, and sign-in endpoints must opt out with
+    # skip_before_action :current_scope_mutation_guard!, or impersonation can
+    # never end. The gate runs BEFORE the permission check, so sod_identity is
+    # only observable once mutations are allowed (or on a GET-listed sod_action).
+    attr_accessor :allow_mutations_while_impersonating
+
     # Regexps matched against controller paths to keep infrastructure
     # controllers out of the permission grid. An excluded controller cannot be
     # granted, so it must also skip the gate
@@ -33,6 +51,8 @@ module CurrentScope
       @user_method = :current_user
       @actor_method = nil
       @sod_actions = %w[approve]
+      @sod_identity = :either
+      @allow_mutations_while_impersonating = false
       @excluded_controllers = [
         %r{\Arails/}, %r{\Aactive_storage/}, %r{\Aaction_mailbox/},
         %r{\Aturbo/}, %r{\Acurrent_scope/}

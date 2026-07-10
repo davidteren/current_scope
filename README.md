@@ -144,12 +144,25 @@ class doesn't define the hook, the resolver raises a `ConfigurationError`
 instead of silently permitting. Return `nil` from the hook to exempt a record
 type, or trim `config.sod_actions`.
 
+By default (`config.sod_identity = :either`) the veto weighs **two**
+identities: the effective subject *and* the real actor behind an impersonated
+session. So an admin who initiated a report can't slip past the veto by
+approving it while impersonating someone else — impersonation can never approve
+your own record. Set `:subject` to weigh only the effective subject. The two
+are identical when nobody is impersonating (`actor == subject`), so v0.1 hosts
+see no change.
+
 ### Configuration
 
 Everything lives in `config/initializers/current_scope.rb` (created by the
 install generator): the `user_method`, the `subject_class`, `sod_actions`,
 `excluded_controllers` (keep infrastructure out of the grid), and
-`parent_controller` (what the management UI inherits from).
+`parent_controller` (what the management UI inherits from). The three
+impersonation knobs — `actor_method`, `allow_mutations_while_impersonating`,
+and `sod_identity` — are grouped in their own block and covered under
+[Impersonation](#impersonation-act-as); they layer in that order, so
+`sod_identity` is only observable once a mutation is allowed past the read-only
+gate.
 
 Two loud-by-design behaviors: a controller excluded from the catalog can't be
 granted, so gating it is a misconfiguration — Guard raises and tells you to
@@ -219,6 +232,41 @@ end
 Clear the impersonation on **both** sign-in and sign-out
 (`session.delete(:impersonated_subject_id)`) so an act-as session can never
 outlive the login that started it or bleed into the next one.
+
+#### Impersonated sessions are read-only by default
+
+An impersonated session can look, but not touch: with `actor_method` set,
+every non-`GET`/`HEAD` request is denied while a real actor stands behind a
+different subject — **including the engine's own management UI** (editing roles
+and grants is the highest-value surface to keep read-only). This gate is a
+*separate* `before_action` from the permission check, so it survives
+`skip_before_action :current_scope_check!` and runs *first*. Flip
+`config.allow_mutations_while_impersonating = true` to allow writes (at which
+point the SoD `:either` veto above becomes the observable line of defense).
+
+Because it runs first, the endpoints that **end** an impersonation must opt
+out — your stop-impersonation, sign-out, **and** sign-in actions — or you could
+never turn act-as off (and sign-in could never clear it):
+
+```ruby
+class SessionsController < ApplicationController
+  skip_before_action :current_scope_mutation_guard!   # sign-in/out ends act-as
+end
+
+class ImpersonationsController < ApplicationController
+  skip_before_action :current_scope_mutation_guard!, only: :destroy   # stop act-as
+end
+```
+
+Denials carry a machine-readable reason (`:sod_veto`, `:no_grant`,
+`:impersonation_gate`) on `AccessDenied#reason`, surfaced on the response as the
+`X-Current-Scope-Reason` header.
+
+**View/gate disagreement is by design.** `allowed_to?` is HTTP-ignorant: it
+still returns `true` for a permission the subject genuinely holds, even though
+the mutation gate will `403` the resulting non-GET click while impersonating.
+Drive read-only affordances off `impersonating?` — render a banner, disable or
+hide destructive controls — rather than expecting `allowed_to?` to hide them.
 
 > The audit boundary events for act-as (recording who impersonated whom, and
 > when it stopped) land in a later unit — this section is the resolution

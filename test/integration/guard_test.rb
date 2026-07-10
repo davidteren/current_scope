@@ -51,6 +51,29 @@ class GuardTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  test "a ?id= query string cannot smuggle a scoped record into a collection action" do
+    assign(@alice, role("Member"))   # no org-wide permissions
+    viewer = role("Viewer", "reports#index", "reports#show")
+    CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: viewer, resource: @report)
+
+    get reports_url(id: @report.id), headers: sign_in(@alice)
+    assert_response :forbidden
+  end
+
+  test "gating an excluded controller raises a configuration error" do
+    assign(@alice, role("Owner", full_access: true))
+
+    assert_raises(CurrentScope::ConfigurationError) do
+      post webhooks_url, headers: sign_in(@alice)
+    end
+  end
+
+  test "a missing user_method raises instead of silently denying" do
+    assert_raises(CurrentScope::ConfigurationError) do
+      get bare_url
+    end
+  end
+
   test "a scoped role opens member actions on that record only" do
     assign(@alice, role("Member"))
     viewer = role("Viewer", "reports#show")

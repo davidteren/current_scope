@@ -10,6 +10,8 @@ module CurrentScope
   #   4. scoped role   — a role held on THIS record grants the permission.
   #   5. default-deny  — nothing granted means denied.
   class Resolver
+    INITIATOR_METHOD = :current_scope_initiator
+
     def allow?(subject:, permission:, record: nil)
       return false if subject.nil?
       return false if sod_veto?(subject: subject, permission: permission, record: record)
@@ -34,12 +36,23 @@ module CurrentScope
     def sod_veto?(subject:, permission:, record:)
       action = permission.split("#").last
       return false unless CurrentScope.config.sod_actions.include?(action)
-      return false if record.nil?
+      # No veto without an actual record instance (collection actions get nil,
+      # class-form checks like allowed_to?(:approve, Report) get the class).
+      return false unless record.respond_to?(:new_record?)
 
-      initiator_method = CurrentScope.config.initiator_method
-      return false unless record.respond_to?(initiator_method)
+      # SoD is a structural guarantee — "cannot determine the initiator" must
+      # never mean "permit". A record type where SoD genuinely doesn't apply
+      # declares the hook returning nil.
+      unless record.respond_to?(INITIATOR_METHOD, true)
+        raise ConfigurationError,
+              "#{record.class.name}##{INITIATOR_METHOD} is not defined, but " \
+              "\"#{permission}\" is a separation-of-duties action (config.sod_actions). " \
+              "Define #{INITIATOR_METHOD} on #{record.class.name} (return nil to exempt " \
+              "a record), or remove \"#{action}\" from config.sod_actions."
+      end
 
-      record.public_send(initiator_method) == subject
+      initiator = record.send(INITIATOR_METHOD)
+      initiator.present? && initiator == subject
     end
 
     def scoped_grant?(subject:, permission:, record:)

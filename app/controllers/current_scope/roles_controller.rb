@@ -31,11 +31,22 @@ module CurrentScope
     end
 
     def destroy
-      Role.find(params[:id]).destroy!
-      redirect_to roles_path, notice: "Role deleted."
+      role = Role.find(params[:id])
+
+      if last_full_access?(role)
+        redirect_to roles_path,
+                    alert: "Refusing to delete the last full-access role — it would lock everyone out of this UI."
+      else
+        role.destroy!
+        redirect_to roles_path, notice: "Role deleted."
+      end
     end
 
     private
+
+    def last_full_access?(role)
+      role.full_access? && !Role.where(full_access: true).where.not(id: role.id).exists?
+    end
 
     def role_params
       params.expect(role: [ :name, :full_access, permission_keys: [] ])

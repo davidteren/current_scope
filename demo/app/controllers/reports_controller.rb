@@ -49,9 +49,11 @@ class ReportsController < ApplicationController
     end
 
     # Record-level authorization context for scoped roles and the SoD veto.
-    # Loads eagerly: the gate runs before this controller's own callbacks.
+    # Loads eagerly (the gate runs before this controller's own callbacks) and
+    # keys off path_parameters so a ?id= query string can't smuggle a record
+    # into collection actions.
     def current_scope_record
-      set_report if params[:id]
+      set_report if request.path_parameters[:id]
     end
 
     def report_params

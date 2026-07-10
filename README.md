@@ -92,6 +92,14 @@ allowed_to?(:create, Report)          # class form for collection actions
 allowed_to?("admin/reports#approve")  # explicit key when you need it
 ```
 
+Key derivation always agrees with the gate: when the *current* controller
+handles the record's type (including under a namespace — `admin/reports` for
+a `Report`), its controller path wins; otherwise the record's route key is
+used. Cross-resource checks (`allowed_to?(:approve, report)` from a projects
+view) therefore resolve to `reports#approve`, while the same call inside
+`Admin::ReportsController` resolves to `admin/reports#approve` — exactly what
+the Guard enforces there.
+
 ```ruby
 class ApproveButtonComponent < ViewComponent::Base
   include CurrentScope::Permissions
@@ -104,7 +112,9 @@ end
 
 Member actions that need scoped roles or the SoD veto declare a hook. It runs
 *before* your own `before_action`s (the gate comes first), so it loads the
-record itself; memoize so your `set_*` callback reuses it:
+record itself; memoize so your `set_*` callback reuses it. Key off
+`request.path_parameters`, never `params` — a `?id=` query string must not
+smuggle a record into collection actions:
 
 ```ruby
 class ReportsController < ApplicationController
@@ -113,7 +123,7 @@ class ReportsController < ApplicationController
   def set_report = @report ||= Report.find(params.expect(:id))
 
   def current_scope_record
-    set_report if params[:id]
+    set_report if request.path_parameters[:id]
   end
 end
 ```
@@ -129,12 +139,23 @@ class Report < ApplicationRecord
 end
 ```
 
+The veto fails **loud, not open**: if an SoD action reaches a record whose
+class doesn't define the hook, the resolver raises a `ConfigurationError`
+instead of silently permitting. Return `nil` from the hook to exempt a record
+type, or trim `config.sod_actions`.
+
 ### Configuration
 
 Everything lives in `config/initializers/current_scope.rb` (created by the
 install generator): the `user_method`, the `subject_class`, `sod_actions`,
-the `initiator_method`, `excluded_controllers` (keep infrastructure out of
-the grid), and `parent_controller` (what the management UI inherits from).
+`excluded_controllers` (keep infrastructure out of the grid), and
+`parent_controller` (what the management UI inherits from).
+
+Two loud-by-design behaviors: a controller excluded from the catalog can't be
+granted, so gating it is a misconfiguration — Guard raises and tells you to
+either stop excluding it or `skip_before_action :current_scope_check!`. And a
+`user_method` that the controller doesn't respond to raises instead of
+silently turning every request into a 403.
 
 ### Testing your app
 

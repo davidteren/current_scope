@@ -6,6 +6,10 @@ module CurrentScope
   class ApplicationController < CurrentScope.config.parent_controller.constantize
     layout "current_scope/application"
 
+    # The engine's controllers are excluded from the grantable catalog; they
+    # answer to require_full_access! instead of the host's Guard gate.
+    skip_before_action :current_scope_check!, raise: false
+
     before_action :require_full_access!
 
     private

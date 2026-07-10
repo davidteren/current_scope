@@ -12,6 +12,11 @@ module CurrentScope
   # management UI is accessed without a full-access role).
   class AccessDenied < StandardError; end
 
+  # Raised when the host is wired up wrong (missing hook, bad config). Always
+  # raised loudly — an authorization library must never turn a configuration
+  # mistake into a silent allow or an undiagnosable deny.
+  class ConfigurationError < StandardError; end
+
   class << self
     def config
       @config ||= Configuration.new
@@ -48,7 +53,16 @@ module CurrentScope
     def permission_key(action, record: nil, controller_path: nil)
       action = action.to_s
       return action if action.include?("#")
-      return "#{record.model_name.route_key}##{action}" if record.respond_to?(:model_name)
+
+      if record.respond_to?(:model_name)
+        route_key = record.model_name.route_key
+        # When the current controller handles this record type (possibly under
+        # a namespace — admin/reports for a Report), its path is the key the
+        # Guard enforces, so prefer it: the view must agree with the gate.
+        return "#{controller_path}##{action}" if controller_path&.split("/")&.last == route_key
+
+        return "#{route_key}##{action}"
+      end
       return "#{controller_path}##{action}" if controller_path
 
       raise ArgumentError,

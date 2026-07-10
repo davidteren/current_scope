@@ -6,20 +6,20 @@
   </thead>
   <tbody>
     <% @subjects.each do |subject| %>
-      <% assignment = CurrentScope::RoleAssignment.find_by(subject: subject) %>
+      <% key = [ subject.class.name, subject.id ] %>
       <tr>
         <td><%= current_scope_label(subject) %></td>
         <td>
           <%= form_with url: role_assignment_path, method: :post do %>
             <%= hidden_field_tag :subject_gid, subject.to_gid %>
             <%= select_tag :role_id,
-                  options_from_collection_for_select(@roles, :id, :name, assignment&.role_id),
+                  options_from_collection_for_select(@roles, :id, :name, @assignments[key]&.role_id),
                   include_blank: "— none —" %>
             <%= submit_tag "Set", name: nil %>
           <% end %>
         </td>
         <td>
-          <% CurrentScope::ScopedRoleAssignment.where(subject: subject).includes(:role).each do |sra| %>
+          <% (@scoped[key] || []).each do |sra| %>
             <span class="cs-chip">
               <%= sra.role.name %> of <%= current_scope_label(sra.resource) %>
               <%= button_to "×", scoped_role_assignment_path(sra), method: :delete,

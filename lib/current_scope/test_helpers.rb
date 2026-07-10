@@ -9,12 +9,8 @@ module CurrentScope
   #
   # CurrentAttributes resets between examples, so nothing set here can leak.
   module TestHelpers
-    def with_current_user(user)
-      previous = CurrentScope::Current.user
-      CurrentScope::Current.user = user
-      yield
-    ensure
-      CurrentScope::Current.user = previous
+    def with_current_user(user, &block)
+      CurrentScope::Current.set(user: user, &block)
     end
   end
 end

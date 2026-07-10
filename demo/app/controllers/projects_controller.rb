@@ -64,9 +64,10 @@ class ProjectsController < ApplicationController
     end
 
     # Record-level authorization context for scoped roles.
-    # Loads eagerly: the gate runs before this controller's own callbacks.
+    # Loads eagerly (the gate runs first) and keys off path_parameters so a
+    # ?id= query string can't smuggle a record into collection actions.
     def current_scope_record
-      set_project if params[:id]
+      set_project if request.path_parameters[:id]
     end
 
     # Only allow a list of trusted parameters through.

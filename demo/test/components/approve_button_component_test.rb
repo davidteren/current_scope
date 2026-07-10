@@ -10,7 +10,7 @@ class ApproveButtonComponentTest < ViewComponent::TestCase
     @report = reports(:one)   # requested by users(:one)
     @reviewer = users(:two)
     role = CurrentScope::Role.create!(name: "Reviewer")
-    role.permission_keys = %w[reports#approve]
+    role.update!(permission_keys: %w[reports#approve])
     CurrentScope::RoleAssignment.create!(subject: @reviewer, role: role)
   end
 
@@ -30,7 +30,7 @@ class ApproveButtonComponentTest < ViewComponent::TestCase
 
   test "does not render for the requester (SoD), even with the permission" do
     role = CurrentScope::Role.create!(name: "ReviewerToo")
-    role.permission_keys = %w[reports#approve]
+    role.update!(permission_keys: %w[reports#approve])
     CurrentScope::RoleAssignment.create!(subject: users(:one), role: role)
 
     with_current_user(users(:one)) do

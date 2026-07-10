@@ -63,6 +63,43 @@ class ResolverTest < ActiveSupport::TestCase
     assert @resolver.allow?(subject: @bob, permission: "reports#update", record: @report)
   end
 
+  test "SoD fails loud, not open, when the initiator hook is missing" do
+    assign(@alice, role("Owner", full_access: true))
+    project = Project.create!(name: "Apollo")   # Project defines no initiator hook
+
+    error = assert_raises(CurrentScope::ConfigurationError) do
+      @resolver.allow?(subject: @alice, permission: "projects#approve", record: project)
+    end
+    assert_match "current_scope_initiator", error.message
+  end
+
+  test "SoD accepts a private initiator hook" do
+    klass = Class.new(Report) do
+      def self.name = "Report"
+      private def current_scope_initiator = requested_by
+    end
+    record = klass.find(@report.id)
+    assign(@bob, role("Owner", full_access: true))
+
+    assert_not @resolver.allow?(subject: @bob, permission: "reports#approve", record: record)
+  end
+
+  test "a nil initiator exempts the record from the veto" do
+    klass = Class.new(Report) do
+      def self.name = "Report"
+      def current_scope_initiator = nil
+    end
+    record = klass.find(@report.id)
+    assign(@bob, role("Reviewer", "reports#approve"))
+
+    assert @resolver.allow?(subject: @bob, permission: "reports#approve", record: record)
+  end
+
+  test "SoD never vetoes class-form checks" do
+    assign(@bob, role("Reviewer", "reports#approve"))
+    assert @resolver.allow?(subject: @bob, permission: "reports#approve", record: Report)
+  end
+
   test "scoped role grants the permission on that record only" do
     editor = role("Editor", "reports#show")
     other = Report.create!(title: "Q4", requested_by: @bob)

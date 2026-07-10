@@ -19,19 +19,19 @@ CurrentScope.seed_defaults!
 owner_role  = CurrentScope::Role.find_by!(name: "Owner")
 member_role = CurrentScope::Role.find_by!(name: "Member")
 
-member_role.permission_keys = %w[
+member_role.update!(permission_keys: %w[
   projects#index projects#show
   reports#index reports#show reports#new reports#create
-]
+])
 
 reviewer_role = CurrentScope::Role.find_or_create_by!(name: "Reviewer")
-reviewer_role.permission_keys = member_role.permission_keys + %w[reports#approve]
+reviewer_role.update!(permission_keys: member_role.permission_keys + %w[reports#approve])
 
 lister_role = CurrentScope::Role.find_or_create_by!(name: "Lister")
-lister_role.permission_keys = %w[projects#index reports#index]
+lister_role.update!(permission_keys: %w[projects#index reports#index])
 
 viewer_role = CurrentScope::Role.find_or_create_by!(name: "Viewer")
-viewer_role.permission_keys = %w[reports#show]
+viewer_role.update!(permission_keys: %w[reports#show])
 
 {
   owner => owner_role, reviewer => reviewer_role,

@@ -9,22 +9,36 @@ module CurrentScope
 
     validates :name, presence: true, uniqueness: true
 
+    after_save :persist_permission_keys
+
     def grants?(permission_key)
       role_permissions.exists?(permission_key: permission_key)
     end
 
     def permission_keys
-      role_permissions.pluck(:permission_key)
+      @pending_permission_keys || role_permissions.pluck(:permission_key)
     end
 
-    # Replaces the role's permission set with the given keys, dropping any
-    # that aren't in the catalog (stale keys from removed controllers).
+    # Stages a replacement permission set, dropping keys that aren't in the
+    # catalog (stale keys from removed controllers). Persisted on save, like
+    # any other attribute — never before validations pass.
     def permission_keys=(keys)
-      keys = Array(keys).uniq.select { |k| CurrentScope.catalog.include?(k) }
-      transaction do
-        role_permissions.delete_all
-        role_permissions.insert_all(keys.map { |k| { permission_key: k } }) if keys.any?
-      end
+      @pending_permission_keys = Array(keys).uniq.select { |k| CurrentScope.catalog.include?(k) }
+    end
+
+    def reload(...)
+      @pending_permission_keys = nil
+      super
+    end
+
+    private
+
+    def persist_permission_keys
+      return if @pending_permission_keys.nil?
+
+      role_permissions.delete_all
+      role_permissions.insert_all(@pending_permission_keys.map { |k| { permission_key: k } }) if @pending_permission_keys.any?
+      @pending_permission_keys = nil
     end
   end
 end

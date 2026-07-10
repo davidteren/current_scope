@@ -39,10 +39,16 @@ class PermissionKeyTest < ActiveSupport::TestCase
     assert_equal "reports#index", CurrentScope.permission_key(:index, controller_path: "reports")
   end
 
-  test "record wins over controller path" do
+  test "record wins over a different resource's controller path" do
     report = Report.new(title: "x")
     key = CurrentScope.permission_key(:show, record: report, controller_path: "projects")
     assert_equal "reports#show", key
+  end
+
+  test "a namespaced controller for the same resource wins over the record's route key" do
+    report = Report.new(title: "x")
+    key = CurrentScope.permission_key(:destroy, record: report, controller_path: "admin/reports")
+    assert_equal "admin/reports#destroy", key
   end
 
   test "raises when the key cannot be derived" do

@@ -3,5 +3,8 @@ Rails.application.routes.draw do
     post :approve, on: :member
   end
 
+  resources :webhooks, only: :create
+  get "bare", to: "bare#show"
+
   mount CurrentScope::Engine => "/current_scope"
 end

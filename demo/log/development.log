@@ -3231,3 +3231,134 @@ Filter chain halted as :require_authentication rendered or redirected
 Completed 302 Found in 1ms (ActiveRecord: 0.0ms (0 queries, 0 cached) | GC: 0.0ms)
 
 
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Exists? (0.2ms)[0m  [1m[34mSELECT 1 AS one FROM "current_scope_roles" WHERE "current_scope_roles"."name" = 'AAA_taken' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Create (0.3ms)[0m  [1m[32mINSERT INTO "current_scope_roles" ("name", "full_access", "created_at", "updated_at") VALUES ('AAA_taken', FALSE, '2026-07-10 17:34:54.994707', '2026-07-10 17:34:54.994707') RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Exists? (0.0ms)[0m  [1m[34mSELECT 1 AS one FROM "current_scope_roles" WHERE "current_scope_roles"."name" = 'BBB_target' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Create (0.1ms)[0m  [1m[32mINSERT INTO "current_scope_roles" ("name", "full_access", "created_at", "updated_at") VALUES ('BBB_target', FALSE, '2026-07-10 17:34:54.996691', '2026-07-10 17:34:54.996691') RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Delete All (0.0ms)[0m  [1m[31mDELETE FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 7 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Insert (0.1ms)[0m  [1m[32mINSERT INTO "current_scope_role_permissions" ("permission_key","role_id") VALUES ('reports#index', 7) ON CONFLICT  DO NOTHING RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Delete All (0.0ms)[0m  [1m[31mDELETE FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 7 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Insert (0.0ms)[0m  [1m[32mINSERT INTO "current_scope_role_permissions" ("permission_key","role_id") VALUES ('reports#destroy', 7) ON CONFLICT  DO NOTHING RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Exists? (0.0ms)[0m  [1m[34mSELECT 1 AS one FROM "current_scope_roles" WHERE "current_scope_roles"."name" = 'AAA_taken' AND "current_scope_roles"."id" != 7 LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Load (0.0ms)[0m  [1m[34mSELECT "current_scope_roles".* FROM "current_scope_roles" WHERE "current_scope_roles"."id" = 7 LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Pluck (0.0ms)[0m  [1m[34mSELECT "current_scope_role_permissions"."permission_key" FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 7 /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.1ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mUser Create (0.8ms)[0m  [1m[32mINSERT INTO "users" ("email_address", "password_digest", "created_at", "updated_at") VALUES ('qc1-295713@x.com', '$2a$12$E.NgWFuFSmV4FJes.H.50eGCI5rG/Ivdw4q/9xlpWeyu.SzYKUiQO', '2026-07-10 17:34:55.312930', '2026-07-10 17:34:55.312930') RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mCOMMIT TRANSACTION /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mUser Create (0.7ms)[0m  [1m[32mINSERT INTO "users" ("email_address", "password_digest", "created_at", "updated_at") VALUES ('qc2-951427@x.com', '$2a$12$uv2GjTVfA9cam8IEyLOYsObwQn9FaZpk4oZAARLoxSi6uIcCaKvHW', '2026-07-10 17:34:55.569883', '2026-07-10 17:34:55.569883') RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.1ms)[0m  [1m[35mCOMMIT TRANSACTION /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mProject Create (1.0ms)[0m  [1m[32mINSERT INTO "projects" ("name", "created_at", "updated_at") VALUES ('QC 796411', '2026-07-10 17:34:55.574230', '2026-07-10 17:34:55.574230') RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.1ms)[0m  [1m[35mCOMMIT TRANSACTION /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.1ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mReport Create (0.7ms)[0m  [1m[32mINSERT INTO "reports" ("title", "project_id", "requested_by_id", "approved_by_id", "approved_at", "created_at", "updated_at") VALUES ('T', 3, 6, NULL, NULL, '2026-07-10 17:34:55.581868', '2026-07-10 17:34:55.581868') RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.1ms)[0m  [1m[35mCOMMIT TRANSACTION /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Exists? (0.6ms)[0m  [1m[34mSELECT 1 AS one FROM "current_scope_roles" WHERE "current_scope_roles"."name" = 'QC-R202004' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Create (0.1ms)[0m  [1m[32mINSERT INTO "current_scope_roles" ("name", "full_access", "created_at", "updated_at") VALUES ('QC-R202004', FALSE, '2026-07-10 17:34:55.586459', '2026-07-10 17:34:55.586459') RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.1ms)[0m  [1m[35mCOMMIT TRANSACTION /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Exists? (0.6ms)[0m  [1m[34mSELECT 1 AS one FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."permission_key" = 'reports#show' AND "current_scope_role_permissions"."role_id" = 6 LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Create (0.0ms)[0m  [1m[32mINSERT INTO "current_scope_role_permissions" ("role_id", "permission_key") VALUES (6, 'reports#show') RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mCOMMIT TRANSACTION /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RoleAssignment Exists? (0.6ms)[0m  [1m[34mSELECT 1 AS one FROM "current_scope_role_assignments" WHERE "current_scope_role_assignments"."subject_id" = 5 AND "current_scope_role_assignments"."subject_type" = 'User' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RoleAssignment Create (0.1ms)[0m  [1m[32mINSERT INTO "current_scope_role_assignments" ("subject_type", "subject_id", "role_id", "created_at", "updated_at") VALUES ('User', 5, 6, '2026-07-10 17:34:55.596956', '2026-07-10 17:34:55.596956') RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.1ms)[0m  [1m[35mCOMMIT TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RoleAssignment Load (0.1ms)[0m  [1m[34mSELECT "current_scope_role_assignments".* FROM "current_scope_role_assignments" WHERE "current_scope_role_assignments"."subject_type" = 'User' AND "current_scope_role_assignments"."subject_id" = 5 LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Load (0.1ms)[0m  [1m[34mSELECT "current_scope_roles".* FROM "current_scope_roles" WHERE "current_scope_roles"."id" = 6 LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Exists? (0.0ms)[0m  [1m[34mSELECT 1 AS one FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 6 AND "current_scope_role_permissions"."permission_key" = 'reports#show' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCACHE CurrentScope::RoleAssignment Load (0.0ms)[0m  [1m[34mSELECT "current_scope_role_assignments".* FROM "current_scope_role_assignments" WHERE "current_scope_role_assignments"."subject_type" = 'User' AND "current_scope_role_assignments"."subject_id" = 5 LIMIT 1[0m
+  [1m[36mCACHE CurrentScope::Role Load (0.0ms)[0m  [1m[34mSELECT "current_scope_roles".* FROM "current_scope_roles" WHERE "current_scope_roles"."id" = 6 LIMIT 1[0m
+  [1m[36mCurrentScope::RolePermission Exists? (0.1ms)[0m  [1m[34mSELECT 1 AS one FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 6 AND "current_scope_role_permissions"."permission_key" = 'reports#destroy' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Exists? (0.1ms)[0m  [1m[34mSELECT 1 AS one FROM "current_scope_roles" WHERE "current_scope_roles"."id" IN (SELECT "current_scope_scoped_role_assignments"."role_id" FROM "current_scope_scoped_role_assignments" WHERE "current_scope_scoped_role_assignments"."subject_type" = 'User' AND "current_scope_scoped_role_assignments"."subject_id" = 5 AND "current_scope_scoped_role_assignments"."resource_type" = 'Report' AND "current_scope_scoped_role_assignments"."resource_id" = 4) AND ("current_scope_roles"."full_access" = TRUE OR "current_scope_roles"."id" IN (SELECT "current_scope_role_permissions"."role_id" FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."permission_key" = 'reports#destroy')) LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Insert (0.5ms)[0m  [1m[32mINSERT INTO "current_scope_role_permissions" ("permission_key","role_id") VALUES ('reports#index', NULL) ON CONFLICT  DO NOTHING RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Exists? (0.6ms)[0m  [1m[34mSELECT 1 AS one FROM "current_scope_roles" WHERE "current_scope_roles"."name" = 'ProbeRole' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Create (0.1ms)[0m  [1m[32mINSERT INTO "current_scope_roles" ("name", "full_access", "created_at", "updated_at") VALUES ('ProbeRole', FALSE, '2026-07-10 17:35:48.279924', '2026-07-10 17:35:48.279924') RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.2ms)[0m  [1m[35mCOMMIT TRANSACTION /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Delete All (0.4ms)[0m  [1m[31mDELETE FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 7 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Bulk Insert (0.1ms)[0m  [1m[32mINSERT INTO "current_scope_role_permissions" ("permission_key","role_id") VALUES ('reports#index', 7), ('reports#show', 7) ON CONFLICT  DO NOTHING RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.1ms)[0m  [1m[35mCOMMIT TRANSACTION /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Delete All (0.9ms)[0m  [1m[31mDELETE FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 7 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Insert (0.1ms)[0m  [1m[32mINSERT INTO "current_scope_role_permissions" ("permission_key","role_id") VALUES ('reports#destroy', 7) ON CONFLICT  DO NOTHING RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Exists? (0.1ms)[0m  [1m[34mSELECT 1 AS one FROM "current_scope_roles" WHERE "current_scope_roles"."name" = '' AND "current_scope_roles"."id" != 7 LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Load (0.1ms)[0m  [1m[34mSELECT "current_scope_roles".* FROM "current_scope_roles" WHERE "current_scope_roles"."id" = 7 LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Pluck (0.1ms)[0m  [1m[34mSELECT "current_scope_role_permissions"."permission_key" FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 7 /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Exists? (0.5ms)[0m  [1m[34mSELECT 1 AS one FROM "current_scope_roles" WHERE "current_scope_roles"."name" = 'ProbeRole2' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Create (0.1ms)[0m  [1m[32mINSERT INTO "current_scope_roles" ("name", "full_access", "created_at", "updated_at") VALUES ('ProbeRole2', FALSE, '2026-07-10 17:35:48.299684', '2026-07-10 17:35:48.299684') RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.1ms)[0m  [1m[35mCOMMIT TRANSACTION /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Delete All (0.4ms)[0m  [1m[31mDELETE FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 8 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Insert (0.1ms)[0m  [1m[32mINSERT INTO "current_scope_role_permissions" ("permission_key","role_id") VALUES ('reports#index', 8) ON CONFLICT  DO NOTHING RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mCOMMIT TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Load (0.0ms)[0m  [1m[34mSELECT "current_scope_roles".* FROM "current_scope_roles" WHERE "current_scope_roles"."id" = 8 LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Pluck (0.0ms)[0m  [1m[34mSELECT "current_scope_role_permissions"."permission_key" FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 8 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Load (0.2ms)[0m  [1m[34mSELECT "current_scope_roles".* FROM "current_scope_roles" WHERE "current_scope_roles"."name" = 'ProbeRole' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.1ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Delete All (0.0ms)[0m  [1m[31mDELETE FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 7 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Bulk Insert (0.1ms)[0m  [1m[32mINSERT INTO "current_scope_role_permissions" ("permission_key","role_id") VALUES ('reports#index', 7), ('reports#show', 7) ON CONFLICT  DO NOTHING RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.1ms)[0m  [1m[35mCOMMIT TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Load (0.0ms)[0m  [1m[34mSELECT "current_scope_roles".* FROM "current_scope_roles" WHERE "current_scope_roles"."id" = 7 LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Pluck (0.0ms)[0m  [1m[34mSELECT "current_scope_role_permissions"."permission_key" FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 7 /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Delete All (0.4ms)[0m  [1m[31mDELETE FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 7 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Insert (0.0ms)[0m  [1m[32mINSERT INTO "current_scope_role_permissions" ("permission_key","role_id") VALUES ('reports#destroy', 7) ON CONFLICT  DO NOTHING RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.1ms)[0m  [1m[35mCOMMIT TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Pluck (0.0ms)[0m  [1m[34mSELECT "current_scope_role_permissions"."permission_key" FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 7 /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Exists? (0.5ms)[0m  [1m[34mSELECT 1 AS one FROM "current_scope_roles" WHERE "current_scope_roles"."name" = '' AND "current_scope_roles"."id" != 7 LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Pluck (0.0ms)[0m  [1m[34mSELECT "current_scope_role_permissions"."permission_key" FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 7 /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mReport Create (1.1ms)[0m  [1m[32mINSERT INTO "reports" ("title", "project_id", "requested_by_id", "approved_by_id", "approved_at", "created_at", "updated_at") VALUES (NULL, NULL, NULL, NULL, NULL, '2026-07-10 17:41:07.806831', '2026-07-10 17:41:07.806831') RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION /*application='Demo'*/[0m
+  [1m[36mReport Load (0.1ms)[0m  [1m[34mSELECT "reports".* FROM "reports" ORDER BY "reports"."id" ASC LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.1ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='Demo'*/[0m
+  [1m[36mUser Load (0.2ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email_address" = 'owner@example.com' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mUser Load (0.1ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email_address" = 'reviewer@example.com' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mUser Load (0.0ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email_address" = 'member@example.com' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mUser Load (0.0ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email_address" = 'scoped@example.com' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Load (0.2ms)[0m  [1m[34mSELECT "current_scope_roles".* FROM "current_scope_roles" WHERE "current_scope_roles"."name" = 'Owner' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Load (0.1ms)[0m  [1m[34mSELECT "current_scope_roles".* FROM "current_scope_roles" WHERE "current_scope_roles"."name" = 'Member' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCACHE CurrentScope::Role Load (0.0ms)[0m  [1m[34mSELECT "current_scope_roles".* FROM "current_scope_roles" WHERE "current_scope_roles"."name" = 'Owner' LIMIT 1[0m
+  [1m[36mCACHE CurrentScope::Role Load (0.0ms)[0m  [1m[34mSELECT "current_scope_roles".* FROM "current_scope_roles" WHERE "current_scope_roles"."name" = 'Member' LIMIT 1[0m
+  [1m[36mTRANSACTION (0.1ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Delete All (0.2ms)[0m  [1m[31mDELETE FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 2 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Bulk Insert (0.1ms)[0m  [1m[32mINSERT INTO "current_scope_role_permissions" ("permission_key","role_id") VALUES ('projects#index', 2), ('projects#show', 2), ('reports#index', 2), ('reports#show', 2), ('reports#new', 2), ('reports#create', 2) ON CONFLICT  DO NOTHING RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.2ms)[0m  [1m[35mCOMMIT TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Load (0.0ms)[0m  [1m[34mSELECT "current_scope_roles".* FROM "current_scope_roles" WHERE "current_scope_roles"."name" = 'Reviewer' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Pluck (0.0ms)[0m  [1m[34mSELECT "current_scope_role_permissions"."permission_key" FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 2 /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Delete All (0.6ms)[0m  [1m[31mDELETE FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 3 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Bulk Insert (0.1ms)[0m  [1m[32mINSERT INTO "current_scope_role_permissions" ("permission_key","role_id") VALUES ('projects#index', 3), ('projects#show', 3), ('reports#create', 3), ('reports#index', 3), ('reports#new', 3), ('reports#show', 3), ('reports#approve', 3) ON CONFLICT  DO NOTHING RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.1ms)[0m  [1m[35mCOMMIT TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Load (0.0ms)[0m  [1m[34mSELECT "current_scope_roles".* FROM "current_scope_roles" WHERE "current_scope_roles"."name" = 'Lister' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Delete All (0.6ms)[0m  [1m[31mDELETE FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 4 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Bulk Insert (0.1ms)[0m  [1m[32mINSERT INTO "current_scope_role_permissions" ("permission_key","role_id") VALUES ('projects#index', 4), ('reports#index', 4) ON CONFLICT  DO NOTHING RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.1ms)[0m  [1m[35mCOMMIT TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::Role Load (0.1ms)[0m  [1m[34mSELECT "current_scope_roles".* FROM "current_scope_roles" WHERE "current_scope_roles"."name" = 'Viewer' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mBEGIN immediate TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Delete All (1.6ms)[0m  [1m[31mDELETE FROM "current_scope_role_permissions" WHERE "current_scope_role_permissions"."role_id" = 5 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RolePermission Insert (0.1ms)[0m  [1m[32mINSERT INTO "current_scope_role_permissions" ("permission_key","role_id") VALUES ('reports#show', 5) ON CONFLICT  DO NOTHING RETURNING "id" /*application='Demo'*/[0m
+  [1m[36mTRANSACTION (0.1ms)[0m  [1m[35mCOMMIT TRANSACTION /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RoleAssignment Load (0.1ms)[0m  [1m[34mSELECT "current_scope_role_assignments".* FROM "current_scope_role_assignments" WHERE "current_scope_role_assignments"."subject_type" = 'User' AND "current_scope_role_assignments"."subject_id" = 1 LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RoleAssignment Load (0.1ms)[0m  [1m[34mSELECT "current_scope_role_assignments".* FROM "current_scope_role_assignments" WHERE "current_scope_role_assignments"."subject_type" = 'User' AND "current_scope_role_assignments"."subject_id" = 2 LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RoleAssignment Load (0.1ms)[0m  [1m[34mSELECT "current_scope_role_assignments".* FROM "current_scope_role_assignments" WHERE "current_scope_role_assignments"."subject_type" = 'User' AND "current_scope_role_assignments"."subject_id" = 3 LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::RoleAssignment Load (0.0ms)[0m  [1m[34mSELECT "current_scope_role_assignments".* FROM "current_scope_role_assignments" WHERE "current_scope_role_assignments"."subject_type" = 'User' AND "current_scope_role_assignments"."subject_id" = 4 LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mProject Load (0.2ms)[0m  [1m[34mSELECT "projects".* FROM "projects" WHERE "projects"."name" = 'Apollo' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mProject Load (0.1ms)[0m  [1m[34mSELECT "projects".* FROM "projects" WHERE "projects"."name" = 'Zephyr' LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mReport Load (0.0ms)[0m  [1m[34mSELECT "reports".* FROM "reports" WHERE "reports"."title" = 'Q3 budget' AND "reports"."project_id" = 1 AND "reports"."requested_by_id" = 3 LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mReport Load (0.1ms)[0m  [1m[34mSELECT "reports".* FROM "reports" WHERE "reports"."title" = 'Q4 forecast' AND "reports"."project_id" = 1 AND "reports"."requested_by_id" = 2 LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mReport Load (0.0ms)[0m  [1m[34mSELECT "reports".* FROM "reports" WHERE "reports"."title" = 'Zephyr kickoff' AND "reports"."project_id" = 2 AND "reports"."requested_by_id" = 3 LIMIT 1 /*application='Demo'*/[0m
+  [1m[36mCurrentScope::ScopedRoleAssignment Load (0.1ms)[0m  [1m[34mSELECT "current_scope_scoped_role_assignments".* FROM "current_scope_scoped_role_assignments" WHERE "current_scope_scoped_role_assignments"."subject_type" = 'User' AND "current_scope_scoped_role_assignments"."subject_id" = 4 AND "current_scope_scoped_role_assignments"."role_id" = 5 AND "current_scope_scoped_role_assignments"."resource_type" = 'Report' AND "current_scope_scoped_role_assignments"."resource_id" = 1 LIMIT 1 /*application='Demo'*/[0m

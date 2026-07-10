@@ -9,9 +9,9 @@ class AuthorizationFlowTest < ActionDispatch::IntegrationTest
     @report = reports(:one)   # requested by @member
 
     member_role = CurrentScope::Role.create!(name: "Member")
-    member_role.permission_keys = %w[projects#index projects#show reports#index reports#show reports#new reports#create]
+    member_role.update!(permission_keys: %w[projects#index projects#show reports#index reports#show reports#new reports#create])
     reviewer_role = CurrentScope::Role.create!(name: "Reviewer")
-    reviewer_role.permission_keys = member_role.permission_keys + %w[reports#approve]
+    reviewer_role.update!(permission_keys: member_role.permission_keys + %w[reports#approve])
 
     CurrentScope::RoleAssignment.create!(subject: @member, role: member_role)
     CurrentScope::RoleAssignment.create!(subject: @reviewer, role: reviewer_role)
@@ -82,9 +82,9 @@ class AuthorizationFlowTest < ActionDispatch::IntegrationTest
 
   test "a scoped role opens exactly one record" do
     lister = CurrentScope::Role.create!(name: "Lister")
-    lister.permission_keys = %w[reports#index]
+    lister.update!(permission_keys: %w[reports#index])
     viewer = CurrentScope::Role.create!(name: "Viewer")
-    viewer.permission_keys = %w[reports#show]
+    viewer.update!(permission_keys: %w[reports#show])
 
     scoped_user = User.create!(email_address: "scoped@example.com", password: "password")
     CurrentScope::RoleAssignment.create!(subject: scoped_user, role: lister)

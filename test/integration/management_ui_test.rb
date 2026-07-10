@@ -65,6 +65,16 @@ class ManagementUiTest < ActionDispatch::IntegrationTest
     assert_nil CurrentScope::ScopedRoleAssignment.find_by(subject: @member)
   end
 
+  test "refuses to delete the last full-access role" do
+    delete current_scope.role_url(@owner_role), headers: as(@owner)
+    assert_redirected_to current_scope.roles_url
+    assert CurrentScope::Role.exists?(@owner_role.id)
+
+    CurrentScope::Role.create!(name: "SecondOwner", full_access: true)
+    delete current_scope.role_url(@owner_role), headers: as(@owner)
+    assert_not CurrentScope::Role.exists?(@owner_role.id)
+  end
+
   test "subjects page renders role chips" do
     get current_scope.subjects_url, headers: as(@owner)
     assert_response :success

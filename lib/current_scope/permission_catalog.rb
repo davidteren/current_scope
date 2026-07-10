@@ -17,10 +17,6 @@ module CurrentScope
       keys.include?(key)
     end
 
-    def reload!
-      @keys = nil
-    end
-
     private
 
     def derive

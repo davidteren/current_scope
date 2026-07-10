@@ -7,11 +7,11 @@ module CurrentScope
 
       if params[:role_id].blank?
         assignment.destroy if assignment.persisted?
+        redirect_to subjects_path, notice: "Org-wide role cleared."
       else
         assignment.update!(role_id: params.expect(:role_id))
+        redirect_to subjects_path, notice: "Org-wide role set."
       end
-
-      redirect_to subjects_path, notice: "Role assignment updated."
     end
   end
 end

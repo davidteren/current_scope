@@ -25,6 +25,6 @@ class ReportsController < ApplicationController
   end
 
   def current_scope_record
-    report if params[:id]
+    report if request.path_parameters[:id]
   end
 end

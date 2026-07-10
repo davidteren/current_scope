@@ -16,7 +16,12 @@ module CurrentScope
 
     def set_current_scope_user
       user_method = CurrentScope.config.user_method
-      CurrentScope::Current.user = send(user_method) if respond_to?(user_method, true)
+      unless respond_to?(user_method, true)
+        raise CurrentScope::ConfigurationError,
+              "#{self.class.name} does not respond to ##{user_method}. Define it, or " \
+              "point CurrentScope.config.user_method at your authentication method."
+      end
+      CurrentScope::Current.user = send(user_method)
     end
   end
 end

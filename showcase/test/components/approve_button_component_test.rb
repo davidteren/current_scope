@@ -16,14 +16,14 @@ class ApproveButtonComponentTest < ViewComponent::TestCase
 
   test "renders for a reviewer" do
     with_current_user(@reviewer) do
-      render_inline ApproveButtonComponent.new(report: @report)
+      render_inline ApproveButtonComponent.new(record: @report)
       assert_selector "form button", text: "Approve"
     end
   end
 
   test "does not render without the permission" do
     with_current_user(users(:one)) do
-      render_inline ApproveButtonComponent.new(report: @report)
+      render_inline ApproveButtonComponent.new(record: @report)
       assert_no_selector "button"
     end
   end
@@ -34,20 +34,20 @@ class ApproveButtonComponentTest < ViewComponent::TestCase
     CurrentScope::RoleAssignment.create!(subject: users(:one), role: role)
 
     with_current_user(users(:one)) do
-      render_inline ApproveButtonComponent.new(report: @report)
+      render_inline ApproveButtonComponent.new(record: @report)
       assert_no_selector "button"
     end
   end
 
   test "does not render with no ambient user at all" do
-    render_inline ApproveButtonComponent.new(report: @report)
+    render_inline ApproveButtonComponent.new(record: @report)
     assert_no_selector "button"
   end
 
   test "does not render when already approved" do
     @report.approve!(by: @reviewer)
     with_current_user(@reviewer) do
-      render_inline ApproveButtonComponent.new(report: @report)
+      render_inline ApproveButtonComponent.new(record: @report)
       assert_no_selector "button"
     end
   end

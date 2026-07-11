@@ -34,6 +34,12 @@
               "aria-current": (current_page?(projects_path) || request.path == "/" ? "page" : nil) %>
         <%= link_to "Reports", reports_path,
               "aria-current": (current_page?(reports_path) ? "page" : nil) %>
+        <%= link_to "Payroll", pay_runs_path,
+              "aria-current": (current_page?(pay_runs_path) ? "page" : nil) %>
+        <%= link_to "Contracts", contracts_path,
+              "aria-current": (current_page?(contracts_path) ? "page" : nil) %>
+        <%= link_to "Expenses", expense_claims_path,
+              "aria-current": (current_page?(expense_claims_path) ? "page" : nil) %>
         <% if authenticated? && CurrentScope.resolver.full_access?(current_scope_user) %>
           <%= link_to "Authorization", current_scope_path %>
         <% end %>

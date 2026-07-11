@@ -1,0 +1,54 @@
+<% content_for :title, "Payroll" %>
+
+<div class="page-head">
+  <h1>Payroll</h1>
+  <% if allowed_to?(:new, PayRun) %>
+    <%= link_to "New pay run", new_pay_run_path, class: "button" %>
+  <% end %>
+</div>
+
+<% if @records.any? %>
+  <table class="ledger" id="pay_runs">
+    <thead>
+      <tr>
+        <th scope="col">No.</th>
+        <th scope="col">Label</th>
+        <th scope="col" class="optional">Period</th>
+        <th scope="col" class="optional">Prepared by</th>
+        <th scope="col">Status</th>
+        <th scope="col" class="actions"><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @records.each do |pay_run| %>
+        <tr id="<%= dom_id pay_run %>">
+          <td class="num"><%= format("%04d", pay_run.id) %></td>
+          <td>
+            <% if allowed_to?(:show, pay_run) %>
+              <%= link_to pay_run.label, pay_run %>
+            <% else %>
+              <%= pay_run.label %>
+            <% end %>
+          </td>
+          <td class="optional"><%= pay_run.period %></td>
+          <td class="optional mono"><%= pay_run.prepared_by.email_address %></td>
+          <td>
+            <% if pay_run.approved? %>
+              <span class="stamp stamp--approved">Approved</span>
+            <% else %>
+              <span class="stamp stamp--pending">Pending</span>
+            <% end %>
+          </td>
+          <td class="actions">
+            <%= render ApproveButtonComponent.new(record: pay_run) %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% else %>
+  <div class="empty">
+    <b>No pay runs you can open.</b> Prepare one and it lands here awaiting
+    sign-off — and whoever prepares a run can never be the one to approve it.
+  </div>
+<% end %>

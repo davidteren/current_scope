@@ -1,0 +1,13 @@
+<% content_for :title, "New pay run" %>
+
+<h1>New pay run</h1>
+<p class="mono" style="color: var(--muted); margin-top: -0.75rem;">
+  prepared by <%= Current.user.email_address %> — the four-eyes rule means you
+  won't be able to approve it yourself
+</p>
+
+<%= render "form", pay_run: @record %>
+
+<div class="actions-row">
+  <%= link_to "Back to payroll", pay_runs_path %>
+</div>

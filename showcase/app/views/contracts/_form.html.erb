@@ -1,0 +1,31 @@
+<%= form_with(model: contract, class: "sheet-form") do |form| %>
+  <% if contract.errors.any? %>
+    <div class="errors">
+      <h2><%= pluralize(contract.errors.count, "error") %> prohibited this contract from being saved</h2>
+      <ul>
+        <% contract.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="field">
+    <%= form.label :title %>
+    <%= form.text_field :title %>
+  </div>
+
+  <div class="field">
+    <%= form.label :counterparty %>
+    <%= form.text_field :counterparty %>
+  </div>
+
+  <div class="field">
+    <%= form.label :amount %>
+    <%= form.number_field :amount, step: :any %>
+  </div>
+
+  <div class="field">
+    <%= form.submit class: "button--primary" %>
+  </div>
+<% end %>

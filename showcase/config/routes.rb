@@ -2,6 +2,16 @@ Rails.application.routes.draw do
   resources :reports do
     post :approve, on: :member
   end
+  # The three SoD gallery domains — same shape as reports.
+  resources :pay_runs do
+    post :approve, on: :member
+  end
+  resources :contracts do
+    post :approve, on: :member
+  end
+  resources :expense_claims do
+    post :approve, on: :member
+  end
   resources :projects
   mount CurrentScope::Engine => "/current_scope"
   resource :session

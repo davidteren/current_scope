@@ -13,7 +13,7 @@
 <% end %>
 
 <div class="actions-row">
-  <%= render ApproveButtonComponent.new(report: @report) %>
+  <%= render ApproveButtonComponent.new(record: @report) %>
 
   <% if allowed_to?(:edit, @report) %>
     <%= link_to "Edit", edit_report_path(@report), class: "button" %>

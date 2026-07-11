@@ -1,0 +1,13 @@
+<% content_for :title, "New contract" %>
+
+<h1>New contract</h1>
+<p class="mono" style="color: var(--muted); margin-top: -0.75rem;">
+  raised by <%= Current.user.email_address %> — the four-eyes rule means you
+  won't be able to approve it yourself
+</p>
+
+<%= render "form", contract: @record %>
+
+<div class="actions-row">
+  <%= link_to "Back to contracts", contracts_path %>
+</div>

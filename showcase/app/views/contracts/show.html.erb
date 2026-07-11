@@ -1,0 +1,26 @@
+<% content_for :title, @record.title %>
+
+<%= render @record %>
+
+<% if !@record.approved? && @record.current_scope_initiator == Current.user %>
+  <div class="countersign">
+    <span class="glyph">✕✕</span>
+    <span>
+      <b>Four-eyes rule:</b> you raised this contract, so approval requires a
+      second signatory — even a full-access owner can't stamp their own.
+    </span>
+  </div>
+<% end %>
+
+<div class="actions-row">
+  <%= render ApproveButtonComponent.new(record: @record) %>
+
+  <% if allowed_to?(:edit, @record) %>
+    <%= link_to "Edit", edit_contract_path(@record), class: "button" %>
+  <% end %>
+  <% if allowed_to?(:destroy, @record) %>
+    <%= button_to "Destroy", @record, method: :delete, class: "button--danger",
+          data: { turbo_confirm: "Destroy this contract?" } %>
+  <% end %>
+  <%= link_to "Back to contracts", contracts_path %>
+</div>

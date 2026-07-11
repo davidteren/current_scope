@@ -83,20 +83,30 @@ class EventTest < ActiveSupport::TestCase
 
   # --- friendly error when the host hasn't migrated ------------------------
 
-  test "record! raises a friendly ConfigurationError when the events table is missing" do
+  test "record! degrades gracefully (no raise, warns once) when the events table is missing" do
     role = CurrentScope::Role.create!(name: "Owner")
     # A subclass bound to a table that doesn't exist reproduces the real
-    # "no such table" StatementInvalid a host hits when it hasn't migrated.
+    # "no such table" StatementInvalid an unmigrated host hits. Audit is on by
+    # default, so this must NOT break the mutation — it skips recording and warns.
     unmigrated = Class.new(CurrentScope::Event) { self.table_name = "current_scope_events_missing" }
 
-    error = with_current_user(@alice) do
-      assert_raises(CurrentScope::ConfigurationError) do
-        unmigrated.record!(event: "role.created", target: role)
+    io = StringIO.new
+    original_logger = Rails.logger
+    Rails.logger = ActiveSupport::Logger.new(io)
+    begin
+      with_current_user(@alice) do
+        assert_nil unmigrated.record!(event: "role.created", target: role) # no raise, no-op
+        unmigrated.record!(event: "role.created", target: role)            # second call: no re-warn
       end
+    ensure
+      Rails.logger = original_logger
     end
 
-    assert_match(/current_scope:install:migrations/, error.message)
-    assert_match(/audit/, error.message)
+    log = io.string
+    assert_match(/current_scope_events table is missing/, log)
+    assert_match(/current_scope:install:migrations/, log)
+    assert_equal 1, log.scan("audit is on but the current_scope_events table is missing").size,
+                 "should warn once, not on every call"
   end
 
   # --- frozen schema: null constraints -------------------------------------

@@ -50,7 +50,10 @@ module CurrentScope
     # When true (the default), CurrentScope::Event.record! appends a row to the
     # append-only audit ledger for every recorded authorization event. When
     # false, record! is a silent no-op — hosts that don't want the ledger set
-    # this and skip the events migration.
+    # this and skip the events migration. On upgrade, if audit is on but the
+    # current_scope_events table hasn't been migrated yet, record! degrades
+    # gracefully: it skips recording and logs a one-time warning naming the fix,
+    # so an existing host never breaks on its first mutation.
     attr_accessor :audit
 
     def initialize

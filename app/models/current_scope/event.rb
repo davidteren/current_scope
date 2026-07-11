@@ -60,13 +60,27 @@ module CurrentScope
       rescue ActiveRecord::StatementInvalid => e
         raise unless missing_events_table?(e)
 
-        raise CurrentScope::ConfigurationError,
-              "CurrentScope audit is on but the current_scope_events table is missing. " \
-              "Run `rails current_scope:install:migrations` and migrate, or set " \
-              "`CurrentScope.config.audit = false`."
+        # Audit is on by default, but an existing host that upgrades the gem
+        # without running the new migration must not break on its first
+        # mutation. Degrade gracefully: skip recording and warn once (not on
+        # every call), naming the fix. A host that wants audit runs the
+        # migration; one that doesn't can set config.audit = false to silence it.
+        warn_missing_events_table_once
+        nil
       end
 
       private
+
+      def warn_missing_events_table_once
+        return if @missing_events_table_warned
+
+        @missing_events_table_warned = true
+        Rails.logger&.warn(
+          "[CurrentScope] audit is on but the current_scope_events table is missing — " \
+          "skipping audit recording. Run `rails current_scope:install:migrations` and " \
+          "migrate to enable it, or set `CurrentScope.config.audit = false` to silence this."
+        )
+      end
 
       # Prefer a record's own view-agnostic label; then the AR default; then
       # a plain to_s for anything else.

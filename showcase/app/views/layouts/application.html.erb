@@ -40,6 +40,8 @@
               "aria-current": (current_page?(contracts_path) ? "page" : nil) %>
         <%= link_to "Expenses", expense_claims_path,
               "aria-current": (current_page?(expense_claims_path) ? "page" : nil) %>
+        <%= link_to "Who can do what", users_path,
+              "aria-current": (current_page?(users_path) ? "page" : nil) %>
         <% if authenticated? && CurrentScope.resolver.full_access?(current_scope_user) %>
           <%= link_to "Authorization", current_scope_path %>
         <% end %>

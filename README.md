@@ -192,6 +192,20 @@ class doesn't define the hook, the resolver raises a `ConfigurationError`
 instead of silently permitting. Return `nil` from the hook to exempt a record
 type, or trim `config.sod_actions`.
 
+**Don't need separation of duties?** Empty the list:
+
+```ruby
+# config/initializers/current_scope.rb
+config.sod_actions = []   # disable the SoD veto entirely
+```
+
+With no configured actions the veto step is a no-op, and the resolver collapses
+to `full_access → org-wide role → scoped role → deny`. No model needs
+`current_scope_initiator` — the `ConfigurationError` above only fires for
+actions that are *in* `sod_actions`, so an empty list never raises. `sod_identity`
+becomes moot; roles, scoped roles, `scope_for`, audit, and impersonation are
+unaffected. This is opt-out by configuration, not a fork of the resolver.
+
 By default (`config.sod_identity = :either`) the veto weighs **two**
 identities: the effective subject *and* the real actor behind an impersonated
 session. So an admin who initiated a report can't slip past the veto by

@@ -306,6 +306,17 @@ and grants is the highest-value surface to keep read-only). This gate is a
 `config.allow_mutations_while_impersonating = true` to allow writes (at which
 point the SoD `:either` veto above becomes the observable line of defense).
 
+**Production refuses this flag by default.** Letting a real actor write as the
+subject they impersonate is a privilege-escalation and audit-integrity risk, so
+`config.allow_mutations_while_impersonating = true` **raises at boot in
+production** unless you set `CURRENT_SCOPE_ALLOW_PROD_IMPERSONATION_MUTATIONS` in
+the environment. An unsafe deploy fails loudly instead of running silently
+insecure. `development`, `test`, and `staging` are unaffected — the flag works
+there with no env var. Assigning `false` (the default) never raises anywhere.
+The escape hatch exists for cases like a live public showcase whose whole point
+is demonstrating impersonated actions; a real production app should almost
+always leave impersonated sessions read-only.
+
 Because it runs first, the endpoints that **end** an impersonation must opt
 out — your stop-impersonation, sign-out, **and** sign-in actions — or you could
 never turn act-as off (and sign-in could never clear it):

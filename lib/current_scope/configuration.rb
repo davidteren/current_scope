@@ -31,7 +31,18 @@ module CurrentScope
     # skip_before_action :current_scope_mutation_guard!, or impersonation can
     # never end. The gate runs BEFORE the permission check, so sod_identity is
     # only observable once mutations are allowed (or on a GET-listed sod_action).
-    attr_accessor :allow_mutations_while_impersonating
+    #
+    # Setting this true is refused in production unless the env opt-in below is
+    # set — letting a real actor write as someone else is a privilege-escalation
+    # and audit-integrity risk, so a prod deploy must acknowledge it explicitly.
+    # See the custom writer.
+    attr_reader :allow_mutations_while_impersonating
+
+    # Env var that opts a PRODUCTION deploy into impersonated writes. Any value
+    # (even "false" or "0" — presence is what counts) lifts the production
+    # refusal; unset in production means allow_mutations_while_impersonating=true
+    # raises at boot. development/test/staging never consult it.
+    PROD_MUTATIONS_ENV = "CURRENT_SCOPE_ALLOW_PROD_IMPERSONATION_MUTATIONS"
 
     # Regexps matched against controller paths to keep infrastructure
     # controllers out of the permission grid. An excluded controller cannot be
@@ -69,6 +80,31 @@ module CurrentScope
       @parent_controller = "::ApplicationController"
       @subject_class = "User"
       @audit = true
+    end
+
+    # Guarded writer: enabling impersonated writes is fine in
+    # development/test/staging, but refused in production unless PROD_MUTATIONS_ENV
+    # is set — so an unsafe flag fails the deploy loudly at boot instead of
+    # silently letting a real actor mutate data as someone else. Assigning false
+    # (or leaving the default) is always allowed.
+    def allow_mutations_while_impersonating=(value)
+      if value && production? && !ENV.key?(PROD_MUTATIONS_ENV)
+        raise ConfigurationError,
+              "config.allow_mutations_while_impersonating = true is refused in " \
+              "production: letting a real actor write as the subject they " \
+              "impersonate is a privilege-escalation and audit-integrity risk. " \
+              "Keep it false so impersonated sessions stay read-only in " \
+              "production, or — only if writes under act-as are genuinely " \
+              "required (e.g. a live public showcase) — set ENV[\"#{PROD_MUTATIONS_ENV}\"] " \
+              "to opt in explicitly. development, test, and staging are unaffected."
+      end
+      @allow_mutations_while_impersonating = value
+    end
+
+    private
+
+    def production?
+      defined?(Rails) && Rails.respond_to?(:env) && Rails.env.production?
     end
   end
 end

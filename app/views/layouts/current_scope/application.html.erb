@@ -8,6 +8,7 @@
   <%= yield :head %>
 
   <%= stylesheet_link_tag "current_scope/application", media: "all" %>
+  <%= javascript_include_tag "current_scope/application", defer: true %>
 </head>
 <body>
   <header class="cs-header">

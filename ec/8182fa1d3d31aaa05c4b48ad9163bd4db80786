@@ -1,0 +1,112 @@
+showcase/app/views/contracts/_contract.html.erb
+  s_b081cbfee96db8::t_fccc53e394c48a 1-26
+showcase/app/models/expense_claim.rb
+  s_b081cbfee96db8::t_1aa08a63b22881 1-14
+showcase/app/views/contracts/_form.html.erb
+  s_b081cbfee96db8::t_f27038f4cff700 1-31
+showcase/app/views/contracts/new.html.erb
+  s_b081cbfee96db8::t_3ee56834876f2e 1-13
+showcase/app/views/pay_runs/_pay_run.html.erb
+  s_b081cbfee96db8::t_c561449b6302c5 1-26
+showcase/app/models/contract.rb
+  s_b081cbfee96db8::t_3da0c82327e087 1-15
+showcase/app/views/reports/show.html.erb
+  s_b081cbfee96db8::t_d6a44b07cb0ba5 16
+showcase/test/integration/pay_runs_flow_test.rb
+  s_b081cbfee96db8::t_0175cc48422e43 1-12
+showcase/app/controllers/contracts_controller.rb
+  s_b081cbfee96db8::t_15defe34325371 1-10
+showcase/db/migrate/20260711120003_create_expense_claims.rb
+  s_b081cbfee96db8::t_4ba1b3fa0556a6 1-14
+showcase/app/controllers/pay_runs_controller.rb
+  s_b081cbfee96db8::t_2bd77af4a6fbb5 1-10
+showcase/app/views/expense_claims/show.html.erb
+  s_b081cbfee96db8::t_00dc29440ec64b 1-26
+showcase/app/views/pay_runs/new.html.erb
+  s_b081cbfee96db8::t_e86d08e8c0c956 1-13
+showcase/app/models/pay_run.rb
+  s_b081cbfee96db8::t_22af2002c5f225 1-15
+showcase/app/views/expense_claims/new.html.erb
+  s_b081cbfee96db8::t_82a5cb084e2370 1-13
+showcase/app/models/concerns/approvable.rb
+  s_b081cbfee96db8::t_4d10bf422b7c24 1-16
+showcase/app/controllers/approvable_records_controller.rb
+  s_b081cbfee96db8::t_cae75e8aa237e9 1-77
+showcase/config/routes.rb
+  s_b081cbfee96db8::t_05d0135018c114 5-14
+showcase/app/views/reports/index.html.erb
+  s_b081cbfee96db8::t_51f009afa461db 43
+showcase/db/seeds.rb
+  s_b081cbfee96db8::t_8841a18eddf73c 11-14,57-138
+showcase/app/views/layouts/application.html.erb
+  s_b081cbfee96db8::t_9e9ed47523d65f 37-42
+showcase/test/integration/contracts_flow_test.rb
+  s_b081cbfee96db8::t_5a5ea8dba1bc38 1-12
+showcase/app/views/contracts/edit.html.erb
+  s_b081cbfee96db8::t_7a93969938dfa6 1-10
+showcase/app/views/expense_claims/_form.html.erb
+  s_b081cbfee96db8::t_57d6383177198b 1-26
+showcase/db/schema.rb
+  s_b081cbfee96db8::t_197baf6d3784c5 13-27,67-84,88-89,92
+  s_b081cbfee96db8::t_55f2dbd951df96 85-87
+  s_b081cbfee96db8::t_ca335fdebfa1f8 90-91
+  s_b081cbfee96db8::t_e76e3379942bfc 93
+  s_b081cbfee96db8::t_c6cfbcba62d47c 130-131,135-138
+showcase/db/migrate/20260711120001_create_pay_runs.rb
+  s_b081cbfee96db8::t_54c1ba88effcaa 1-15
+showcase/app/views/contracts/show.html.erb
+  s_b081cbfee96db8::t_a288d03acfc562 1-26
+showcase/test/fixtures/pay_runs.yml
+  s_b081cbfee96db8::t_66e69c8f7c040b 1-20
+showcase/test/fixtures/contracts.yml
+  s_b081cbfee96db8::t_f6ad922bd4d10b 1-17
+showcase/test/fixtures/users.yml
+  s_b081cbfee96db8::t_442aba4b147598 10-27
+showcase/app/controllers/expense_claims_controller.rb
+  s_b081cbfee96db8::t_c8761d83e795b3 1-10
+showcase/app/views/pay_runs/_form.html.erb
+  s_b081cbfee96db8::t_310af166f850aa 1-31
+showcase/test/test_helpers/approval_domain_flow.rb
+  s_b081cbfee96db8::t_ba06437236e922 155
+  s_b081cbfee96db8::t_6f697d0fb548f0 1-154,156-160
+showcase/test/integration/expense_claims_flow_test.rb
+  s_b081cbfee96db8::t_d6a60ce3a4dead 1-12
+showcase/app/views/contracts/index.html.erb
+  s_b081cbfee96db8::t_813a12a3f305db 1-54
+showcase/test/components/approve_button_component_test.rb
+  s_b081cbfee96db8::t_ca8e934d49eddd 19,26,37,43,50
+showcase/app/views/pay_runs/index.html.erb
+  s_b081cbfee96db8::t_2938ac1977132f 1-54
+showcase/app/views/expense_claims/edit.html.erb
+  s_b081cbfee96db8::t_da0f5c597b8269 1-10
+showcase/db/migrate/20260711120002_create_contracts.rb
+  s_b081cbfee96db8::t_ee663ae0e0f7f7 1-15
+showcase/app/views/pay_runs/show.html.erb
+  s_b081cbfee96db8::t_35f3d4ff24cb54 1-26
+showcase/app/components/approve_button_component.rb
+  s_b081cbfee96db8::t_bdca27fff5dec4 4-7,11-12,15,17-18,20,24-25
+showcase/app/views/expense_claims/index.html.erb
+  s_b081cbfee96db8::t_6abb482caad208 1-54
+showcase/app/views/pay_runs/edit.html.erb
+  s_b081cbfee96db8::t_51b6bb12f6e6d9 1-10
+showcase/app/views/expense_claims/_expense_claim.html.erb
+  s_b081cbfee96db8::t_370e9589db0ec1 1-23
+showcase/test/fixtures/expense_claims.yml
+  s_b081cbfee96db8::t_9974c949294bac 1-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "ec8182fa1d3d31aaa05c4b48ad9163bd4db80786",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,45 @@
+showcase/app/controllers/application_controller.rb
+  s_b081cbfee96db8::t_840e8722aebbd2 16-25
+showcase/app/views/walkthrough/either.html.erb
+  s_b081cbfee96db8::t_1282a4be5cc6fc 1-53
+showcase/app/views/walkthrough/prepared.html.erb
+  s_b081cbfee96db8::t_6838df5488b67a 1-36
+showcase/config/initializers/current_scope.rb
+  s_b081cbfee96db8::t_94abfa31f20f63 51
+showcase/app/views/walkthrough/reset.html.erb
+  s_b081cbfee96db8::t_f443f3a867e940 1-15
+showcase/app/views/shared/denied.html.erb
+  s_b081cbfee96db8::t_26df88ddc6299e 1-33
+showcase/app/controllers/walkthrough_controller.rb
+  s_b081cbfee96db8::t_118cfae9060571 1-31
+showcase/app/views/walkthrough/approve.html.erb
+  s_b081cbfee96db8::t_344930da819f9d 1-36
+showcase/app/views/walkthrough/_progress.html.erb
+  s_b081cbfee96db8::t_3266e2fdce65a3 1-10
+showcase/test/integration/walkthrough_test.rb
+  s_b081cbfee96db8::t_02ae4fe9dec8bf 1-102
+showcase/config/routes.rb
+  s_b081cbfee96db8::t_e2a60faa4b2bb0 24-29
+showcase/app/views/walkthrough/intro.html.erb
+  s_b081cbfee96db8::t_ff69bcf477a46a 1-27
+showcase/app/views/home/index.html.erb
+  s_b081cbfee96db8::t_a5d23ecdbc6309 20-25
+showcase/app/assets/stylesheets/application.css
+  s_b081cbfee96db8::t_a655b1ad1646eb 551-590
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "e5db30887d5712616a81cae65811810eda3765e7",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

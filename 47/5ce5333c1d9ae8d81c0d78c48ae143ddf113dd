@@ -1,0 +1,23 @@
+showcase/app/helpers/application_helper.rb
+  s_b081cbfee96db8::t_eb706f2d3db363 8-23
+showcase/app/views/users/index.html.erb
+  s_b081cbfee96db8::t_fe759605803d09 38
+showcase/test/integration/users_surface_test.rb
+  s_b081cbfee96db8::t_f060f2330d0ae4 77-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "475ce5333c1d9ae8d81c0d78c48ae143ddf113dd",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

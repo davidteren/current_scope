@@ -74,6 +74,24 @@ class UsersSurfaceTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # A scoped role can target ANY model, not only CurrentScope::Scopeable ones
+  # (the engine's raw-GlobalID contract). Report is NOT Scopeable and has no
+  # current_scope_label, so the roster must fall back to a "Type #id" label
+  # rather than 500 on an undefined method.
+  test "the surface renders when a scoped role targets a non-Scopeable model" do
+    report = reports(:one) # Report does not include CurrentScope::Scopeable
+    viewer = CurrentScope::Role.create!(name: "Report Viewer")
+    viewer.update!(permission_keys: %w[reports#show])
+    CurrentScope::ScopedRoleAssignment.create!(subject: @scoped, role: viewer, resource: report)
+
+    get "/"
+    get "/users"
+    assert_response :success # 500'd here before the defensive label fallback
+    assert_select row(@scoped) do
+      assert_select ".cs-chip", text: /Report Viewer of Report ##{report.id}/
+    end
+  end
+
   # The live-grid beat: flip a grant in the engine grid, and the acted-as
   # persona's behavior changes on the next load — no cache to clear, since every
   # check is per-request.

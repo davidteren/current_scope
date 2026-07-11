@@ -35,8 +35,7 @@
           <% scoped = @scoped_roles[user.id] || [] %>
           <% if scoped.any? %>
             <% scoped.each do |sra| %>
-              <% label = sra.resource&.current_scope_label || "#{sra.resource_type} ##{sra.resource_id}" %>
-              <span class="cs-chip"><%= "#{sra.role.name} of #{label}" %></span>
+              <span class="cs-chip"><%= "#{sra.role.name} of #{scoped_resource_label(sra)}" %></span>
             <% end %>
           <% else %>
             <span class="cs-hint">—</span>

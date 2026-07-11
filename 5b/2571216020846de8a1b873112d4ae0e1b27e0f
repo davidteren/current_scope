@@ -1,0 +1,31 @@
+showcase/log/development.log
+  s_b081cbfee96db8::t_60da6b460cc373 1-17991
+PRODUCT.md
+  s_b081cbfee96db8::t_10be4883c391c6 28
+STATUS.md
+  s_b081cbfee96db8::t_10be4883c391c6 58,81-82,110-111
+README.md
+  s_b081cbfee96db8::t_c8f2c5a2cad8df 349-358,362-364
+.claude/launch.json
+  s_b081cbfee96db8::t_3bbb6cbc30f24f 7
+showcase/log/test.log
+  s_b081cbfee96db8::t_25d808bfa21e19 1-245748
+showcase/tmp/local_secret.txt
+  s_b081cbfee96db8::t_bedfa95ce4421f 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "5b2571216020846de8a1b873112d4ae0e1b27e0f",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

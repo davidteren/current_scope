@@ -1,0 +1,50 @@
+showcase/app/helpers/application_helper.rb
+  s_b081cbfee96db8::t_8ddde75b2b1d3a 2-7
+showcase/config/initializers/current_scope.rb
+  s_b081cbfee96db8::t_3a7dac2396f4e2 51-52
+showcase/config/routes.rb
+  s_b081cbfee96db8::t_069ec90a0e3440 30-34
+showcase/app/jobs/sandbox_reset_job.rb
+  s_b081cbfee96db8::t_c1d498ecdf18b0 24-27,32-33
+  s_b081cbfee96db8::t_96fda4df369849 1-23,28-31,34-42,48,55-56
+  s_b081cbfee96db8::t_10032d8530e594 43-46
+  s_b081cbfee96db8::t_7bec7064f3df24 47,49-54
+showcase/config/recurring.yml
+  s_b081cbfee96db8::t_13ddd1eaabafc1 16-23
+showcase/app/views/layouts/application.html.erb
+  s_b081cbfee96db8::t_61b42450852d90 72-80
+showcase/db/seeds.rb
+  s_b081cbfee96db8::t_032aa19c32b51a 1-3,14-16,18
+showcase/app/assets/stylesheets/application.css
+  s_b081cbfee96db8::t_ae77c0dbd2ce6e 141-159
+showcase/lib/showcase/seeds.rb
+  s_b081cbfee96db8::t_cb3697c29c3693 76
+  s_b081cbfee96db8::t_46ac0bde149b44 54-60
+  s_b081cbfee96db8::t_dc161a0b48ed1e 1-53,61-75,77-173
+showcase/app/controllers/sandbox_controller.rb
+  s_b081cbfee96db8::t_6eb3730ca86547 1-8,17-23
+  s_b081cbfee96db8::t_885d62d7c10b96 9-16
+showcase/test/jobs/sandbox_reset_job_test.rb
+  s_b081cbfee96db8::t_4d0a69b0f7bea9 1-105,110,113-125
+  s_b081cbfee96db8::t_8d71710b824f8a 106-108,111-112
+  s_b081cbfee96db8::t_837851147265c7 109
+showcase/test/controllers/sandbox_controller_test.rb
+  s_b081cbfee96db8::t_7bd027d4d11668 1-5,10-19,24,28-29
+  s_b081cbfee96db8::t_d2dafeb7597c8b 6-9,20-23,25-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "c03eeb922330258ab6e02e1f38bb5c0b94f5fc3a",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

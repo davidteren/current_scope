@@ -1,0 +1,29 @@
+showcase/config/routes.rb
+  s_b081cbfee96db8::t_1efa1b07fde127 16-21
+showcase/config/initializers/current_scope.rb
+  s_b081cbfee96db8::t_022361f6cbcc7e 51
+showcase/app/controllers/users_controller.rb
+  s_b081cbfee96db8::t_0b4c6b118b8015 1-36
+showcase/app/views/users/index.html.erb
+  s_b081cbfee96db8::t_28bd65e08fe4a5 1-89
+showcase/app/views/layouts/application.html.erb
+  s_b081cbfee96db8::t_c35090edacb137 43-44
+showcase/test/integration/users_surface_test.rb
+  s_b081cbfee96db8::t_7156bb5b98de3a 1-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "197c34c707f152ab84771071975b4f10a41b64dd",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

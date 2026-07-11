@@ -1,0 +1,33 @@
+showcase/config/deploy.yml
+  s_b081cbfee96db8::t_de6ecb6300fb4e 1-70
+showcase/app/views/layouts/current_scope/application.html.erb
+  s_b081cbfee96db8::t_34bf6eab96f9f6 15-20
+showcase/README.md
+  s_b081cbfee96db8::t_33ed2f820fa366 1,3-6,8,10-15,17,19-24,26-27,29,31,33-37,39,41-98
+showcase/Dockerfile
+  s_b081cbfee96db8::t_fdef0ca57f5a9f 4-20,26-28,51-62,68-69,89,94
+showcase/config/database.yml
+  s_b081cbfee96db8::t_e3fa684e425880 29-36,40-41,44,46,49,51,54,56
+showcase/config/initializers/content_security_policy.rb
+  s_b081cbfee96db8::t_613d1550295445 7-34
+README.md
+  s_b081cbfee96db8::t_bda7cbfd8fe665 353-366
+.dockerignore
+  s_b081cbfee96db8::t_b03b3bbd358597 1-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "8a1151d26efc0bdd1ebb5a5a8d15c02c97cef61c",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

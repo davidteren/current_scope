@@ -1,0 +1,50 @@
+lib/current_scope/permissions.rb
+  s_b081cbfee96db8::t_d6a5a1c6830ae8 29-32,36
+app/views/current_scope/scoped_role_assignments/new.html.erb
+  s_b081cbfee96db8::t_2221f16bf3bea0 9-22,24,29-30,36-37,39,41-62,64-70,72-74,77-96,98,100-108,110-113
+showcase/config/initializers/content_security_policy.rb
+  s_b081cbfee96db8::t_6822eb5387c2cf 19-23,25-27
+showcase/README.md
+  s_b081cbfee96db8::t_c6bcabb7f6205c 13-15,18-22
+test/integration/scoped_assignment_picker_test.rb
+  s_b081cbfee96db8::t_957cae4b553a4d 184-198,204-212
+  s_b081cbfee96db8::t_2bad47391acf03 199-203
+showcase/app/models/concerns/approvable.rb
+  s_b081cbfee96db8::t_96ad45f75b94f2 13-14,16-17
+showcase/lib/showcase/seeds.rb
+  s_b081cbfee96db8::t_c234ed609e0883 83-85,91-94
+lib/current_scope/context.rb
+  s_b081cbfee96db8::t_47fd756e805ff6 13
+showcase/app/controllers/expense_claims_controller.rb
+  s_b081cbfee96db8::t_6ed26adfc0c44a 7
+showcase/app/controllers/pay_runs_controller.rb
+  s_b081cbfee96db8::t_89aa4e31a3dabd 7
+showcase/app/controllers/contracts_controller.rb
+  s_b081cbfee96db8::t_029695a5693ade 7
+app/models/current_scope/event.rb
+  s_b081cbfee96db8::t_13ba86e2d86093 82-86,88-91
+showcase/app/controllers/approvable_records_controller.rb
+  s_b081cbfee96db8::t_b0381ecbbc3783 19-22
+  s_b081cbfee96db8::t_f0feacfa4a6329 69-78
+app/helpers/current_scope/application_helper.rb
+  s_b081cbfee96db8::t_5b9378a1060008 8
+app/controllers/current_scope/scoped_role_assignments_controller.rb
+  s_b081cbfee96db8::t_e06f42ca5a6a21 51,56
+  s_b081cbfee96db8::t_98792e82f87344 65-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "7df72dc43237882848d4e7a896499ddc1044e04a",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

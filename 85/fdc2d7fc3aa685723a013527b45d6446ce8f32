@@ -1,0 +1,39 @@
+test/integration/scoped_assignment_picker_test.rb
+  s_b081cbfee96db8::t_93c2b08a094258 1-195
+app/assets/stylesheets/current_scope/application.css
+  s_b081cbfee96db8::t_573f9443aa7a9d 292-324
+test/dummy/db/schema.rb
+  s_b081cbfee96db8::t_401dbfa59ff948 13
+  s_b081cbfee96db8::t_01e4ba59e0d737 66-71
+app/controllers/current_scope/scoped_role_assignments_controller.rb
+  s_b081cbfee96db8::t_0655f022f1e4ae 2-4,8-16,20-26,40-41,44-46,59-60,65-93
+app/views/layouts/current_scope/application.html.erb
+  s_b081cbfee96db8::t_d09f8764bc5f40 11
+app/assets/javascripts/current_scope/application.js
+  s_b081cbfee96db8::t_fce0e2e5ae6c35 1-17
+app/helpers/current_scope/application_helper.rb
+  s_b081cbfee96db8::t_a8aa18650a9831 3-6,8-9
+test/dummy/db/migrate/20260711000100_create_folders.rb
+  s_b081cbfee96db8::t_9c230f4b08596f 1-8
+test/dummy/app/models/folder.rb
+  s_b081cbfee96db8::t_4435c821ab3794 1-9
+app/views/current_scope/scoped_role_assignments/new.html.erb
+  s_b081cbfee96db8::t_522827560c652a 8-20,27-34,36-78,80-93,95
+  s_b081cbfee96db8::t_743a80ac5ec992 79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "85fdc2d7fc3aa685723a013527b45d6446ce8f32",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -23,9 +23,13 @@ class AuthorizationFlowTest < ActionDispatch::IntegrationTest
     post "/session", params: { email_address: user.email_address, password: "password" }
   end
 
-  test "anonymous users are sent to sign in, not to a 403" do
+  test "an anonymous hit is auto-signed-in as the roleless Visitor (fail-closed, not a login redirect)" do
     get reports_url
-    assert_redirected_to new_session_url
+    # U11: the public showcase auto-signs-in anonymous visitors as the roleless
+    # Visitor instead of bouncing to login, so a gated page is fail-closed (403),
+    # never a redirect. A Visitor session is created along the way.
+    assert_response :forbidden
+    assert cookies[:session_id].present?
   end
 
   test "a member can browse and create but not approve" do

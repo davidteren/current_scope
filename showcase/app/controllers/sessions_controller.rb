@@ -12,6 +12,10 @@ class SessionsController < ApplicationController
 
   def create
     if user = User.authenticate_by(params.permit(:email_address, :password))
+      # The auth generator does not rotate the session at sign-in, so an
+      # acting-as key set while anonymous would otherwise ride into the new
+      # authenticated session. Clear it — sign-in ends any act-as.
+      session.delete(:acting_as_id)
       start_new_session_for user
       redirect_to after_authentication_url
     else

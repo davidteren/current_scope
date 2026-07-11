@@ -14,6 +14,12 @@
 # single bystander with no grants anywhere.
 
 password = "password"
+
+# The Visitor: the role-less account every anonymous hit is auto-signed-in as.
+# It holds NO role (fail-closed, it can do almost nothing) and initiates NO
+# record — so acting-as never trips the :either SoD veto on the real actor.
+User.visitor
+
 owner    = User.find_or_create_by!(email_address: "owner@example.com")    { |u| u.password = password }
 reviewer = User.find_or_create_by!(email_address: "reviewer@example.com") { |u| u.password = password }
 member   = User.find_or_create_by!(email_address: "member@example.com")   { |u| u.password = password }
@@ -122,6 +128,9 @@ CurrentScope::ScopedRoleAssignment.find_or_create_by!(subject: ex_scoped_user, r
 
 puts <<~CREDS
   Seeded. Password is "password" for everyone.
+
+  Just open the app: you land as the role-less Visitor and step into any persona
+  below in one click (the act-as switcher). No sign-in needed to explore.
 
   Reports (the reference domain):
     owner@example.com     — full access, everywhere

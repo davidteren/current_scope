@@ -46,10 +46,23 @@
       </nav>
       <% if authenticated? %>
         <div class="session">
-          <span class="signatory">
-            signed in as <b><%= Current.user&.email_address %></b>
-          </span>
-          <%= button_to "Sign out", session_path, method: :delete, class: "button--quiet" %>
+          <% if impersonating? %>
+            <span class="acting-as">
+              Acting as <b><%= current_scope_user.email_address %></b>
+              — you are <b><%= current_scope_actor.email_address %></b><%= " (Visitor)" if current_scope_actor.try(:visitor?) %>
+            </span>
+            <%= button_to "Stop acting as", act_as_path, method: :delete, class: "button--quiet" %>
+          <% else %>
+            <span class="signatory">
+              browsing as <b><%= current_scope_actor&.email_address %></b><%= " (Visitor)" if current_scope_actor.try(:visitor?) %>
+            </span>
+          <% end %>
+          <%= render "layouts/persona_switcher" %>
+          <% if current_scope_actor.try(:visitor?) %>
+            <%= link_to "Sign in", new_session_path, class: "button--quiet" %>
+          <% else %>
+            <%= button_to "Sign out", session_path, method: :delete, class: "button--quiet" %>
+          <% end %>
         </div>
       <% end %>
     </header>

@@ -18,7 +18,10 @@ module Authentication
     end
 
     def require_authentication
-      resume_session || request_authentication
+      # The public showcase is browsable by everyone: an anonymous visitor is
+      # auto-signed-in as the role-less Visitor (fail-closed everywhere but the
+      # lobby) rather than bounced to a login form. Real sign-in stays available.
+      resume_session || start_new_session_for(User.visitor)
     end
 
     def resume_session
@@ -48,6 +51,7 @@ module Authentication
     end
 
     def terminate_session
+      session.delete(:acting_as_id) # sign-out ends any act-as
       Current.session.destroy
       cookies.delete(:session_id)
     end

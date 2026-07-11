@@ -124,6 +124,63 @@ a:hover { color: var(--primary-down); }
   font-weight: 500;
 }
 
+/* ---- Act-as banner + persona switcher -------------------------------- */
+
+.masthead .acting-as {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--ink);
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--brass);
+  border-radius: 3px;
+  background: var(--brass-wash);
+}
+
+.masthead .acting-as b { font-weight: 600; }
+
+.switcher { font-size: 0.8125rem; }
+
+.switcher > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  list-style: none;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+}
+
+.switcher > summary::-webkit-details-marker { display: none; }
+.switcher > summary:hover { color: var(--ink); border-color: var(--ink); }
+
+.switcher[open] { position: relative; }
+
+.switcher__list {
+  position: absolute;
+  right: 0;
+  margin: 0.4rem 0 0;
+  padding: 0.35rem;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  box-shadow: 0 6px 20px oklch(0 0 0 / 0.08);
+  max-height: 60vh;
+  overflow-y: auto;
+  z-index: 10;
+  min-width: 16rem;
+}
+
+.switcher__list li { margin: 0; }
+.switcher__list form { display: block; margin: 0; }
+.switcher__list button { width: 100%; text-align: left; }
+
+/* ---- Lobby ----------------------------------------------------------- */
+
+.lobby { max-width: 62rem; margin: 2.5rem auto; padding: 0 2rem; }
+.lobby .switcher { display: inline-block; margin-top: 1rem; }
+
 /* ---- Page shell ------------------------------------------------------ */
 
 main { padding: 2rem; max-width: 68rem; margin-inline: auto; }

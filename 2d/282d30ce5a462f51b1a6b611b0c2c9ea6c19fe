@@ -1,0 +1,72 @@
+showcase/app/views/reports/show.html.erb
+  s_b081cbfee96db8::t_168254dd87fa77 5
+showcase/app/views/pay_runs/show.html.erb
+  s_b081cbfee96db8::t_dbb4f1c14e79b4 5
+showcase/app/controllers/approvable_records_controller.rb
+  s_b081cbfee96db8::t_ecfc21019d842b 52
+showcase/app/views/expense_claims/new.html.erb
+  s_b081cbfee96db8::t_eb9f55f92950ff 4-5
+showcase/app/views/reports/new.html.erb
+  s_b081cbfee96db8::t_692b049a260635 4-5
+showcase/app/views/projects/_project.html.erb
+  s_b081cbfee96db8::t_6f2762d22a0806 4
+showcase/app/controllers/projects_controller.rb
+  s_b081cbfee96db8::t_7507ae1e47b9bd 3-5
+showcase/lib/showcase/seeds.rb
+  s_b081cbfee96db8::t_86890ee13f7fd6 97-99,101-103
+  s_b081cbfee96db8::t_ab7ff8fac907ca 66-67
+  s_b081cbfee96db8::t_6070b2428a1068 50-52,54-55
+  s_b081cbfee96db8::t_e5260b60c6b4d2 32-35
+showcase/app/controllers/contracts_controller.rb
+  s_b081cbfee96db8::t_9856eb463060f7 8
+showcase/app/controllers/pay_runs_controller.rb
+  s_b081cbfee96db8::t_827c0f2fc80f9b 8
+showcase/app/views/contracts/show.html.erb
+  s_b081cbfee96db8::t_12329829c9e834 5
+showcase/app/views/contracts/new.html.erb
+  s_b081cbfee96db8::t_0a4a3ebd1100d0 4-5
+showcase/test/integration/act_as_test.rb
+  s_b081cbfee96db8::t_9af1e4bf0c370b 133-160
+showcase/app/views/expense_claims/show.html.erb
+  s_b081cbfee96db8::t_105ec937bd1046 5
+showcase/app/views/pay_runs/new.html.erb
+  s_b081cbfee96db8::t_80890938bfe50a 4-5
+showcase/app/assets/stylesheets/application.css
+  s_b081cbfee96db8::t_fb22f5eca4e100 422-424
+  s_b081cbfee96db8::t_fe57d7749d5713 343
+showcase/app/models/report.rb
+  s_b081cbfee96db8::t_407628ff630de2 6
+showcase/app/jobs/sandbox_reset_job.rb
+  s_b081cbfee96db8::t_0cd236c6022fdb 38-41
+  s_b081cbfee96db8::t_d530facdbc4f74 58-61
+showcase/test/jobs/sandbox_reset_job_test.rb
+  s_b081cbfee96db8::t_03ad7daff069c3 102-156
+showcase/app/controllers/expense_claims_controller.rb
+  s_b081cbfee96db8::t_ffbecafe3ff332 8
+showcase/app/controllers/reports_controller.rb
+  s_b081cbfee96db8::t_1e23e6b3cc2566 3-5
+  s_b081cbfee96db8::t_7cdc5e6f4045d3 24
+  s_b081cbfee96db8::t_a9540460577a37 44
+showcase/app/models/project.rb
+  s_b081cbfee96db8::t_5f43035fb89a18 2
+showcase/test/models/report_test.rb
+  s_b081cbfee96db8::t_dd0fe3b4e8b04e 1-15
+showcase/test/models/project_test.rb
+  s_b081cbfee96db8::t_92aad2d7fc2278 1-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "2d282d30ce5a462f51b1a6b611b0c2c9ea6c19fe",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

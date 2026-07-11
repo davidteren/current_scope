@@ -78,8 +78,9 @@ ambient authorization context (`ActiveSupport::CurrentAttributes`) so
 2. **Per-request resolver memoization** — repeated `allowed_to?` calls in one
    view re-query; cache the subject's effective permission set on
    `CurrentScope::Current` (DESIGN.md §9.4).
-3. **Publish** — push to GitHub, CI (engine + demo suites), then RubyGems.
-   Gemspec metadata already points at `davidteren/current_scope`.
+3. **Publish** — push to GitHub, then RubyGems. CI already runs the engine and
+   showcase suites (`.github/workflows/ci.yml`). Gemspec metadata already points
+   at `davidteren/current_scope`.
 4. **README screenshots** — the ledger/stamp UI is the best pitch; capture the
    report-approval flow.
 

@@ -67,3 +67,31 @@ jobs:
           name: screenshots
           path: ${{ github.workspace }}/tmp/screenshots
           if-no-files-found: ignore
+
+  showcase:
+    runs-on: ubuntu-latest
+    # The showcase app depends on the engine via a path gem (`path: ".."`), so
+    # the checkout must include both — it does, they live in one repo.
+    defaults:
+      run:
+        working-directory: showcase
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.4.9
+          bundler-cache: true
+          working-directory: showcase
+
+      - name: Run showcase tests
+        env:
+          RAILS_ENV: test
+        run: bin/rails db:test:prepare test
+
+      - name: Verify seeds replant cleanly
+        env:
+          RAILS_ENV: test
+        run: bin/rails db:seed:replant

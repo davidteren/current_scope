@@ -21,6 +21,12 @@ Rails.application.routes.draw do
   # (no GET) on purpose — a GET switch would be cross-site forceable.
   resource :act_as, only: %i[ create destroy ]
 
+  # The guided fraud walkthrough (U12): a scripted "try to commit fraud →
+  # refused" path. Gate-skipped + excluded from the grid (a narrative surface,
+  # like the lobby), so the role-less Visitor can complete it. All GET — the
+  # tour's state changes reuse the real POST endpoints (act-as, sign-in, approve).
+  get "walkthrough(/:step)", to: "walkthrough#show", as: :walkthrough
+
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
   get "up" => "rails/health#show", as: :rails_health_check
 

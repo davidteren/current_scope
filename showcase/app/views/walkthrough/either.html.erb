@@ -1,0 +1,53 @@
+<% content_for :title, "Walkthrough — the headline" %>
+
+<section class="walkthrough">
+  <%= render "progress" %>
+
+  <h1>Even impersonation can’t approve your own run.</h1>
+
+  <p>
+    The real test. This time you <b>sign in</b> as the preparer — a genuine
+    session, you truly are them — and then <b>act as</b> an approver, trying to
+    launder your own run through a borrowed identity. The gate looks past the
+    mask: it refuses, because the <em>real</em> you prepared this run.
+  </p>
+
+  <ol class="wt-script">
+    <li>
+      <b>Sign in as the preparer.</b> A real login (not act-as). You’ll land on
+      the home page — then return here to step 4 to continue.
+      <div class="wt-actions">
+        <%# ponytail: sandbox password is literally "password" for every persona
+            (seeds + lobby say so); a public demo, not a credential. %>
+        <%= button_to "Sign in as the preparer", session_path, method: :post,
+              params: { email_address: @preparer.email_address, password: "password" },
+              class: "button--primary" %>
+      </div>
+    </li>
+    <li>
+      <b>Act as an approver.</b> You now wear the approver’s permissions — but you
+      are still, really, the preparer.
+      <div class="wt-actions">
+        <%= button_to "Act as the approver", act_as_path(id: @approver.id),
+              method: :post, class: "button" %>
+      </div>
+    </li>
+    <li>
+      <b>Try to approve the run you prepared.</b> Refused — separation of duties
+      reads the real actor behind the impersonation, not just the mask.
+      <div class="wt-actions">
+        <%= button_to "Approve my own run", approve_pay_run_path(@pay_run),
+              class: "button--danger" %>
+      </div>
+    </li>
+  </ol>
+
+  <p>
+    That is the whole point: the rule is <em>structural</em>. It is not a setting,
+    not a grant, not a preference — and impersonation is not a way around it.
+  </p>
+
+  <p class="wt-actions">
+    <%= link_to "Start over", walkthrough_path, class: "button" %>
+  </p>
+</section>

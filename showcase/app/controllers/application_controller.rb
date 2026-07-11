@@ -13,6 +13,16 @@ class ApplicationController < ActionController::Base
 
   private
 
+  # Render a human, reason-keyed 403 instead of the engine's bare head :forbidden.
+  # Overrides CurrentScope::MutationGuard#current_scope_denied — the engine's
+  # rescue_from resolves the handler by name, so our override wins. The
+  # machine-readable X-Current-Scope-Reason header is preserved for clients/tests.
+  def current_scope_denied(exception = nil)
+    @denial_reason = exception.respond_to?(:reason) ? exception.reason : nil
+    response.headers["X-Current-Scope-Reason"] = @denial_reason.to_s if @denial_reason
+    render "shared/denied", status: :forbidden
+  end
+
   def current_user
     Current.user
   end

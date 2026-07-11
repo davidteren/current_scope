@@ -1,0 +1,10 @@
+<%# Ordered step nav — also lets a stranger jump around. current step is marked. %>
+<% labels = { "intro" => "1 · The setup", "prepared" => "2 · Prepare a run",
+              "approve" => "3 · Hand it off", "either" => "4 · The headline" } %>
+<nav class="wt-steps" aria-label="Walkthrough steps">
+  <% WalkthroughController::STEPS.each do |step| %>
+    <%= link_to labels[step], walkthrough_path(step: step),
+          class: ("is-current" if step == @step),
+          "aria-current": ("step" if step == @step) %>
+  <% end %>
+</nav>

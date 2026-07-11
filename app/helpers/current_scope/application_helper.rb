@@ -5,6 +5,7 @@ module CurrentScope
     # one) so the label a model declares is the label shown everywhere — the
     # picker, the chips, and the ledger (see Event.label_for) all agree.
     def current_scope_label(record)
+      return "(none)" if record.nil?
       return record.current_scope_label if record.respond_to?(:current_scope_label)
 
       name = record.try(:name) || record.try(:email) || record.try(:title)

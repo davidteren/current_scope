@@ -79,10 +79,16 @@ module CurrentScope
 
       # Recognizes "table is missing" across adapters and Rails' own schema
       # reflection: SQLite ("no such table" / "Could not find table"),
-      # PostgreSQL ("does not exist"), MySQL ("Unknown table" / "doesn't exist").
+      # PostgreSQL ("relation ... does not exist"), MySQL ("Unknown table" /
+      # "doesn't exist"). The `column` exclusion keeps a missing-COLUMN error
+      # (e.g. "column ... of relation current_scope_events does not exist" after
+      # a partial migration) from being misreported as a missing table, which
+      # would point operators at the wrong fix.
       def missing_events_table?(error)
-        error.message.include?("current_scope_events") &&
-          error.message.match?(/no such table|could not find table|does(?:n't| not) exist|unknown table|undefined table/i)
+        message = error.message
+        message.include?("current_scope_events") &&
+          !message.match?(/\bcolumn\b/i) &&
+          message.match?(/no such table|could not find table|does(?:n't| not) exist|unknown table|undefined table/i)
       end
     end
   end

@@ -16,8 +16,15 @@ Rails.application.configure do
     policy.font_src    :self, :https, :data
     policy.img_src     :self, :https, :data
     policy.object_src  :none
-    policy.script_src  :self, :https
+    # script-src is :self only (no :https): the app loads no third-party JS —
+    # importmap's inline tags run via the nonce below, and the engine picker JS
+    # is served from :self. Google Fonts needs style-src/font-src, not scripts,
+    # so :https here would only widen the XSS surface for nothing.
+    policy.script_src  :self
     policy.style_src   :self, :https
+    # Restrict where forms may submit — defense-in-depth against an XSS
+    # redirecting a form to exfiltrate to another origin.
+    policy.form_action :self
     # Specify URI for violation reports
     # policy.report_uri "/csp-violation-report-endpoint"
   end

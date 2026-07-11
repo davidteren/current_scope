@@ -80,13 +80,18 @@ module Showcase
 
       def role(name, permission_keys)
         r = track(CurrentScope::Role.find_or_create_by!(name: name))
-        r.update!(permission_keys: permission_keys) # re-asserts the grid canonically
+        # Re-assert the grid AND full_access canonically: a reset must heal a
+        # role a visitor vandalized by flipping full_access on, not only its grid.
+        r.update!(permission_keys: permission_keys, full_access: false)
         r
       end
 
       def assign(pairs)
         pairs.each do |subject, role|
-          CurrentScope::RoleAssignment.find_or_create_by!(subject: subject) { |a| a.role = role }
+          # Restorative: if a visitor changed a seeded subject's org role, reset
+          # it to the canonical mapping rather than leaving the drifted row.
+          a = CurrentScope::RoleAssignment.find_or_initialize_by(subject: subject)
+          a.update!(role: role)
         end
       end
 

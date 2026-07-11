@@ -10,11 +10,16 @@ path gem (`gem "current_scope", path: ".."`).
 ```bash
 git clone https://github.com/davidteren/current_scope
 cd current_scope/showcase
-bin/setup          # bundle, create + seed the database, clear logs/tmp
-bin/rails server   # http://localhost:3000
+bin/setup   # bundle, create + seed the database, then start the server
+            # (bin/setup ends with `exec bin/dev` — pass --skip-server to
+            #  set up without booting)
 ```
 
-`bin/setup` seeds four sign-in accounts (password `password` for all):
+Then open http://localhost:3000.
+
+`bin/setup` seeds the primary sign-in accounts below (password `password` for
+all); the multi-domain gallery adds a preparer / approver / scoped-approver per
+domain on top of these:
 
 | Email | What it demonstrates |
 |---|---|

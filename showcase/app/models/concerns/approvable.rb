@@ -10,7 +10,11 @@ module Approvable
 
   def approved? = approved_at.present?
 
+  # Idempotent: the first sign-off is the audit-relevant one, so a repeated
+  # approve POST must not rewrite approved_by/approved_at over it.
   def approve!(by:)
+    return if approved?
+
     update!(approved_by: by, approved_at: Time.current, status: "approved")
   end
 end

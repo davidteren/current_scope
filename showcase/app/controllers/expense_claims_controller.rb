@@ -4,7 +4,5 @@ class ExpenseClaimsController < ApprovableRecordsController
       params.expect(expense_claim: [ :description, :amount ])
     end
 
-    def assign_initiator(record)
-      record.submitted_by = current_scope_user
-    end
+    def initiator_association = :submitted_by
 end

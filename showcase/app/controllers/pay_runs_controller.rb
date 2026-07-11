@@ -4,7 +4,5 @@ class PayRunsController < ApprovableRecordsController
       params.expect(pay_run: [ :period, :label, :amount ])
     end
 
-    def assign_initiator(record)
-      record.prepared_by = current_scope_user
-    end
+    def initiator_association = :prepared_by
 end

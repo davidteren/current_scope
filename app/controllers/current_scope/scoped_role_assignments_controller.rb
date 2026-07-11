@@ -48,12 +48,12 @@ module CurrentScope
 
     def destroy
       assignment = ScopedRoleAssignment.find(params[:id])
-      subject, role, resource = assignment.subject, assignment.role, assignment.resource
+      subject, role = assignment.subject, assignment.role
 
       ScopedRoleAssignment.transaction do
         assignment.destroy!
         Event.record!(event: "scoped_role.revoked", target: subject,
-                      details: { role: role.name, resource: helpers.current_scope_label(resource) })
+                      details: { role: role.name, resource: assignment_resource_label(assignment) })
       end
       redirect_to subjects_path, notice: "Scoped role revoked."
     rescue ActiveRecord::RecordNotFound
@@ -61,6 +61,16 @@ module CurrentScope
     end
 
     private
+
+    # The scoped record may be deleted (nil) or its class renamed (NameError) by
+    # the time we revoke — label from the record when it's still there, else from
+    # the stored type/id, so the audit event never 500s on a stale reference.
+    def assignment_resource_label(assignment)
+      resource = assignment.resource
+      resource ? helpers.current_scope_label(resource) : "#{assignment.resource_type} ##{assignment.resource_id}"
+    rescue NameError, ActiveRecord::RecordNotFound
+      "#{assignment.resource_type} ##{assignment.resource_id}"
+    end
 
     # Deep-link prefill: a record page links here with resource_gid. A stale
     # link (deleted record → RecordNotFound, renamed class → NameError) must

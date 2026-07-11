@@ -16,7 +16,10 @@ class ApprovableRecordsController < ApplicationController
   # sees only their record while an org-wide approver sees all — the list/gate
   # agreement made visible (R29).
   def index
-    @records = scope_for(model_class, permission: :show).order(:id)
+    # includes(initiator_association): the row renders each record's initiator
+    # (prepared_by / raised_by / submitted_by), so eager-load it to avoid an
+    # N+1 across the list.
+    @records = scope_for(model_class, permission: :show).includes(initiator_association).order(:id)
   end
 
   def show
@@ -61,6 +64,16 @@ class ApprovableRecordsController < ApplicationController
   private
     def model_class
       controller_name.classify.constantize
+    end
+
+    # Subclasses declare their initiator association (the SoD "who raised this"
+    # column). assign_initiator and the index eager-load both key off it.
+    def initiator_association
+      raise NotImplementedError, "#{self.class} must define initiator_association"
+    end
+
+    def assign_initiator(record)
+      record.public_send(:"#{initiator_association}=", current_scope_user)
     end
 
     def set_record

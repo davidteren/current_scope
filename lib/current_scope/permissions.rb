@@ -26,10 +26,14 @@ module CurrentScope
     #   scope_for(Report, permission: :approve)
     #   scope_for(Report, permission: "admin/reports#approve")
     def scope_for(model, permission: nil)
+      # Derive the key exactly like allowed_to? — including controller_path, so a
+      # namespaced controller's list resolves to the same key as its gate
+      # (admin/reports#index, not reports#index) and the two never drift.
+      controller = controller_path if respond_to?(:controller_path)
       CurrentScope.scope_for(
         subject: current_scope_user,
         model: model,
-        permission: CurrentScope.permission_key(permission || :index, record: model)
+        permission: CurrentScope.permission_key(permission || :index, record: model, controller_path: controller)
       )
     end
 

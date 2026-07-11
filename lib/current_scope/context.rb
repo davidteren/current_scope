@@ -10,7 +10,7 @@ module CurrentScope
     included do
       before_action :set_current_scope_user
       if respond_to?(:helper_method)
-        helper_method :allowed_to?, :current_scope_user, :current_scope_actor, :impersonating?
+        helper_method :allowed_to?, :scope_for, :current_scope_user, :current_scope_actor, :impersonating?
       end
     end
 

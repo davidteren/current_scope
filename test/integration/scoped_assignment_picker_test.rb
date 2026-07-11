@@ -181,6 +181,35 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "&lt;script&gt;"
   end
 
+  # --- CSRF: the grant posts its token in the body, never a GET URL --------
+
+  test "the GET cascade form carries no CSRF token; the grant is a separate POST" do
+    folder = Folder.create!(name: "Q3 Ledger")
+
+    get current_scope.new_scoped_role_assignment_url(
+      role_id: @member_role.id, subject_gid: @member.to_gid.to_s,
+      resource_type: "Folder", resource_gid: folder.to_gid.to_s
+    ), headers: as(@owner)
+    assert_response :success
+
+    # A CSRF token in a GET form leaks into the URL (server logs, browser
+    # history, Referer). The idempotent cascade GET must carry no token.
+    assert_select "form[method=get] input[name=authenticity_token]", count: 0
+
+    # The grant is a state change: a separate POST form to the create path, so
+    # its CSRF token rides in the request body (Rails injects it when forgery
+    # protection is on; the test env keeps it off). Nothing about the grant
+    # touches a URL query string.
+    assert_select "form[method=post][action=?]", current_scope.scoped_role_assignments_path
+
+    # And that POST still grants the completed selection.
+    post current_scope.scoped_role_assignments_url, headers: as(@owner), params: {
+      role_id: @member_role.id, subject_gid: @member.to_gid.to_s, resource_gid: folder.to_gid.to_s
+    }
+    assert_redirected_to current_scope.subjects_url
+    assert CurrentScope::ScopedRoleAssignment.exists?(subject: @member, resource: folder, role: @member_role)
+  end
+
   # --- progressive enhancement --------------------------------------------
 
   test "the cascade works without JS: a plain GET renders the next step" do

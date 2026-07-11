@@ -4,7 +4,5 @@ class ContractsController < ApprovableRecordsController
       params.expect(contract: [ :title, :counterparty, :amount ])
     end
 
-    def assign_initiator(record)
-      record.raised_by = current_scope_user
-    end
+    def initiator_association = :raised_by
 end

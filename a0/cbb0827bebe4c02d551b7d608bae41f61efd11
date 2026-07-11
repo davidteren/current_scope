@@ -1,0 +1,20 @@
+showcase/config/initializers/content_security_policy.rb
+  s_b081cbfee96db8::t_34d21ffa5e2b85 7-12,25-30,35
+  s_b081cbfee96db8::t_687660f7230c61 31-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "a0cbb0827bebe4c02d551b7d608bae41f61efd11",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

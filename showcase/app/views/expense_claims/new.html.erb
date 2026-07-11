@@ -1,8 +1,8 @@
 <% content_for :title, "New claim" %>
 
 <h1>New claim</h1>
-<p class="mono" style="color: var(--muted); margin-top: -0.75rem;">
-  submitted by <%= Current.user.email_address %> — the four-eyes rule means you
+<p class="mono form-subtitle">
+  submitted by <%= current_scope_user.email_address %> — the four-eyes rule means you
   won't be able to approve it yourself
 </p>
 

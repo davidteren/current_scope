@@ -5,6 +5,6 @@ class ContractsController < ApprovableRecordsController
     end
 
     def assign_initiator(record)
-      record.raised_by = Current.user
+      record.raised_by = current_scope_user
     end
 end

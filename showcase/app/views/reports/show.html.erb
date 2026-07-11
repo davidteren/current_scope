@@ -2,7 +2,7 @@
 
 <%= render @report %>
 
-<% if !@report.approved? && @report.requested_by == Current.user %>
+<% if !@report.approved? && [ current_scope_user, current_scope_actor ].include?(@report.current_scope_initiator) %>
   <div class="countersign">
     <span class="glyph">✕✕</span>
     <span>

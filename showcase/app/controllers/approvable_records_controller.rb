@@ -49,7 +49,7 @@ class ApprovableRecordsController < ApplicationController
   end
 
   def approve
-    @record.approve!(by: Current.user)
+    @record.approve!(by: current_scope_user)
     redirect_to @record, notice: "#{model_class.model_name.human} approved.", status: :see_other
   end
 

@@ -1,5 +1,8 @@
 class ProjectsController < ApplicationController
   before_action :set_project, only: %i[ show edit update destroy ]
+  # Sandbox abuse bound: cap record creation. Mirrors ApprovableRecordsController.
+  rate_limit to: 20, within: 1.minute, only: %i[ create ],
+    with: -> { redirect_to url_for(action: :index), alert: "Too many requests. Try again shortly." }
 
   # GET /projects or /projects.json
   def index

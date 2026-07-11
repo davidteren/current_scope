@@ -99,6 +99,61 @@ class SandboxResetJobTest < ActiveJob::TestCase
     assert Session.exists?(id: fresh.id)
   end
 
+  # Regression (P2): the prune is scoped to Visitor sessions, so a real
+  # authenticated user is never logged out — even if their session is old.
+  test "keeps a real user's session across a reset even when it is stale" do
+    visitor = User.visitor
+    owner   = User.find_by!(email_address: "owner@example.com")
+
+    stale_visitor = visitor.sessions.create!
+    stale_visitor.update_column(:created_at, 4.hours.ago)
+    stale_owner = owner.sessions.create!
+    stale_owner.update_column(:created_at, 4.hours.ago) # also old, but a real user
+
+    SandboxResetJob.new.perform
+
+    assert_nil Session.find_by(id: stale_visitor.id), "old Visitor session should be pruned"
+    assert Session.exists?(id: stale_owner.id), "a real user's session must survive the prune"
+  end
+
+  # Regression (P2): a visitor unchecking full_access on the Owner role would
+  # otherwise 403 the management UI for everyone until manual repair — the reset
+  # must heal it.
+  test "restores a vandalized Owner role's full_access flag" do
+    owner_role = CurrentScope::Role.find_by!(name: "Owner")
+    assert owner_role.full_access
+    owner_role.update!(full_access: false) # a visitor acting as Owner unchecks it
+
+    SandboxResetJob.new.perform
+
+    assert CurrentScope::Role.find_by!(name: "Owner").full_access,
+      "reset must re-assert the Owner role's full_access"
+  end
+
+  test "reverts a visitor-approved seeded report back to pending" do
+    report   = Report.find_by!(title: "Q3 budget")
+    reviewer = User.find_by!(email_address: "reviewer@example.com")
+    report.approve!(by: reviewer)
+    assert report.reload.approved?
+
+    SandboxResetJob.new.perform
+
+    assert_not Report.find_by!(title: "Q3 budget").approved?
+  end
+
+  test "deletes visitor-created reports and projects but keeps the seeded ones" do
+    member = User.find_by!(email_address: "member@example.com")
+    junk_project = Project.create!(name: "Vandal project")
+    junk_report  = Report.create!(title: "Vandal report", project: junk_project, requested_by: member)
+
+    assert_nothing_raised { SandboxResetJob.new.perform } # FK-safe: report before project
+
+    assert_nil Report.find_by(id: junk_report.id)
+    assert_nil Project.find_by(id: junk_project.id)
+    assert Report.exists?(title: "Q3 budget")
+    assert Project.exists?(name: "Apollo")
+  end
+
   test "runs in one transaction: a mid-run failure leaves no partial wipe" do
     preparer = User.find_by!(email_address: "payroll.preparer@example.com")
     junk = PayRun.create!(label: "Vandal run", period: "2026-01", amount: 1, prepared_by: preparer)

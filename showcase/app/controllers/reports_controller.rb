@@ -1,5 +1,8 @@
 class ReportsController < ApplicationController
   before_action :set_report, only: %i[ show edit update destroy approve ]
+  # Sandbox abuse bound: cap record creation. Mirrors ApprovableRecordsController.
+  rate_limit to: 20, within: 1.minute, only: %i[ create ],
+    with: -> { redirect_to url_for(action: :index), alert: "Too many requests. Try again shortly." }
 
   def index
     @reports = Report.includes(:project, :requested_by, :approved_by).order(:id)
@@ -18,7 +21,7 @@ class ReportsController < ApplicationController
   end
 
   def create
-    @report = Report.new(report_params.merge(requested_by: Current.user))
+    @report = Report.new(report_params.merge(requested_by: current_scope_user))
 
     if @report.save
       redirect_to @report, notice: "Report was successfully created."
@@ -38,7 +41,7 @@ class ReportsController < ApplicationController
   end
 
   def approve
-    @report.approve!(by: Current.user)
+    @report.approve!(by: current_scope_user)
     redirect_to @report, notice: "Report approved.", status: :see_other
   end
 

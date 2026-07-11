@@ -35,6 +35,10 @@ class SandboxResetJob < ApplicationJob
       PayRun.where.not(id: seeded[:pay_runs]).delete_all
       Contract.where.not(id: seeded[:contracts]).delete_all
       ExpenseClaim.where.not(id: seeded[:expense_claims]).delete_all
+      # Reports before Projects: reports carry an FK to projects, so a
+      # visitor-created report must go before the project it may point at.
+      Report.where.not(id: seeded[:reports]).delete_all
+      Project.where.not(id: seeded[:projects]).delete_all
 
       # 4. Clear the append-only ledger LAST. delete_all is the sanctioned bypass
       #    of Event#readonly? (SQLite has no TRUNCATE) — see the Event header.
@@ -51,6 +55,9 @@ class SandboxResetJob < ApplicationJob
   private
 
   def prune_stale_sessions
-    Session.where(created_at: ...SESSION_TTL.ago).delete_all
+    # Only Visitor sessions: a real authenticated user must never be logged out
+    # by a sandbox reset. Crawlers mint one Visitor session per hit, so these are
+    # overwhelmingly Visitor rows anyway.
+    Session.where(user: User.visitor).where(created_at: ...SESSION_TTL.ago).delete_all
   end
 end

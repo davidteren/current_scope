@@ -29,6 +29,10 @@ module Showcase
 
         CurrentScope.seed_defaults!
         owner_role  = track(CurrentScope::Role.find_by!(name: "Owner"))
+        # seed_defaults! only sets full_access on CREATE, so re-assert it here to
+        # heal a visitor who unchecked it while acting as Owner (which would 403
+        # the management UI for everyone until the next reset).
+        owner_role.update!(full_access: true)
         member_role = role("Member", %w[
           projects#index projects#show
           reports#index reports#show reports#new reports#create
@@ -43,10 +47,12 @@ module Showcase
         apollo = Project.find_or_create_by!(name: "Apollo")
         zephyr = Project.find_or_create_by!(name: "Zephyr")
 
-        q3 = report("Q3 budget", project: apollo, requested_by: member)
-        report("Q4 forecast", project: apollo, requested_by: reviewer)
-        report("Zephyr kickoff", project: zephyr, requested_by: member)
+        q3      = report("Q3 budget", project: apollo, requested_by: member)
+        q4      = report("Q4 forecast", project: apollo, requested_by: reviewer)
+        kickoff = report("Zephyr kickoff", project: zephyr, requested_by: member)
         scoped_grant(scoped, viewer_role, q3)
+        report_ids  = [ q3.id, q4.id, kickoff.id ]
+        project_ids = [ apollo.id, zephyr.id ]
 
         # The bystander holds no grants anywhere: default-denied everywhere.
         user("bystander@example.com")
@@ -57,7 +63,8 @@ module Showcase
         contracts      = seed_contracts
         expense_claims = seed_expenses
 
-        { role_ids: @roles.map(&:id), pay_runs:, contracts:, expense_claims: }
+        { role_ids: @roles.map(&:id), reports: report_ids, projects: project_ids,
+          pay_runs:, contracts:, expense_claims: }
       end
 
       private
@@ -87,8 +94,13 @@ module Showcase
         CurrentScope::ScopedRoleAssignment.find_or_create_by!(subject: subject, role: role, resource: resource)
       end
 
+      # find_or_create_by! recreates a visitor-deleted report; update! reverts a
+      # visitor-approved or re-pointed one back to canonical, pending state.
+      # (Reports carry no status column — approval is just approved_at/by.)
       def report(title, project:, requested_by:)
-        Report.find_or_create_by!(title: title) { |r| r.project = project; r.requested_by = requested_by }
+        r = Report.find_or_create_by!(title: title) { |x| x.project = project; x.requested_by = requested_by }
+        r.update!(project: project, requested_by: requested_by, approved_by: nil, approved_at: nil)
+        r
       end
 
       # The three SoD gallery domains — same shape, one preparer / approver /

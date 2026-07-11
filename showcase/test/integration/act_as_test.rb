@@ -130,6 +130,34 @@ class ActAsTest < ActionDispatch::IntegrationTest
     assert @report.reload.approved?
   end
 
+  # Regression (P1): the stamp must record the EFFECTIVE persona, not the real
+  # Visitor behind the act-as. The domain-flow tests miss this because they sign
+  # in directly (no distinct actor), so the bug only shows under impersonation.
+  test "approving while acting-as stamps the persona, not the real Visitor" do
+    get root_path
+    act_as(@reviewer)
+
+    post approve_report_url(@report)
+    assert_redirected_to report_url(@report)
+
+    @report.reload
+    assert @report.approved?
+    assert_equal @reviewer, @report.approved_by, "the acting persona must be the stamped approver"
+    assert_not_equal User.visitor, @report.approved_by
+  end
+
+  # Regression (P1): the four-eyes note keys off the effective subject (and the
+  # real actor, mirroring the :either SoD gate) — not the Visitor. Acting as the
+  # persona that initiated the record must surface the note.
+  test "the four-eyes note renders for a record the acting persona initiated" do
+    get root_path
+    act_as(@member)                    # @member requested @report
+
+    get report_url(@report)
+    assert_response :success
+    assert_select "div.countersign", /Four-eyes rule/
+  end
+
   test "stopping act-as (DELETE) succeeds while impersonating" do
     get root_path
     act_as(@reviewer)

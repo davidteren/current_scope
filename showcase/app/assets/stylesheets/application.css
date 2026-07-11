@@ -340,6 +340,7 @@ main { padding: 2rem; max-width: 68rem; margin-inline: auto; }
 .record dd { margin: 0; }
 
 .mono { font-family: var(--font-mono); font-size: 0.8125rem; }
+.text-muted { color: var(--muted); }
 
 /* Four-eyes note: teaches the SoD veto where it bites. */
 .countersign {
@@ -417,6 +418,9 @@ button.approve-button:active {
 /* ---- Forms ------------------------------------------------------------ */
 
 .sheet-form { max-width: 26rem; }
+
+/* The "prepared by X — four-eyes" lede under a new-record heading. */
+.form-subtitle { color: var(--muted); margin-top: -0.75rem; }
 
 .sheet-form .field { margin-bottom: 1rem; }
 

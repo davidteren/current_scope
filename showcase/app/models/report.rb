@@ -3,7 +3,7 @@ class Report < ApplicationRecord
   belongs_to :requested_by, class_name: "User"
   belongs_to :approved_by, class_name: "User", optional: true
 
-  validates :title, presence: true
+  validates :title, presence: true, length: { maximum: 200 }
 
   def approved? = approved_at.present?
 

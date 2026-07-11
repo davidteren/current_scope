@@ -2,7 +2,7 @@
 
 <%= render @record %>
 
-<% if !@record.approved? && @record.current_scope_initiator == Current.user %>
+<% if !@record.approved? && [ current_scope_user, current_scope_actor ].include?(@record.current_scope_initiator) %>
   <div class="countersign">
     <span class="glyph">✕✕</span>
     <span>

@@ -5,6 +5,6 @@ class ExpenseClaimsController < ApprovableRecordsController
     end
 
     def assign_initiator(record)
-      record.submitted_by = Current.user
+      record.submitted_by = current_scope_user
     end
 end

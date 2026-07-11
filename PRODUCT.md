@@ -25,7 +25,7 @@ Two audiences, one product.
   a security control, often under audit. The job is to change what a role means,
   or grant one person one record, *correctly and legibly*, without touching code.
 
-The **demo app** (`showcase/`) is a third, illustrative surface: a full Rails 8.1
+The **showcase app** (the standalone `current_scope_showcase` repo) is a third, illustrative surface: a full Rails 8.1
 host app that validates every mechanism end to end and doubles as the reference
 for what a well-dressed host integration looks like. It should read as a real,
 decent product in its own right, not a throwaway harness.

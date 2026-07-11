@@ -55,7 +55,7 @@ ambient authorization context (`ActiveSupport::CurrentAttributes`) so
 - [x] Management UI refuses to delete the last full-access role; dead
       scaffolding and the `initiator_method` config knob removed
 
-### Showcase app (`showcase/` — Rails 8.1, Hotwire, ViewComponent, built-in auth, no Devise)
+### Showcase app (now the standalone `current_scope_showcase` repo — Rails 8.1, Hotwire, ViewComponent, built-in auth, no Devise)
 
 - [x] Projects/Reports domain with `approve` flow; `ApproveButtonComponent`
       proves the ambient context (no `current_user` threading)
@@ -78,8 +78,8 @@ ambient authorization context (`ActiveSupport::CurrentAttributes`) so
 2. **Per-request resolver memoization** — repeated `allowed_to?` calls in one
    view re-query; cache the subject's effective permission set on
    `CurrentScope::Current` (DESIGN.md §9.4).
-3. **Publish** — push to GitHub, then RubyGems. CI already runs the engine and
-   showcase suites (`.github/workflows/ci.yml`). Gemspec metadata already points
+3. **Publish** — push to GitHub, then RubyGems. CI runs the engine suite (`.github/workflows/ci.yml`); the showcase lives in
+   its own repo (`davidteren/current_scope_showcase`) with its own CI. Gemspec metadata already points
    at `davidteren/current_scope`.
 4. **README screenshots** — the ledger/stamp UI is the best pitch; capture the
    report-approval flow.
@@ -107,5 +107,5 @@ ambient authorization context (`ActiveSupport::CurrentAttributes`) so
   keeps its SCRIPT_NAME — use literal paths (`post "/session"`) for host routes.
 - Inside the mounted engine, bare host route helpers resolve against engine
   routes — use `main_app.` (bit us once: `request_authentication`).
-- Run the showcase: `.claude/launch.json` config `showcase` (port 3050), or
-  `cd showcase && bin/rails server`.
+- Run the showcase (the `current_scope_showcase` sibling repo): `.claude/launch.json`
+  config `showcase`, or `cd ../current_scope_showcase && bin/rails server`.

@@ -4,7 +4,7 @@
     {
       "name": "showcase",
       "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "cd showcase && bin/rails server -p 3050"],
+      "runtimeArgs": ["-c", "cd ../current_scope_showcase && bin/rails server -p 3050"],
       "port": 3050
     }
   ]

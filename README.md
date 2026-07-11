@@ -346,24 +346,24 @@ subject cannot leak between executions.
 
 ## The showcase app
 
-[`showcase/`](showcase/) is a standalone, deployable Rails 8.1 host app
-(Hotwire, ViewComponent, the built-in authentication generator) validating
-every mechanism end to end — RBAC matrix, SoD veto at the gate and in the view,
-scoped roles opening exactly one record, and the management UI. It depends on
-the engine via a local path gem and runs on its own:
+The engine has a full companion **showcase** — a standalone, deployable Rails
+8.1 host app (Hotwire, ViewComponent, built-in auth) that dramatizes every
+mechanism end to end: a multi-domain anti-fraud gallery (payroll / contracts /
+expenses), one-click "act as", a guided "try to commit fraud → refused"
+walkthrough, the auto-derived permission grid, and the management UI. It lives
+in its own repository:
+
+**→ [davidteren/current_scope_showcase](https://github.com/davidteren/current_scope_showcase)**
+
+Run it locally alongside this engine (checked out as a sibling directory):
 
 ```bash
 git clone https://github.com/davidteren/current_scope
-cd current_scope/showcase
-bin/setup          # bundle, create + seed the database (no master key needed)
+git clone https://github.com/davidteren/current_scope_showcase
+cd current_scope_showcase
+bin/setup          # bundle (resolves the engine at ../current_scope), seed the DB
 bin/rails server   # http://localhost:3000
 ```
-
-`bin/setup` seeds four sign-in accounts (password `password`):
-`owner@` (full access), `reviewer@` (approve, but never own — SoD), `member@`
-(view/create only), and `scoped@example.com` (a scoped role on one record) —
-each exercising a different path. Deploying it (Kamal on volume-backed SQLite,
-plus Render/Fly notes) is covered in [`showcase/README.md`](showcase/README.md).
 
 ## Design notes
 

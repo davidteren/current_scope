@@ -1,0 +1,61 @@
+showcase/app/controllers/act_as_controller.rb
+  s_b081cbfee96db8::t_a418520c7fa3f8 1-31
+showcase/test/integration/authorization_flow_test.rb
+  s_b081cbfee96db8::t_9c61a2d53ff97e 26,28-32
+showcase/db/schema.rb
+  s_b081cbfee96db8::t_d94c651e538501 24-25,37-38,47-48,54-55,63,74-77,89-90,103-104,121-123,132,140
+  s_b081cbfee96db8::t_8a76c8cdf86603 13,26-36
+showcase/app/views/layouts/application.html.erb
+  s_b081cbfee96db8::t_d54d89f00f9e93 49-65
+showcase/test/integration/act_as_test.rb
+  s_b081cbfee96db8::t_7e2a62424464b8 145-146
+  s_b081cbfee96db8::t_c7aae3f7b236d2 104-109,113,115-116
+  s_b081cbfee96db8::t_100b93419cadd4 26-91,103,121-144,147-169
+  s_b081cbfee96db8::t_c0c5763536ab33 1-25,92-102,110-112,114,117-120,170-171
+showcase/config/routes.rb
+  s_b081cbfee96db8::t_353fc899eb10b0 20-23
+  s_b081cbfee96db8::t_d75b8ce6e12e46 27
+showcase/db/seeds.rb
+  s_b081cbfee96db8::t_2bbd04ece55f43 132-134
+  s_b081cbfee96db8::t_dea820382e93ce 17-22
+.rubocop.yml
+  s_b081cbfee96db8::t_1ca1bed44c6bfd 4-15
+showcase/app/views/layouts/_persona_switcher.html.erb
+  s_b081cbfee96db8::t_8b25ecbbcbea67 1-12
+showcase/db/migrate/20260711120004_create_current_scope_events.current_scope.rb
+  s_b081cbfee96db8::t_8a76c8cdf86603 1-33
+showcase/app/views/home/index.html.erb
+  s_b081cbfee96db8::t_eb460f26cde260 1-20
+showcase/app/controllers/concerns/authentication.rb
+  s_b081cbfee96db8::t_4454b4466c3471 54
+  s_b081cbfee96db8::t_4d888573df538e 21-24
+showcase/app/controllers/application_controller.rb
+  s_b081cbfee96db8::t_91d0c8720808b8 12-13,19-51
+showcase/app/models/user.rb
+  s_b081cbfee96db8::t_0db415409db172 6-19
+showcase/app/controllers/sessions_controller.rb
+  s_b081cbfee96db8::t_cf2963754839f8 15-18
+showcase/app/controllers/home_controller.rb
+  s_b081cbfee96db8::t_1e2fcd77aa9a95 1-9
+showcase/app/assets/stylesheets/application.css
+  s_b081cbfee96db8::t_941e4ace4a7f7b 127-183
+showcase/config/initializers/current_scope.rb
+  s_b081cbfee96db8::t_32ed0b210f9c24 2-13
+  s_b081cbfee96db8::t_3b8163a9c5ef1b 46-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "2233f61a5c7b86c85b97fdc7a9b048ae5924b67e",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}

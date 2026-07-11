@@ -1,0 +1,27 @@
+<% content_for :title, "Walkthrough — the setup" %>
+
+<section class="walkthrough">
+  <%= render "progress" %>
+
+  <h1>Try to commit fraud. Watch the gate refuse.</h1>
+
+  <p>
+    Payroll runs need two people: one <b>prepares</b> the run, a different person
+    <b>approves</b> it. That is separation of duties — and it is not a policy you
+    can switch off. Over the next three steps you will try to approve a run you
+    prepared yourself, in every way the system allows, and be refused each time
+    with an explanation.
+  </p>
+
+  <p>
+    Start by stepping into the <b>preparer</b>. The banner at the top will name
+    who you are acting as.
+  </p>
+
+  <p class="wt-actions">
+    <%= button_to "Act as the preparer", act_as_path(id: @preparer.id),
+          method: :post, class: "button--primary" %>
+    <%= link_to "Next: see the run you prepared →", walkthrough_path(step: "prepared"),
+          class: "button" %>
+  </p>
+</section>

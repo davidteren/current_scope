@@ -1,0 +1,10 @@
+<% content_for :title, "Editing claim" %>
+
+<h1>Editing claim</h1>
+
+<%= render "form", expense_claim: @record %>
+
+<div class="actions-row">
+  <%= link_to "Show this claim", @record %>
+  <%= link_to "Back to expenses", expense_claims_path %>
+</div>

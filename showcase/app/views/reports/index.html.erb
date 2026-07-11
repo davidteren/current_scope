@@ -1,0 +1,54 @@
+<% content_for :title, "Reports" %>
+
+<div class="page-head">
+  <h1>Reports</h1>
+  <% if allowed_to?(:new, Report) %>
+    <%= link_to "New report", new_report_path, class: "button" %>
+  <% end %>
+</div>
+
+<% if @reports.any? %>
+  <table class="ledger" id="reports">
+    <thead>
+      <tr>
+        <th scope="col">No.</th>
+        <th scope="col">Title</th>
+        <th scope="col" class="optional">Project</th>
+        <th scope="col" class="optional">Requested by</th>
+        <th scope="col">Status</th>
+        <th scope="col" class="actions"><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @reports.each do |report| %>
+        <tr id="<%= dom_id report %>">
+          <td class="num"><%= format("%04d", report.id) %></td>
+          <td>
+            <% if allowed_to?(:show, report) %>
+              <%= link_to report.title, report %>
+            <% else %>
+              <%= report.title %>
+            <% end %>
+          </td>
+          <td class="optional"><%= report.project.name %></td>
+          <td class="optional mono"><%= report.requested_by.email_address %></td>
+          <td>
+            <% if report.approved? %>
+              <span class="stamp stamp--approved">Approved</span>
+            <% else %>
+              <span class="stamp stamp--pending">Pending</span>
+            <% end %>
+          </td>
+          <td class="actions">
+            <%= render ApproveButtonComponent.new(record: report) %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% else %>
+  <div class="empty">
+    <b>The ledger is empty.</b> Create a report and it lands here awaiting
+    approval — and whoever requests one can never be the one to approve it.
+  </div>
+<% end %>

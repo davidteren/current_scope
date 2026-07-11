@@ -1,0 +1,26 @@
+<% content_for :title, @report.title %>
+
+<%= render @report %>
+
+<% if !@report.approved? && [ current_scope_user, current_scope_actor ].include?(@report.current_scope_initiator) %>
+  <div class="countersign">
+    <span class="glyph">✕✕</span>
+    <span>
+      <b>Four-eyes rule:</b> you requested this report, so approval requires a
+      second signatory — even a full-access owner can't stamp their own.
+    </span>
+  </div>
+<% end %>
+
+<div class="actions-row">
+  <%= render ApproveButtonComponent.new(record: @report) %>
+
+  <% if allowed_to?(:edit, @report) %>
+    <%= link_to "Edit", edit_report_path(@report), class: "button" %>
+  <% end %>
+  <% if allowed_to?(:destroy, @report) %>
+    <%= button_to "Destroy", @report, method: :delete, class: "button--danger",
+          data: { turbo_confirm: "Destroy this report?" } %>
+  <% end %>
+  <%= link_to "Back to reports", reports_path %>
+</div>

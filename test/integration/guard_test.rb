@@ -28,6 +28,7 @@ class GuardTest < ActionDispatch::IntegrationTest
     assign(@alice, role("Member", "reports#show"))
     get reports_url, headers: sign_in(@alice)
     assert_response :forbidden
+    assert_equal "no_grant", response.headers["X-Current-Scope-Reason"]
   end
 
   test "granting the controller action opens the gate" do
@@ -49,6 +50,7 @@ class GuardTest < ActionDispatch::IntegrationTest
     assign(@bob, role("Owner", full_access: true))
     post approve_report_url(@report), headers: sign_in(@bob)
     assert_response :forbidden
+    assert_equal "sod_veto", response.headers["X-Current-Scope-Reason"]
   end
 
   test "a ?id= query string cannot smuggle a scoped record into a collection action" do

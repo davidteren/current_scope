@@ -8,6 +8,7 @@
   <%= yield :head %>
 
   <%= stylesheet_link_tag "current_scope/application", media: "all" %>
+  <%= javascript_include_tag "current_scope/application", defer: true %>
 </head>
 <body>
   <header class="cs-header">
@@ -15,6 +16,7 @@
     <nav>
       <%= link_to "Roles", current_scope.roles_path %>
       <%= link_to "Subjects", current_scope.subjects_path %>
+      <%= link_to "Events", current_scope.events_path %>
     </nav>
   </header>
 

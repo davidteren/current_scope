@@ -1,0 +1,27 @@
+<% password_digest = BCrypt::Password.create("password") %>
+
+one:
+  email_address: one@example.com
+  password_digest: <%= password_digest %>
+
+two:
+  email_address: two@example.com
+  password_digest: <%= password_digest %>
+
+# Personas for the multi-domain SoD gallery flow tests. Roles/assignments are
+# built per test; these are just the identities.
+preparer:
+  email_address: preparer@example.com
+  password_digest: <%= password_digest %>
+
+approver:
+  email_address: approver@example.com
+  password_digest: <%= password_digest %>
+
+scoped_user:
+  email_address: scoped_user@example.com
+  password_digest: <%= password_digest %>
+
+bystander:
+  email_address: bystander@example.com
+  password_digest: <%= password_digest %>

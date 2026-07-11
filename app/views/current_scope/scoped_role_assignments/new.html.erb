@@ -5,27 +5,109 @@
   changes the subject's org-wide role.
 </p>
 
-<%= form_with url: scoped_role_assignments_path, method: :post do %>
+<%#
+  Two forms, on purpose:
+
+  * The cascade is a GET form (id "cs-cascade"). Each control re-renders the
+    downstream steps: with Turbo it swaps just the #cascade frame; without JS
+    or Turbo the "Show records" submit does a full-page GET (every selection is
+    preserved from params). A GET form carries NO CSRF token — a token in a GET
+    would leak into the URL (server logs, history, Referer).
+
+  * The grant is a state change, so it is a SEPARATE POST form (button_to)
+    rendered inside the frame once the selection is complete. button_to puts
+    the CSRF token in the request body, never a URL. It lives OUTSIDE the GET
+    form (nesting <form>s is invalid) and reaches the cascade's inputs via the
+    HTML `form:` attribute, which also lets the GET stay idempotent so the
+    picker still works while impersonating (read-only), where a POST would 403.
+%>
+<%= form_with url: new_scoped_role_assignment_path, method: :get, id: "cs-cascade",
+      data: { turbo_frame: "cascade" }, class: "cs-picker" do %>
+  <p>
+    <label>Role</label>
+    <%= select_tag :role_id,
+          options_from_collection_for_select(@roles, :id, :name, params[:role_id]),
+          data: { current_scope_autosubmit: true } %>
+  </p>
   <p>
     <label>Subject</label>
     <%= select_tag :subject_gid,
           options_for_select(@subjects.map { |s| [ current_scope_label(s), s.to_gid.to_s ] },
-                             params[:subject_gid]) %>
+                             params[:subject_gid]),
+          data: { current_scope_autosubmit: true } %>
   </p>
-  <p>
-    <label>Role</label>
-    <%= select_tag :role_id, options_from_collection_for_select(@roles, :id, :name) %>
-  </p>
-  <p>
-    <label>Record (GlobalID)</label>
-    <% if @resource %>
-      <%= hidden_field_tag :resource_gid, params[:resource_gid] %>
-      <strong><%= current_scope_label(@resource) %></strong>
-    <% else %>
-      <%= text_field_tag :resource_gid, nil,
-            placeholder: "gid://app-name/Project/7", size: 40 %>
-      <span class="cs-hint">Link here from a record's page to prefill this.</span>
-    <% end %>
-  </p>
-  <p><%= submit_tag "Grant scoped role" %></p>
 <% end %>
+
+<turbo-frame id="cascade">
+  <% if @scopeable.empty? %>
+    <p class="cs-alert cs-picker-empty">
+      No pickable resource types yet. Add
+      <code>include CurrentScope::Scopeable</code> to a host model to make its
+      records selectable here.
+    </p>
+  <% else %>
+    <%
+      type_options = @scopeable.map { |model| [ model.model_name.human, model.name ] }
+      # A deep-linked type may not itself be Scopeable — keep it selectable.
+      if @resource_type && type_options.none? { |(_, name)| name == @resource_type.name }
+        type_options.unshift([ @resource_type.model_name.human, @resource_type.name ])
+      end
+    %>
+    <p>
+      <label>Resource type</label>
+      <%= select_tag :resource_type,
+            options_for_select(type_options, @resource_type&.name),
+            include_blank: "— choose a type —", form: "cs-cascade",
+            data: { current_scope_autosubmit: true } %>
+    </p>
+
+    <% if @resource_type %>
+      <% if @records.blank? && params[:q].blank? %>
+        <p class="cs-hint cs-picker-empty">
+          No <%= @resource_type.model_name.human.pluralize.downcase %> to pick from yet.
+        </p>
+      <% else %>
+        <% if @searchable %>
+          <p>
+            <label>Search records</label>
+            <%= search_field_tag :q, params[:q], placeholder: "Filter by label",
+                  form: "cs-cascade", data: { current_scope_autosubmit: true } %>
+          </p>
+        <% end %>
+        <p>
+          <label>Record</label>
+          <%
+            record_options = (@records || []).map { |record| [ current_scope_label(record), record.to_gid.to_s ] }
+            # Keep a deep-linked record selectable even if it fell outside the
+            # scanned window.
+            if @resource && record_options.none? { |(_, gid)| gid == @resource.to_gid.to_s }
+              record_options.unshift([ current_scope_label(@resource), @resource.to_gid.to_s ])
+            end
+          %>
+          <%= select_tag :resource_gid,
+                options_for_select(record_options, params[:resource_gid] || @resource&.to_gid&.to_s),
+                include_blank: "— choose a record —", form: "cs-cascade",
+                data: { current_scope_autosubmit: true } %>
+          <% if @searchable && params[:q].present? %>
+            <span class="cs-hint">
+              Showing up to <%= CurrentScope::ScopedRoleAssignmentsController::DISPLAY_LIMIT %> matches — refine the search to narrow.
+            </span>
+          <% end %>
+        </p>
+      <% end %>
+    <% end %>
+
+    <p class="cs-picker-actions">
+      <%# No-JS / no-Turbo fallback: reload the cascade with the current picks. %>
+      <%= submit_tag "Show records", name: nil, form: "cs-cascade", class: "cs-picker-refresh" %>
+      <%# Grant only a complete selection. Every cascade control autosubmits, so
+          params mirror the live picks — the button never posts a stale value. %>
+      <% if params[:role_id].present? && params[:subject_gid].present? && params[:resource_gid].present? %>
+        <%= button_to "Grant scoped role", scoped_role_assignments_path, method: :post,
+              params: { role_id: params[:role_id], subject_gid: params[:subject_gid],
+                        resource_gid: params[:resource_gid] },
+              data: { turbo_frame: "_top" } %>
+      <% end %>
+    </p>
+  <% end %>
+</turbo-frame>

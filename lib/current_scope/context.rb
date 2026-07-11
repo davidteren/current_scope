@@ -9,19 +9,28 @@ module CurrentScope
 
     included do
       before_action :set_current_scope_user
-      helper_method :allowed_to?, :current_scope_user if respond_to?(:helper_method)
+      if respond_to?(:helper_method)
+        helper_method :allowed_to?, :scope_for, :current_scope_user, :current_scope_actor, :impersonating?
+      end
     end
 
     private
 
     def set_current_scope_user
-      user_method = CurrentScope.config.user_method
-      unless respond_to?(user_method, true)
-        raise CurrentScope::ConfigurationError,
-              "#{self.class.name} does not respond to ##{user_method}. Define it, or " \
-              "point CurrentScope.config.user_method at your authentication method."
-      end
-      CurrentScope::Current.user = send(user_method)
+      CurrentScope::Current.user = resolve_current_scope_subject(CurrentScope.config.user_method)
+
+      # nil actor_method means no impersonation: leave actor unset so Current
+      # falls back to the subject. Only resolve when the host opts in.
+      actor_method = CurrentScope.config.actor_method
+      CurrentScope::Current.actor = resolve_current_scope_subject(actor_method) if actor_method
+    end
+
+    def resolve_current_scope_subject(method)
+      return send(method) if respond_to?(method, true)
+
+      raise CurrentScope::ConfigurationError,
+            "#{self.class.name} does not respond to ##{method}. Define it, or point the " \
+            "matching CurrentScope.config.*_method at your method."
     end
   end
 end

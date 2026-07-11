@@ -15,6 +15,10 @@ ambient authorization context (`ActiveSupport::CurrentAttributes`) so
 - Research basis: [docs/RESEARCH.md](docs/RESEARCH.md) — palkan / Evil Martians
   on CurrentAttributes vs dry-effects vs explicit passing, Action Policy ideas
 - Usage: [README.md](README.md)
+- **What's next / gaps / proposals: [docs/ROADMAP.md](docs/ROADMAP.md)** — coverage
+  vs open gaps (audit, impersonation/act-as, resource-hierarchy cascade, resolver
+  memoization, feature flags) + two proposals: a demo-app redesign and a
+  model→record scoped-assignment picker (replacing the raw-GlobalID field).
 
 ## Done (v0.1, all committed on `main`)
 
@@ -34,7 +38,7 @@ ambient authorization context (`ActiveSupport::CurrentAttributes`) so
 - [x] `current_scope:install` generator (initializer + mount + next steps);
       standard `current_scope:install:migrations` flow
 - [x] Engine test suite against `test/dummy` — 49 runs green; RuboCop omakase clean
-- [x] Gem packages cleanly (`gem build`; demo excluded)
+- [x] Gem packages cleanly (`gem build`; showcase excluded)
 
 ### Hardening (29-agent multi-lens review, 21 confirmed findings fixed)
 
@@ -51,7 +55,7 @@ ambient authorization context (`ActiveSupport::CurrentAttributes`) so
 - [x] Management UI refuses to delete the last full-access role; dead
       scaffolding and the `initiator_method` config knob removed
 
-### Demo app (`demo/` — Rails 8.1, Hotwire, ViewComponent, built-in auth, no Devise)
+### Showcase app (`showcase/` — Rails 8.1, Hotwire, ViewComponent, built-in auth, no Devise)
 
 - [x] Projects/Reports domain with `approve` flow; `ApproveButtonComponent`
       proves the ambient context (no `current_user` threading)
@@ -74,8 +78,9 @@ ambient authorization context (`ActiveSupport::CurrentAttributes`) so
 2. **Per-request resolver memoization** — repeated `allowed_to?` calls in one
    view re-query; cache the subject's effective permission set on
    `CurrentScope::Current` (DESIGN.md §9.4).
-3. **Publish** — push to GitHub, CI (engine + demo suites), then RubyGems.
-   Gemspec metadata already points at `davidteren/current_scope`.
+3. **Publish** — push to GitHub, then RubyGems. CI already runs the engine and
+   showcase suites (`.github/workflows/ci.yml`). Gemspec metadata already points
+   at `davidteren/current_scope`.
 4. **README screenshots** — the ledger/stamp UI is the best pitch; capture the
    report-approval flow.
 
@@ -102,5 +107,5 @@ ambient authorization context (`ActiveSupport::CurrentAttributes`) so
   keeps its SCRIPT_NAME — use literal paths (`post "/session"`) for host routes.
 - Inside the mounted engine, bare host route helpers resolve against engine
   routes — use `main_app.` (bit us once: `request_authentication`).
-- Run the demo: `.claude/launch.json` config `demo` (port 3050), or
-  `cd demo && bin/rails server`.
+- Run the showcase: `.claude/launch.json` config `showcase` (port 3050), or
+  `cd showcase && bin/rails server`.

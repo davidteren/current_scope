@@ -1,0 +1,54 @@
+<% content_for :title, "Contracts" %>
+
+<div class="page-head">
+  <h1>Contracts</h1>
+  <% if allowed_to?(:new, Contract) %>
+    <%= link_to "New contract", new_contract_path, class: "button" %>
+  <% end %>
+</div>
+
+<% if @records.any? %>
+  <table class="ledger" id="contracts">
+    <thead>
+      <tr>
+        <th scope="col">No.</th>
+        <th scope="col">Title</th>
+        <th scope="col" class="optional">Counterparty</th>
+        <th scope="col" class="optional">Raised by</th>
+        <th scope="col">Status</th>
+        <th scope="col" class="actions"><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @records.each do |contract| %>
+        <tr id="<%= dom_id contract %>">
+          <td class="num"><%= format("%04d", contract.id) %></td>
+          <td>
+            <% if allowed_to?(:show, contract) %>
+              <%= link_to contract.title, contract %>
+            <% else %>
+              <%= contract.title %>
+            <% end %>
+          </td>
+          <td class="optional"><%= contract.counterparty %></td>
+          <td class="optional mono"><%= contract.raised_by.email_address %></td>
+          <td>
+            <% if contract.approved? %>
+              <span class="stamp stamp--approved">Approved</span>
+            <% else %>
+              <span class="stamp stamp--pending">Pending</span>
+            <% end %>
+          </td>
+          <td class="actions">
+            <%= render ApproveButtonComponent.new(record: contract) %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% else %>
+  <div class="empty">
+    <b>No contracts you can open.</b> Raise one and it lands here awaiting
+    approval — and whoever raises a contract can never be the one to approve it.
+  </div>
+<% end %>

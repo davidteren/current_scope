@@ -10,7 +10,20 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_10_000100) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_11_000100) do
+  create_table "current_scope_events", force: :cascade do |t|
+    t.string "actor", null: false
+    t.datetime "created_at", null: false
+    t.json "details"
+    t.string "event", null: false
+    t.string "request_id"
+    t.string "subject", null: false
+    t.string "target", null: false
+    t.string "target_label", null: false
+    t.index [ "actor" ], name: "index_current_scope_events_on_actor"
+    t.index [ "target" ], name: "index_current_scope_events_on_target"
+  end
+
   create_table "current_scope_role_assignments", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "role_id", null: false
@@ -48,6 +61,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_10_000100) do
     t.index [ "role_id" ], name: "index_current_scope_scoped_role_assignments_on_role_id"
     t.index [ "subject_type", "subject_id", "resource_type", "resource_id", "role_id" ], name: "index_current_scope_unique_scoped_assignment", unique: true
     t.index [ "subject_type", "subject_id" ], name: "index_current_scope_scoped_role_assignments_on_subject"
+  end
+
+  create_table "folders", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "projects", force: :cascade do |t|

@@ -1,0 +1,20 @@
+# alpha: prepared by preparer — approver approves it; scoped grant target
+# beta:  prepared by approver — the SoD self-approve veto case
+# gamma: prepared by preparer — scoped persona must NOT see it; carries markup
+alpha:
+  period: "2026-07"
+  label: July salaries
+  amount: 84200
+  prepared_by: preparer
+
+beta:
+  period: "2026-06"
+  label: June salaries
+  amount: 81050
+  prepared_by: approver
+
+gamma:
+  period: "2026-05"
+  label: "<b>May</b> bonus run"
+  amount: 12500
+  prepared_by: preparer

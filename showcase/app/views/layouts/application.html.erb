@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= content_for(:title) || "CurrentScope Showcase" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="CurrentScope Showcase">
+    <meta name="mobile-web-app-capable" content="yes">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= yield :head %>
+
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600&display=swap" rel="stylesheet">
+
+    <%# Includes all stylesheet files in app/assets/stylesheets %>
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body>
+    <header class="masthead">
+      <%= link_to root_path, class: "wordmark" do %>
+        CurrentScope<small>showcase ledger</small>
+      <% end %>
+      <nav>
+        <%= link_to "Projects", projects_path,
+              "aria-current": (current_page?(projects_path) || request.path == "/" ? "page" : nil) %>
+        <%= link_to "Reports", reports_path,
+              "aria-current": (current_page?(reports_path) ? "page" : nil) %>
+        <%= link_to "Payroll", pay_runs_path,
+              "aria-current": (current_page?(pay_runs_path) ? "page" : nil) %>
+        <%= link_to "Contracts", contracts_path,
+              "aria-current": (current_page?(contracts_path) ? "page" : nil) %>
+        <%= link_to "Expenses", expense_claims_path,
+              "aria-current": (current_page?(expense_claims_path) ? "page" : nil) %>
+        <%= link_to "Who can do what", users_path,
+              "aria-current": (current_page?(users_path) ? "page" : nil) %>
+        <% if authenticated? && CurrentScope.resolver.full_access?(current_scope_user) %>
+          <%= link_to "Authorization", current_scope_path %>
+        <% end %>
+      </nav>
+      <% if authenticated? %>
+        <div class="session">
+          <% if impersonating? %>
+            <span class="acting-as">
+              Acting as <b><%= current_scope_user.email_address %></b>
+              — you are <b><%= current_scope_actor.email_address %></b><%= " (Visitor)" if current_scope_actor.try(:visitor?) %>
+            </span>
+            <%= button_to "Stop acting as", act_as_path, method: :delete, class: "button--quiet" %>
+          <% else %>
+            <span class="signatory">
+              browsing as <b><%= current_scope_actor&.email_address %></b><%= " (Visitor)" if current_scope_actor.try(:visitor?) %>
+            </span>
+          <% end %>
+          <%= render "layouts/persona_switcher" %>
+          <% if current_scope_actor.try(:visitor?) %>
+            <%= link_to "Sign in", new_session_path, class: "button--quiet" %>
+          <% else %>
+            <%= button_to "Sign out", session_path, method: :delete, class: "button--quiet" %>
+          <% end %>
+        </div>
+      <% end %>
+    </header>
+
+    <%# Honesty banner: the sandbox is shared and self-heals, and says so. %>
+    <div class="sandbox-banner">
+      <span class="sandbox-banner__note">
+        Shared sandbox — resets every 15 minutes
+        <small>next reset in ~<%= minutes_to_next_sandbox_reset %> min</small>
+      </span>
+      <%= button_to "Reset now", sandbox_reset_path, class: "button--quiet" %>
+    </div>
+
+    <% if flash.any? %>
+      <div class="flash">
+        <% flash.each do |type, message| %>
+          <p class="<%= type %>"><%= message %></p>
+        <% end %>
+      </div>
+    <% end %>
+
+    <main>
+      <%= yield %>
+    </main>
+  </body>
+</html>

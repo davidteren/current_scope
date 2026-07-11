@@ -1,0 +1,41 @@
+<%# Host override of the engine's layout — the Rails-standard way to make the
+    gem's scaffolded management UI wear the app's own design system. %>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Authorization · CurrentScope Showcase</title>
+  <%= csrf_meta_tags %>
+  <%= csp_meta_tag %>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600&display=swap" rel="stylesheet">
+
+  <%= stylesheet_link_tag :app %>
+
+  <%# This override replaces the engine's own layout, which is where the picker
+      JS is normally included. Re-add it here (served asset, CSP-safe under
+      script-src 'self') so the scoped-role cascade auto-submits in the showcase
+      too. It is the only JS on engine pages, so it neither double-loads nor 404s. %>
+  <%= javascript_include_tag "current_scope/application", defer: true %>
+</head>
+<body>
+  <header class="cs-header masthead">
+    <%= link_to main_app.root_path, class: "wordmark" do %>
+      CurrentScope<small>authorization desk</small>
+    <% end %>
+    <nav>
+      <%= link_to "Roles", current_scope.roles_path %>
+      <%= link_to "Subjects", current_scope.subjects_path %>
+      <%= link_to "Back to app", main_app.root_path %>
+    </nav>
+  </header>
+
+  <% if notice.present? %><p class="cs-notice"><%= notice %></p><% end %>
+  <% if alert.present? %><p class="cs-alert"><%= alert %></p><% end %>
+
+  <main class="cs-main">
+    <%= yield %>
+  </main>
+</body>
+</html>

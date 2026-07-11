@@ -4,13 +4,23 @@ require "current_scope/permission_catalog"
 require "current_scope/resolver"
 require "current_scope/permissions"
 require "current_scope/context"
+require "current_scope/scopeable"
+require "current_scope/mutation_guard"
 require "current_scope/guard"
 require "current_scope/engine"
 
 module CurrentScope
   # Raised when the resolver denies an action gated by Guard (or when the
-  # management UI is accessed without a full-access role).
-  class AccessDenied < StandardError; end
+  # management UI is accessed without a full-access role). Carries an optional
+  # machine-readable reason (:sod_veto, :no_grant, :impersonation_gate).
+  class AccessDenied < StandardError
+    attr_reader :reason
+
+    def initialize(message = nil, reason: nil)
+      super(message)
+      @reason = reason
+    end
+  end
 
   # Raised when the host is wired up wrong (missing hook, bad config). Always
   # raised loudly — an authorization library must never turn a configuration
@@ -38,16 +48,45 @@ module CurrentScope
       @catalog = nil
     end
 
+    # Models that opted into the scoped-role picker via CurrentScope::Scopeable.
+    # Stored as class-name strings and resolved lazily so dev-mode reloading
+    # never pins a stale constant. Rebuilt from scratch on every engine
+    # to_prepare (see reset_scopeable_registry!).
+    def scopeable_registry
+      @scopeable_registry ||= Set.new
+    end
+
+    def register_scopeable(model_name)
+      scopeable_registry << model_name.to_s
+    end
+
+    def scopeable_resources
+      scopeable_registry.map(&:constantize).sort_by(&:name)
+    end
+
+    def reset_scopeable_registry!
+      @scopeable_registry = Set.new
+    end
+
     # The single entry point behind every allowed_to? call.
     # `action` is either a full permission key ("admin/reports#approve") or a
     # bare action name resolved against `record`'s route key, falling back to
     # `controller_path`.
-    def allowed?(action, subject:, record: nil, controller_path: nil)
+    def allowed?(action, subject:, record: nil, controller_path: nil, actor: nil)
       resolver.allow?(
         subject: subject,
         permission: permission_key(action, record: record, controller_path: controller_path),
-        record: record
+        record: record,
+        actor: actor
       )
+    end
+
+    # The list-side companion to allowed?. Returns a chainable relation of the
+    # records of `model` the subject may act on under `permission` — same
+    # grants, same fail-closed rules as the per-record gate. `permission` is a
+    # resolved key ("projects#index"); the mixin derives the default.
+    def scope_for(subject:, model:, permission:)
+      resolver.scope_for(subject: subject, model: model, permission: permission)
     end
 
     def permission_key(action, record: nil, controller_path: nil)
@@ -68,6 +107,19 @@ module CurrentScope
       raise ArgumentError,
             "cannot derive a permission key for #{action.inspect} — pass a record, " \
             "a full \"controller#action\" string, or call from a controller/view"
+    end
+
+    # Impersonation boundary events. The impersonated identity is an EXPLICIT
+    # argument (not read from the ambient pair): at act-as START the ambient
+    # actor still equals the effective user — Current re-resolves next request —
+    # so an ambient-only recorder would lose who was impersonated. Call these
+    # from the host's start/stop-impersonation endpoints.
+    def record_impersonation_started!(subject)
+      Event.record!(event: "impersonation.started", target: subject)
+    end
+
+    def record_impersonation_stopped!(subject)
+      Event.record!(event: "impersonation.stopped", target: subject)
     end
 
     # Creates the two baseline roles every install needs: an Owner with

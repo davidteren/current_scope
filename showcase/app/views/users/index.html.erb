@@ -1,0 +1,88 @@
+<% content_for :title, "Who can do what" %>
+
+<div class="page-head">
+  <h1>Who can do what</h1>
+</div>
+
+<p>
+  A read-only mirror of the authorization model — visible to <em>every</em>
+  persona, even the role-less Visitor. Each row shows a subject's single
+  org-wide role and any roles held on one specific record. The management UI
+  that <em>changes</em> these is full-access only, so its links appear below
+  just for a full-access viewer.
+</p>
+
+<table class="ledger" id="users">
+  <thead>
+    <tr>
+      <th scope="col">Identity</th>
+      <th scope="col">Org-wide role</th>
+      <th scope="col">Scoped roles</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @users.each do |user| %>
+      <tr id="<%= dom_id(user) %>">
+        <td class="mono"><%= user.email_address %><%= " (Visitor)" if user.visitor? %></td>
+        <td>
+          <% if (assignment = @org_roles[user.id]) %>
+            <span class="cs-chip"><%= assignment.role.name %></span>
+          <% else %>
+            <span class="cs-hint">— none —</span>
+          <% end %>
+        </td>
+        <td>
+          <% scoped = @scoped_roles[user.id] || [] %>
+          <% if scoped.any? %>
+            <% scoped.each do |sra| %>
+              <span class="cs-chip"><%= "#{sra.role.name} of #{scoped_resource_label(sra)}" %></span>
+            <% end %>
+          <% else %>
+            <span class="cs-hint">—</span>
+          <% end %>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<% if CurrentScope.resolver.full_access?(current_scope_user) %>
+  <h2>Change the rules</h2>
+  <p class="cs-hint">
+    These open the engine's management UI — visible to you because you hold a
+    full-access role. Every other persona is 403'd out of them.
+  </p>
+  <p class="actions-row">
+    <%= link_to "Role grid", current_scope.roles_path, class: "button" %>
+    <%= link_to "Grant a scoped role", current_scope.new_scoped_role_assignment_path, class: "button" %>
+    <%= link_to "Events ledger", current_scope.events_path, class: "button" %>
+  </p>
+
+  <% if @beat_owner && @beat_approver && @beat_role %>
+    <h2>Authorization is just data — watch it change behavior</h2>
+    <p class="cs-hint">
+      No cache to clear: every permission check is per-request, so a grant you
+      flip in the grid takes effect on the very next page load.
+    </p>
+    <ol class="wt-script">
+      <li>
+        <%= button_to "Act as #{@beat_owner.email_address}", act_as_path(id: @beat_owner.id),
+              method: :post, class: "button--primary" %>
+        — step into the full-access owner.
+      </li>
+      <li>
+        Open <%= link_to "the #{@beat_role.name} role", current_scope.edit_role_path(@beat_role) %>,
+        untick <code>expense_claims#approve</code>, and save.
+      </li>
+      <li>
+        <%= button_to "Act as #{@beat_approver.email_address}", act_as_path(id: @beat_approver.id),
+              method: :post, class: "button--primary" %>
+        — become the approver whose grant you just removed.
+      </li>
+      <li>
+        Open an <%= link_to "expense claim", expense_claims_path %> you could approve a moment ago:
+        the <b>Approve</b> button is gone, and a forced request is refused.
+      </li>
+    </ol>
+  <% end %>
+<% end %>

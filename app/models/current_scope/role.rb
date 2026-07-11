@@ -11,6 +11,12 @@ module CurrentScope
 
     after_save :persist_permission_keys
 
+    # The grid diff computed by the last save: { added: [...], removed: [...] }.
+    # Empty arrays on a no-op save; nil when no grid was staged (a programmatic
+    # save that never set permission_keys). Controllers read this to record the
+    # change — the model itself records nothing (seeds must stay silent).
+    attr_reader :permission_keys_change
+
     def grants?(permission_key)
       role_permissions.exists?(permission_key: permission_key)
     end
@@ -36,8 +42,13 @@ module CurrentScope
     def persist_permission_keys
       return if @pending_permission_keys.nil?
 
+      # Capture the prior keys BEFORE delete_all so the diff survives the swap.
+      previous = role_permissions.pluck(:permission_key)
+      staged = @pending_permission_keys
+      @permission_keys_change = { added: staged - previous, removed: previous - staged }
+
       role_permissions.delete_all
-      role_permissions.insert_all(@pending_permission_keys.map { |k| { permission_key: k } }) if @pending_permission_keys.any?
+      role_permissions.insert_all(staged.map { |k| { permission_key: k } }) if staged.any?
       @pending_permission_keys = nil
     end
   end

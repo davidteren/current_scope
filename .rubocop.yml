@@ -1,6 +1,18 @@
 # Omakase Ruby styling for Rails
 inherit_gem: { rubocop-rails-omakase: rubocop.yml }
 
+# Merge (don't replace) omakase's own Exclude list.
+inherit_mode:
+  merge:
+    - Exclude
+
+AllCops:
+  Exclude:
+    # Generated schema dumps are machine-written, never hand-edited — omakase
+    # excludes db/schema.rb at the app root, but this repo lints the showcase
+    # app and the test dummy from the repo root, so exclude their schemas too.
+    - "**/db/schema.rb"
+
 # Overwrite or add rules to create your own house style
 #
 # # Use `[a, [b, c]]` not `[ a, [ b, c ] ]`

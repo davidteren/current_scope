@@ -12,11 +12,46 @@ module CurrentScope
   module Permissions
     def allowed_to?(action, record = nil, controller: nil)
       controller ||= controller_path if respond_to?(:controller_path)
-      CurrentScope.allowed?(action, subject: current_scope_user, record: record, controller_path: controller)
+      CurrentScope.allowed?(action, subject: current_scope_user, record: record,
+        controller_path: controller, actor: current_scope_actor)
+    end
+
+    # The list-side companion to allowed_to?: "which records of `model` may the
+    # effective subject act on?". Same grants, keys, and fail-closed rules as
+    # the gate, so a list can't drift from the per-record decision. Returns a
+    # chainable relation (.where/.order/.page on it). `permission` defaults to
+    # the model's index context and accepts a bare action or a full key.
+    #
+    #   scope_for(Project)                 # projects#index — what a list shows
+    #   scope_for(Report, permission: :approve)
+    #   scope_for(Report, permission: "admin/reports#approve")
+    def scope_for(model, permission: nil)
+      # Derive the key exactly like allowed_to? — including controller_path, so a
+      # namespaced controller's list resolves to the same key as its gate
+      # (admin/reports#index, not reports#index) and the two never drift.
+      controller = controller_path if respond_to?(:controller_path)
+      CurrentScope.scope_for(
+        subject: current_scope_user,
+        model: model,
+        permission: CurrentScope.permission_key(permission || :index, record: model, controller_path: controller)
+      )
     end
 
     def current_scope_user
       CurrentScope::Current.user
+    end
+
+    # The REAL actor behind the request (never nil when a subject is set — it
+    # falls back to the subject). Read this for attribution, not Current.
+    def current_scope_actor
+      CurrentScope::Current.actor
+    end
+
+    # True only while a distinct real actor stands behind the effective
+    # subject (act-as). Views use it as the read-only-state signal.
+    def impersonating?
+      CurrentScope::Current.user.present? &&
+        CurrentScope::Current.actor != CurrentScope::Current.user
     end
   end
 end

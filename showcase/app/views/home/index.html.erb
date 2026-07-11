@@ -1,0 +1,26 @@
+<% content_for :title, "CurrentScope Showcase" %>
+
+<section class="lobby">
+  <h1>The harbor master's ledger</h1>
+
+  <p>
+    You are browsing as <b>Visitor</b> — a role-less account that, fail-closed,
+    can reach almost nothing. That is the point: step into a seeded persona and
+    watch the very same screens re-render for <em>their</em> permissions. The
+    engine reads one ambient subject, so the list, the gate, and the buttons can
+    never disagree.
+  </p>
+
+  <p>
+    Pick a persona to act as. A banner keeps naming both identities — who you are
+    acting as, and who you really are — until you stop.
+  </p>
+
+  <%= render "layouts/persona_switcher" %>
+
+  <p class="lobby__cta">
+    Or take the guided tour:
+    <%= link_to "try to commit fraud, and watch the gate refuse →", walkthrough_path,
+          class: "button--primary" %>
+  </p>
+</section>

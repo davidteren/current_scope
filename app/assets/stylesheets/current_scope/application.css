@@ -289,6 +289,39 @@ button:disabled, input[type="submit"]:disabled { opacity: 0.5; cursor: not-allow
 /* Inline row actions (Set, ×, Delete) shouldn't shout. */
 .cs-table form { display: inline; margin: 0; }
 
+/* ---- Scoped-role picker ----------------------------------------------- *
+ * The guided cascade. Its downstream steps live in the #cascade turbo-frame;
+ * with no Turbo the frame is an inert wrapper and the steps render inline.
+ */
+
+.cs-picker turbo-frame { display: block; }
+
+.cs-picker-empty {
+  max-width: 30rem;
+  margin: 0 0 1rem;
+}
+
+.cs-picker-empty code {
+  font-family: var(--cs-mono);
+  font-size: 0.8125rem;
+  background: var(--cs-surface-2);
+  border: 1px solid var(--cs-line);
+  border-radius: 3px;
+  padding: 0.0625rem 0.25rem;
+}
+
+.cs-picker-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+/* The fallback reload is secondary to the committed Grant action. */
+.cs-picker-refresh {
+  font-size: 0.8125rem;
+  color: var(--cs-muted);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; }
 }

@@ -45,7 +45,35 @@ module CurrentScope
       !!(subject && org_role(subject)&.full_access?)
     end
 
+    # The list-side complement to allow?: "which records of `model` may this
+    # subject act on?". Reads the SAME org + scoped grants the gate reads, so a
+    # host list can never drift from the per-record decision. Fail-closed (nil
+    # subject / no grant → none) and flat — no parent/child cascade. SoD does
+    # NOT apply: it vetoes record-targeted actions, not list membership.
+    def scope_for(subject:, model:, permission:)
+      return model.none if subject.nil?
+
+      role = org_role(subject)
+      return model.all if role&.full_access? || role&.grants?(permission)
+
+      # Records on which the subject holds a scoped role that grants the key.
+      # An empty subquery yields an empty (still chainable) relation.
+      model.where(
+        id: ScopedRoleAssignment
+              .where(subject: subject, resource_type: model.name, role_id: roles_granting(permission))
+              .select(:resource_id)
+      )
+    end
+
     private
+
+    # Role ids that satisfy `permission`: full_access (grants everything) or an
+    # explicit grant of the key. The one place "does this role grant it?" is
+    # expressed for scoped grants — shared by the gate and scope_for.
+    def roles_granting(permission)
+      Role.where(full_access: true)
+          .or(Role.where(id: RolePermission.where(permission_key: permission).select(:role_id)))
+    end
 
     def sod_veto?(subject:, actor:, permission:, record:)
       action = permission.split("#").last
@@ -82,12 +110,9 @@ module CurrentScope
       # hold scoped grants, only persisted records can.
       return false unless record.respond_to?(:new_record?) && record.persisted?
 
-      held = Role.where(
-        id: ScopedRoleAssignment.where(subject: subject, resource: record).select(:role_id)
-      )
-      held.where(full_access: true)
-          .or(held.where(id: RolePermission.where(permission_key: permission).select(:role_id)))
-          .exists?
+      ScopedRoleAssignment
+        .where(subject: subject, resource: record, role_id: roles_granting(permission))
+        .exists?
     end
   end
 end

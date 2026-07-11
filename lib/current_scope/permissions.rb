@@ -16,6 +16,23 @@ module CurrentScope
         controller_path: controller, actor: current_scope_actor)
     end
 
+    # The list-side companion to allowed_to?: "which records of `model` may the
+    # effective subject act on?". Same grants, keys, and fail-closed rules as
+    # the gate, so a list can't drift from the per-record decision. Returns a
+    # chainable relation (.where/.order/.page on it). `permission` defaults to
+    # the model's index context and accepts a bare action or a full key.
+    #
+    #   scope_for(Project)                 # projects#index — what a list shows
+    #   scope_for(Report, permission: :approve)
+    #   scope_for(Report, permission: "admin/reports#approve")
+    def scope_for(model, permission: nil)
+      CurrentScope.scope_for(
+        subject: current_scope_user,
+        model: model,
+        permission: CurrentScope.permission_key(permission || :index, record: model)
+      )
+    end
+
     def current_scope_user
       CurrentScope::Current.user
     end

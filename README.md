@@ -108,6 +108,36 @@ class ApproveButtonComponent < ViewComponent::Base
 end
 ```
 
+### Scoping a list (`scope_for`)
+
+`allowed_to?` answers "may I act on **this** record?". `scope_for` answers the
+list-side question — "**which** records may I act on?" — from the *same* roles,
+permissions, and scoped grants the gate reads. Use it for index pages so the
+list and the per-record gate stay one source of truth, never a hand-written
+query that drifts:
+
+```ruby
+# app/controllers/projects_controller.rb
+def index
+  @projects = scope_for(Project).order(created_at: :desc).page(params[:page])
+end
+```
+
+- **full-access or an org-wide grant** of the key → every record (`Project.all`).
+- **scoped grants** → only the specific records that role was granted on.
+- **no grant** (or no subject) → empty, fail-closed like the gate.
+
+It returns a chainable `ActiveRecord::Relation`, so `.where`/`.order`/`.page`
+compose normally. `permission:` defaults to the model's `index` key and accepts
+a bare action or a full key (`scope_for(Report, permission: :approve)`).
+
+Every record `scope_for(Project)` returns passes `allowed_to?(:index, project)`,
+and every record it omits fails it — by construction, not by convention. It
+resolves against the **effective** subject, so acting-as changes what lists
+show, and it is **flat**: a scoped grant lists that record only (parent/child
+cascade is deferred). SoD does not apply — it vetoes record-targeted *actions*,
+not list membership.
+
 ### Record-level decisions
 
 Member actions that need scoped roles or the SoD veto declare a hook. It runs

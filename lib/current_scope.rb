@@ -81,6 +81,14 @@ module CurrentScope
       )
     end
 
+    # The list-side companion to allowed?. Returns a chainable relation of the
+    # records of `model` the subject may act on under `permission` — same
+    # grants, same fail-closed rules as the per-record gate. `permission` is a
+    # resolved key ("projects#index"); the mixin derives the default.
+    def scope_for(subject:, model:, permission:)
+      resolver.scope_for(subject: subject, model: model, permission: permission)
+    end
+
     def permission_key(action, record: nil, controller_path: nil)
       action = action.to_s
       return action if action.include?("#")

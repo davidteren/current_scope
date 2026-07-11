@@ -350,10 +350,20 @@ subject cannot leak between executions.
 (Hotwire, ViewComponent, the built-in authentication generator) validating
 every mechanism end to end — RBAC matrix, SoD veto at the gate and in the view,
 scoped roles opening exactly one record, and the management UI. It depends on
-the engine via a local path gem and runs on its own: `cd showcase && bin/rails
-db:setup && bin/rails server`. `db:setup` seeds four users (`owner@` /
-`reviewer@` / `member@` / `scoped@example.com`, password `password`) exercising
-each path.
+the engine via a local path gem and runs on its own:
+
+```bash
+git clone https://github.com/davidteren/current_scope
+cd current_scope/showcase
+bin/setup          # bundle, create + seed the database (no master key needed)
+bin/rails server   # http://localhost:3000
+```
+
+`bin/setup` seeds four sign-in accounts (password `password`):
+`owner@` (full access), `reviewer@` (approve, but never own — SoD), `member@`
+(view/create only), and `scoped@example.com` (a scoped role on one record) —
+each exercising a different path. Deploying it (Kamal on volume-backed SQLite,
+plus Render/Fly notes) is covered in [`showcase/README.md`](showcase/README.md).
 
 ## Design notes
 

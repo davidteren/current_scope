@@ -26,19 +26,31 @@ test:
 #
 # Similarly, if you deploy your application as a Docker container, you must
 # ensure the database is located in a persisted volume.
+# Paths are relative to Rails.root (/rails/showcase in the image), so all four
+# databases land in storage/, which is the Kamal named volume mount point
+# (see config/deploy.yml) — the only durable location across deploys.
+#
+# max_connections (Rails 8.1's SQLite pool key) is set high enough to cover the
+# Puma web threads (RAILS_MAX_THREADS) PLUS the in-Puma Solid Queue workers
+# (SOLID_QUEUE_IN_PUMA=true), which check out their own connections in the same
+# process. Undersizing it starves jobs (or requests) of a connection.
 production:
   primary:
     <<: *default
-    # database: path/to/persistent/storage/production.sqlite3
+    database: storage/production.sqlite3
+    max_connections: <%= ENV.fetch("RAILS_MAX_THREADS", 3).to_i + ENV.fetch("SOLID_QUEUE_THREADS", 5).to_i %>
   cache:
     <<: *default
-    # database: path/to/persistent/storage/production_cache.sqlite3
+    database: storage/production_cache.sqlite3
     migrations_paths: db/cache_migrate
+    max_connections: <%= ENV.fetch("RAILS_MAX_THREADS", 3).to_i + ENV.fetch("SOLID_QUEUE_THREADS", 5).to_i %>
   queue:
     <<: *default
-    # database: path/to/persistent/storage/production_queue.sqlite3
+    database: storage/production_queue.sqlite3
     migrations_paths: db/queue_migrate
+    max_connections: <%= ENV.fetch("RAILS_MAX_THREADS", 3).to_i + ENV.fetch("SOLID_QUEUE_THREADS", 5).to_i %>
   cable:
     <<: *default
-    # database: path/to/persistent/storage/production_cable.sqlite3
+    database: storage/production_cable.sqlite3
     migrations_paths: db/cable_migrate
+    max_connections: <%= ENV.fetch("RAILS_MAX_THREADS", 3).to_i + ENV.fetch("SOLID_QUEUE_THREADS", 5).to_i %>

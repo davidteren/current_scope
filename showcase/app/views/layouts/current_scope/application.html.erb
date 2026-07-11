@@ -12,6 +12,12 @@
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600&display=swap" rel="stylesheet">
 
   <%= stylesheet_link_tag :app %>
+
+  <%# This override replaces the engine's own layout, which is where the picker
+      JS is normally included. Re-add it here (served asset, CSP-safe under
+      script-src 'self') so the scoped-role cascade auto-submits in the showcase
+      too. It is the only JS on engine pages, so it neither double-loads nor 404s. %>
+  <%= javascript_include_tag "current_scope/application", defer: true %>
 </head>
 <body>
   <header class="cs-header masthead">

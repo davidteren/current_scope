@@ -1,0 +1,24 @@
+app/models/current_scope/event.rb
+  s_b081cbfee96db8::t_d97d5756b923b9 63-69,74-83
+  s_b081cbfee96db8::t_d2d6c716acfc7e 84
+test/models/event_test.rb
+  s_b081cbfee96db8::t_d95da05c26f8e6 86,89-90,93-99,101-102,105-109
+lib/current_scope/configuration.rb
+  s_b081cbfee96db8::t_cbfcfdfcb11d96 53-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "c3e3fee94c15ca2684c4045717bb8d54692f9bb4",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

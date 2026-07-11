@@ -138,6 +138,25 @@ a:hover { color: var(--primary-down); }
 
 .masthead .acting-as b { font-weight: 600; }
 
+/* ---- Honesty banner (shared sandbox, self-heals) -------------------- */
+
+.sandbox-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.4rem 2rem;
+  background: var(--brass-wash);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.sandbox-banner__note { color: var(--ink); }
+.sandbox-banner__note small { color: var(--muted); margin-left: 0.5rem; }
+.sandbox-banner form { margin: 0; margin-left: auto; }
+
 .switcher { font-size: 0.8125rem; }
 
 .switcher > summary {

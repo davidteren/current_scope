@@ -27,6 +27,11 @@ Rails.application.routes.draw do
   # (no GET) on purpose — a GET switch would be cross-site forceable.
   resource :act_as, only: %i[ create destroy ]
 
+  # The public "reset the sandbox now" control behind the honesty banner. POST
+  # only (a GET reset would be cross-site forceable). Gate-skipped + excluded
+  # from the grid so the role-less Visitor can trigger it.
+  post "sandbox/reset", to: "sandbox#reset", as: :sandbox_reset
+
   # The guided fraud walkthrough (U12): a scripted "try to commit fraud →
   # refused" path. Gate-skipped + excluded from the grid (a narrative surface,
   # like the lobby), so the role-less Visitor can complete it. All GET — the

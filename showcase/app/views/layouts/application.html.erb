@@ -69,6 +69,15 @@
       <% end %>
     </header>
 
+    <%# Honesty banner: the sandbox is shared and self-heals, and says so. %>
+    <div class="sandbox-banner">
+      <span class="sandbox-banner__note">
+        Shared sandbox — resets every 15 minutes
+        <small>next reset in ~<%= minutes_to_next_sandbox_reset %> min</small>
+      </span>
+      <%= button_to "Reset now", sandbox_reset_path, class: "button--quiet" %>
+    </div>
+
     <% if flash.any? %>
       <div class="flash">
         <% flash.each do |type, message| %>

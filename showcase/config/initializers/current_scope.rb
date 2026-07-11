@@ -48,7 +48,8 @@ CurrentScope.configure do |config|
   # public lobby + act-as switch (both skip the gate — see their controllers).
   config.excluded_controllers += [
     %r{\Asessions\z}, %r{\Apasswords\z}, %r{\Aview_components\z},
-    %r{\Ahome\z}, %r{\Aact_as\z}, %r{\Awalkthrough\z}, %r{\Ausers\z}
+    %r{\Ahome\z}, %r{\Aact_as\z}, %r{\Awalkthrough\z}, %r{\Ausers\z},
+    %r{\Asandbox\z}
   ]
 
   # Controller the management UI inherits from (for host auth + before_actions).

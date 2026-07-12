@@ -112,13 +112,22 @@ allowed_to?(:create, Report)          # class form for collection actions
 allowed_to?("admin/reports#approve")  # explicit key when you need it
 ```
 
-Key derivation always agrees with the gate: when the *current* controller
-handles the record's type (including under a namespace — `admin/reports` for
-a `Report`), its controller path wins; otherwise the record's route key is
-used. Cross-resource checks (`allowed_to?(:approve, report)` from a projects
-view) therefore resolve to `reports#approve`, while the same call inside
-`Admin::ReportsController` resolves to `admin/reports#approve` — exactly what
-the Guard enforces there.
+Key derivation agrees with the gate **when the current controller's path ends
+in the record's route key**: inside `Admin::ReportsController` (path
+`admin/reports`, route key `reports`), `allowed_to?(:approve, report)` resolves
+to `admin/reports#approve` — exactly what the Guard enforces there — and a
+cross-resource check from a projects view resolves to `reports#approve`.
+
+> **Residual foot-gun — namespaced/custom-named controllers.** When a
+> controller's path segment differs from the record's route key (e.g. a
+> `DashboardController` that renders `Report`s: path `dashboard`, route key
+> `reports`), the short-form `allowed_to?(:show, report)` derives
+> `reports#show` while the Guard enforces `dashboard#show` — so a link may show
+> that then 403s (or hide that would work). The Guard stays authoritative, so
+> this is a display bug, not a bypass. **In such controllers, prefer the
+> explicit full key** — `allowed_to?("dashboard#show")` — which removes the
+> ambiguity. The short form is only guaranteed to match the gate when path
+> segment == route key.
 
 ```ruby
 class ApproveButtonComponent < ViewComponent::Base

@@ -18,12 +18,18 @@ module CurrentScope
     # snapshot that fallback and restore a stale actor. Saving the underlying
     # hash restores the true prior state.
     def with_current_user(user, actor: nil)
-      previous = CurrentScope::Current.attributes
+      # dup: on Rails 8.0 `attributes` returns the LIVE hash, so without a copy
+      # the assignments below would mutate our own snapshot.
+      previous = CurrentScope::Current.attributes.dup
       CurrentScope::Current.user = user
       CurrentScope::Current.actor = actor
       yield
     ensure
-      CurrentScope::Current.attributes = previous
+      # Version-robust restore: `attributes = previous` clears absent keys on
+      # Rails 8.1 but NOT on 8.0 (leaving the block's user set), so reset first,
+      # then re-apply the snapshot. Works identically on the whole >= 8.0 floor.
+      CurrentScope::Current.reset
+      previous.each { |name, value| CurrentScope::Current.public_send(:"#{name}=", value) }
     end
 
     # Seed a real org-wide grant for request/system specs. Unlike

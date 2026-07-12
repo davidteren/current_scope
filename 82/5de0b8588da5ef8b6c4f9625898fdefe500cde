@@ -1,0 +1,26 @@
+STATUS.md
+  s_7d9a45dedcbcef::t_d15a78893ab6a6 20-22
+docs/READINESS-AUDIT.md
+  s_7d9a45dedcbcef::t_2433eff4b465a0 1-197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "825de0b8588da5ef8b6c4f9625898fdefe500cde",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_7d9a45dedcbcef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bc332417-1147-486b-9316-26d8cf493e57",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

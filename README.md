@@ -67,6 +67,25 @@ class SessionsController < ApplicationController
 end
 ```
 
+**Assumption #1: every controller descends from a `Guard`'d base.** An action on
+a controller that never includes `Guard` (an API base, a hand-rolled
+`ActionController::Base`) is silently ungated. To catch that in dev/test, include
+the optional `CurrentScope::GatingTripwire` on the base you want verified — it
+raises after any action that didn't run the gate, and carries its own
+`current_scope_skip_tripwire!` marker for genuinely-public actions (you can't use
+`skip_before_action :current_scope_check!` on a controller that never defined
+that callback — it raises at class load):
+
+```ruby
+class ApiController < ActionController::Base
+  include CurrentScope::GatingTripwire
+  current_scope_skip_tripwire! only: :health
+end
+```
+
+It's an `after_action`, so it can't see an action that renders from a
+`before_action` (halted chain) — a strong aid, not total coverage.
+
 Seed the baseline roles and give yourself the keys:
 
 ```ruby
@@ -199,6 +218,16 @@ Once enabled, the veto fails **loud, not open**: if an SoD action reaches a
 record whose class doesn't define the hook, the resolver raises a
 `ConfigurationError` instead of silently permitting. Return `nil` from the hook
 to exempt a record type, or trim `config.sod_actions`.
+
+> **An SoD-gated member action MUST return its record from `current_scope_record`.**
+> This is the one asymmetry to know: a *present* record with a *missing*
+> initiator hook raises (above), but if `current_scope_record` returns **nil**
+> on an SoD member action, the veto is *skipped* — an org-wide-granted subject
+> (including the initiator) passes. `nil` is legitimate for collection actions,
+> so the resolver can't tell the two apart and won't raise. Returning the record
+> on member actions is therefore the load-bearing control. As a dev/test aid,
+> set `config.warn_on_nil_sod_record = true` to log a nudge whenever an allowed
+> SoD action was gated with a nil record.
 
 With `sod_actions` empty (the default), the veto step is a no-op and the
 resolver is simply `full_access → org-wide role → scoped role → deny`. No model

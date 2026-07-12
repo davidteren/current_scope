@@ -7,6 +7,7 @@ require "current_scope/context"
 require "current_scope/scopeable"
 require "current_scope/mutation_guard"
 require "current_scope/guard"
+require "current_scope/gating_tripwire"
 require "current_scope/engine"
 
 module  CurrentScope

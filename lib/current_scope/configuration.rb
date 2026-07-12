@@ -62,14 +62,28 @@ module CurrentScope
     # assignable subjects.
     attr_accessor :subject_class
 
-    # When true (the default), CurrentScope::Event.record! appends a row to the
-    # append-only audit ledger for every recorded authorization event. When
-    # false, record! is a silent no-op — hosts that don't want the ledger set
-    # this and skip the events migration. On upgrade, if audit is on but the
-    # current_scope_events table hasn't been migrated yet, record! degrades
-    # gracefully: it skips recording and logs a one-time warning naming the fix,
-    # so an existing host never breaks on its first mutation.
+    # Tri-state: false | true (default) | :strict — controls
+    # CurrentScope::Event.record!.
+    #   false   — record! is a silent no-op; hosts that don't want the ledger
+    #             set this and skip the events migration.
+    #   true    — append a row for every event; if the current_scope_events
+    #             table hasn't been migrated yet, degrade gracefully (skip +
+    #             warn once), so an existing host never breaks on first mutation.
+    #   :strict — an audit-mandatory host: a missing events table RAISES instead
+    #             of degrading, so a mutation-wrapping transaction rolls back
+    #             rather than committing an unaudited grant. (Impersonation-
+    #             boundary events have no mutation to roll back — a raise there
+    #             is a loud 500 on a mis-migrated host.)
+    # Read as `== :strict`, never `== true` — don't flatten the tri-state.
     attr_accessor :audit
+
+    # A5 (opt-in, dev/test aid): when true, the gate logs a nudge if an SoD
+    # action is gated with a nil record and the request is allowed — i.e. the
+    # SoD veto was silently skipped because current_scope_record returned nil on
+    # a member action. Off by default; prod behavior never changes. Emitted from
+    # the Guard seam (not the shared resolver), so it doesn't fire on advisory
+    # allowed_to?/scope_for calls.
+    attr_accessor :warn_on_nil_sod_record
 
     def initialize
       @user_method = :current_user
@@ -84,6 +98,7 @@ module CurrentScope
       @parent_controller = "::ApplicationController"
       @subject_class = "User"
       @audit = true
+      @warn_on_nil_sod_record = false
     end
 
     # Guarded writer: enabling impersonated writes is fine in

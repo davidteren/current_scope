@@ -60,11 +60,19 @@ module CurrentScope
       rescue ActiveRecord::StatementInvalid => e
         raise unless missing_events_table?(e)
 
-        # Audit is on by default, but an existing host that upgrades the gem
-        # without running the new migration must not break on its first
-        # mutation. Degrade gracefully: skip recording and warn once (not on
-        # every call), naming the fix. A host that wants audit runs the
-        # migration; one that doesn't can set config.audit = false to silence it.
+        # :strict — an audit-mandatory host refuses to commit a mutation with no
+        # audit row. Re-raise so the enclosing (mutation-wrapping) transaction
+        # rolls back rather than silently degrading. Checked as `== :strict`, not
+        # `!= true`, so the tri-state can't be flattened by a future refactor.
+        # (Impersonation-boundary events have no DB mutation to roll back, so a
+        # raise there is simply a loud 500 on a mis-migrated host.)
+        raise if CurrentScope.config.audit == :strict
+
+        # true (default) — an existing host that upgrades the gem without running
+        # the new migration must not break on its first mutation. Degrade
+        # gracefully: skip recording and warn once (not on every call), naming
+        # the fix. A host that wants audit runs the migration; one that doesn't
+        # can set config.audit = false to silence it, or :strict to fail loud.
         warn_missing_events_table_once
         nil
       end

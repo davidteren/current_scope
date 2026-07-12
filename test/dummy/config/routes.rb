@@ -6,6 +6,10 @@ Rails.application.routes.draw do
   resources :webhooks, only: :create
   get "bare", to: "bare#show"
   get "identity", to: "identity#show"
+  get "tripwire_open", to: "tripwire_ungated#open"
+  get "tripwire_public", to: "tripwire_ungated#public_action"
+  get "tripwire_gated", to: "tripwire_gated#show"
+  post "sod_nil/approve", to: "sod_nil#approve"
   post "writes/guarded", to: "writes#guarded", as: :writes_guarded
   post "writes/unguarded", to: "writes#unguarded", as: :writes_unguarded
 

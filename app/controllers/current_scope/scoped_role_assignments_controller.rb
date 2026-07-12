@@ -95,6 +95,14 @@ module CurrentScope
     def candidate_records(klass, query)
       return unless klass.respond_to?(:limit) # tableless / nil type ⇒ nothing to pick
 
+      # A14: if the host model opts in with a class-level current_scope_searchable_scope,
+      # search via that indexed relation — no SCAN_CAP, no in-Ruby label filter.
+      if query.present? && klass.respond_to?(:current_scope_searchable_scope)
+        return klass.current_scope_searchable_scope(query).limit(DISPLAY_LIMIT).to_a
+      end
+
+      # Fallback: current_scope_label is a Ruby method with no backing column, so
+      # scan the first SCAN_CAP rows and filter the label in Ruby.
       records = klass.limit(SCAN_CAP).to_a
       if query.present?
         needle = query.downcase

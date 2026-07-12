@@ -86,13 +86,18 @@ end
 It's an `after_action`, so it can't see an action that renders from a
 `before_action` (halted chain) — a strong aid, not total coverage.
 
-Seed the baseline roles and give yourself the keys:
+Bootstrap the first admin (the management UI needs a full-access subject to
+enter, so the first grant can't happen in the UI). One command:
+
+```bash
+bin/rails current_scope:grant SUBJECT_ID=1   # grants the full-access Owner role
+```
+
+or in `db/seeds.rb`:
 
 ```ruby
-# db/seeds.rb
-CurrentScope.seed_defaults!   # Owner (full_access) + Member
-CurrentScope::RoleAssignment.create!(
-  subject: User.first, role: CurrentScope::Role.find_by!(name: "Owner"))
+CurrentScope.seed_defaults!            # Owner (full_access) + Member
+CurrentScope.grant!(User.first)        # give the first user the Owner role
 ```
 
 Then manage everything at `/current_scope` (full-access subjects only): the
@@ -263,6 +268,14 @@ and `sod_identity` — are grouped in their own block and covered under
 [Impersonation](#impersonation-act-as); they layer in that order, so
 `sod_identity` is only observable once a mutation is allowed past the read-only
 gate.
+
+The **audit ledger** is controlled by `config.audit` — tri-state
+`false | true | :strict`. `false` records nothing; `true` (the default) records
+every authorization change and degrades gracefully (skip + warn once) if the
+events table isn't migrated; `:strict` **raises** on a missing events table so
+an audit-mandatory app never commits an unaudited change (the mutation rolls
+back). `config.warn_on_nil_sod_record` (default off) is a dev/test aid — see the
+[Separation of duties](#separation-of-duties-opt-in) note.
 
 Two loud-by-design behaviors: a controller excluded from the catalog can't be
 granted, so gating it is a misconfiguration — Guard raises and tells you to

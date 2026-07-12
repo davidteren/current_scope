@@ -133,6 +133,17 @@ module  CurrentScope
       Role.find_or_create_by!(name: "Member")
     end
 
+    # Bootstrap the first admin: assign a role (default: the full_access Owner)
+    # to `subject` as its one org-wide role. Idempotent — re-running sets the
+    # same subject's org role to `role` rather than creating a duplicate (which
+    # the one-role-per-subject uniqueness would reject anyway). Backs the
+    # `current_scope:grant` rake task, so a fresh install doesn't need a console.
+    def grant!(subject, role: nil)
+      seed_defaults!
+      role ||= Role.find_by!(name: "Owner")
+      RoleAssignment.find_or_initialize_by(subject: subject).tap { |a| a.update!(role: role) }
+    end
+
     private
 
     # A2: the boundary events are the one place a host declares it is actually

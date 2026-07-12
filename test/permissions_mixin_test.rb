@@ -15,6 +15,13 @@ class PermissionsMixinTest < ActiveSupport::TestCase
     reviewer = CurrentScope::Role.create!(name: "Reviewer")
     reviewer.role_permissions.create!(permission_key: "reports#show")
     CurrentScope::RoleAssignment.create!(subject: @alice, role: reviewer)
+    # SoD is opt-in (empty by default); one test here asserts the :either veto.
+    @original_sod_actions = CurrentScope.config.sod_actions
+    CurrentScope.config.sod_actions = %w[approve]
+  end
+
+  teardown do
+    CurrentScope.config.sod_actions = @original_sod_actions
   end
 
   test "allowed_to? reads the ambient subject — no threading required" do

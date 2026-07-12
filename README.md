@@ -15,9 +15,10 @@ generator, and get:
   "Reviewer" means without a deploy.
 - **Scoped roles.** The same role, attached to one specific record: "Editor of
   Project #7" grants nothing on Project #8.
-- **A separation-of-duties veto.** Whoever initiated a record can never
-  approve it — not grantable, not configurable in the UI, overrides even full
-  access. A structural guarantee, not a preference.
+- **An optional separation-of-duties veto.** Off by default; opt in by listing
+  actions. Once on, whoever initiated a record can never approve it — not
+  grantable, not configurable in the UI, overrides even full access. A
+  structural guarantee, not a preference.
 - **Fail-closed resolution.** No grant means denied. Everything is a
   permission, even the baseline things every signed-in user can do.
 - **An ambient authorization context.** The current subject flows through
@@ -28,7 +29,7 @@ generator, and get:
 The decision order, fixed:
 
 ```
-1. SoD veto        → initiator of the record?            DENY (overrides all)
+1. SoD veto        → initiator? (opt-in, off by default)  DENY (overrides all)
 2. full_access     → role grants everything, forever     ALLOW
 3. org-wide role   → role's permission set includes it   ALLOW
 4. scoped role     → a role held on THIS record          ALLOW
@@ -176,10 +177,17 @@ path still accepts **any** model as a scoped-role target whether or not it opts
 in; the mixin only decides what shows up in the dropdown. `current_scope_label`
 is a plain instance method, so your own definition always wins over the default.
 
-### Separation of duties
+### Separation of duties (opt-in)
 
-Declare who initiated a record; the resolver does the rest for the configured
-actions (default: `approve`):
+Separation of duties is **off by default** — the engine's baseline is scoped
+RBAC, and many apps want nothing to do with four-eyes. Turn it on by listing the
+actions an initiator can never perform on their own record, and declare who
+initiated each record:
+
+```ruby
+# config/initializers/current_scope.rb
+config.sod_actions = %w[approve]   # empty by default → no SoD
+```
 
 ```ruby
 class Report < ApplicationRecord
@@ -187,24 +195,16 @@ class Report < ApplicationRecord
 end
 ```
 
-The veto fails **loud, not open**: if an SoD action reaches a record whose
-class doesn't define the hook, the resolver raises a `ConfigurationError`
-instead of silently permitting. Return `nil` from the hook to exempt a record
-type, or trim `config.sod_actions`.
+Once enabled, the veto fails **loud, not open**: if an SoD action reaches a
+record whose class doesn't define the hook, the resolver raises a
+`ConfigurationError` instead of silently permitting. Return `nil` from the hook
+to exempt a record type, or trim `config.sod_actions`.
 
-**Don't need separation of duties?** Empty the list:
-
-```ruby
-# config/initializers/current_scope.rb
-config.sod_actions = []   # disable the SoD veto entirely
-```
-
-With no configured actions the veto step is a no-op, and the resolver collapses
-to `full_access → org-wide role → scoped role → deny`. No model needs
-`current_scope_initiator` — the `ConfigurationError` above only fires for
-actions that are *in* `sod_actions`, so an empty list never raises. `sod_identity`
-becomes moot; roles, scoped roles, `scope_for`, audit, and impersonation are
-unaffected. This is opt-out by configuration, not a fork of the resolver.
+With `sod_actions` empty (the default), the veto step is a no-op and the
+resolver is simply `full_access → org-wide role → scoped role → deny`. No model
+needs `current_scope_initiator` — the `ConfigurationError` above only fires for
+actions that are *in* `sod_actions`. `sod_identity` is moot; roles, scoped
+roles, `scope_for`, audit, and impersonation are unaffected.
 
 By default (`config.sod_identity = :either`) the veto weighs **two**
 identities: the effective subject *and* the real actor behind an impersonated

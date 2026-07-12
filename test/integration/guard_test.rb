@@ -5,6 +5,13 @@ class GuardTest < ActionDispatch::IntegrationTest
     @alice = User.create!(name: "Alice")
     @bob = User.create!(name: "Bob")
     @report = Report.create!(title: "Q3", requested_by: @bob)
+    # SoD is opt-in (empty by default); this suite asserts the gate veto, so enable it.
+    @original_sod_actions = CurrentScope.config.sod_actions
+    CurrentScope.config.sod_actions = %w[approve]
+  end
+
+  teardown do
+    CurrentScope.config.sod_actions = @original_sod_actions
   end
 
   def sign_in(user) = { "X-User-Id" => user.id.to_s }

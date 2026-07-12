@@ -34,10 +34,11 @@ CurrentScope.configure do |config|
   # config.sod_identity = :either
   # ------------------------------------------------------------------------
 
-  # Actions covered by the separation-of-duties veto: a record's initiator can
-  # never perform these on it. Deliberately NOT editable in the UI. Records
-  # reached by these actions must define current_scope_initiator (return nil
-  # to exempt a record type) — the resolver raises if the hook is missing.
+  # Separation of duties is OPT-IN — empty by default. List the actions a
+  # record's initiator can never perform on their own record (four-eyes).
+  # Deliberately NOT editable in the UI. Records reached by these actions must
+  # define current_scope_initiator (return nil to exempt a record type) — the
+  # resolver raises if the hook is missing. Leave commented for RBAC-only apps.
   # config.sod_actions = %w[approve]
 
   # Controller paths (regexps) excluded from the permission grid. Excluded

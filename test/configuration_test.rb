@@ -19,6 +19,10 @@ class ConfigurationTest < ActiveSupport::TestCase
     had ? ENV[key] = old : ENV.delete(key)
   end
 
+  test "SoD is opt-in — sod_actions is empty by default" do
+    assert_empty CurrentScope::Configuration.new.sod_actions
+  end
+
   test "allows impersonated mutations outside production" do
     config = CurrentScope::Configuration.new
     with_rails_env("staging") do

@@ -7,10 +7,14 @@ class ResolverTest < ActiveSupport::TestCase
     @bob = User.create!(name: "Bob")
     @report = Report.create!(title: "Q3", requested_by: @bob)
     @original_sod_identity = CurrentScope.config.sod_identity
+    # SoD is opt-in (empty by default); this suite exercises the veto, so enable it.
+    @original_sod_actions = CurrentScope.config.sod_actions
+    CurrentScope.config.sod_actions = %w[approve]
   end
 
   teardown do
     CurrentScope.config.sod_identity = @original_sod_identity
+    CurrentScope.config.sod_actions = @original_sod_actions
   end
 
   def assign(user, role)

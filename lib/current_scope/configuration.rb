@@ -13,6 +13,10 @@ module CurrentScope
     # by design — SoD is a structural guarantee, not a preference. Records hit
     # by these actions must define current_scope_initiator (return nil to
     # exempt a record type).
+    #
+    # EMPTY BY DEFAULT — SoD is opt-in. The engine's baseline is scoped RBAC;
+    # many hosts want nothing to do with four-eyes. Enable it by listing the
+    # actions to gate, e.g. `config.sod_actions = %w[approve]`.
     attr_accessor :sod_actions
 
     # Which identities the separation-of-duties veto weighs:
@@ -70,7 +74,7 @@ module CurrentScope
     def initialize
       @user_method = :current_user
       @actor_method = nil
-      @sod_actions = %w[approve]
+      @sod_actions = []
       @sod_identity = :either
       @allow_mutations_while_impersonating = false
       @excluded_controllers = [

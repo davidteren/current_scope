@@ -6,7 +6,7 @@
 
 **CurrentScope** — a mountable Rails engine for authorization: permissions
 auto-derived from `controller#action` routes, roles as editable data, per-record
-scoped roles, a separation-of-duties (four-eyes) veto, impersonation/act-as, an
+scoped roles, an optional separation-of-duties (four-eyes) veto, impersonation/act-as, an
 append-only audit ledger, and an ambient authorization context
 (`ActiveSupport::CurrentAttributes`) so `allowed_to?` works identically in
 controllers, views, and ViewComponents.
@@ -75,9 +75,12 @@ engine via an in-tree vendored path gem, and CI needs no external checkout.
 
 ### This session (2026-07-12)
 
-- [x] **Disable SoD by config**: `config.sod_actions = []` makes the veto a
-      no-op (resolver collapses to full_access → org → scoped → deny; no model
-      needs `current_scope_initiator`). Documented in README.
+- [x] **SoD is now opt-in**: `config.sod_actions` defaults to `[]` (was
+      `%w[approve]`). The engine's baseline is scoped RBAC; enable four-eyes by
+      listing actions. `[]` makes the veto a no-op (resolver collapses to
+      full_access → org → scoped → deny; no model needs
+      `current_scope_initiator`). README + generator reframed as opt-in. (The
+      showcase now opts in explicitly.)
 - [x] **Production guardrail**: `config.allow_mutations_while_impersonating =
       true` raises at boot in `Rails.env.production` unless
       `ENV["CURRENT_SCOPE_ALLOW_PROD_IMPERSONATION_MUTATIONS"]` is set —

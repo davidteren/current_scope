@@ -1,0 +1,48 @@
+lib/current_scope/guard.rb
+  s_b081cbfee96db8::t_eac6e8d7fc7d75 58-76
+  s_b081cbfee96db8::t_b3e750b9ccf69c 34-36
+lib/current_scope/gating_tripwire.rb
+  s_b081cbfee96db8::t_f7e10839a10baa 1-53
+test/dummy/app/controllers/sod_nil_controller.rb
+  s_b081cbfee96db8::t_edad2d88040e26 1-16
+test/dummy/app/controllers/tripwire_ungated_controller.rb
+  s_b081cbfee96db8::t_2e325209c183d6 1-15
+README.md
+  s_b081cbfee96db8::t_375c212e531391 70-88
+  s_b081cbfee96db8::t_bbd5512be7958b 222-231
+lib/current_scope/configuration.rb
+  s_b081cbfee96db8::t_0f90c025b61676 101
+  s_b081cbfee96db8::t_de0d3b0d491730 80-87
+  s_b081cbfee96db8::t_b5a10b28a7edff 65-77
+lib/current_scope.rb
+  s_b081cbfee96db8::t_405b6fdca1212a 10
+test/dummy/config/routes.rb
+  s_b081cbfee96db8::t_f56d217f0eb4f1 12
+  s_b081cbfee96db8::t_46bf98b4bb4527 9-11
+test/integration/gating_tripwire_test.rb
+  s_b081cbfee96db8::t_b7b6446d1089eb 1-30
+test/dummy/app/controllers/tripwire_gated_controller.rb
+  s_b081cbfee96db8::t_da01c57b32e5e8 1-10
+test/audit_strict_test.rb
+  s_b081cbfee96db8::t_68ab010f8d4a5c 1-116
+app/models/current_scope/event.rb
+  s_b081cbfee96db8::t_0496470f9e2212 63-75
+test/sod_nil_record_test.rb
+  s_b081cbfee96db8::t_ba169988faf450 1-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "6cae9bd0fd6439685d1171c809c655127ce61d65",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

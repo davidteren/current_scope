@@ -1,0 +1,65 @@
+docs/plans/2026-07-12-002-feat-engine-readiness-remediation-plan.md
+  s_b081cbfee96db8::t_343ab18f5f7bcc 19
+  s_b081cbfee96db8::t_ac02b3ee3f022c 73,76-78
+  s_b081cbfee96db8::t_2c0ca33a5d7d68 49-50
+  s_b081cbfee96db8::t_e4076490f40dbf 128-129
+  s_b081cbfee96db8::t_bcf28719478528 393-395
+  s_b081cbfee96db8::t_3ada60caeb8c11 51
+  s_b081cbfee96db8::t_98b5d74d3ce37d 44
+  s_b081cbfee96db8::t_30db634554849d 191,193,203-204
+  s_b081cbfee96db8::t_69b1f5ef26a920 213-216,220-221,223
+  s_b081cbfee96db8::t_7aef36b4aca124 5
+  s_b081cbfee96db8::t_cd79be25dc4f6b 151-152,155-156
+  s_b081cbfee96db8::t_031667a5559806 196-199,201-202,205-206
+  s_b081cbfee96db8::t_3f80dff8b10e1c 159,161,164-166,168-171,173
+  s_b081cbfee96db8::t_79e761010949ee 400
+  s_b081cbfee96db8::t_c9a1e74e49332d 35
+  s_b081cbfee96db8::t_2d4b2290656471 293,295
+  s_b081cbfee96db8::t_f49e5ca97a2118 358
+  s_b081cbfee96db8::t_68915e4f76afa8 139
+  s_b081cbfee96db8::t_ea81b03ce5ca23 219
+  s_b081cbfee96db8::t_3c82abb7e67cd3 231-235,238-239,242-244
+  s_b081cbfee96db8::t_5a6eed10647915 84
+  s_b081cbfee96db8::t_929f9805df0cab 314,316-317,319-322,324-340
+  s_b081cbfee96db8::t_ab6b13be4a9b39 365
+  s_b081cbfee96db8::t_76a0526c056b6d 95
+  s_b081cbfee96db8::t_f2f5367b1c3aaa 268-269
+  s_b081cbfee96db8::t_b737848676ff7d 230,237,240-241
+  s_b081cbfee96db8::t_668ea46d65c0a8 251-253
+  s_b081cbfee96db8::t_ce36cb5b6e7542 284-285
+  s_b081cbfee96db8::t_d5b8e7ce396a1a 366
+  s_b081cbfee96db8::t_8b6cd8ebc3c6c7 181
+  s_b081cbfee96db8::t_775e44e2eefd98 409
+  s_b081cbfee96db8::t_aba645c225e6f2 267
+  s_b081cbfee96db8::t_bf64f1690b83dc 93-94,96
+  s_b081cbfee96db8::t_91e7682748d814 282-283
+  s_b081cbfee96db8::t_a5e5abd47af608 357
+  s_b081cbfee96db8::t_9ce9c998ddda6d 100
+  s_b081cbfee96db8::t_4ed7fe9282c5ff 74
+  s_b081cbfee96db8::t_792be2f638f9e3 97
+  s_b081cbfee96db8::t_a822f6bbf776da 1-4,6-18,20-34,36-43,45-48,52-72,75,79-83,85-92,98-99,101-127,130-138,140-150,153-154,157-158,160,162,167,172,174-180,182-184,187-190,192,194-195,200,207-212,217-218,222,224-229,236,245-250,254-266,270-281,286-292,294,296-313,315,318,323,341-356,359-364,367-392,396-398,403-408
+  s_b081cbfee96db8::t_5507dbe18b414a 399,401-402
+  s_b081cbfee96db8::t_7fa5bdb503b4a3 163
+  s_b081cbfee96db8::t_f80771ccc78ff0 185-186
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "87ccc6088351fb6a2eded9586cec78c6bc1a2007",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

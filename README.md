@@ -249,6 +249,19 @@ Point `actor_method` at the host method that returns the real actor:
 config.actor_method = :true_user
 ```
 
+> **`actor_method` is security-critical, not an optional extra.** The entire
+> act-as security model keys off `actor != user`. If you impersonate but leave
+> `actor_method` unset, `actor` falls back to `user`, so it all *looks* fine in
+> manual testing while being silently inert: the read-only-while-impersonating
+> `MutationGuard` never engages, the SoD `:either` veto can't fire, and every
+> audit row is attributed to the impersonated subject instead of the real
+> admin. The permission path can't detect this, but the boundary API can:
+> calling `CurrentScope.record_impersonation_started!` with `actor_method` unset
+> **raises** — that call is your declaration that impersonation is live, so a
+> missing `actor_method` there is unambiguously a misconfiguration. (A host that
+> impersonates without ever calling the boundary API gets no runtime signal —
+> so set `actor_method` whenever you set up act-as.)
+
 The host owns the act-as switch — CurrentScope only reads it. The recipe:
 
 ```ruby
@@ -362,6 +375,29 @@ class ApproveButtonComponentTest < ViewComponent::TestCase
       render_inline ApproveButtonComponent.new(report: reports(:pending))
       assert_selector "button", text: "Approve"
     end
+  end
+end
+```
+
+`with_current_user` is for in-process unit/view/component checks. To test your
+own controllers **behind the gate** in a request or system spec, seed real
+grants with `grant_role!` / `grant_scoped_role!` — they persist assignment rows
+that survive the request cycle (which `with_current_user` cannot, since
+`Context` re-resolves the subject on every real request). They seed grants only;
+your app still signs the subject in through its own auth:
+
+```ruby
+class ReportsAccessTest < ActionDispatch::IntegrationTest
+  include CurrentScope::TestHelpers
+
+  test "a reviewer can list but not destroy" do
+    reviewer = users(:reviewer)
+    grant_role!(reviewer, role: roles(:member))              # org-wide grant
+    grant_scoped_role!(reviewer, role: roles(:viewer), record: reports(:q3))  # one record
+
+    sign_in reviewer            # your app's own auth
+    get reports_path
+    assert_response :success
   end
 end
 ```

@@ -21,5 +21,11 @@ Gem::Specification.new do |spec|
   end
 
   spec.required_ruby_version = ">= 3.2"
-  spec.add_dependency "rails", ">= 7.1"
+  # The engine uses Rails 8 APIs (params.expect in the management UI, taught to
+  # hosts in the README), so the real floor is 8.0 — the earlier ">= 7.1" was a
+  # false claim that would NoMethodError on a 7.x host. Migration version
+  # brackets stay at [7.1] deliberately: they pin generation-time schema
+  # defaults (not the gem's minimum Rails), and current_scope_events is a frozen
+  # schema, so they are not bumped to match this floor.
+  spec.add_dependency "rails", ">= 8.0", "< 9"
 end

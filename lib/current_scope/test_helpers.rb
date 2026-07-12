@@ -25,5 +25,23 @@ module CurrentScope
     ensure
       CurrentScope::Current.attributes = previous
     end
+
+    # Seed a real org-wide grant for request/system specs. Unlike
+    # with_current_user (which only sets Current.user in-process, and is
+    # overwritten by Context's before_action on a real request), this persists a
+    # RoleAssignment row that survives the request cycle, so a host can test its
+    # own controllers behind the gate. It does NOT authenticate — the host still
+    # signs the subject in through its own auth. Bang-suffixed like the engine's
+    # other DB-mutating helpers (seed_defaults!, Event.record!). Returns the
+    # assignment.
+    def grant_role!(subject, role:)
+      CurrentScope::RoleAssignment.create!(subject: subject, role: role)
+    end
+
+    # The scoped-grant companion: seed a role held on ONE specific record.
+    # Returns the scoped assignment.
+    def grant_scoped_role!(subject, role:, record:)
+      CurrentScope::ScopedRoleAssignment.create!(subject: subject, role: role, resource: record)
+    end
   end
 end

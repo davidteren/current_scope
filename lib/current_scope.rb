@@ -9,7 +9,7 @@ require "current_scope/mutation_guard"
 require "current_scope/guard"
 require "current_scope/engine"
 
-module CurrentScope
+module  CurrentScope
   # Raised when the resolver denies an action gated by Guard (or when the
   # management UI is accessed without a full-access role). Carries an optional
   # machine-readable reason (:sod_veto, :no_grant, :impersonation_gate).
@@ -115,10 +115,12 @@ module CurrentScope
     # so an ambient-only recorder would lose who was impersonated. Call these
     # from the host's start/stop-impersonation endpoints.
     def record_impersonation_started!(subject)
+      require_actor_method!
       Event.record!(event: "impersonation.started", target: subject)
     end
 
     def record_impersonation_stopped!(subject)
+      require_actor_method!
       Event.record!(event: "impersonation.stopped", target: subject)
     end
 
@@ -128,6 +130,26 @@ module CurrentScope
     def seed_defaults!
       Role.find_or_create_by!(name: "Owner") { |r| r.full_access = true }
       Role.find_or_create_by!(name: "Member")
+    end
+
+    private
+
+    # A2: the boundary events are the one place a host declares it is actually
+    # impersonating. If actor_method is unset there, the entire act-as security
+    # model is silently inert — so fail LOUD instead of recording an
+    # impersonation with no real actor behind it. (The permission path can't
+    # detect this: with actor_method nil, actor falls back to user, so
+    # impersonating? is always false and a per-request check would nag every
+    # RBAC-only host. This seam only fires when the host declares intent.)
+    def require_actor_method!
+      return unless config.actor_method.nil?
+
+      raise ConfigurationError,
+            "impersonation boundary event recorded while config.actor_method is unset. " \
+            "Act-as security is inert without it: the read-only-while-impersonating " \
+            "MutationGuard never engages, the SoD :either veto can't fire, and audit rows " \
+            "are attributed to the impersonated subject instead of the real actor. Set " \
+            "config.actor_method to the controller method that returns the real actor."
     end
   end
 end

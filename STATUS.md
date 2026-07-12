@@ -17,6 +17,9 @@ controllers, views, and ViewComponents.
   on CurrentAttributes vs dry-effects vs explicit passing, Action Policy ideas
 - Usage: [README.md](README.md)
 - **What's next / gaps / proposals: [docs/ROADMAP.md](docs/ROADMAP.md)**
+- **Readiness audit + remediation worklist: [docs/READINESS-AUDIT.md](docs/READINESS-AUDIT.md)**
+  — P0→P4 items to make the engine safely adoptable (gemspec Rails floor, silent
+  impersonation fail-open, host test helper, gating tripwire, …); an agent can work it end to end
 - Showcase app: **[davidteren/current_scope_showcase](https://github.com/davidteren/current_scope_showcase)**
   (own repo; the engine is vendored in-tree there)
 

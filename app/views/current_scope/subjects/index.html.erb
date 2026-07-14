@@ -4,12 +4,18 @@
   scoped role in one go.</p>
 
 <div class="cs-toolbar">
-  <input type="search" class="cs-filter" data-cs-filter
-         placeholder="Filter subjects, roles, records…" aria-label="Filter subjects">
+  <%= form_with url: subjects_path, method: :get, class: "cs-search", role: "search" do %>
+    <input type="search" name="q" value="<%= @query %>" class="cs-filter" data-cs-filter
+           placeholder="Search everyone by email or name…" aria-label="Search subjects">
+    <%= submit_tag "Search", name: nil, class: "cs-btn" %>
+    <% if @query.present? %><%= link_to "Clear", subjects_path, class: "cs-btn" %><% end %>
+  <% end %>
   <span class="cs-spacer"></span>
 </div>
-<% if @page > 1 || @has_next_page %>
-  <p class="cs-hint">Filtering and selection apply to this page of subjects. Use the pages below to reach the rest.</p>
+<% if @query.present? %>
+  <p class="cs-hint">Showing matches for “<%= @query %>” across all subjects. Narrow the list below per page; selection applies to the current page.</p>
+<% elsif @page > 1 || @has_next_page %>
+  <p class="cs-hint">Type to filter this page, or Search to find anyone by email or name across every subject.</p>
 <% end %>
 
 <div class="cs-bulk" data-cs-bulk hidden>
@@ -88,7 +94,7 @@
 <p class="cs-filter-empty" data-cs-filter-empty hidden>No subjects on this page match your filter.</p>
 
 <nav class="cs-pagination" aria-label="Subjects pagination">
-  <% if @page > 1 %><%= link_to "← Previous", subjects_path(page: @page - 1) %><% end %>
+  <% if @page > 1 %><%= link_to "← Previous", subjects_path(page: @page - 1, q: @query.presence) %><% end %>
   <span>Page <%= @page %></span>
-  <% if @has_next_page %><%= link_to "Next →", subjects_path(page: @page + 1) %><% end %>
+  <% if @has_next_page %><%= link_to "Next →", subjects_path(page: @page + 1, q: @query.presence) %><% end %>
 </nav>

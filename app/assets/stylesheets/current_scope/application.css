@@ -320,6 +320,11 @@ a:hover { color: var(--cs-accent-strong); }
 
 .cs-filter { min-width: min(22rem, 100%); }
 
+/* The subjects search form: input + Search + Clear on one line, the input
+   taking the free space; wraps on a narrow toolbar. */
+.cs-search { display: flex; align-items: center; gap: 0.5rem; flex: 1 1 22rem; min-width: 0; }
+.cs-search .cs-filter { flex: 1; min-width: 0; }
+
 .cs-bulk {
   display: flex;
   align-items: center;

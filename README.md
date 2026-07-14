@@ -283,6 +283,12 @@ re-checked live at decision time:
 2. the record's host hook `current_scope_sod_bypassed?` returns true, **and**
 3. the record's **initiator** holds the bypass permission (`bypass_sod`).
 
+Holding `bypass_sod` on a flagged, self-initiated record **is** the
+authorization for the SoD action — the bypass grants the action, it doesn't
+merely lift the veto and then re-check for a separate `approve` grant.
+`bypass_sod` must **not** appear in `sod_actions` (it isn't an SoD action); the
+engine raises if it does, to prevent a re-entrant loop.
+
 When a bypass lifts the veto, the engine records exactly one append-only
 `sod.bypassed` audit event at the enforcement gate (never on advisory
 `allowed_to?` checks) and sets `X-Current-Scope-Reason: sod_bypassed` on the

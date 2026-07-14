@@ -108,4 +108,14 @@ class SodBypassTest < ActiveSupport::TestCase
     assign(@bob, role("Breaker", "reports#bypass_sod"))
     assert_nothing_raised { approve(@bob, bypassable(@report, true)) }
   end
+
+  test "a bypass permission that is itself an SoD action is refused loudly (recursion guard)" do
+    @original_bypass_permission = CurrentScope.config.sod_bypass_permission
+    CurrentScope.config.sod_bypass_permission = "approve" # also in sod_actions → would recurse
+    assign(@bob, role("Breaker", "reports#approve"))
+    error = assert_raises(CurrentScope::ConfigurationError) { approve(@bob, bypassable(@report, true)) }
+    assert_match "must not be an SoD action", error.message
+  ensure
+    CurrentScope.config.sod_bypass_permission = @original_bypass_permission
+  end
 end

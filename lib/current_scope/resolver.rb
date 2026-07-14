@@ -25,10 +25,11 @@ module CurrentScope
       decide(subject: subject, permission: permission, record: record, actor: actor).first
     end
 
-    # Internal decision: returns [allowed_bool, reason_or_nil]. The reason is
-    # populated only on denial (:sod_veto or :no_grant) so callers (Guard) can
-    # surface a machine-readable cause without the resolver — memoized and
-    # shared across threads — holding any per-decision state.
+    # Internal decision: returns [allowed_bool, reason_or_nil]. The reason is a
+    # machine-readable cause the Guard surfaces: :sod_veto / :no_grant on a
+    # denial, and :sod_bypassed on the one AUDITED allow (break-glass). Ordinary
+    # allows carry nil. The resolver — shared across threads — holds no
+    # per-decision state; the reason rides in the return tuple, not on self.
     def decide(subject:, permission:, record: nil, actor: nil)
       return [ false, :no_grant ] if subject.nil?
 
@@ -131,12 +132,23 @@ module CurrentScope
     # KTD-2, so impersonation can't launder it) holds the bypass permission.
     def sod_bypassed?(record:, initiator:)
       return false unless CurrentScope.config.allow_sod_bypass
+
+      # Re-entrancy is bounded ONLY because the bypass permission isn't itself an
+      # SoD action (KTD-5) — the inner allowed? below returns at the SoD step
+      # without recursing. Enforce that invariant loudly rather than trusting the
+      # host to honor the doc comment: a bypass action in sod_actions would
+      # recurse to a SystemStackError.
+      bypass_action = CurrentScope.config.sod_bypass_permission.to_s.split("#").last
+      if CurrentScope.config.sod_actions.include?(bypass_action)
+        raise ConfigurationError,
+              "config.sod_bypass_permission (#{CurrentScope.config.sod_bypass_permission.inspect}) is the " \
+              "action #{bypass_action.inspect}, which is also in config.sod_actions. The bypass permission " \
+              "must not be an SoD action — it would recurse. Remove #{bypass_action.inspect} from sod_actions."
+      end
+
       # Absent hook ⇒ this type never breaks glass (fail-closed, no raise).
       return false unless record.respond_to?(BYPASS_METHOD, true) && record.send(BYPASS_METHOD)
 
-      # Re-entrancy is bounded: sod_bypass_permission is not in sod_actions, so
-      # this inner decision returns at the SoD step (:none) without recursing
-      # back into a bypass check (KTD-5).
       CurrentScope.allowed?(CurrentScope.config.sod_bypass_permission, subject: initiator, record: record)
     end
 

@@ -63,13 +63,12 @@ module CurrentScope
     # Break-glass audit (KTD-1): the resolver stays pure and only reports
     # :sod_bypassed; the Guard — which runs once per REAL gated action, never on
     # advisory allowed_to?/scope_for — records the override exactly once and
-    # surfaces it on the response. Guarded to mutations (SoD actions are
-    # mutations; the GET/HEAD skip is defense-in-depth). Event.record! is a no-op
-    # when config.audit is false, so an audit-off host still permits, records
-    # nothing — consistent with the rest of the ledger.
+    # surfaces it on the response. Recorded for ANY verb: the guarantee is
+    # "every bypass is audited", so if a host ever routes an SoD action to GET,
+    # the bypass still leaves its trail rather than slipping through unlogged.
+    # Event.record! is a no-op when config.audit is false, so an audit-off host
+    # still permits, records nothing — consistent with the rest of the ledger.
     def record_sod_bypass(permission, record)
-      return if request.get? || request.head?
-
       initiator = record.send(CurrentScope::Resolver::INITIATOR_METHOD)
       CurrentScope::Event.record!(
         event: "sod.bypassed", target: record,

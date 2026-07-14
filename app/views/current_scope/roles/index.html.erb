@@ -29,7 +29,9 @@
           <% end %>
         </td>
         <td>
+          <%= link_to "Members", members_role_path(role), class: "cs-btn" %>
           <%= button_to "Delete", role_path(role), method: :delete,
+                form: { data: { cs_confirm: "Delete role #{role.name}?" } },
                 data: { turbo_confirm: "Delete role #{role.name}?" } %>
         </td>
       </tr>

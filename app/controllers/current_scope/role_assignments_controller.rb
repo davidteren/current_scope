@@ -4,7 +4,7 @@ module CurrentScope
     def create
       subjects = locate_subjects(submitted_subject_gids)
       if subjects.empty?
-        redirect_to subjects_path, alert: "No subjects selected."
+        redirect_back_or_to subjects_path, alert: "No subjects selected."
         return
       end
 
@@ -21,9 +21,11 @@ module CurrentScope
         end
       end
 
-      redirect_to subjects_path, notice: org_notice(clearing, subjects.size)
+      # Return to wherever the action was invoked (the subjects page or a role's
+      # members page); falls back to subjects when there's no referrer.
+      redirect_back_or_to subjects_path, notice: org_notice(clearing, subjects.size)
     rescue ActiveRecord::RecordNotFound, NameError
-      redirect_to subjects_path, alert: "Couldn't set the org-wide role — a subject or role is no longer available."
+      redirect_back_or_to subjects_path, alert: "Couldn't set the org-wide role — a subject or role is no longer available."
     end
 
     private

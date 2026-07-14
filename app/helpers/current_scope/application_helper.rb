@@ -46,6 +46,21 @@ module CurrentScope
       end
     end
 
+    # Members-list labels that survive a stale/renamed polymorphic type — a
+    # removed subject or resource class must not 500 the page; fall back to
+    # "Type #id" the way the audit ledger does.
+    def current_scope_holder_subject_label(assignment)
+      current_scope_subject_label(assignment.subject)
+    rescue NameError, ActiveRecord::RecordNotFound
+      "#{assignment.subject_type} ##{assignment.subject_id}"
+    end
+
+    def current_scope_holder_resource_label(scoped_assignment)
+      current_scope_label(scoped_assignment.resource)
+    rescue NameError, ActiveRecord::RecordNotFound
+      "#{scoped_assignment.resource_type} ##{scoped_assignment.resource_id}"
+    end
+
     # Best-effort label for a stored GID string (event actor/subject). Falls
     # back to the raw GID when the record is gone — the ledger outlives the
     # identities it names.

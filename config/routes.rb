@@ -1,7 +1,9 @@
 CurrentScope::Engine.routes.draw do
   root to: "roles#index"
 
-  resources :roles, except: :show
+  resources :roles, except: :show do
+    member { get :members }
+  end
   resources :subjects, only: :index
   resources :events, only: :index
   resource :role_assignment, only: :create

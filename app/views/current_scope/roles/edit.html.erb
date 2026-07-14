@@ -1,5 +1,7 @@
 <h1>Edit role: <%= @role.name %></h1>
 
+<p><%= link_to "See who holds this role →", members_role_path(@role) %></p>
+
 <%= form_with model: @role do |f| %>
   <% if @role.errors.any? %>
     <p class="cs-alert"><%= @role.errors.full_messages.to_sentence %></p>

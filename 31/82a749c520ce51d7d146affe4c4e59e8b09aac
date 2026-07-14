@@ -1,0 +1,26 @@
+test/integration/role_members_test.rb
+  s_1ccf4e18ef955f::t_6d4c70269cc2b0 32-42
+app/helpers/current_scope/application_helper.rb
+  s_1ccf4e18ef955f::t_de34abad11de3e 49-63
+app/controllers/current_scope/roles_controller.rb
+  s_1ccf4e18ef955f::t_ceb21f48220b8d 43-52
+app/views/current_scope/roles/members.html.erb
+  s_1ccf4e18ef955f::t_582f2e10a8ede2 75-76,78-79,81
+  s_1ccf4e18ef955f::t_1652019cf59adb 42-43,45,47-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "3182a749c520ce51d7d146affe4c4e59e8b09aac",
+  "prompts": {},
+  "sessions": {
+    "s_1ccf4e18ef955f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6c20aff2-288a-4aca-85c8-7668bd8bc0b8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

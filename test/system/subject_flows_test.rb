@@ -55,6 +55,17 @@ class SubjectFlowsSystemTest < ApplicationSystemTestCase
     assert_selector "[data-cs-bulk]:not([hidden])"
   end
 
+  test "server-side search finds a subject that isn't on the current page" do
+    55.times { |i| User.create!(name: "Filler #{format('%02d', i)}") } # push the target off page 1
+    User.create!(name: "Deep Cut Persson")
+
+    visit "/current_scope/subjects"
+    assert_no_text "Deep Cut Persson" # not on the first page
+    fill_in "q", with: "Deep Cut"
+    click_button "Search"
+    assert_text "Deep Cut Persson" # server search reached it
+  end
+
   test "subjects paginate past the page size" do
     55.times { |i| User.create!(name: "Bulk User #{format('%02d', i)}") } # + owner > PER_PAGE(50)
     visit "/current_scope/subjects"

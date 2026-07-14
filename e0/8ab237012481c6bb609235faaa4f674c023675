@@ -1,0 +1,72 @@
+db/migrate/20260714000001_add_description_to_current_scope_roles.rb
+  s_b081cbfee96db8::t_23542ff4396544 1-5
+app/assets/javascripts/current_scope/application.js
+  s_b081cbfee96db8::t_733f3de9961dd6 77-82
+  s_b081cbfee96db8::t_54bc6e4cb27e92 43-45
+  s_c7dd35259ee837::t_149276ef370d28 38-42,46-76,83-84
+app/views/current_scope/roles/index.html.erb
+  s_b081cbfee96db8::t_aa6d2aa34ba0fc 18-23
+app/views/current_scope/subjects/index.html.erb
+  s_b081cbfee96db8::t_11e40c68967051 27,29-32,35-36
+app/controllers/current_scope/roles_controller.rb
+  s_b081cbfee96db8::t_87384bb05fcb95 105-111
+  s_b081cbfee96db8::t_36a52dab28750a 104
+test/dummy/db/schema.rb
+  s_b081cbfee96db8::t_1789640ad4dd93 13
+  s_b081cbfee96db8::t_22c68d23e27b34 46
+app/views/current_scope/roles/edit.html.erb
+  s_b081cbfee96db8::t_1ed9a2eb681cca 10-12
+  s_b081cbfee96db8::t_f9afd7bb3a4fcc 22-24,27-28,30,33,35-37,40-70
+  s_b081cbfee96db8::t_47f92d27094b6e 9
+test/permission_grid_test.rb
+  s_b081cbfee96db8::t_e16f39bbd63951 1-11,13-14,16-80
+  s_b081cbfee96db8::t_c0861d8ccc2fbc 12,15
+test/integration/role_grid_test.rb
+  s_b081cbfee96db8::t_ec199af38b286d 39-47
+  s_b081cbfee96db8::t_9ef00cf46bf709 1-21,24,26-38,48-57
+  s_b081cbfee96db8::t_966056ea2db9a3 22-23,25
+app/views/current_scope/roles/new.html.erb
+  s_b081cbfee96db8::t_48f3d1d14dee45 10-12
+  s_b081cbfee96db8::t_9984fb04bae02b 9
+app/assets/stylesheets/current_scope/application.css
+  s_b081cbfee96db8::t_20bec0c1232b4e 454,460,462-465,468-469,472,474-494,497
+  s_b081cbfee96db8::t_921aa8892ccf21 537-539
+  s_b081cbfee96db8::t_f5722d96324f55 301
+  s_c7dd35259ee837::t_4e647a8afc6828 427,430-431,434-435,437-438
+  s_b081cbfee96db8::t_a7baab86539218 349-353,366-392,403,408-410,413,417-423,425-426
+lib/current_scope.rb
+  s_b081cbfee96db8::t_dc4d649787ee2d 4
+lib/current_scope/permission_grid.rb
+  s_b081cbfee96db8::t_6fb0c7ce9a8c7c 1-81
+test/dummy/config/routes.rb
+  s_b081cbfee96db8::t_4da9addc3da247 6-8
+lib/current_scope/configuration.rb
+  s_b081cbfee96db8::t_c777b2010bfff1 88-98
+  s_b081cbfee96db8::t_27516879f133a6 113-118
+test/integration/management_ui_test.rb
+  s_b081cbfee96db8::t_d7e3fa54374cbe 29-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "e08ab237012481c6bb609235faaa4f674c023675",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    },
+    "s_c7dd35259ee837": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6840d73c-0a1f-4743-a2cd-8f525834cd43",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

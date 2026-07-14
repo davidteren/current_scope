@@ -4,18 +4,23 @@ module CurrentScope
     def create
       gids = Array(params[:subject_gids]).select(&:present?)
       gids = [ params[:subject_gid] ].compact if gids.empty?
-      if gids.empty?
+      subjects = locate_subjects(gids)
+      if subjects.empty?
         redirect_to subjects_path, alert: "No subjects selected."
         return
       end
 
-      subjects = gids.filter_map { |gid| GlobalID::Locator.locate(gid) }
       clearing = params[:role_id].blank?
 
-      subjects.each do |subject|
-        assignment = RoleAssignment.find_or_initialize_by(subject: subject)
-        prior_role = assignment.role # nil for a brand-new assignment
-        clearing ? clear_org_role(subject, assignment, prior_role) : set_org_role(subject, assignment, prior_role)
+      # One transaction for the whole bulk action: the UI presents it as a single
+      # operation, so a failure partway must not leave only the first subjects
+      # changed. All-or-nothing across assignments and their audit events.
+      RoleAssignment.transaction do
+        subjects.each do |subject|
+          assignment = RoleAssignment.find_or_initialize_by(subject: subject)
+          prior_role = assignment.role # nil for a brand-new assignment
+          clearing ? clear_org_role(subject, assignment, prior_role) : set_org_role(subject, assignment, prior_role)
+        end
       end
 
       redirect_to subjects_path, notice: org_notice(clearing, subjects.size)

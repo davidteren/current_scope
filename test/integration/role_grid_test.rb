@@ -45,6 +45,30 @@ class RoleGridTest < ActionDispatch::IntegrationTest
     assert_select ".cs-subtle", text: "May edit and approve reports"
   end
 
+  test "a partially granted group renders unchecked and preserves its exact keys" do
+    @role.update!(permission_keys: [ "reports#index" ]) # read = index only (show not granted)
+    get current_scope.edit_role_url(@role), headers: as(@owner)
+    assert_response :success
+    # The read group cell must NOT be checked: a checked group token expands to
+    # the whole group on save, which would silently broaden the grant.
+    assert_select "input#perm_reports_read[type=checkbox]" do |els|
+      assert_nil els.first["checked"], "a partial group must not render checked"
+    end
+    # Its existing key rides along as a hidden input so a no-op save keeps it.
+    assert_select "input[type=hidden][name='role[permission_keys][]'][value='reports#index'][data-cs-preserve]"
+  end
+
+  test "re-saving a partially granted role does not broaden it to the full group" do
+    @role.update!(permission_keys: [ "reports#index" ])
+    # What the no-JS form submits for an untouched partial: the preserved key,
+    # and no group token (the checkbox is unchecked).
+    patch current_scope.role_url(@role), headers: as(@owner),
+          params: { role: { name: "Renamed", full_access: "0", permission_keys: [ "reports#index" ] } }
+    keys = @role.reload.permission_keys
+    assert_includes keys, "reports#index"
+    assert_not_includes keys, "reports#show", "re-saving must not silently grant the rest of the read group"
+  end
+
   test "raw permission_keys still work alongside the group channel" do
     patch current_scope.role_url(@role), headers: as(@owner),
           params: { role: { name: "Editor", full_access: "0",

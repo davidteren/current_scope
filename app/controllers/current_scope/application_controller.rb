@@ -24,5 +24,22 @@ module CurrentScope
     def require_full_access!
       head :forbidden unless CurrentScope.resolver.full_access?(CurrentScope::Current.user)
     end
+
+    def subject_class
+      @subject_class ||= CurrentScope.config.subject_class.constantize
+    end
+
+    # Resolve subject GIDs to records, keeping ONLY instances of the configured
+    # subject_class. A crafted subject_gids[] pointing at some other model must
+    # never create an assignment row for a non-subject — the picker offers only
+    # subjects, so anything else is out of bounds. Dead/unknown GIDs drop out.
+    def locate_subjects(gids)
+      Array(gids).select(&:present?).filter_map do |gid|
+        record = GlobalID::Locator.locate(gid)
+        record if record.is_a?(subject_class)
+      rescue ActiveRecord::RecordNotFound, NameError
+        nil
+      end
+    end
   end
 end

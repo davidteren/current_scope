@@ -8,10 +8,15 @@
  *
  * Theming: tokens live on :root. Light is the default; system dark applies via
  * prefers-color-scheme; an explicit choice is set as html[data-cs-theme] (from
- * the cs_theme cookie, so there's no flash). Retheme by redefining the --cs-*
- * custom properties; restructure by overriding the .cs-* classes.
+ * the current_scope_theme cookie, so there's no flash). Retheme by redefining
+ * the --cs-* custom properties; restructure by overriding the .cs-* classes.
+ *
+ * The token defaults sit in a @layer so a host's own (unlayered) :root override
+ * always wins — otherwise the data-cs-theme attribute selectors below would
+ * outweigh a plain :root { --cs-accent: … } in the host stylesheet.
  */
 
+@layer current_scope.tokens {
 :root {
   color-scheme: light;
 
@@ -50,6 +55,7 @@
   --cs-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   --cs-sidebar-w: 15.5rem;
+  --cs-topbar-h: 3.25rem;
 }
 
 /* Dark tokens, shared by system-dark (no explicit choice) and an explicit
@@ -79,6 +85,9 @@
   }
 }
 
+/* NB: these dark tokens intentionally duplicate the @media block above — CSS
+   can't share a declaration block between a media query and an attribute
+   selector without a preprocessor. Keep the two in sync on any token change. */
 :root[data-cs-theme="dark"] {
   color-scheme: dark;
   --cs-bg:          oklch(0.172 0.008 264);
@@ -101,6 +110,7 @@
   --cs-ok-wash:     oklch(0.26 0.05 150);
   --cs-shadow: 0 1px 2px oklch(0 0 0 / 0.4), 0 6px 16px oklch(0 0 0 / 0.35);
 }
+} /* @layer current_scope.tokens */
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -218,6 +228,7 @@ a:hover { color: var(--cs-accent-strong); }
   z-index: 5;
   display: flex;
   align-items: center;
+  min-height: var(--cs-topbar-h);
   gap: 1rem;
   padding: 0.75rem 1.75rem;
   background: color-mix(in oklch, var(--cs-bg) 82%, transparent);
@@ -302,7 +313,7 @@ a:hover { color: var(--cs-accent-strong); }
 
 /* ---- Toolbar (page actions) ------------------------------------------- */
 
-.cs-toolbar { display: flex; align-items: center; gap: 0.75rem; margin: 0 0 1.25rem; }
+.cs-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin: 0 0 1.25rem; }
 .cs-toolbar .cs-spacer { flex: 1; }
 
 /* ---- Filter + bulk (subjects) ----------------------------------------- */
@@ -320,6 +331,9 @@ a:hover { color: var(--cs-accent-strong); }
   background: var(--cs-accent-wash);
   font-size: 0.875rem;
 }
+/* The bar sets display:flex, which otherwise defeats the [hidden] attribute the
+   JS toggles — keep it hidden until a subject is selected. */
+.cs-bulk[hidden] { display: none; }
 .cs-bulk .cs-spacer { flex: 1; }
 .cs-bulk-org { display: inline-flex; align-items: center; gap: 0.375rem; margin: 0; }
 .cs-bulk-org select { padding: 0.3125rem 0.5rem; }
@@ -337,7 +351,7 @@ a:hover { color: var(--cs-accent-strong); }
   border-radius: var(--cs-radius);
   box-shadow: var(--cs-shadow);
 }
-.cs-card > * { padding-inline: 1.125rem; }
+.cs-card:not(.cs-card--flush) > * { padding-inline: 1.125rem; }
 .cs-card--flush { padding: 0; }
 .cs-card--flush .cs-table th:first-child,
 .cs-card--flush .cs-table td:first-child { padding-left: 1.125rem; }
@@ -387,10 +401,11 @@ a:hover { color: var(--cs-accent-strong); }
 
 .cs-grid { border-collapse: separate; border-spacing: 0; width: 100%; }
 
-/* Column headers — the fixed action/group names. */
+/* Column headers — the fixed action/group names. Offset by the sticky topbar
+   height so the topbar doesn't paint over the header while scrolling. */
 .cs-grid thead th {
   position: sticky;
-  top: 0;
+  top: var(--cs-topbar-h);
   z-index: 2;
   background: var(--cs-surface-2);
   color: var(--cs-muted);
@@ -522,9 +537,11 @@ input[type="checkbox"], input[type="radio"] {
 
 /* ---- Forms ------------------------------------------------------------ */
 
-form p { margin: 0 0 1rem; max-width: 30rem; }
+/* Scoped to the content region: these layout rules must not reach a form the
+   host might place in the sidebar or topbar. */
+.cs-main form p { margin: 0 0 1rem; max-width: 30rem; }
 
-form p > label {
+.cs-main form p > label {
   display: block;
   font-size: 0.7rem;
   font-weight: 600;
@@ -533,7 +550,7 @@ form p > label {
   color: var(--cs-muted);
   margin-bottom: 0.375rem;
 }
-form p > label:has(input) {
+.cs-main form p > label:has(input) {
   display: flex;
   align-items: center;
   gap: 0.4375rem;
@@ -555,11 +572,11 @@ input[type="search"], select, textarea {
   padding: 0.4375rem 0.625rem;
   max-width: 100%;
 }
-form p > input[type="text"],
-form p > input[type="email"],
-form p > input[type="password"],
-form p > select,
-form p > textarea { width: 100%; }
+.cs-main form p > input[type="text"],
+.cs-main form p > input[type="email"],
+.cs-main form p > input[type="password"],
+.cs-main form p > select,
+.cs-main form p > textarea { width: 100%; }
 textarea { resize: vertical; min-height: 2.5rem; }
 
 input::placeholder { color: var(--cs-muted); opacity: 1; }

@@ -54,19 +54,33 @@ class PermissionGridTest < ActiveSupport::TestCase
     assert_equal "reports#approve", cell.value
   end
 
-  test "checked when any routed action is granted; partial when not all" do
+  test "a partial group is unchecked (not silently promoted) and preserves its keys" do
     read_col = grid.columns.find { |c| c.label == "read" }
 
+    # Escalation guard: a partial group must NOT render checked — a checked group
+    # token expands to the whole group on save, so a re-save would broaden it.
     partial = grid.cell("reports", read_col, Set["reports#index"])
-    assert partial.checked
+    assert_not partial.checked
     assert partial.partial
+    assert_equal %w[reports#index], partial.granted_keys
 
     full = grid.cell("reports", read_col, Set["reports#index", "reports#show"])
     assert full.checked
     assert_not full.partial
+    assert_empty full.granted_keys
 
     none = grid.cell("reports", read_col, Set.new)
     assert_not none.checked
+    assert_not none.partial
+    assert_empty none.granted_keys
+  end
+
+  test "a leftover (single-action) cell stays checked when granted — never partial" do
+    approve_col = grid.columns.find { |c| c.label == "approve" }
+    cell = grid.cell("reports", approve_col, Set["reports#approve"])
+    assert cell.checked
+    assert_not cell.partial
+    assert_empty cell.granted_keys
   end
 
   test "expand turns group tokens into the routed permission keys" do

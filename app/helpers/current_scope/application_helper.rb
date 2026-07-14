@@ -18,9 +18,11 @@ module CurrentScope
     def current_scope_subject_label(subject)
       return "(none)" if subject.nil?
 
-      label = CurrentScope.config.subject_label
-      return label.call(subject).to_s if label.respond_to?(:call)
-      return subject.public_send(label).to_s if label && subject.respond_to?(label)
+      # A configured label that resolves to nil/blank (e.g. :email on a subject
+      # with no email yet) must not render as an empty row — fall through to the
+      # default human-identifier chain rather than showing "".
+      configured = configured_subject_label(subject)
+      return configured if configured
 
       # Default: a subject is a person, so prefer human identifiers over a
       # generic "Class #id" — including when the model includes Scopeable, whose
@@ -29,6 +31,17 @@ module CurrentScope
       full_name = [ subject.try(:first_name), subject.try(:last_name) ].compact.join(" ").presence
       subject.try(:email) || subject.try(:email_address) ||
         subject.try(:name) || full_name || current_scope_label(subject)
+    end
+
+    # The configured subject_label (Symbol or Proc) applied to a subject, or nil
+    # when unset or when it resolves to a blank value.
+    def configured_subject_label(subject)
+      label = CurrentScope.config.subject_label
+      if label.respond_to?(:call)
+        label.call(subject).to_s.presence
+      elsif label && subject.respond_to?(label)
+        subject.public_send(label).to_s.presence
+      end
     end
 
     # Best-effort label for a stored GID string (event actor/subject). Falls

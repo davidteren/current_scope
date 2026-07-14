@@ -16,8 +16,19 @@ document.addEventListener("change", function (event) {
   if (form) form.requestSubmit();
 });
 
+// CSP-safe confirmation for destructive submits. `data-turbo-confirm` only fires
+// when the host loads Turbo; this engine can't assume that, so a form carrying
+// data-cs-confirm gets a native window.confirm regardless. Runs in the capture
+// phase so it can veto before any other submit handler acts.
+document.addEventListener("submit", function (event) {
+  var form = event.target;
+  if (!form || typeof form.matches !== "function") return;
+  if (!form.matches("[data-cs-confirm]")) return;
+  if (!window.confirm(form.getAttribute("data-cs-confirm"))) event.preventDefault();
+}, true);
+
 // Light/dark theme toggle. Progressive enhancement: the server already renders
-// the chosen theme from the cs_theme cookie (so there's no flash), and defaults
+// the chosen theme from the current_scope_theme cookie (so there's no flash), and defaults
 // to the OS preference when no cookie is set. This just flips the choice live
 // and persists it. CSP-safe (served asset, no inline handler).
 document.addEventListener("click", function (event) {
@@ -32,7 +43,10 @@ document.addEventListener("click", function (event) {
   var next = effectiveDark ? "light" : "dark";
 
   root.setAttribute("data-cs-theme", next);
-  document.cookie = "cs_theme=" + next + ";path=/;max-age=31536000;samesite=lax";
+  // Namespaced cookie name so it can't collide with a host cookie; Secure on
+  // https so a UI preference isn't sent in the clear.
+  var secure = window.location.protocol === "https:" ? ";secure" : "";
+  document.cookie = "current_scope_theme=" + next + ";path=/;max-age=31536000;samesite=lax" + secure;
   btn.setAttribute("aria-pressed", String(next === "dark"));
 });
 
@@ -45,6 +59,17 @@ document.addEventListener("click", function (event) {
   var ACTION = 'input[type="checkbox"][name^="role[permission"]';
 
   function actionsIn(row) { return row.querySelectorAll(ACTION); }
+
+  // A partial group checkbox ships hidden [data-cs-preserve] inputs that keep its
+  // existing keys across a no-op save. Once the user (or the row master) drives
+  // the checkbox, the checkbox alone governs the group: clear the indeterminate
+  // hint and disable the preserve inputs so they don't force the old subset back.
+  function releasePartial(box) {
+    box.indeterminate = false;
+    var cell = box.closest("td");
+    if (!cell) return;
+    cell.querySelectorAll("[data-cs-preserve]").forEach(function (h) { h.disabled = true; });
+  }
 
   function syncMaster(row) {
     var master = row.querySelector("[data-cs-row-all]");
@@ -61,10 +86,14 @@ document.addEventListener("click", function (event) {
 
     if (el.matches("[data-cs-row-all]")) {
       var row = el.closest("tr");
-      if (row) actionsIn(row).forEach(function (b) { b.checked = el.checked; });
+      if (row) actionsIn(row).forEach(function (b) {
+        b.checked = el.checked;
+        releasePartial(b); // keep displayed + submitted state consistent with the master
+      });
       return;
     }
     if (el.matches(ACTION)) {
+      releasePartial(el);
       var r = el.closest("tr");
       if (r) syncMaster(r);
     }
@@ -94,8 +123,11 @@ document.addEventListener("click", function (event) {
   }
   function visibleRows() { return rows().filter(function (r) { return !r.hidden; }); }
   function selectOf(row) { return row.querySelector("[data-cs-select]"); }
+  // Scan ALL rows, not just visible ones: a subject checked before the operator
+  // typed a filter must stay in the bulk selection (select-all still works off
+  // visibleRows). Otherwise filtering would silently drop checked subjects.
   function selectedRows() {
-    return visibleRows().filter(function (r) { var cb = selectOf(r); return cb && cb.checked; });
+    return rows().filter(function (r) { var cb = selectOf(r); return cb && cb.checked; });
   }
 
   function syncBulk() {

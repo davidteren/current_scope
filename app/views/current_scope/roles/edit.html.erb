@@ -62,6 +62,12 @@
                           data: { cs_partial: cell.partial },
                           "aria-label": "#{controller} #{column.label}" %>
                   </label>
+                  <%# Partial group: preserve the exact granted actions so a no-op
+                      save can't promote the group to a full grant. Interacting with
+                      the checkbox disables these (JS) so the group control takes over. %>
+                  <% cell.granted_keys.each do |key| %>
+                    <%= hidden_field_tag "role[permission_keys][]", key, id: nil, data: { cs_preserve: true } %>
+                  <% end %>
                 </td>
               <% end %>
             <% end %>

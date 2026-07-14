@@ -31,11 +31,13 @@ module CurrentScope
       resource = GlobalID::Locator.locate(params.expect(:resource_gid))
       role = Role.find(params.expect(:role_id))
       subjects = grant_subjects
+      if subjects.empty?
+        redirect_to subjects_path, alert: "No subjects selected."
+        return
+      end
       granted = 0
 
       subjects.each do |subject|
-        next if subject.nil?
-
         ScopedRoleAssignment.transaction do
           assignment = ScopedRoleAssignment.find_or_create_by!(subject: subject, resource: resource, role: role)
           next unless assignment.previously_new_record?
@@ -96,17 +98,14 @@ module CurrentScope
     # single cascade subject.
     def grant_subjects
       gids = Array(params[:subject_gids]).select(&:present?)
-      gids = [ params.expect(:subject_gid) ] if gids.empty?
-      gids.map { |gid| GlobalID::Locator.locate(gid) }
+      gids = [ params[:subject_gid] ].compact if gids.empty?
+      locate_subjects(gids)
     end
 
-    # Resolve the bulk subject_gids for display (dead links drop out).
+    # Resolve the bulk subject_gids for display (dead links and non-subject GIDs
+    # drop out — same boundary the grant enforces).
     def resolve_bulk_subjects
-      Array(params[:subject_gids]).select(&:present?).filter_map do |gid|
-        GlobalID::Locator.locate(gid)
-      rescue ActiveRecord::RecordNotFound, NameError
-        nil
-      end
+      locate_subjects(params[:subject_gids])
     end
 
     def grant_notice(granted, attempted)

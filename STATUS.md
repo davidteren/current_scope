@@ -120,7 +120,7 @@ host), self-contained (no web fonts / no build / CSP-safe), opinionated but
 overridable. **201 runs green, RuboCop clean.**
 
 - [x] **Light/dark admin dashboard** — sidebar + topbar shell, cobalt accent,
-      token theming (`prefers-color-scheme` + a persisted `cs_theme` cookie,
+      token theming (`prefers-color-scheme` + a persisted `current_scope_theme` cookie,
       server-rendered → no flash; toggle is a served-asset handler).
 - [x] **Permission grid → absolute CRUD matrix** — fixed columns, blank cells
       where a controller doesn't route a column; RESTful 7 fold into

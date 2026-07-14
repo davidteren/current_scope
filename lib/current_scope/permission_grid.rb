@@ -11,7 +11,7 @@ module CurrentScope
   # still aligned.
   class PermissionGrid
     Column = Struct.new(:label, :actions, :group, keyword_init: true)
-    Cell   = Struct.new(:blank, :group, :name, :value, :checked, :partial, keyword_init: true)
+    Cell   = Struct.new(:blank, :group, :name, :value, :checked, :partial, :granted_keys, keyword_init: true)
 
     def initialize(catalog: CurrentScope.catalog, groups: CurrentScope.config.permission_grid_groups)
       @grouped = catalog.grouped # { "controller" => ["action", ...] }
@@ -33,21 +33,30 @@ module CurrentScope
 
     # One cell for (controller, column) against a role's granted key set.
     # Blank when the controller routes none of the column's actions. Otherwise a
-    # checkbox: `checked` when ANY routed action is granted (additive-safe — the
-    # column never silently revokes on save), `partial` when some-but-not-all.
+    # checkbox.
+    #
+    # A GROUP cell is only `checked` when EVERY routed action is granted — a
+    # partial group is rendered unchecked+indeterminate and its existing keys are
+    # preserved verbatim via hidden inputs (see the edit view). This is the
+    # escalation guard: a checked group token expands to the whole group on save,
+    # so treating "some granted" as checked would silently promote a partial
+    # grant to a full one just by re-saving the role. `granted_keys` carries the
+    # exact subset to round-trip for a partial cell.
     def cell(controller, column, granted)
       routed = column.actions & actions_for(controller)
       return Cell.new(blank: true) if routed.empty?
 
       keys = routed.map { |action| "#{controller}##{action}" }
-      present = keys.count { |key| granted.include?(key) }
+      present_keys = keys.select { |key| granted.include?(key) }
+      partial = present_keys.any? && present_keys.size < keys.size
       Cell.new(
         blank: false,
         group: column.group,
         name:  column.group ? "role[permission_groups][]" : "role[permission_keys][]",
         value: column.group ? "#{controller}:#{column.label}" : keys.first,
-        checked: present.positive?,
-        partial: present.positive? && present < keys.size
+        checked: column.group ? (present_keys.any? && !partial) : present_keys.any?,
+        partial: partial,
+        granted_keys: partial ? present_keys : []
       )
     end
 

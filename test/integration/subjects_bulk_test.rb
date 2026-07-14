@@ -57,6 +57,29 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
     assert_equal 1, CurrentScope::ScopedRoleAssignment.where(subject: bob, resource: folder, role: @role).count
   end
 
+  test "a bulk scoped grant rejects subject_gids that aren't the configured subject class" do
+    folder = Folder.create!(name: "Team space")
+    not_a_subject = Folder.create!(name: "Target")
+    # A crafted GID for a non-subject model must never create an assignment row.
+    assert_no_difference -> { CurrentScope::ScopedRoleAssignment.count } do
+      post current_scope.scoped_role_assignments_url, headers: as(@owner), params: {
+        role_id: @role.id, resource_gid: folder.to_gid.to_s,
+        subject_gids: [ not_a_subject.to_gid.to_s ]
+      }
+    end
+    assert_equal "No subjects selected.", flash[:alert]
+  end
+
+  test "a bulk org-wide assignment rejects non-subject GIDs instead of reporting a silent success" do
+    not_a_subject = Folder.create!(name: "Not a subject")
+    assert_no_difference -> { CurrentScope::RoleAssignment.count } do
+      post current_scope.role_assignment_url, headers: as(@owner), params: {
+        role_id: @role.id, subject_gids: [ not_a_subject.to_gid.to_s ]
+      }
+    end
+    assert_equal "No subjects selected.", flash[:alert]
+  end
+
   test "the bulk bar offers an org-wide role form" do
     User.create!(name: "Someone")
     get current_scope.subjects_url, headers: as(@owner)

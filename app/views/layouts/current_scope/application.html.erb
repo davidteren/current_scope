@@ -1,4 +1,4 @@
-<% cs_theme = %w[light dark].include?(cookies[:cs_theme]) ? cookies[:cs_theme] : nil %>
+<% cs_theme = %w[light dark].include?(cookies[:current_scope_theme]) ? cookies[:current_scope_theme] : nil %>
 <% active = controller_name %>
 <!DOCTYPE html>
 <html lang="en"<%= " data-cs-theme=\"#{cs_theme}\"".html_safe if cs_theme %>>
@@ -35,7 +35,7 @@
         <span class="cs-topbar-spacer"></span>
         <span class="cs-badge">full access</span>
         <button type="button" class="cs-theme-toggle" data-cs-theme-toggle
-                aria-label="Toggle dark mode">
+                aria-label="Toggle dark mode" aria-pressed="<%= cs_theme == "dark" %>">
           <span class="cs-icon-light" aria-hidden="true">☾</span>
           <span class="cs-icon-dark" aria-hidden="true">☀</span>
         </button>

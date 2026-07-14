@@ -3,6 +3,9 @@
 [![Gem Version](https://img.shields.io/gem/v/current_scope)](https://rubygems.org/gems/current_scope)
 [![CI](https://github.com/davidteren/current_scope/actions/workflows/ci.yml/badge.svg)](https://github.com/davidteren/current_scope/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](MIT-LICENSE)
+[![Website](https://img.shields.io/badge/website-davidteren.github.io%2Fcurrent__scope-4d7cfe)](https://davidteren.github.io/current_scope/)
+
+**Website:** [davidteren.github.io/current_scope](https://davidteren.github.io/current_scope/) — overview, the resolver, and quickstart at a glance.
 
 **Authorization as data you edit in a UI, not rules you hardcode and redeploy —
 with one ambient context that makes `allowed_to?` work identically in

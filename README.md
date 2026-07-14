@@ -257,6 +257,60 @@ your own record. Set `:subject` to weigh only the effective subject. The two
 are identical when nobody is impersonating (`actor == subject`), so v0.1 hosts
 see no change.
 
+### Break-glass override (`allow_sod_bypass`)
+
+Sometimes a workflow needs a *conditional* self-approval — e.g. the owner or a
+trusted admin may approve their own request. You can express that in your app
+(a second `approve_own` permission plus a controller branch), but that pattern
+has one forgettable, security-critical step: **recording the override in the
+audit ledger**. Break-glass promotes the pattern into the engine so the audit
+**cannot** be forgotten.
+
+Be honest about what this is: it converts separation of duties from a
+*structural guarantee* into an **audited policy override**. It's called
+break-glass, not SoD. Its legitimacy rests on three things, all enforced: it is
+**off by default**, **privilege-gated**, and **always audited**.
+
+```ruby
+config.allow_sod_bypass     = true          # default false → the veto is absolute
+config.sod_bypass_permission = "bypass_sod" # grantable, editable in the role grid
+```
+
+With it on, the veto is lifted for a record **only when all three hold**,
+re-checked live at decision time:
+
+1. `config.allow_sod_bypass` is on, **and**
+2. the record's host hook `current_scope_sod_bypassed?` returns true, **and**
+3. the record's **initiator** holds the bypass permission (`bypass_sod`).
+
+When a bypass lifts the veto, the engine records exactly one append-only
+`sod.bypassed` audit event at the enforcement gate (never on advisory
+`allowed_to?` checks) and sets `X-Current-Scope-Reason: sod_bypassed` on the
+response. A missing hook means "this type never breaks glass" — fail-closed, no
+error. Under impersonation (`sod_identity = :either`) the bypass checks the
+**initiator's** privilege, so impersonation can't launder it.
+
+**Host recipe** (the engine ships the mechanism; these stay yours, exactly as
+impersonation ships plumbing + recipe, not endpoints):
+
+```ruby
+# 1. A per-record flag column: add_column :invoices, :sod_bypass_requested, :boolean, default: false
+# 2. The hook, reading that column:
+class Invoice < ApplicationRecord
+  def current_scope_initiator     = requested_by
+  def current_scope_sod_bypassed? = sod_bypass_requested?
+end
+# 3. Gate WHO may set the flag on the same bypass_sod permission (a controller
+#    branch or a policy) — the engine deliberately does not own that decision.
+```
+
+Prefer true SoD for genuine fraud control (contracts, pay runs) where no
+override should exist. Reach for break-glass only when a *conditional,
+privileged, audited* self-approval is the real requirement. Unlike
+`allow_mutations_while_impersonating`, there is no production env-gate — the
+feature is per-record, privilege-scoped, and audited-by-construction, so
+production is its intended home.
+
 ### Configuration
 
 Everything lives in `config/initializers/current_scope.rb` (created by the

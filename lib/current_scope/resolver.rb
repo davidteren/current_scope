@@ -13,6 +13,10 @@ module CurrentScope
   #   5. default-deny  — nothing granted means denied.
   class Resolver
     INITIATOR_METHOD = :current_scope_initiator
+    # Host-defined per-record opt-in for break-glass. Absent ⇒ never bypassed
+    # (fail-closed, no raise — unlike a missing initiator, absence here is
+    # unambiguous).
+    BYPASS_METHOD = :current_scope_sod_bypassed?
 
     # Public contract: boolean. `actor` is the REAL principal behind the
     # request (defaults to the subject — no impersonation); it only widens the
@@ -27,7 +31,11 @@ module CurrentScope
     # shared across threads — holding any per-decision state.
     def decide(subject:, permission:, record: nil, actor: nil)
       return [ false, :no_grant ] if subject.nil?
-      return [ false, :sod_veto ] if sod_veto?(subject: subject, actor: actor, permission: permission, record: record)
+
+      case sod_decision(subject: subject, actor: actor, permission: permission, record: record)
+      when :veto   then return [ false, :sod_veto ]
+      when :bypass then return [ true, :sod_bypassed ] # break-glass: privileged, audited override
+      end
 
       role = org_role(subject)
       return [ true, nil ] if role&.full_access?
@@ -80,12 +88,16 @@ module CurrentScope
           .or(Role.where(id: RolePermission.where(permission_key: permission).select(:role_id)))
     end
 
-    def sod_veto?(subject:, actor:, permission:, record:)
+    # The separation-of-duties outcome for this decision: :none (no conflict, or
+    # not an SoD action), :veto (the initiator is acting on their own record and
+    # the veto stands), or :bypass (a conflict exists but break-glass lifts it).
+    # Pure — reads only; the audit write for a :bypass happens at the Guard.
+    def sod_decision(subject:, actor:, permission:, record:)
       action = permission.split("#").last
-      return false unless CurrentScope.config.sod_actions.include?(action)
+      return :none unless CurrentScope.config.sod_actions.include?(action)
       # No veto without an actual record instance (collection actions get nil,
       # class-form checks like allowed_to?(:approve, Report) get the class).
-      return false unless record.respond_to?(:new_record?)
+      return :none unless record.respond_to?(:new_record?)
 
       # SoD is a structural guarantee — "cannot determine the initiator" must
       # never mean "permit". A record type where SoD genuinely doesn't apply
@@ -99,15 +111,33 @@ module CurrentScope
       end
 
       initiator = record.send(INITIATOR_METHOD)
-      return false if initiator.blank?
+      return :none if initiator.blank?
 
       # The subject can never approve their own record. Under :either, neither
       # can a real actor who initiated it while impersonating a different
       # subject — impersonation must not become a self-approval loophole. Not
       # impersonating (actor == subject) collapses both checks to the same test.
       actor ||= subject
-      initiator == subject ||
+      conflict = initiator == subject ||
         (CurrentScope.config.sod_identity == :either && actor != subject && initiator == actor)
+      return :none unless conflict
+
+      sod_bypassed?(record: record, initiator: initiator) ? :bypass : :veto
+    end
+
+    # Break-glass: does an audited, privileged override lift the veto for this
+    # record? All three must hold, live: the config switch is on, the record's
+    # host hook opts in, and the INITIATOR (the identity the veto fired on —
+    # KTD-2, so impersonation can't launder it) holds the bypass permission.
+    def sod_bypassed?(record:, initiator:)
+      return false unless CurrentScope.config.allow_sod_bypass
+      # Absent hook ⇒ this type never breaks glass (fail-closed, no raise).
+      return false unless record.respond_to?(BYPASS_METHOD, true) && record.send(BYPASS_METHOD)
+
+      # Re-entrancy is bounded: sod_bypass_permission is not in sod_actions, so
+      # this inner decision returns at the SoD step (:none) without recursing
+      # back into a bypass check (KTD-5).
+      CurrentScope.allowed?(CurrentScope.config.sod_bypass_permission, subject: initiator, record: record)
     end
 
     def scoped_grant?(subject:, permission:, record:)

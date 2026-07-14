@@ -1,14 +1,59 @@
 <h1>Subjects</h1>
+<p class="cs-lede">Everyone who can hold a role, with their one org-wide role and
+  any per-record scoped roles. Filter to find people; select several to grant a
+  scoped role in one go.</p>
 
-<table class="cs-table">
+<div class="cs-toolbar">
+  <input type="search" class="cs-filter" data-cs-filter
+         placeholder="Filter subjects, roles, records…" aria-label="Filter subjects">
+  <span class="cs-spacer"></span>
+</div>
+<% if @page > 1 || @has_next_page %>
+  <p class="cs-hint">Filtering and selection apply to this page of subjects. Use the pages below to reach the rest.</p>
+<% end %>
+
+<div class="cs-bulk" data-cs-bulk hidden>
+  <strong><span data-cs-bulk-count>0</span> selected</strong>
+  <span class="cs-spacer"></span>
+  <%# Org-wide role for the selection. JS injects the checked subjects as
+      subject_gids[] on submit; blank role clears it for all. %>
+  <%= form_with url: role_assignment_path, method: :post, class: "cs-bulk-org",
+        data: { cs_bulk_org: true } do %>
+    <%= select_tag :role_id, options_from_collection_for_select(@roles, :id, :name),
+          include_blank: "org role…", aria: { label: "Org-wide role for selected" } %>
+    <%= submit_tag "Set for selected", name: nil, class: "cs-btn" %>
+  <% end %>
+  <%= link_to "Grant scoped role…", "#", class: "cs-btn cs-btn-primary",
+        data: { cs_bulk_scoped: true, cs_bulk_url: new_scoped_role_assignment_path } %>
+  <button type="button" class="cs-btn" data-cs-bulk-clear>Clear</button>
+</div>
+
+<div class="cs-card cs-card--flush">
+<table class="cs-table" data-cs-filter-list>
   <thead>
-    <tr><th>Subject</th><th>Org-wide role</th><th>Scoped roles</th></tr>
+    <tr>
+      <th class="cs-select-cell">
+        <input type="checkbox" data-cs-select-all aria-label="Select all subjects">
+      </th>
+      <th>Subject</th><th>Org-wide role</th><th>Scoped roles</th>
+    </tr>
   </thead>
   <tbody>
     <% @subjects.each do |subject| %>
       <% key = [ subject.class.name, subject.id ] %>
-      <tr>
-        <td><%= current_scope_label(subject) %></td>
+      <% label = current_scope_subject_label(subject) %>
+      <%# Filter against a precise text set — subject label, current org role, and
+          scoped roles/records — NOT the row's textContent: every row embeds a
+          <select> listing all role names, which would match every query. %>
+      <% org_role_name = @roles.find { |r| r.id == @assignments[key]&.role_id }&.name %>
+      <% filter_text = [ label, org_role_name,
+                         *(@scoped[key] || []).map { |sra| "#{sra.role.name} #{current_scope_label(sra.resource)}" } ].compact.join(" ") %>
+      <tr data-cs-row data-cs-filter-text="<%= filter_text %>">
+        <td class="cs-select-cell">
+          <input type="checkbox" data-cs-select value="<%= subject.to_gid %>"
+                 aria-label="Select <%= label %>">
+        </td>
+        <td><%= label %></td>
         <td>
           <%= form_with url: role_assignment_path, method: :post do %>
             <%= hidden_field_tag :subject_gid, subject.to_gid %>
@@ -21,17 +66,26 @@
         <td>
           <% (@scoped[key] || []).each do |sra| %>
             <span class="cs-chip">
-              <%= sra.role.name %> of <%= current_scope_label(sra.resource) %>
+              <span class="cs-chip-label"><%= sra.role.name %> of <%= current_scope_label(sra.resource) %></span>
+              <% revoke_prompt = "Revoke #{sra.role.name} on #{current_scope_label(sra.resource)}?" %>
               <%= button_to "×", scoped_role_assignment_path(sra), method: :delete,
-                    class: "cs-chip-remove" %>
+                    class: "cs-chip-remove",
+                    title: "Revoke this scoped role",
+                    form: { data: { cs_confirm: revoke_prompt } },
+                    aria: { label: "Revoke #{sra.role.name} on #{current_scope_label(sra.resource)}" },
+                    data: { turbo_confirm: revoke_prompt } %>
             </span>
           <% end %>
-          <%= link_to "+ scoped role", new_scoped_role_assignment_path(subject_gid: subject.to_gid) %>
+          <%= link_to "+ scoped role", new_scoped_role_assignment_path(subject_gid: subject.to_gid),
+                class: "cs-add-scoped" %>
         </td>
       </tr>
     <% end %>
   </tbody>
 </table>
+</div>
+
+<p class="cs-filter-empty" data-cs-filter-empty hidden>No subjects on this page match your filter.</p>
 
 <nav class="cs-pagination" aria-label="Subjects pagination">
   <% if @page > 1 %><%= link_to "← Previous", subjects_path(page: @page - 1) %><% end %>

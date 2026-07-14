@@ -26,7 +26,9 @@ class ManagementUiTest < ActionDispatch::IntegrationTest
 
     get current_scope.edit_role_url(@member_role), headers: as(@owner)
     assert_response :success
-    assert_match "reports#index", response.body
+    # The grid folds index+show into the "read" CRUD group; its checkbox carries
+    # the controller:group token.
+    assert_match "reports:read", response.body
   end
 
   test "saving the grid replaces permissions and drops keys not in the catalog" do

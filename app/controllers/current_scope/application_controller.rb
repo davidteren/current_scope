@@ -24,5 +24,31 @@ module CurrentScope
     def require_full_access!
       head :forbidden unless CurrentScope.resolver.full_access?(CurrentScope::Current.user)
     end
+
+    def subject_class
+      @subject_class ||= CurrentScope.config.subject_class.constantize
+    end
+
+    # The submitted subject GIDs for a bulk-or-single action: the multi-select
+    # subject_gids[] when present, else the single subject_gid. Raw strings —
+    # pass through locate_subjects to resolve and enforce the subject boundary.
+    def submitted_subject_gids
+      gids = Array(params[:subject_gids]).select(&:present?)
+      gids = [ params[:subject_gid] ].compact if gids.empty?
+      gids
+    end
+
+    # Resolve subject GIDs to records, keeping ONLY instances of the configured
+    # subject_class. A crafted subject_gids[] pointing at some other model must
+    # never create an assignment row for a non-subject — the picker offers only
+    # subjects, so anything else is out of bounds. Dead/unknown GIDs drop out.
+    def locate_subjects(gids)
+      Array(gids).select(&:present?).filter_map do |gid|
+        record = GlobalID::Locator.locate(gid)
+        record if record.is_a?(subject_class)
+      rescue ActiveRecord::RecordNotFound, NameError
+        nil
+      end.uniq # duplicate subject_gids[] must count once (notice + audit accuracy)
+    end
   end
 end

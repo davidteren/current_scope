@@ -1,44 +1,116 @@
-/* CurrentScope — scaffold styles for the mounted management UI.
+/* CurrentScope — the mounted management UI: an authorization console.
  *
- * Decent by default, yours by override. This ships a restrained,
- * host-agnostic look so the mounted UI is presentable the moment you mount
- * it — no build step, no web fonts, system stack only. It commits no brand.
+ * An opinionated, self-contained admin dashboard: a sidebar shell, a
+ * precision-monochrome surface with one cobalt signature accent (the product's
+ * "ledger ink"), monospace for the technical layer (permission keys, action
+ * columns, event types), and first-class light + dark themes. System stack
+ * only — no web fonts, no build step, CSP-safe.
  *
- * Two override paths, both first-class:
- *   1. Redefine the `--cs-*` custom properties below (a light retheme).
- *   2. Override the `.cs-*` classes, or the engine layout, with your own
- *      stylesheet (a full retheme — see the demo app for a worked example).
- * Either way this file is a floor, never a ceiling.
+ * Theming: tokens live on :root. Light is the default; system dark applies via
+ * prefers-color-scheme; an explicit choice is set as html[data-cs-theme] (from
+ * the current_scope_theme cookie, so there's no flash). Retheme by redefining
+ * the --cs-* custom properties; restructure by overriding the .cs-* classes.
+ *
+ * The token defaults sit in a @layer so a host's own (unlayered) :root override
+ * always wins — otherwise the data-cs-theme attribute selectors below would
+ * outweigh a plain :root { --cs-accent: … } in the host stylesheet.
  */
 
+@layer current_scope.tokens {
 :root {
   color-scheme: light;
 
-  /* Palette — ink on paper, one restrained accent. Not brand colors;
-     override these to make the UI your own. */
-  --cs-bg:           oklch(1 0 0);
-  --cs-surface:      oklch(0.976 0.002 264);
-  --cs-surface-2:    oklch(0.962 0.003 264);
-  --cs-line:         oklch(0.905 0.004 264);
-  --cs-line-strong:  oklch(0.795 0.007 264);
-  --cs-ink:          oklch(0.27 0.012 264);
-  --cs-muted:        oklch(0.455 0.014 264);   /* ~5.4:1 on --cs-bg */
+  /* Surfaces — cool near-neutral, ink on paper. */
+  --cs-bg:          oklch(0.992 0.002 264);
+  --cs-surface:     oklch(0.975 0.003 264);
+  --cs-surface-2:   oklch(0.955 0.004 264);
+  --cs-line:        oklch(0.905 0.005 264);
+  --cs-line-strong: oklch(0.80 0.008 264);
 
-  --cs-accent:        oklch(0.505 0.14 264);
-  --cs-accent-strong: oklch(0.43 0.14 264);
-  --cs-accent-wash:   oklch(0.965 0.021 264);
+  /* Ink. */
+  --cs-ink:    oklch(0.26 0.014 264);
+  --cs-ink-2:  oklch(0.18 0.02 264);   /* headings */
+  --cs-muted:  oklch(0.475 0.015 264); /* ~5.4:1 on --cs-bg */
 
-  --cs-danger:       oklch(0.52 0.18 25);
-  --cs-danger-line:  oklch(0.8 0.09 25);
-  --cs-danger-wash:  oklch(0.966 0.017 25);
-  --cs-ok-line:      oklch(0.8 0.07 150);
-  --cs-ok-wash:      oklch(0.964 0.02 150);
+  /* Cobalt signature accent — used with discipline (active nav, primary
+     action, focus, granted state). Rare on purpose. */
+  --cs-accent:        oklch(0.515 0.163 262);
+  --cs-accent-strong: oklch(0.44 0.17 262);
+  --cs-accent-wash:   oklch(0.955 0.03 262);
+  --cs-on-accent:     oklch(0.99 0.01 262);
 
-  --cs-radius: 5px;
+  /* Semantics. */
+  --cs-danger:      oklch(0.53 0.19 25);
+  --cs-danger-line: oklch(0.82 0.09 25);
+  --cs-danger-wash: oklch(0.965 0.018 25);
+  --cs-ok:          oklch(0.58 0.12 150);
+  --cs-ok-line:     oklch(0.82 0.07 150);
+  --cs-ok-wash:     oklch(0.962 0.02 150);
+
+  --cs-radius: 6px;
+  --cs-radius-sm: 4px;
+  --cs-shadow: 0 1px 2px oklch(0.2 0.03 264 / 0.06), 0 4px 12px oklch(0.2 0.03 264 / 0.05);
   --cs-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --cs-mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, monospace;
   --cs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --cs-sidebar-w: 15.5rem;
+  --cs-topbar-h: 3.25rem;
 }
+
+/* Dark tokens, shared by system-dark (no explicit choice) and an explicit
+   data-cs-theme="dark". */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-cs-theme]) {
+    color-scheme: dark;
+    --cs-bg:          oklch(0.172 0.008 264);
+    --cs-surface:     oklch(0.208 0.009 264);
+    --cs-surface-2:   oklch(0.238 0.010 264);
+    --cs-line:        oklch(0.305 0.010 264);
+    --cs-line-strong: oklch(0.41 0.013 264);
+    --cs-ink:    oklch(0.905 0.008 264);
+    --cs-ink-2:  oklch(0.975 0.006 264);
+    --cs-muted:  oklch(0.68 0.013 264);
+    --cs-accent:        oklch(0.70 0.15 262);
+    --cs-accent-strong: oklch(0.78 0.14 262);
+    --cs-accent-wash:   oklch(0.30 0.07 262);
+    --cs-on-accent:     oklch(0.16 0.03 262);
+    --cs-danger:      oklch(0.68 0.17 25);
+    --cs-danger-line: oklch(0.42 0.11 25);
+    --cs-danger-wash: oklch(0.27 0.06 25);
+    --cs-ok:          oklch(0.72 0.13 150);
+    --cs-ok-line:     oklch(0.40 0.08 150);
+    --cs-ok-wash:     oklch(0.26 0.05 150);
+    --cs-shadow: 0 1px 2px oklch(0 0 0 / 0.4), 0 6px 16px oklch(0 0 0 / 0.35);
+  }
+}
+
+/* NB: these dark tokens intentionally duplicate the @media block above — CSS
+   can't share a declaration block between a media query and an attribute
+   selector without a preprocessor. Keep the two in sync on any token change. */
+:root[data-cs-theme="dark"] {
+  color-scheme: dark;
+  --cs-bg:          oklch(0.172 0.008 264);
+  --cs-surface:     oklch(0.208 0.009 264);
+  --cs-surface-2:   oklch(0.238 0.010 264);
+  --cs-line:        oklch(0.305 0.010 264);
+  --cs-line-strong: oklch(0.41 0.013 264);
+  --cs-ink:    oklch(0.905 0.008 264);
+  --cs-ink-2:  oklch(0.975 0.006 264);
+  --cs-muted:  oklch(0.68 0.013 264);
+  --cs-accent:        oklch(0.70 0.15 262);
+  --cs-accent-strong: oklch(0.78 0.14 262);
+  --cs-accent-wash:   oklch(0.30 0.07 262);
+  --cs-on-accent:     oklch(0.16 0.03 262);
+  --cs-danger:      oklch(0.68 0.17 25);
+  --cs-danger-line: oklch(0.42 0.11 25);
+  --cs-danger-wash: oklch(0.27 0.06 25);
+  --cs-ok:          oklch(0.72 0.13 150);
+  --cs-ok-line:     oklch(0.40 0.08 150);
+  --cs-ok-wash:     oklch(0.26 0.05 150);
+  --cs-shadow: 0 1px 2px oklch(0 0 0 / 0.4), 0 6px 16px oklch(0 0 0 / 0.35);
+}
+} /* @layer current_scope.tokens */
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -52,65 +124,239 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1 { font-size: 1.375rem; font-weight: 650; letter-spacing: -0.01em; margin: 0 0 1rem; text-wrap: balance; }
-h2 { font-size: 1.0625rem; font-weight: 600; margin: 1.75rem 0 0.625rem; text-wrap: balance; }
+h1 { font-size: 1.4rem; font-weight: 660; letter-spacing: -0.02em; color: var(--cs-ink-2); margin: 0 0 0.375rem; text-wrap: balance; }
+h2 { font-size: 1.0625rem; font-weight: 600; color: var(--cs-ink-2); margin: 2rem 0 0.75rem; text-wrap: balance; }
 
 a { color: var(--cs-accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
 a:hover { color: var(--cs-accent-strong); }
 
-:focus-visible {
-  outline: 2px solid var(--cs-accent);
-  outline-offset: 2px;
-  border-radius: 3px;
+:focus-visible { outline: 2px solid var(--cs-accent); outline-offset: 2px; border-radius: 3px; }
+
+/* ---- Shell ------------------------------------------------------------ *
+ * A left sidebar (wordmark + section nav) and a scrollable main column with
+ * a sticky topbar. The dense grid lives inside main.
+ */
+
+.cs-shell {
+  display: grid;
+  grid-template-columns: var(--cs-sidebar-w) minmax(0, 1fr);
+  min-height: 100vh;
 }
 
-/* ---- Header ----------------------------------------------------------- */
-
-.cs-header {
+.cs-sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
   display: flex;
-  gap: 1.5rem;
-  align-items: baseline;
-  padding: 0.875rem 1.75rem;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1.125rem 0.75rem;
   background: var(--cs-surface);
-  border-bottom: 2px solid var(--cs-ink);
+  border-right: 1px solid var(--cs-line);
 }
 
-.cs-header > strong {
-  font-size: 1.0625rem;
-  font-weight: 650;
-  letter-spacing: 0.01em;
+.cs-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem 1rem;
+  font-weight: 660;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  color: var(--cs-ink-2);
 }
 
-.cs-header nav { display: flex; gap: 1.25rem; }
+/* A tiny 2x2 "grid" mark — the permission matrix, distilled. */
+.cs-brand-mark {
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 4px;
+  flex: none;
+  background:
+    linear-gradient(var(--cs-accent) 0 0) 0 0 / 45% 45%,
+    linear-gradient(var(--cs-accent) 0 0) 100% 0 / 45% 45%,
+    linear-gradient(var(--cs-line-strong) 0 0) 0 100% / 45% 45%,
+    linear-gradient(var(--cs-accent) 0 0) 100% 100% / 45% 45%;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 0 0 1px var(--cs-line);
+}
 
-.cs-header nav a {
+.cs-nav { display: flex; flex-direction: column; gap: 0.125rem; }
+
+.cs-nav a {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4375rem 0.625rem;
+  border-radius: var(--cs-radius-sm);
   color: var(--cs-muted);
   text-decoration: none;
   font-weight: 500;
   font-size: 0.875rem;
-  padding-bottom: 0.125rem;
-  border-bottom: 2px solid transparent;
+  transition: background 120ms var(--cs-ease), color 120ms var(--cs-ease);
 }
 
-.cs-header nav a:hover { color: var(--cs-ink); }
-.cs-header nav a[aria-current="page"] { color: var(--cs-ink); border-bottom-color: var(--cs-accent); }
+.cs-nav a:hover { color: var(--cs-ink); background: var(--cs-surface-2); }
+
+.cs-nav a[aria-current="page"] {
+  color: var(--cs-ink-2);
+  background: var(--cs-accent-wash);
+  font-weight: 560;
+}
+
+/* the signature accent rail on the active item */
+.cs-nav a[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  left: -0.75rem;
+  top: 0.375rem;
+  bottom: 0.375rem;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--cs-accent);
+}
+
+.cs-sidebar-foot { margin-top: auto; padding: 0.5rem; color: var(--cs-muted); font-size: 0.75rem; }
+
+/* ---- Topbar ----------------------------------------------------------- */
+
+.cs-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  min-height: var(--cs-topbar-h);
+  gap: 1rem;
+  padding: 0.75rem 1.75rem;
+  background: color-mix(in oklch, var(--cs-bg) 82%, transparent);
+  backdrop-filter: saturate(1.4) blur(8px);
+  border-bottom: 1px solid var(--cs-line);
+}
+
+.cs-topbar-title { font-weight: 600; font-size: 0.9375rem; color: var(--cs-ink-2); }
+.cs-topbar-spacer { flex: 1; }
+
+.cs-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.1875rem 0.5rem;
+  border: 1px solid var(--cs-line-strong);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--cs-muted);
+  font-family: var(--cs-mono);
+}
+.cs-badge::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: var(--cs-ok); }
+
+/* Theme toggle — sun/moon glyphs swapped by theme via CSS. */
+.cs-theme-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--cs-line-strong);
+  border-radius: var(--cs-radius-sm);
+  background: var(--cs-surface);
+  color: var(--cs-ink);
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.cs-theme-toggle:hover { border-color: var(--cs-ink); background: var(--cs-surface-2); }
+.cs-theme-toggle .cs-icon-dark { display: none; }
+.cs-theme-toggle .cs-icon-light { display: block; }
+:root[data-cs-theme="dark"] .cs-theme-toggle .cs-icon-dark { display: block; }
+:root[data-cs-theme="dark"] .cs-theme-toggle .cs-icon-light { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-cs-theme]) .cs-theme-toggle .cs-icon-dark { display: block; }
+  :root:not([data-cs-theme]) .cs-theme-toggle .cs-icon-light { display: none; }
+}
 
 /* ---- Main + flashes --------------------------------------------------- */
 
-.cs-main { padding: 1.75rem; max-width: 72rem; margin-inline: auto; }
+.cs-main { min-width: 0; }
+.cs-content { padding: 1.75rem; max-width: 74rem; }
+.cs-lede { color: var(--cs-muted); font-size: 0.875rem; margin: 0 0 1.5rem; max-width: 64ch; }
 
-.cs-notice, .cs-alert {
-  max-width: 72rem;
-  margin: 1rem auto -0.5rem;
+.cs-flash {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1rem 1.75rem -0.5rem;
   padding: 0.5rem 0.875rem;
   border: 1px solid var(--cs-line);
   border-radius: var(--cs-radius);
   font-size: 0.875rem;
 }
+.cs-flash--notice { border-color: var(--cs-ok-line); background: var(--cs-ok-wash); }
+.cs-flash--alert  { border-color: var(--cs-danger-line); background: var(--cs-danger-wash); }
+
+/* In-view flash aliases (form errors use these). */
+.cs-notice, .cs-alert {
+  display: block;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--cs-line);
+  border-radius: var(--cs-radius);
+  font-size: 0.875rem;
+  margin: 0 0 1rem;
+  max-width: 30rem;
+}
 .cs-notice { border-color: var(--cs-ok-line); background: var(--cs-ok-wash); }
 .cs-alert  { border-color: var(--cs-danger-line); background: var(--cs-danger-wash); }
 
 .cs-hint { color: var(--cs-muted); font-size: 0.8125rem; max-width: 68ch; }
+.cs-subtle { color: var(--cs-muted); font-size: 0.8125rem; margin-top: 0.125rem; }
+
+/* ---- Toolbar (page actions) ------------------------------------------- */
+
+.cs-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin: 0 0 1.25rem; }
+.cs-toolbar .cs-spacer { flex: 1; }
+
+/* ---- Filter + bulk (subjects) ----------------------------------------- */
+
+.cs-filter { min-width: min(22rem, 100%); }
+
+.cs-bulk {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--cs-accent);
+  border-radius: var(--cs-radius);
+  background: var(--cs-accent-wash);
+  font-size: 0.875rem;
+}
+/* The bar sets display:flex, which otherwise defeats the [hidden] attribute the
+   JS toggles — keep it hidden until a subject is selected. */
+.cs-bulk[hidden] { display: none; }
+.cs-bulk .cs-spacer { flex: 1; }
+.cs-bulk-org { display: inline-flex; align-items: center; gap: 0.375rem; margin: 0; }
+.cs-bulk-org select { padding: 0.3125rem 0.5rem; }
+
+/* Select column — narrow, centered checkboxes. */
+.cs-select-cell { width: 1%; text-align: center; padding-inline: 0.75rem; }
+
+.cs-filter-empty { color: var(--cs-muted); font-size: 0.875rem; margin: 0.75rem 0; }
+
+/* ---- Cards ------------------------------------------------------------ */
+
+.cs-card {
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-line);
+  border-radius: var(--cs-radius);
+  box-shadow: var(--cs-shadow);
+}
+.cs-card:not(.cs-card--flush) > * { padding-inline: 1.125rem; }
+.cs-card--flush { padding: 0; }
+.cs-card--flush .cs-table th:first-child,
+.cs-card--flush .cs-table td:first-child { padding-left: 1.125rem; }
+.cs-card--flush .cs-table th:last-child,
+.cs-card--flush .cs-table td:last-child { padding-right: 1.125rem; }
 
 /* ---- Tables ----------------------------------------------------------- */
 
@@ -118,12 +364,14 @@ a:hover { color: var(--cs-accent-strong); }
 
 .cs-table th {
   text-align: left;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--cs-muted);
-  border-bottom: 2px solid var(--cs-ink);
-  padding: 0.5rem 0.75rem 0.375rem;
+  background: var(--cs-surface-2);
+  border-bottom: 1px solid var(--cs-line);
+  padding: 0.5rem 0.75rem;
 }
 
 .cs-table td {
@@ -131,97 +379,183 @@ a:hover { color: var(--cs-accent-strong); }
   padding: 0.625rem 0.75rem;
   vertical-align: middle;
 }
+.cs-table tbody tr:last-child td { border-bottom: none; }
+.cs-table tbody tr:hover td { background: var(--cs-surface-2); }
+.cs-mono, .cs-table .cs-mono { font-family: var(--cs-mono); font-size: 0.8125rem; }
 
-.cs-table tbody tr:hover { background: var(--cs-surface); }
-
-/* ---- Permission grid --------------------------------------------------
- * The dense core surface. Legibility under density is the whole job: a
- * clear controller column, quiet cell borders, monospace action keys.
+/* ---- Permission grid — the hero surface -------------------------------
+ * A true matrix: fixed action columns across the top, one row per controller,
+ * a sticky mono controller column down the side. Columns stay ABSOLUTE — a
+ * controller that doesn't route a column's actions shows a blank cell, never a
+ * shifted one. The signature move is the GRANTED state: a checked cell lights
+ * up in the cobalt wash, so access reads at a glance across the whole grid.
  */
 
-.cs-grid { table-layout: auto; }
-
-.cs-grid th, .cs-grid td {
+.cs-grid-wrap {
+  overflow-x: auto;
   border: 1px solid var(--cs-line);
-  padding: 0.4375rem 0.625rem;
-  vertical-align: middle;
+  border-radius: var(--cs-radius);
+  box-shadow: var(--cs-shadow);
+  background: var(--cs-surface);
 }
 
-.cs-grid th {
+.cs-grid { border-collapse: separate; border-spacing: 0; width: 100%; }
+
+/* Column headers — the fixed action/group names. Offset by the sticky topbar
+   height so the topbar doesn't paint over the header while scrolling. */
+.cs-grid thead th {
+  position: sticky;
+  top: var(--cs-topbar-h);
+  z-index: 2;
+  background: var(--cs-surface-2);
+  color: var(--cs-muted);
+  font-family: var(--cs-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  text-align: center;
+  white-space: nowrap;
+  padding: 0.5rem 0.625rem;
+  border-bottom: 1px solid var(--cs-line);
+  border-right: 1px solid var(--cs-line);
+}
+.cs-grid thead th:last-child { border-right: none; }
+.cs-grid thead th.cs-grid-corner {
+  left: 0;
+  z-index: 3;
+  text-align: left;
+  background: var(--cs-surface-2);
+}
+
+/* Sticky controller column. */
+.cs-grid th[scope="row"] {
   position: sticky;
   left: 0;
-  background: var(--cs-surface-2);
-  color: var(--cs-ink);
+  z-index: 1;
+  background: var(--cs-surface);
+  color: var(--cs-ink-2);
+  text-align: left;
+  white-space: nowrap;
+  border-right: 1px solid var(--cs-line);
+  border-bottom: 1px solid var(--cs-line);
+  padding: 0.375rem 0.75rem;
+}
+
+.cs-grid td {
+  border-bottom: 1px solid var(--cs-line);
+  border-right: 1px solid var(--cs-line);
+  padding: 0.375rem;
+  text-align: center;
+  transition: background 120ms var(--cs-ease);
+}
+.cs-grid td:last-child { border-right: none; }
+.cs-grid tr:last-child th[scope="row"],
+.cs-grid tr:last-child td { border-bottom: none; }
+.cs-grid tbody tr:hover th[scope="row"] { background: var(--cs-surface-2); }
+.cs-grid tbody tr:hover td:not(.cs-cell-blank):not(:has(input:checked)) { background: var(--cs-surface-2); }
+
+.cs-grid label { display: inline-flex; align-items: center; justify-content: center; margin: 0; cursor: pointer; }
+
+/* A blank cell — the controller doesn't route this column's actions. A faint
+   marker so the gap reads as "not applicable", not "unchecked". */
+.cs-grid td.cs-cell-blank::after { content: "·"; color: var(--cs-line-strong); font-size: 1rem; }
+
+/* Per-row master toggle ("enable all in this controller") — sits in the sticky
+   row header, reading as a select-all next to the mono controller name. */
+.cs-grid .cs-row-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
   font-family: var(--cs-mono);
   font-size: 0.8125rem;
   font-weight: 600;
-  letter-spacing: 0;
-  white-space: nowrap;
+  color: var(--cs-ink-2);
 }
+.cs-grid .cs-row-all input { flex: none; margin: 0; }
+.cs-grid th[scope="row"]:has([data-cs-row-all]:checked) { background: var(--cs-accent-wash); }
 
-.cs-grid td { text-align: center; }
-.cs-grid tr:hover td { background: var(--cs-surface); }
+/* GRANTED: the cell lights up in cobalt. */
+.cs-grid td:has(input:checked) { background: var(--cs-accent-wash); }
 
-.cs-grid label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  white-space: nowrap;
-  font-family: var(--cs-mono);
-  font-size: 0.8125rem;
-  color: var(--cs-ink);
-  cursor: pointer;
-}
+/* PARTIAL: some-but-not-all of the group is granted. JS also sets the checkbox
+   indeterminate, but this keys off the data attribute so the "partial, not
+   ungranted" state is still visible with JS disabled. */
+.cs-grid td:has(input[data-cs-partial="true"]) { background: var(--cs-accent-wash); }
+.cs-grid input[data-cs-partial="true"] { outline: 2px dashed var(--cs-accent); outline-offset: 1px; }
 
+/* Checkboxes / radios use the accent. */
 input[type="checkbox"], input[type="radio"] {
   accent-color: var(--cs-accent);
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 1rem;
+  height: 1rem;
 }
 
 /* ---- Chips (scoped-role assignments) ---------------------------------- */
 
 .cs-chip {
   display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
+  align-items: stretch;
   border: 1px solid var(--cs-line-strong);
   background: var(--cs-surface);
   border-radius: 999px;
-  padding: 0.0625rem 0.25rem 0.0625rem 0.625rem;
   margin: 0 0.25rem 0.25rem 0;
   font-size: 0.8125rem;
-  line-height: 1.7;
+  overflow: hidden;
 }
+.cs-chip-label { padding: 0.125rem 0.25rem 0.125rem 0.6875rem; align-self: center; }
+.cs-chip form { display: flex; margin: 0; }
 
-.cs-chip form { display: inline; margin: 0; }
-
+/* Revoke control — a clear, labeled × with a divider so it reads as a button. */
 .cs-chip-remove {
   border: none;
+  border-left: 1px solid var(--cs-line);
+  border-radius: 0;
   background: none;
   cursor: pointer;
-  padding: 0 0.25rem;
-  line-height: 1;
+  padding: 0 0.5rem;
   color: var(--cs-muted);
-  font-size: 0.9375rem;
+  font-size: 0.95rem;
+  line-height: 1;
+  transition: background 120ms var(--cs-ease), color 120ms var(--cs-ease);
+}
+.cs-chip-remove:hover, .cs-chip-remove:focus-visible {
+  color: var(--cs-on-accent);
+  background: var(--cs-danger);
+  border-color: var(--cs-danger);
+  outline: none;
+}
+
+/* "+ scoped role" reads as an add affordance. */
+.cs-add-scoped {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  text-decoration: none;
+  color: var(--cs-accent);
+  padding: 0.125rem 0.4375rem;
+  border: 1px dashed var(--cs-line-strong);
   border-radius: 999px;
 }
-.cs-chip-remove:hover { color: var(--cs-danger); background: var(--cs-danger-wash); }
+.cs-add-scoped:hover { border-color: var(--cs-accent); background: var(--cs-accent-wash); }
 
 /* ---- Forms ------------------------------------------------------------ */
 
+/* Scoped to the content region: these layout rules must not reach a form the
+   host might place in the sidebar or topbar. */
 .cs-main form p { margin: 0 0 1rem; max-width: 30rem; }
 
 .cs-main form p > label {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
   color: var(--cs-muted);
-  margin-bottom: 0.3125rem;
+  margin-bottom: 0.375rem;
 }
-
-/* Labels that wrap their own control (checkbox toggles) stay inline. */
 .cs-main form p > label:has(input) {
   display: flex;
   align-items: center;
@@ -229,6 +563,7 @@ input[type="checkbox"], input[type="radio"] {
   font-size: 0.875rem;
   font-weight: 500;
   letter-spacing: 0;
+  text-transform: none;
   color: var(--cs-ink);
   cursor: pointer;
 }
@@ -239,18 +574,18 @@ input[type="search"], select, textarea {
   color: var(--cs-ink);
   background: var(--cs-bg);
   border: 1px solid var(--cs-line-strong);
-  border-radius: var(--cs-radius);
+  border-radius: var(--cs-radius-sm);
   padding: 0.4375rem 0.625rem;
   max-width: 100%;
 }
-
 .cs-main form p > input[type="text"],
 .cs-main form p > input[type="email"],
 .cs-main form p > input[type="password"],
-.cs-main form p > select { width: 100%; }
+.cs-main form p > select,
+.cs-main form p > textarea { width: 100%; }
+textarea { resize: vertical; min-height: 2.5rem; }
 
 input::placeholder { color: var(--cs-muted); opacity: 1; }
-
 input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: 2px solid var(--cs-accent);
   outline-offset: 0;
@@ -259,48 +594,49 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
 /* ---- Buttons ---------------------------------------------------------- */
 
-button, input[type="submit"] {
+button, input[type="submit"], .cs-btn {
   appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
   font: 500 0.875rem var(--cs-font);
   color: var(--cs-ink);
-  background: var(--cs-bg);
+  background: var(--cs-surface);
   border: 1px solid var(--cs-line-strong);
-  border-radius: var(--cs-radius);
+  border-radius: var(--cs-radius-sm);
   padding: 0.4375rem 0.875rem;
   cursor: pointer;
-  transition: background 140ms var(--cs-ease), border-color 140ms var(--cs-ease);
+  text-decoration: none;
+  transition: background 130ms var(--cs-ease), border-color 130ms var(--cs-ease), translate 90ms var(--cs-ease);
 }
-
-button:hover, input[type="submit"]:hover { background: var(--cs-surface); border-color: var(--cs-ink); }
-button:active, input[type="submit"]:active { translate: 0 1px; }
+.cs-btn:hover { color: var(--cs-ink); }
+button:hover, input[type="submit"]:hover, .cs-btn:hover { background: var(--cs-surface-2); border-color: var(--cs-ink); }
+button:active, input[type="submit"]:active, .cs-btn:active { translate: 0 1px; }
 button:disabled, input[type="submit"]:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* Primary submit — the one committed action per form. */
-.cs-main form > p:last-child input[type="submit"] {
-  color: oklch(0.99 0 0);
+/* Primary — the one committed action per form. */
+.cs-btn-primary,
+form > p:last-child input[type="submit"] {
+  color: var(--cs-on-accent);
   background: var(--cs-accent);
   border-color: var(--cs-accent);
 }
-.cs-main form > p:last-child input[type="submit"]:hover {
+.cs-btn-primary:hover,
+form > p:last-child input[type="submit"]:hover {
   background: var(--cs-accent-strong);
   border-color: var(--cs-accent-strong);
 }
 
-/* Inline row actions (Set, ×, Delete) shouldn't shout. */
+.cs-btn-danger { color: var(--cs-danger); border-color: var(--cs-danger-line); }
+.cs-btn-danger:hover { color: var(--cs-on-accent); background: var(--cs-danger); border-color: var(--cs-danger); }
+
+/* Inline row actions shouldn't shout. */
 .cs-table form { display: inline; margin: 0; }
 
-/* ---- Scoped-role picker ----------------------------------------------- *
- * The guided cascade. Its downstream steps live in the #cascade turbo-frame;
- * with no Turbo the frame is an inert wrapper and the steps render inline.
- */
+/* ---- Scoped-role picker ----------------------------------------------- */
 
 .cs-picker turbo-frame { display: block; }
-
-.cs-picker-empty {
-  max-width: 30rem;
-  margin: 0 0 1rem;
-}
-
+.cs-picker-empty { max-width: 30rem; margin: 0 0 1rem; }
 .cs-picker-empty code {
   font-family: var(--cs-mono);
   font-size: 0.8125rem;
@@ -309,27 +645,47 @@ button:disabled, input[type="submit"]:disabled { opacity: 0.5; cursor: not-allow
   border-radius: 3px;
   padding: 0.0625rem 0.25rem;
 }
+.cs-picker-actions { display: flex; align-items: center; gap: 0.625rem; }
+.cs-picker-refresh { font-size: 0.8125rem; color: var(--cs-muted); }
 
-.cs-picker-actions {
+/* ---- Pagination ------------------------------------------------------- */
+
+.cs-pagination {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-}
-
-/* The fallback reload is secondary to the committed Grant action. */
-.cs-picker-refresh {
+  gap: 1rem;
+  margin-top: 1rem;
   font-size: 0.8125rem;
   color: var(--cs-muted);
 }
+.cs-pagination a { text-decoration: none; }
+
+/* ---- Motion ----------------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; }
 }
 
-/* ---- Responsive ------------------------------------------------------- */
+/* ---- Responsive ------------------------------------------------------- *
+ * Collapse the sidebar to a top strip on narrow viewports.
+ */
 
-@media (max-width: 640px) {
-  .cs-main { padding: 1.25rem; }
-  .cs-header { padding: 0.75rem 1.25rem; flex-wrap: wrap; gap: 0.75rem 1.25rem; }
-  .cs-grid { display: block; overflow-x: auto; }
+@media (max-width: 820px) {
+  .cs-shell { grid-template-columns: 1fr; }
+  .cs-sidebar {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.5rem;
+    border-right: none;
+    border-bottom: 1px solid var(--cs-line);
+  }
+  .cs-brand { padding: 0.25rem 0.5rem; }
+  .cs-nav { flex-direction: row; flex-wrap: wrap; }
+  .cs-nav a[aria-current="page"]::before { display: none; }
+  .cs-sidebar-foot { display: none; }
+  .cs-content { padding: 1.25rem; }
+  .cs-topbar { padding: 0.75rem 1.25rem; }
 }

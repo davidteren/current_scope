@@ -62,6 +62,15 @@ module CurrentScope
     # assignable subjects.
     attr_accessor :subject_class
 
+    # How a subject is identified in the management UI (subjects table, picker,
+    # bulk bar). A subject id is meaningless with UUID keys, so pick something
+    # human. Accepts:
+    #   - a Symbol — a method on the subject, e.g. :email or :name
+    #   - a Proc   — subject -> String, e.g. ->(u) { "#{u.first_name} #{u.last_name}" }
+    #   - nil (default) — best-effort, people-first: email, else name, else
+    #     first+last, else the generic current_scope_label / "Class #id".
+    attr_accessor :subject_label
+
     # Tri-state: false | true (default) | :strict — controls
     # CurrentScope::Event.record!.
     #   false   — record! is a silent no-op; hosts that don't want the ledger
@@ -85,6 +94,17 @@ module CurrentScope
     # allowed_to?/scope_for calls.
     attr_accessor :warn_on_nil_sod_record
 
+    # How the role-editor grid folds RESTful actions into columns. An ordered
+    # Hash of { column_label => [action names] }: ticking a group column grants
+    # every routed action in it. The default collapses the seven RESTful verbs
+    # into CRUD — new/create and edit/update pair up (the "new"/"edit" actions
+    # just render the form for their mutation), index+show read as one. Actions
+    # not in any group (e.g. "approve") get their own column. Set to nil (or {})
+    # to show every raw action as its own column instead. Either way the grid
+    # renders ALIGNED columns — a controller that doesn't route a column's
+    # actions shows a blank cell, never a shifted one.
+    attr_accessor :permission_grid_groups
+
     def initialize
       @user_method = :current_user
       @actor_method = nil
@@ -99,6 +119,12 @@ module CurrentScope
       @subject_class = "User"
       @audit = true
       @warn_on_nil_sod_record = false
+      @permission_grid_groups = {
+        "read"    => %w[index show],
+        "create"  => %w[new create],
+        "update"  => %w[edit update],
+        "destroy" => %w[destroy]
+      }
     end
 
     # Guarded writer: enabling impersonated writes is fine in

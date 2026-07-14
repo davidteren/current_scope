@@ -1,4 +1,4 @@
-<h1>Grant a scoped role</h1>
+<h1><%= @bulk_subjects.any? ? "Grant a scoped role to #{@bulk_subjects.size} #{'subject'.pluralize(@bulk_subjects.size)}" : "Grant a scoped role" %></h1>
 
 <p class="cs-hint">
   A scoped role applies only when acting on the chosen record — it never
@@ -29,13 +29,26 @@
           options_from_collection_for_select(@roles, :id, :name, params[:role_id]),
           data: { current_scope_autosubmit: true } %>
   </p>
-  <p>
-    <label>Subject</label>
-    <%= select_tag :subject_gid,
-          options_for_select(@subjects.map { |s| [ current_scope_label(s), s.to_gid.to_s ] },
-                             params[:subject_gid]),
-          data: { current_scope_autosubmit: true } %>
-  </p>
+  <% if @bulk_subjects.any? %>
+    <p>
+      <label>Subjects</label>
+      <span class="cs-hint">
+        Granting to <strong><%= @bulk_subjects.size %></strong>:
+        <%= @bulk_subjects.map { |s| current_scope_subject_label(s) }.to_sentence %>
+      </span>
+      <% @bulk_subjects.each do |s| %>
+        <%= hidden_field_tag "subject_gids[]", s.to_gid.to_s %>
+      <% end %>
+    </p>
+  <% else %>
+    <p>
+      <label>Subject</label>
+      <%= select_tag :subject_gid,
+            options_for_select(@subjects.map { |s| [ current_scope_subject_label(s), s.to_gid.to_s ] },
+                               params[:subject_gid]),
+            data: { current_scope_autosubmit: true } %>
+    </p>
+  <% end %>
 <% end %>
 
 <turbo-frame id="cascade">
@@ -102,11 +115,20 @@
       <%= submit_tag "Show records", name: nil, form: "cs-cascade", class: "cs-picker-refresh" %>
       <%# Grant only a complete selection. Every cascade control autosubmits, so
           params mirror the live picks — the button never posts a stale value. %>
-      <% if params[:role_id].present? && params[:subject_gid].present? && params[:resource_gid].present? %>
+      <% ready = params[:role_id].present? && params[:resource_gid].present? %>
+      <% if @bulk_subjects.any? %>
+        <% if ready %>
+          <%= button_to "Grant to #{@bulk_subjects.size} #{'subject'.pluralize(@bulk_subjects.size)}",
+                scoped_role_assignments_path, method: :post,
+                params: { role_id: params[:role_id], resource_gid: params[:resource_gid],
+                          subject_gids: @bulk_subjects.map { |s| s.to_gid.to_s } },
+                data: { turbo_frame: "_top" }, class: "cs-btn-primary" %>
+        <% end %>
+      <% elsif ready && params[:subject_gid].present? %>
         <%= button_to "Grant scoped role", scoped_role_assignments_path, method: :post,
               params: { role_id: params[:role_id], subject_gid: params[:subject_gid],
                         resource_gid: params[:resource_gid] },
-              data: { turbo_frame: "_top" } %>
+              data: { turbo_frame: "_top" }, class: "cs-btn-primary" %>
       <% end %>
     </p>
   <% end %>

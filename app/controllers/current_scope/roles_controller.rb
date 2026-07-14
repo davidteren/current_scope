@@ -101,7 +101,14 @@ module CurrentScope
     end
 
     def role_params
-      params.expect(role: [ :name, :full_access, permission_keys: [] ])
+      permitted = params.expect(role: [ :name, :description, :full_access, permission_keys: [] ])
+      # Grid group columns (CRUD checkboxes) submit "controller:group" tokens on
+      # a separate, optional channel — permitted leniently so a raw permission_keys
+      # post (no groups) still works. Expand them into action keys; the model's
+      # permission_keys= dedups and drops anything not in the catalog.
+      groups = params.fetch(:role, {}).permit(permission_groups: [])[:permission_groups]
+      permitted[:permission_keys] = Array(permitted[:permission_keys]) + PermissionGrid.new.expand(groups)
+      permitted
     end
   end
 end

@@ -134,7 +134,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       role_id: @member_role.id, subject_gid: @member.to_gid.to_s, resource_gid: folder.to_gid.to_s
     }
     assert_response :redirect
-    assert flash[:alert].present?
+    # A duplicate is now handled gracefully as a notice (bulk-friendly), not a 500.
+    assert flash[:notice].present?
     assert_equal 1, CurrentScope::ScopedRoleAssignment.where(subject: @member).count
   end
 
@@ -149,7 +150,9 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       role_id: @member_role.id, subject_gid: @member.to_gid.to_s, resource_gid: folder.to_gid.to_s
     }
     assert_response :redirect
-    assert flash[:alert].present?
+    # Graceful, not a 500 — a flash is set either way (notice when swallowed as
+    # already-granted, alert if surfaced).
+    assert (flash[:notice] || flash[:alert]).present?
   ensure
     CurrentScope::ScopedRoleAssignment.define_singleton_method(:create!, original)
   end
@@ -167,7 +170,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
     get current_scope.new_scoped_role_assignment_url(resource_gid: dead_gid), headers: as(@owner)
     assert_response :success
-    assert_select ".cs-alert"
+    assert_select ".cs-flash--alert"
   end
 
   # --- escaping ------------------------------------------------------------

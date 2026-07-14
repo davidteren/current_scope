@@ -1,6 +1,10 @@
+<% cs_theme = %w[light dark].include?(cookies[:current_scope_theme]) ? cookies[:current_scope_theme] : nil %>
+<% active = controller_name %>
 <!DOCTYPE html>
-<html>
+<html lang="en"<%= " data-cs-theme=\"#{cs_theme}\"".html_safe if cs_theme %>>
 <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CurrentScope</title>
   <%= csrf_meta_tags %>
   <%= csp_meta_tag %>
@@ -11,20 +15,39 @@
   <%= javascript_include_tag "current_scope/application", defer: true %>
 </head>
 <body>
-  <header class="cs-header">
-    <strong>CurrentScope</strong>
-    <nav>
-      <%= link_to "Roles", current_scope.roles_path %>
-      <%= link_to "Subjects", current_scope.subjects_path %>
-      <%= link_to "Events", current_scope.events_path %>
-    </nav>
-  </header>
+  <div class="cs-shell">
+    <aside class="cs-sidebar">
+      <div class="cs-brand"><span class="cs-brand-mark" aria-hidden="true"></span> CurrentScope</div>
+      <nav class="cs-nav" aria-label="Management">
+        <%= link_to "Roles", current_scope.roles_path,
+              "aria-current": ("page" if active == "roles") %>
+        <%= link_to "Subjects", current_scope.subjects_path,
+              "aria-current": ("page" if %w[subjects scoped_role_assignments].include?(active)) %>
+        <%= link_to "Events", current_scope.events_path,
+              "aria-current": ("page" if active == "events") %>
+      </nav>
+      <div class="cs-sidebar-foot">Authorization console</div>
+    </aside>
 
-  <% if notice.present? %><p class="cs-notice"><%= notice %></p><% end %>
-  <% if alert.present? %><p class="cs-alert"><%= alert %></p><% end %>
+    <div class="cs-main">
+      <div class="cs-topbar">
+        <span class="cs-topbar-title">Authorization</span>
+        <span class="cs-topbar-spacer"></span>
+        <span class="cs-badge">full access</span>
+        <button type="button" class="cs-theme-toggle" data-cs-theme-toggle
+                aria-label="Toggle dark mode" aria-pressed="<%= cs_theme == "dark" %>">
+          <span class="cs-icon-light" aria-hidden="true">☾</span>
+          <span class="cs-icon-dark" aria-hidden="true">☀</span>
+        </button>
+      </div>
 
-  <main class="cs-main">
-    <%= yield %>
-  </main>
+      <% if notice.present? %><p class="cs-flash cs-flash--notice" role="status"><%= notice %></p><% end %>
+      <% if alert.present? %><p class="cs-flash cs-flash--alert" role="alert"><%= alert %></p><% end %>
+
+      <main class="cs-content">
+        <%= yield %>
+      </main>
+    </div>
+  </div>
 </body>
 </html>

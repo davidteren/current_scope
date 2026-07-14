@@ -3,6 +3,9 @@ Rails.application.routes.draw do
     post :approve, on: :member
   end
 
+  # A full RESTful resource so the permission grid has every CRUD column.
+  resources :documents
+
   resources :webhooks, only: :create
   get "bare", to: "bare#show"
   get "identity", to: "identity#show"

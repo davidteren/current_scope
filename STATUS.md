@@ -91,13 +91,31 @@ engine via an in-tree vendored path gem, and CI needs no external checkout.
       insecure. dev/test/staging unaffected; `false` never raises.
       (`test/configuration_test.rb`)
 
-**Engine suite: 144 runs green; RuboCop omakase clean.** CI green on both repos.
+### Readiness remediation — A1–A13 (branch `feat/readiness-p0`, PR #5)
+
+Worked `docs/READINESS-AUDIT.md` end to end (plan:
+`docs/plans/2026-07-12-002-...`), P0→P4, all test-first:
+
+- [x] **P0** — gemspec Rails floor corrected (A1); loud `actor_method` check at
+      the impersonation-boundary API (A2); host test helpers `grant_role!` /
+      `grant_scoped_role!` (A3).
+- [x] **P1** — audit tri-state `config.audit = :strict` (A6); `GatingTripwire`
+      mixin for ungated controllers (A4); SoD nil-record characterization +
+      opt-in nudge (A5).
+- [x] **P2** — `scope_for` STI `base_class` fix (A7); namespaced key-drift docs
+      (A8); **Rails floor proven → raised to `>= 8.1`** (A9; `params.expect`
+      array semantics need 8.1). Also fixed `with_current_user` restore + test
+      isolation.
+- [x] **P3** — `config.audit` discoverable (A10); `current_scope:grant` rake
+      task (A11); subjects/events pagination (A12·1); picker search hook (A12·2).
+- [x] **P4** — CHANGELOG + gemspec metadata; `gem build` warning-clean (A13).
+
+**Engine suite: 181 runs green; RuboCop omakase clean; `gem build` clean.**
 
 ## Next
 
-1. **Publish to RubyGems** — the headline gap. Push a `0.1.0` (or `0.2.0`) gem,
-   then swap the showcase's vendored path gem for `gem "current_scope"`. CI +
-   gemspec metadata already point at `davidteren/current_scope`.
+1. **Publish to RubyGems** — now prepped (A13). Merge PR #5, tag `v0.1.0`, push
+   the gem, then swap the showcase's vendored path gem for `gem "current_scope"`.
 2. **v0.2 break-glass (`allow_sod_bypass`)** — privileged, audited override of
    the SoD veto (opt-in, default-off, recorded at the mutation gate). Designed;
    plan doc pending (see MemPalace `current_scope/decisions`).

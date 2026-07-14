@@ -15,4 +15,13 @@ class GemspecTest < ActiveSupport::TestCase
     # Guard against the old false ">= 7.1" claim.
     assert_not_includes reqs, ">= 7.1"
   end
+
+  test "carries publish metadata and no duplicate homepage/source uri (warning-clean build)" do
+    meta = SPEC.metadata
+    assert_equal "true", meta["rubygems_mfa_required"]
+    assert_match %r{/CHANGELOG\.md\z}, meta["changelog_uri"].to_s
+    # The dup-uri gem-build warning fires when homepage_uri == source_code_uri;
+    # we don't set source_code_uri, so that can't happen.
+    assert_nil meta["source_code_uri"]
+  end
 end

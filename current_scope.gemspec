@@ -13,8 +13,11 @@ Gem::Specification.new do |spec|
                      "makes allowed_to? work identically in controllers, views, and components."
   spec.license     = "MIT"
 
-  spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = spec.homepage
+  # homepage_uri is derived from spec.homepage (the source repo). Setting
+  # source_code_uri to the same URL warns ("only the first is shown"), so give
+  # rubygems distinct, useful links instead.
+  spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  spec.metadata["rubygems_mfa_required"] = "true"
 
   spec.files = Dir.chdir(File.expand_path(__dir__)) do
     Dir["{app,config,db,lib}/**/*", "MIT-LICENSE", "Rakefile", "README.md"]

@@ -401,11 +401,13 @@ a:hover { color: var(--cs-accent-strong); }
 
 .cs-grid { border-collapse: separate; border-spacing: 0; width: 100%; }
 
-/* Column headers — the fixed action/group names. Offset by the sticky topbar
-   height so the topbar doesn't paint over the header while scrolling. */
+/* Column headers — the fixed action/group names. Sticky to the TOP OF THE GRID
+   WRAPPER (its sticky containing block, because .cs-grid-wrap sets overflow-x) —
+   so top:0, NOT the topbar height: any positive offset here pushes the header
+   down over the first data row instead of pinning it under the page topbar. */
 .cs-grid thead th {
   position: sticky;
-  top: var(--cs-topbar-h);
+  top: 0;
   z-index: 2;
   background: var(--cs-surface-2);
   color: var(--cs-muted);

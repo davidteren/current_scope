@@ -1,0 +1,19 @@
+Gemfile.lock
+  s_ac397ea66e89bb::t_30f67f4727e823 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "309473848376c14567d53ed002644102117a62e5",
+  "prompts": {},
+  "sessions": {
+    "s_ac397ea66e89bb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c56185c9-14de-424b-9982-5948dd7acb3e",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

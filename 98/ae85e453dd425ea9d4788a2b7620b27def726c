@@ -1,0 +1,20 @@
+docs/ROADMAP.md
+  s_e7ad10274cb2b2::t_bfb6bd2b073fe3 46-48
+  s_e7ad10274cb2b2::t_080410220b8e1e 191-194
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "98ae85e453dd425ea9d4788a2b7620b27def726c",
+  "prompts": {},
+  "sessions": {
+    "s_e7ad10274cb2b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e05e87c6-5f4f-4820-a7a5-01ed3f5a1285",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

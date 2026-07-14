@@ -1,5 +1,9 @@
 # CurrentScope
 
+[![Gem Version](https://img.shields.io/gem/v/current_scope)](https://rubygems.org/gems/current_scope)
+[![CI](https://github.com/davidteren/current_scope/actions/workflows/ci.yml/badge.svg)](https://github.com/davidteren/current_scope/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](MIT-LICENSE)
+
 **Authorization as data you edit in a UI, not rules you hardcode and redeploy —
 with one ambient context that makes `allowed_to?` work identically in
 controllers, views, and components.**

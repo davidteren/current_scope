@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-14
+
 ### Added
 - Impersonation / act-as: `Current` carries the real `actor` alongside the
   effective `user`; `config.actor_method`, `config.sod_identity`, and a
@@ -47,5 +49,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   so `allowed_to?` works identically in controllers, views, and ViewComponents,
   the mounted management UI, and the `current_scope:install` generator.
 
-[Unreleased]: https://github.com/davidteren/current_scope/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/davidteren/current_scope/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/davidteren/current_scope/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/davidteren/current_scope/releases/tag/v0.1.0

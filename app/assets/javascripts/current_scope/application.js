@@ -15,3 +15,23 @@ document.addEventListener("change", function (event) {
   var form = el.form || el.closest("form");
   if (form) form.requestSubmit();
 });
+
+// Light/dark theme toggle. Progressive enhancement: the server already renders
+// the chosen theme from the cs_theme cookie (so there's no flash), and defaults
+// to the OS preference when no cookie is set. This just flips the choice live
+// and persists it. CSP-safe (served asset, no inline handler).
+document.addEventListener("click", function (event) {
+  var btn = event.target.closest && event.target.closest("[data-cs-theme-toggle]");
+  if (!btn) return;
+
+  var root = document.documentElement;
+  var current = root.getAttribute("data-cs-theme");
+  var effectiveDark = current
+    ? current === "dark"
+    : window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var next = effectiveDark ? "light" : "dark";
+
+  root.setAttribute("data-cs-theme", next);
+  document.cookie = "cs_theme=" + next + ";path=/;max-age=31536000;samesite=lax";
+  btn.setAttribute("aria-pressed", String(next === "dark"));
+});

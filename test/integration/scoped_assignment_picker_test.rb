@@ -167,7 +167,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
     get current_scope.new_scoped_role_assignment_url(resource_gid: dead_gid), headers: as(@owner)
     assert_response :success
-    assert_select ".cs-alert"
+    assert_select ".cs-flash--alert"
   end
 
   # --- escaping ------------------------------------------------------------

@@ -1,7 +1,13 @@
 <h1>Roles</h1>
+<p class="cs-lede">A role is an editable bundle of permissions. Edit one to tick
+  its controller&times;action grid; grants take effect on the subject's next request.</p>
 
-<p><%= link_to "New role", new_role_path %></p>
+<div class="cs-toolbar">
+  <span class="cs-spacer"></span>
+  <%= link_to "New role", new_role_path, class: "cs-btn cs-btn-primary" %>
+</div>
 
+<div class="cs-card cs-card--flush">
 <table class="cs-table">
   <thead>
     <tr><th>Name</th><th>Access</th><th></th></tr>
@@ -25,3 +31,4 @@
     <% end %>
   </tbody>
 </table>
+</div>

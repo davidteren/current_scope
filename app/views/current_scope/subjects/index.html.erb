@@ -1,5 +1,8 @@
 <h1>Subjects</h1>
+<p class="cs-lede">Everyone who can hold a role, with their one org-wide role and
+  any per-record scoped roles. Assign or revoke inline.</p>
 
+<div class="cs-card cs-card--flush">
 <table class="cs-table">
   <thead>
     <tr><th>Subject</th><th>Org-wide role</th><th>Scoped roles</th></tr>
@@ -32,6 +35,7 @@
     <% end %>
   </tbody>
 </table>
+</div>
 
 <nav class="cs-pagination" aria-label="Subjects pagination">
   <% if @page > 1 %><%= link_to "← Previous", subjects_path(page: @page - 1) %><% end %>

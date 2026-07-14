@@ -1,10 +1,10 @@
 <h1>Events</h1>
-
-<p class="cs-hint">
+<p class="cs-lede">
   The append-only authorization ledger, newest first. Every string here is
   host- or visitor-controlled, so it renders escaped.
 </p>
 
+<div class="cs-card cs-card--flush">
 <table class="cs-table">
   <thead>
     <tr>
@@ -32,6 +32,7 @@
     <% end %>
   </tbody>
 </table>
+</div>
 
 <nav class="cs-pagination" aria-label="Events pagination">
   <% if @page > 1 %><%= link_to "← Previous", events_path(page: @page - 1) %><% end %>

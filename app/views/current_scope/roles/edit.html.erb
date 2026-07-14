@@ -20,24 +20,26 @@
   </p>
 
   <%= hidden_field_tag "role[permission_keys][]", "" %>
-  <table class="cs-table cs-grid">
-    <% granted = @role.permission_keys.to_set %>
-    <% CurrentScope.catalog.grouped.sort.each do |controller, actions| %>
-      <tr>
-        <th><%= controller %></th>
-        <% actions.sort.each do |action| %>
-          <% key = "#{controller}##{action}" %>
-          <td>
-            <label>
-              <%= check_box_tag "role[permission_keys][]", key, granted.include?(key),
-                    id: "perm_#{key.parameterize(separator: "_")}" %>
-              <%= action %>
-            </label>
-          </td>
-        <% end %>
-      </tr>
-    <% end %>
-  </table>
+  <div class="cs-grid-wrap">
+    <table class="cs-grid">
+      <% granted = @role.permission_keys.to_set %>
+      <% CurrentScope.catalog.grouped.sort.each do |controller, actions| %>
+        <tr>
+          <th scope="row"><%= controller %></th>
+          <% actions.sort.each do |action| %>
+            <% key = "#{controller}##{action}" %>
+            <td>
+              <label>
+                <%= check_box_tag "role[permission_keys][]", key, granted.include?(key),
+                      id: "perm_#{key.parameterize(separator: "_")}" %>
+                <%= action %>
+              </label>
+            </td>
+          <% end %>
+        </tr>
+      <% end %>
+    </table>
+  </div>
 
   <p><%= f.submit "Save role" %></p>
 <% end %>

@@ -29,8 +29,10 @@ module CurrentScope
       # current_scope_label is id-based. Covers `email` and Rails 8 auth's
       # `email_address`. Config overrides this entirely.
       full_name = [ subject.try(:first_name), subject.try(:last_name) ].compact.join(" ").presence
-      subject.try(:email) || subject.try(:email_address) ||
-        subject.try(:name) || full_name || current_scope_label(subject)
+      # .presence on each identifier: a stored empty/whitespace email ("") is
+      # truthy in Ruby and would otherwise short-circuit to a blank label.
+      subject.try(:email).presence || subject.try(:email_address).presence ||
+        subject.try(:name).presence || full_name || current_scope_label(subject)
     end
 
     # The configured subject_label (Symbol or Proc) applied to a subject, or nil

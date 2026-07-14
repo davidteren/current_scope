@@ -56,7 +56,25 @@ module CurrentScope
       )
       raise CurrentScope::AccessDenied.new(permission, reason: reason) unless allowed
 
+      record_sod_bypass(permission, record) if reason == :sod_bypassed
       nudge_on_nil_sod_record(permission, record)
+    end
+
+    # Break-glass audit (KTD-1): the resolver stays pure and only reports
+    # :sod_bypassed; the Guard — which runs once per REAL gated action, never on
+    # advisory allowed_to?/scope_for — records the override exactly once and
+    # surfaces it on the response. Recorded for ANY verb: the guarantee is
+    # "every bypass is audited", so if a host ever routes an SoD action to GET,
+    # the bypass still leaves its trail rather than slipping through unlogged.
+    # Event.record! is a no-op when config.audit is false, so an audit-off host
+    # still permits, records nothing — consistent with the rest of the ledger.
+    def record_sod_bypass(permission, record)
+      initiator = record.send(CurrentScope::Resolver::INITIATOR_METHOD)
+      CurrentScope::Event.record!(
+        event: "sod.bypassed", target: record,
+        details: { permission: permission, initiator: initiator&.to_gid&.to_s }
+      )
+      response.set_header("X-Current-Scope-Reason", "sod_bypassed")
     end
 
     # A5 dev/test aid (opt-in): the request was ALLOWED, but if it's an SoD

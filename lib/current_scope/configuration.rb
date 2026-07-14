@@ -71,6 +71,30 @@ module CurrentScope
     #     first+last, else the generic current_scope_label / "Class #id".
     attr_accessor :subject_label
 
+    # Break-glass override for the SoD veto. Default false — OFF preserves v0.1
+    # exactly: the separation-of-duties veto is absolute and this hook is never
+    # consulted. When true, the veto is lifted for a record ONLY when all three
+    # hold, re-checked live at decision time: this flag is on, the record's
+    # `current_scope_sod_bypassed?` hook returns true, AND the record's initiator
+    # holds the bypass permission (sod_bypass_permission). Every lifted veto is
+    # recorded by the engine (`sod.bypassed`) and surfaced on
+    # X-Current-Scope-Reason.
+    #
+    # HONEST FRAMING: this converts SoD from a *structural* guarantee into an
+    # *audited policy override* — it's break-glass, not SoD. Its legitimacy rests
+    # on being default-off, privilege-gated, and always audited. Unlike
+    # allow_mutations_while_impersonating there is NO production env-gate: the
+    # feature is per-record, privilege-scoped, and audited-by-construction, so
+    # production is its intended home.
+    attr_accessor :allow_sod_bypass
+
+    # The grantable permission the record's initiator must hold for a break-glass
+    # bypass to lift the veto (default "bypass_sod"). Resolved against the
+    # record's route key like any permission, so it's editable in the role grid —
+    # never a hardcoded role. Must NOT be listed in sod_actions (it isn't an SoD
+    # action; keeping it out also bounds the bypass re-entrancy).
+    attr_accessor :sod_bypass_permission
+
     # Tri-state: false | true (default) | :strict — controls
     # CurrentScope::Event.record!.
     #   false   — record! is a silent no-op; hosts that don't want the ledger
@@ -110,6 +134,8 @@ module CurrentScope
       @actor_method = nil
       @sod_actions = []
       @sod_identity = :either
+      @allow_sod_bypass = false
+      @sod_bypass_permission = "bypass_sod"
       @allow_mutations_while_impersonating = false
       @excluded_controllers = [
         %r{\Arails/}, %r{\Aactive_storage/}, %r{\Aaction_mailbox/},

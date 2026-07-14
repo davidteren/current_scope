@@ -7,9 +7,10 @@ require "current_scope/context"
 require "current_scope/scopeable"
 require "current_scope/mutation_guard"
 require "current_scope/guard"
+require "current_scope/gating_tripwire"
 require "current_scope/engine"
 
-module CurrentScope
+module  CurrentScope
   # Raised when the resolver denies an action gated by Guard (or when the
   # management UI is accessed without a full-access role). Carries an optional
   # machine-readable reason (:sod_veto, :no_grant, :impersonation_gate).
@@ -115,10 +116,12 @@ module CurrentScope
     # so an ambient-only recorder would lose who was impersonated. Call these
     # from the host's start/stop-impersonation endpoints.
     def record_impersonation_started!(subject)
+      require_actor_method!
       Event.record!(event: "impersonation.started", target: subject)
     end
 
     def record_impersonation_stopped!(subject)
+      require_actor_method!
       Event.record!(event: "impersonation.stopped", target: subject)
     end
 
@@ -128,6 +131,37 @@ module CurrentScope
     def seed_defaults!
       Role.find_or_create_by!(name: "Owner") { |r| r.full_access = true }
       Role.find_or_create_by!(name: "Member")
+    end
+
+    # Bootstrap the first admin: assign a role (default: the full_access Owner)
+    # to `subject` as its one org-wide role. Idempotent — re-running sets the
+    # same subject's org role to `role` rather than creating a duplicate (which
+    # the one-role-per-subject uniqueness would reject anyway). Backs the
+    # `current_scope:grant` rake task, so a fresh install doesn't need a console.
+    def grant!(subject, role: nil)
+      seed_defaults!
+      role ||= Role.find_by!(name: "Owner")
+      RoleAssignment.find_or_initialize_by(subject: subject).tap { |a| a.update!(role: role) }
+    end
+
+    private
+
+    # A2: the boundary events are the one place a host declares it is actually
+    # impersonating. If actor_method is unset there, the entire act-as security
+    # model is silently inert — so fail LOUD instead of recording an
+    # impersonation with no real actor behind it. (The permission path can't
+    # detect this: with actor_method nil, actor falls back to user, so
+    # impersonating? is always false and a per-request check would nag every
+    # RBAC-only host. This seam only fires when the host declares intent.)
+    def require_actor_method!
+      return unless config.actor_method.nil?
+
+      raise ConfigurationError,
+            "impersonation boundary event recorded while config.actor_method is unset. " \
+            "Act-as security is inert without it: the read-only-while-impersonating " \
+            "MutationGuard never engages, the SoD :either veto can't fire, and audit rows " \
+            "are attributed to the impersonated subject instead of the real actor. Set " \
+            "config.actor_method to the controller method that returns the real actor."
     end
   end
 end

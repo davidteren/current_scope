@@ -67,13 +67,37 @@ class SessionsController < ApplicationController
 end
 ```
 
-Seed the baseline roles and give yourself the keys:
+**Assumption #1: every controller descends from a `Guard`'d base.** An action on
+a controller that never includes `Guard` (an API base, a hand-rolled
+`ActionController::Base`) is silently ungated. To catch that in dev/test, include
+the optional `CurrentScope::GatingTripwire` on the base you want verified — it
+raises after any action that didn't run the gate, and carries its own
+`current_scope_skip_tripwire!` marker for genuinely-public actions (you can't use
+`skip_before_action :current_scope_check!` on a controller that never defined
+that callback — it raises at class load):
 
 ```ruby
-# db/seeds.rb
-CurrentScope.seed_defaults!   # Owner (full_access) + Member
-CurrentScope::RoleAssignment.create!(
-  subject: User.first, role: CurrentScope::Role.find_by!(name: "Owner"))
+class ApiController < ActionController::Base
+  include CurrentScope::GatingTripwire
+  current_scope_skip_tripwire! only: :health
+end
+```
+
+It's an `after_action`, so it can't see an action that renders from a
+`before_action` (halted chain) — a strong aid, not total coverage.
+
+Bootstrap the first admin (the management UI needs a full-access subject to
+enter, so the first grant can't happen in the UI). One command:
+
+```bash
+bin/rails current_scope:grant SUBJECT_ID=1   # grants the full-access Owner role
+```
+
+or in `db/seeds.rb`:
+
+```ruby
+CurrentScope.seed_defaults!            # Owner (full_access) + Member
+CurrentScope.grant!(User.first)        # give the first user the Owner role
 ```
 
 Then manage everything at `/current_scope` (full-access subjects only): the
@@ -93,13 +117,22 @@ allowed_to?(:create, Report)          # class form for collection actions
 allowed_to?("admin/reports#approve")  # explicit key when you need it
 ```
 
-Key derivation always agrees with the gate: when the *current* controller
-handles the record's type (including under a namespace — `admin/reports` for
-a `Report`), its controller path wins; otherwise the record's route key is
-used. Cross-resource checks (`allowed_to?(:approve, report)` from a projects
-view) therefore resolve to `reports#approve`, while the same call inside
-`Admin::ReportsController` resolves to `admin/reports#approve` — exactly what
-the Guard enforces there.
+Key derivation agrees with the gate **when the current controller's path ends
+in the record's route key**: inside `Admin::ReportsController` (path
+`admin/reports`, route key `reports`), `allowed_to?(:approve, report)` resolves
+to `admin/reports#approve` — exactly what the Guard enforces there — and a
+cross-resource check from a projects view resolves to `reports#approve`.
+
+> **Residual foot-gun — namespaced/custom-named controllers.** When a
+> controller's path segment differs from the record's route key (e.g. a
+> `DashboardController` that renders `Report`s: path `dashboard`, route key
+> `reports`), the short-form `allowed_to?(:show, report)` derives
+> `reports#show` while the Guard enforces `dashboard#show` — so a link may show
+> that then 403s (or hide that would work). The Guard stays authoritative, so
+> this is a display bug, not a bypass. **In such controllers, prefer the
+> explicit full key** — `allowed_to?("dashboard#show")` — which removes the
+> ambiguity. The short form is only guaranteed to match the gate when path
+> segment == route key.
 
 ```ruby
 class ApproveButtonComponent < ViewComponent::Base
@@ -200,6 +233,16 @@ record whose class doesn't define the hook, the resolver raises a
 `ConfigurationError` instead of silently permitting. Return `nil` from the hook
 to exempt a record type, or trim `config.sod_actions`.
 
+> **An SoD-gated member action MUST return its record from `current_scope_record`.**
+> This is the one asymmetry to know: a *present* record with a *missing*
+> initiator hook raises (above), but if `current_scope_record` returns **nil**
+> on an SoD member action, the veto is *skipped* — an org-wide-granted subject
+> (including the initiator) passes. `nil` is legitimate for collection actions,
+> so the resolver can't tell the two apart and won't raise. Returning the record
+> on member actions is therefore the load-bearing control. As a dev/test aid,
+> set `config.warn_on_nil_sod_record = true` to log a nudge whenever an allowed
+> SoD action was gated with a nil record.
+
 With `sod_actions` empty (the default), the veto step is a no-op and the
 resolver is simply `full_access → org-wide role → scoped role → deny`. No model
 needs `current_scope_initiator` — the `ConfigurationError` above only fires for
@@ -226,6 +269,14 @@ and `sod_identity` — are grouped in their own block and covered under
 `sod_identity` is only observable once a mutation is allowed past the read-only
 gate.
 
+The **audit ledger** is controlled by `config.audit` — tri-state
+`false | true | :strict`. `false` records nothing; `true` (the default) records
+every authorization change and degrades gracefully (skip + warn once) if the
+events table isn't migrated; `:strict` **raises** on a missing events table so
+an audit-mandatory app never commits an unaudited change (the mutation rolls
+back). `config.warn_on_nil_sod_record` (default off) is a dev/test aid — see the
+[Separation of duties](#separation-of-duties-opt-in) note.
+
 Two loud-by-design behaviors: a controller excluded from the catalog can't be
 granted, so gating it is a misconfiguration — Guard raises and tells you to
 either stop excluding it or `skip_before_action :current_scope_check!`. And a
@@ -248,6 +299,19 @@ Point `actor_method` at the host method that returns the real actor:
 # config/initializers/current_scope.rb
 config.actor_method = :true_user
 ```
+
+> **`actor_method` is security-critical, not an optional extra.** The entire
+> act-as security model keys off `actor != user`. If you impersonate but leave
+> `actor_method` unset, `actor` falls back to `user`, so it all *looks* fine in
+> manual testing while being silently inert: the read-only-while-impersonating
+> `MutationGuard` never engages, the SoD `:either` veto can't fire, and every
+> audit row is attributed to the impersonated subject instead of the real
+> admin. The permission path can't detect this, but the boundary API can:
+> calling `CurrentScope.record_impersonation_started!` with `actor_method` unset
+> **raises** — that call is your declaration that impersonation is live, so a
+> missing `actor_method` there is unambiguously a misconfiguration. (A host that
+> impersonates without ever calling the boundary API gets no runtime signal —
+> so set `actor_method` whenever you set up act-as.)
 
 The host owns the act-as switch — CurrentScope only reads it. The recipe:
 
@@ -362,6 +426,29 @@ class ApproveButtonComponentTest < ViewComponent::TestCase
       render_inline ApproveButtonComponent.new(report: reports(:pending))
       assert_selector "button", text: "Approve"
     end
+  end
+end
+```
+
+`with_current_user` is for in-process unit/view/component checks. To test your
+own controllers **behind the gate** in a request or system spec, seed real
+grants with `grant_role!` / `grant_scoped_role!` — they persist assignment rows
+that survive the request cycle (which `with_current_user` cannot, since
+`Context` re-resolves the subject on every real request). They seed grants only;
+your app still signs the subject in through its own auth:
+
+```ruby
+class ReportsAccessTest < ActionDispatch::IntegrationTest
+  include CurrentScope::TestHelpers
+
+  test "a reviewer can list but not destroy" do
+    reviewer = users(:reviewer)
+    grant_role!(reviewer, role: roles(:member))              # org-wide grant
+    grant_scoped_role!(reviewer, role: roles(:viewer), record: reports(:q3))  # one record
+
+    sign_in reviewer            # your app's own auth
+    get reports_path
+    assert_response :success
   end
 end
 ```

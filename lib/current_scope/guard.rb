@@ -31,6 +31,9 @@ module CurrentScope
     private
 
     def current_scope_check!
+      # Record that the gate ran, so an optional GatingTripwire (A4) can tell a
+      # gated action from one on a controller that never included Guard.
+      @current_scope_checked = true
       permission = "#{controller_path}##{action_name}"
 
       # An excluded controller can never be granted in the grid, so gating it
@@ -52,6 +55,25 @@ module CurrentScope
         record: record, actor: CurrentScope::Current.actor
       )
       raise CurrentScope::AccessDenied.new(permission, reason: reason) unless allowed
+
+      nudge_on_nil_sod_record(permission, record)
+    end
+
+    # A5 dev/test aid (opt-in): the request was ALLOWED, but if it's an SoD
+    # action gated with a nil record, the SoD veto was silently skipped — a sign
+    # current_scope_record returned nil on a member action. Lives here (the gate
+    # seam), not in the shared resolver, so it never fires on advisory
+    # allowed_to?/scope_for calls. Prod behavior is unchanged either way.
+    def nudge_on_nil_sod_record(permission, record)
+      return unless CurrentScope.config.warn_on_nil_sod_record
+      return unless record.nil?
+      return unless CurrentScope.config.sod_actions.include?(permission.split("#").last)
+
+      Rails.logger&.warn(
+        "[CurrentScope] \"#{permission}\" is a separation-of-duties action but was gated with a " \
+        "nil record, so the SoD veto was skipped. If this is a member action, current_scope_record " \
+        "must return the record; if it's a collection action, this is expected."
+      )
     end
   end
 end

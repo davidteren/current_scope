@@ -41,6 +41,20 @@ CurrentScope.configure do |config|
   # resolver raises if the hook is missing. Leave commented for RBAC-only apps.
   # config.sod_actions = %w[approve]
 
+  # Audit ledger — tri-state: false | true (default) | :strict.
+  #   false   — no audit rows recorded.
+  #   true    — record every authorization change; if the events table hasn't
+  #             been migrated yet, degrade gracefully (skip + warn once).
+  #   :strict — a missing events table RAISES (rolling the mutation back), so an
+  #             audit-mandatory app never commits an unaudited change.
+  # config.audit = true
+
+  # Dev/test aid: log a nudge when an SoD action is ALLOWED but was gated with a
+  # nil record — i.e. the SoD veto was silently skipped because
+  # current_scope_record returned nil on a member action. Off by default; never
+  # changes behavior.
+  # config.warn_on_nil_sod_record = false
+
   # Controller paths (regexps) excluded from the permission grid. Excluded
   # controllers can't be granted, so they must also skip the gate with
   # skip_before_action :current_scope_check! — Guard raises otherwise.

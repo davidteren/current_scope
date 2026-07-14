@@ -32,3 +32,9 @@
     <% end %>
   </tbody>
 </table>
+
+<nav class="cs-pagination" aria-label="Events pagination">
+  <% if @page > 1 %><%= link_to "← Previous", events_path(page: @page - 1) %><% end %>
+  <span>Page <%= @page %></span>
+  <% if @has_next_page %><%= link_to "Next →", events_path(page: @page + 1) %><% end %>
+</nav>

@@ -18,12 +18,36 @@ module CurrentScope
     # snapshot that fallback and restore a stale actor. Saving the underlying
     # hash restores the true prior state.
     def with_current_user(user, actor: nil)
-      previous = CurrentScope::Current.attributes
+      # dup: on Rails 8.0 `attributes` returns the LIVE hash, so without a copy
+      # the assignments below would mutate our own snapshot.
+      previous = CurrentScope::Current.attributes.dup
       CurrentScope::Current.user = user
       CurrentScope::Current.actor = actor
       yield
     ensure
-      CurrentScope::Current.attributes = previous
+      # Version-robust restore: `attributes = previous` clears absent keys on
+      # Rails 8.1 but NOT on 8.0 (leaving the block's user set), so reset first,
+      # then re-apply the snapshot. Works identically on the whole >= 8.0 floor.
+      CurrentScope::Current.reset
+      previous.each { |name, value| CurrentScope::Current.public_send(:"#{name}=", value) }
+    end
+
+    # Seed a real org-wide grant for request/system specs. Unlike
+    # with_current_user (which only sets Current.user in-process, and is
+    # overwritten by Context's before_action on a real request), this persists a
+    # RoleAssignment row that survives the request cycle, so a host can test its
+    # own controllers behind the gate. It does NOT authenticate — the host still
+    # signs the subject in through its own auth. Bang-suffixed like the engine's
+    # other DB-mutating helpers (seed_defaults!, Event.record!). Returns the
+    # assignment.
+    def grant_role!(subject, role:)
+      CurrentScope::RoleAssignment.create!(subject: subject, role: role)
+    end
+
+    # The scoped-grant companion: seed a role held on ONE specific record.
+    # Returns the scoped assignment.
+    def grant_scoped_role!(subject, role:, record:)
+      CurrentScope::ScopedRoleAssignment.create!(subject: subject, role: role, resource: record)
     end
   end
 end

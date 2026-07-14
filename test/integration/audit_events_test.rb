@@ -15,6 +15,15 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     @member_role = CurrentScope::Role.create!(name: "Member")
     CurrentScope::RoleAssignment.create!(subject: @owner, role: @owner_role)
     CurrentScope::RoleAssignment.create!(subject: @member, role: @member_role)
+    # The boundary-API tests below record impersonation events, which now require
+    # a configured actor_method (recording a boundary event without one is the
+    # A2 misconfiguration the engine refuses). A valid impersonation setup has it.
+    @original_actor_method = CurrentScope.config.actor_method
+    CurrentScope.config.actor_method = :true_user
+  end
+
+  teardown do
+    CurrentScope.config.actor_method = @original_actor_method
   end
 
   def as(user) = { "X-User-Id" => user.id.to_s }

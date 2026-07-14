@@ -57,10 +57,15 @@ module CurrentScope
       return model.all if role&.full_access? || role&.grants?(permission)
 
       # Records on which the subject holds a scoped role that grants the key.
-      # An empty subquery yields an empty (still chainable) relation.
+      # Query the polymorphic base_class (what scoped grants store), not the
+      # passed model's name — otherwise scope_for(STISubclass) returns nothing
+      # while the per-record gate (also keyed on base_class) would allow it. The
+      # `model.where` still applies STI's own type predicate, so a subclass query
+      # can't over-list sibling-subclass rows. An empty subquery yields an empty
+      # (still chainable) relation.
       model.where(
         id: ScopedRoleAssignment
-              .where(subject: subject, resource_type: model.name, role_id: roles_granting(permission))
+              .where(subject: subject, resource_type: model.base_class.name, role_id: roles_granting(permission))
               .select(:resource_id)
       )
     end

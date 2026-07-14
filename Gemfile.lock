@@ -2,7 +2,7 @@ PATH
   remote: .
   specs:
     current_scope (0.1.0)
-      rails (>= 7.1)
+      rails (>= 8.1, < 9)
 
 GEM
   remote: https://rubygems.org/

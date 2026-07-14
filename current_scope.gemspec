@@ -13,13 +13,23 @@ Gem::Specification.new do |spec|
                      "makes allowed_to? work identically in controllers, views, and components."
   spec.license     = "MIT"
 
-  spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = spec.homepage
+  # homepage_uri is derived from spec.homepage (the source repo). Setting
+  # source_code_uri to the same URL warns ("only the first is shown"), so give
+  # rubygems distinct, useful links instead.
+  spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  spec.metadata["rubygems_mfa_required"] = "true"
 
   spec.files = Dir.chdir(File.expand_path(__dir__)) do
     Dir["{app,config,db,lib}/**/*", "MIT-LICENSE", "Rakefile", "README.md"]
   end
 
   spec.required_ruby_version = ">= 3.2"
-  spec.add_dependency "rails", ">= 7.1"
+  # Floor is 8.1, proven by running the suite against it (A9). The management UI
+  # relies on `params.expect` ARRAY semantics that changed between 8.0 and 8.1
+  # (on 8.0 the permission_keys array comes back empty), so 8.0 is not actually
+  # supported despite params.expect existing there. The earlier ">= 7.1" was a
+  # false claim that would NoMethodError on 7.x. Migration version brackets stay
+  # at [7.1] deliberately: they pin generation-time schema defaults, not the
+  # gem's minimum Rails, and current_scope_events is a frozen schema.
+  spec.add_dependency "rails", ">= 8.1", "< 9"
 end

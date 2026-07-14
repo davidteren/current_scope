@@ -36,6 +36,10 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    # A9: the committed Gemfile.lock tracks the gemspec's declared Rails floor
+    # (>= 8.1), so this job runs the suite against the claimed minimum — the
+    # floor is proven, not just asserted. (8.0 was ruled out: the management UI's
+    # params.expect array handling needs 8.1.)
 
     # services:
     #  redis:

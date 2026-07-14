@@ -19,5 +19,20 @@ module CurrentScope
     def current_scope_label
       "#{model_name.human} ##{id}"
     end
+
+    # OPTIONAL indexed search for the scoped-role picker. current_scope_label is
+    # a Ruby method with no backing column, so by default the picker scans the
+    # first 500 rows and filters the label in Ruby. Define this class method to
+    # search via indexed SQL instead — it receives the query term and must
+    # return an ActiveRecord::Relation:
+    #
+    #   class Project < ApplicationRecord
+    #     include CurrentScope::Scopeable
+    #     def self.current_scope_searchable_scope(term)
+    #       where("name ILIKE ?", "%#{term}%")
+    #     end
+    #   end
+    #
+    # No default is provided — the host knows which column is indexed.
   end
 end

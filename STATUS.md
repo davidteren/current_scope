@@ -111,18 +111,48 @@ Worked `docs/READINESS-AUDIT.md` end to end (plan:
 - [x] **P4** — CHANGELOG + gemspec metadata; `gem build` warning-clean (A13).
 
 **Engine suite: 181 runs green; RuboCop omakase clean; `gem build` clean.**
+PR #5 merged to `main`.
+
+### Admin dashboard UI + role/subject UX — branch `feat/admin-dashboard-ui`, PR #6 (OPEN, not merged)
+
+A large management-UI pass on top of readiness. All `app/`-side (hot-reloads in a
+host), self-contained (no web fonts / no build / CSP-safe), opinionated but
+overridable. **201 runs green, RuboCop clean.**
+
+- [x] **Light/dark admin dashboard** — sidebar + topbar shell, cobalt accent,
+      token theming (`prefers-color-scheme` + a persisted `cs_theme` cookie,
+      server-rendered → no flash; toggle is a served-asset handler).
+- [x] **Permission grid → absolute CRUD matrix** — fixed columns, blank cells
+      where a controller doesn't route a column; RESTful 7 fold into
+      read/create/update/destroy by default (`config.permission_grid_groups`,
+      nil = raw). `CurrentScope::PermissionGrid` PORO expands `controller:group`
+      tokens on a separate param channel; raw `permission_keys` still works. A
+      ticked cell glows; per-row master toggle.
+- [x] **Role descriptions** — `description` column (new migration) + form + index.
+- [x] **Subject identity** — `config.subject_label` (Symbol/Proc); default is
+      people-first: email → email_address → name → first+last → id.
+- [x] **Subjects filter** — client-side, framework-free vanilla JS.
+- [x] **Bulk assignment** — multi-select subjects → **bulk scoped role** (picker
+      accepts `subject_gids[]`) **and bulk org-wide role** (blank clears).
+- [x] **Discoverable scoped revoke** — labeled, confirm-guarded chip control.
+
+**Reload gotcha (host running the engine as a path gem):** `app/` changes
+hot-reload; **`lib/` changes (config, resolver, PORO) need a server restart**;
+schema changes need `current_scope:install:migrations` + `db:migrate`.
 
 ## Next
 
-1. **Publish to RubyGems** — now prepped (A13). Merge PR #5, tag `v0.1.0`, push
-   the gem, then swap the showcase's vendored path gem for `gem "current_scope"`.
-2. **v0.2 break-glass (`allow_sod_bypass`)** — privileged, audited override of
-   the SoD veto (opt-in, default-off, recorded at the mutation gate). Designed;
-   plan doc pending (see MemPalace `current_scope/decisions`).
-3. **Per-request resolver memoization** — repeated `allowed_to?` in one view
-   re-queries; cache the subject's effective permission set on `Current`
-   (DESIGN.md §9.4).
-4. **README screenshots** — the showcase ledger/stamp UI is the best pitch.
+1. **Merge PR #6** (`feat/admin-dashboard-ui`) — big but coherent; review + merge.
+2. **Role-centric "members" view** — on each Role, list who holds it (org-wide +
+   as a scoped role) with an add-users control. Assign from the role side, not
+   just the subject side. (Discussed, not started.)
+3. **Publish to RubyGems** — prepped (A13). Tag `v0.1.0`, push the gem, then swap
+   the showcase's vendored path gem for `gem "current_scope"`. NOTE: the showcase
+   currently runs the engine live via `path: "../current_scope"` (Gemfile:68);
+   the vendored line (67) is commented out.
+4. **v0.2 break-glass (`allow_sod_bypass`)** — plan `docs/plans/2026-07-12-001-...`
+   ready to implement.
+5. **Per-request resolver memoization** (DESIGN.md §9.4); **README screenshots**.
 
 ## Still to be done (open design questions — DESIGN.md §9)
 
@@ -132,10 +162,8 @@ Worked `docs/READINESS-AUDIT.md` end to end (plan:
       design; union semantics rejected for v0.1)
 - [ ] Scoped-role capability restriction (scoped roles currently reuse full
       Role bundles; a restricted per-record capability set is unexplored)
-- [ ] Test-helper story for host request specs (a `sign_in_with_role` style
-      helper; only `with_current_user` ships today)
-- [ ] Pagination for the management UI subjects page (flagged with a
-      `ponytail:` comment)
+- [x] ~~Host request-spec helper~~ — shipped as `grant_role!` / `grant_scoped_role!` (A3).
+- [x] ~~Subjects-page pagination~~ — shipped (A12·1).
 
 ## Working notes
 

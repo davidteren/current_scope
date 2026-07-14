@@ -1,0 +1,19 @@
+STATUS.md
+  s_1ccf4e18ef955f::t_ca742b94e5b986 143,146-158,164,167-192,196-201
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "95b8561b845777f012fc6c60e7d82ac382109f38",
+  "prompts": {},
+  "sessions": {
+    "s_1ccf4e18ef955f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6c20aff2-288a-4aca-85c8-7668bd8bc0b8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

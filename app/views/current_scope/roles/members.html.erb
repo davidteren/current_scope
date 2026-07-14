@@ -1,0 +1,86 @@
+<h1>Members: <%= @role.name %></h1>
+<p class="cs-lede">Who holds <strong><%= @role.name %></strong> — as their one org-wide
+  role, or on a specific record. Assigning the org-wide role here replaces a
+  subject's current one (each subject has exactly one org-wide role).</p>
+
+<div class="cs-toolbar">
+  <%= link_to "← All roles", roles_path %>
+  <span class="cs-spacer"></span>
+  <%= link_to "Edit permissions", edit_role_path(@role), class: "cs-btn" %>
+</div>
+
+<h2>Add org-wide members</h2>
+<% if @candidates.any? %>
+  <%= form_with url: role_assignment_path, method: :post do %>
+    <%= hidden_field_tag :role_id, @role.id %>
+    <p>
+      <%= label_tag "subject_gids", "Subjects" %>
+      <select name="subject_gids[]" id="subject_gids" multiple size="8"
+              aria-label="Subjects to grant this role org-wide">
+        <% @candidates.each do |subject| %>
+          <option value="<%= subject.to_gid %>"><%= current_scope_subject_label(subject) %></option>
+        <% end %>
+      </select>
+    </p>
+    <% if @more_candidates %>
+      <p class="cs-hint">Showing the first <%= @candidates.size %> subjects who don't
+        already hold this role. Use the Subjects page to reach the rest.</p>
+    <% end %>
+    <p><%= submit_tag "Add selected as org-wide members" %></p>
+  <% end %>
+<% else %>
+  <p class="cs-subtle">Every subject already holds this role org-wide.</p>
+<% end %>
+
+<h2>Org-wide holders <span class="cs-subtle">(<%= @org_holders.size %>)</span></h2>
+<% if @org_holders.any? %>
+  <div class="cs-card cs-card--flush">
+    <table class="cs-table">
+      <thead><tr><th>Subject</th><th></th></tr></thead>
+      <tbody>
+        <% @org_holders.each do |assignment| %>
+          <tr>
+            <td><%= current_scope_subject_label(assignment.subject) %></td>
+            <td>
+              <%# Removing = clearing this subject's org-wide role (blank role_id). %>
+              <% who = current_scope_subject_label(assignment.subject) %>
+              <%= form_with url: role_assignment_path, method: :post,
+                    data: { cs_confirm: "Remove #{who} from #{@role.name}?" } do %>
+                <%= hidden_field_tag :subject_gid, assignment.subject&.to_gid %>
+                <%= hidden_field_tag :role_id, "" %>
+                <%= submit_tag "Remove", name: nil, class: "cs-btn" %>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% else %>
+  <p class="cs-subtle">No subject holds this as their org-wide role yet.</p>
+<% end %>
+
+<h2>Scoped holders <span class="cs-subtle">(<%= @scoped_holders.size %>)</span></h2>
+<% if @scoped_holders.any? %>
+  <div class="cs-card cs-card--flush">
+    <table class="cs-table">
+      <thead><tr><th>Subject</th><th>Record</th><th></th></tr></thead>
+      <tbody>
+        <% @scoped_holders.each do |sra| %>
+          <tr>
+            <td><%= current_scope_subject_label(sra.subject) %></td>
+            <td><%= current_scope_label(sra.resource) %></td>
+            <td>
+              <% revoke_prompt = "Revoke #{@role.name} on #{current_scope_label(sra.resource)} from #{current_scope_subject_label(sra.subject)}?" %>
+              <%= button_to "Revoke", scoped_role_assignment_path(sra), method: :delete,
+                    class: "cs-btn", form: { data: { cs_confirm: revoke_prompt } },
+                    data: { turbo_confirm: revoke_prompt } %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% else %>
+  <p class="cs-subtle">No one holds this role on a specific record.</p>
+<% end %>

@@ -33,6 +33,22 @@ module CurrentScope
       @role = Role.find(params[:id])
     end
 
+    # Who holds this role — the role-side complement to the subjects page. Org-wide
+    # holders (this role IS their one org-wide role) and per-record scoped holders,
+    # plus a capped list of subjects to add from here.
+    ADD_LIMIT = 100
+
+    def members
+      @role = Role.find(params[:id])
+      @org_holders = RoleAssignment.where(role: @role).includes(:subject).to_a
+      @scoped_holders = ScopedRoleAssignment.where(role: @role).includes(:subject, :resource).to_a
+
+      held_ids = RoleAssignment.where(role: @role, subject_type: subject_class.name).pluck(:subject_id)
+      remaining = subject_class.where.not(id: held_ids).order(:id)
+      @candidates = remaining.limit(ADD_LIMIT).to_a
+      @more_candidates = remaining.offset(ADD_LIMIT).exists?
+    end
+
     def update
       @role = Role.find(params[:id])
       previous_name = @role.name

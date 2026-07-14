@@ -140,40 +140,65 @@ overridable. **201 runs green, RuboCop clean.**
 hot-reload; **`lib/` changes (config, resolver, PORO) need a server restart**;
 schema changes need `current_scope:install:migrations` + `db:migrate`.
 
-### This session (2026-07-14) — merged to `main`
+### This session (2026-07-14) — all merged to `main`
 
 Reviewed PR #6 (bots + intent-engineering lenses + a correctness/security/
-adversarial cross-model pass), fixed all confirmed findings, merged it, then
-shipped the next three items — each its own PR, reviewed, bot-findings addressed,
-test-first. **Combined suite: 234 runs green, RuboCop clean.**
+adversarial cross-model pass), fixed every confirmed finding, then shipped a
+run of features and fixes — each its own PR, reviewed, bot-findings addressed,
+test-first. Mid-session a **real-app QA gap** surfaced (green unit tests, but the
+live UI had a grid-header overlap and a narrow-screen table crush that
+`assert_select` can't see); fixed both in a real browser and added a **headless
+system-test suite now enforced in CI** so visual/template regressions fail the
+build. **Suite now: 243 unit + 19 system green, RuboCop clean.**
 
-- [x] **PR #6 merged** (`65b91c2`) — admin dashboard UI + the review pass: P1
-      role-save privilege-escalation fixed (partial CRUD groups can't silently
-      promote on save), bulk subject-class boundary + atomicity + dedup,
-      role-name filter correctness, and a11y/CSS polish.
-- [x] **Members view — PR #7** (`12c11f1`) — each Role shows its org-wide + scoped
+- [x] **PR #6** (`65b91c2`) — admin dashboard UI + the review pass: P1 role-save
+      privilege-escalation fixed (partial CRUD groups can't silently promote on
+      save), bulk subject-class boundary + atomicity + dedup, role-name filter
+      correctness, a11y/CSS polish.
+- [x] **Members view — PR #7** (`12c11f1`) — each Role lists its org-wide + scoped
       holders with an add-members control (assign from the role side); survives
       stale polymorphic types; org-wide assign returns via `redirect_back_or_to`.
 - [x] **v0.2 break-glass — PR #8** (`4d00f69`) — `config.allow_sod_bypass`
       (default off): a privileged, **always-audited** waiver of the SoD veto for
       a flagged record, gated on the initiator holding `bypass_sod`. Resolver
-      stays pure (reports `:sod_bypassed`); Guard records `sod.bypassed` + sets
+      stays pure (`:sod_bypassed`); Guard records `sod.bypassed` + sets
       `X-Current-Scope-Reason`. Recursion guard (bypass action ∉ `sod_actions`),
       fail-closed hook, no impersonation laundering. README documents it.
-- [x] **Per-request resolver memoization — PR #9** (`652710d`) — the org-role
-      lookup is memoized on `CurrentScope::Current` (request-scoped), invalidated
-      on any `RoleAssignment` write, so a view's N gate checks share one query.
+- [x] **Resolver memoization — PR #9** (`652710d`) — the org-role lookup is
+      memoized on `CurrentScope::Current` (request-scoped), invalidated on any
+      `RoleAssignment` write, so a view's N gate checks share one query.
+- [x] **Grid header overlap + system tests — PR #10** (`ae90936`) — the sticky
+      permission-grid header sat 52px over the first row (a bad PR-#6 offset; its
+      sticky container is `.cs-grid-wrap`, so `top` must be 0). Fixed, and added
+      the Capybara + cuprite headless system suite + an overlap guard.
+- [x] **Subjects table narrow-screen fix — PR #11** (`906d6fe`) — a wide subjects
+      table overflowed the page and crushed rows to ~269px on a ~500px window;
+      flush-card tables now scroll-x, and below the 820px breakpoint take natural
+      width (flat rows). Verified in a real browser both widths.
+- [x] **Broadened system coverage + CI — PR #12** (`e0c97dc`) — 17→ system tests
+      over the JS/render flows (grid group/partial-guard/row-master, theme toggle
+      + persistence, bulk assign, pagination, events ledger, full scoped-picker
+      cascade); CI now runs `test:system` in headless Chrome.
+- [x] **Deferred P3s + ROADMAP — PR #13** (`0efab4b`) — bulk org-role notice
+      counts only actual changes; orphaned assignments removable by id; the
+      subjects filter keeps a checked row visible; ROADMAP corrected (audit,
+      impersonation, memoization, `scope_for` are shipped).
+- [x] **CI action bumps — PR #14** (`fb422fb`) — `actions/checkout`→v7,
+      `cache`→v6, `upload-artifact`→v7 (consolidated the three Dependabot majors;
+      CI-proven; #1/#2/#4 auto-closed).
+- [x] **Subjects server-side search — PR #15** (`e6120e2`) — `?q=` matches every
+      subject by identity columns across all pages (was page-scoped client filter
+      only). Injection-safe (columns from `column_names`, bound `LIKE` value);
+      degrades cleanly when no identity columns exist.
 
 ## Next
 
-1. **Publish to RubyGems** — prepped (A13); `gem build` clean, `v0.1.0`. Tag
-   `v0.1.0`, `gem push` (needs RubyGems creds), then swap the showcase's vendored
-   path gem for `gem "current_scope"`. NOTE: the showcase currently runs the
-   engine live via `path: "../current_scope"` (Gemfile:68); the vendored line
-   (67) is commented out.
-2. **README screenshots** — needs the showcase running in a browser (capture the
-   dashboard, permission grid, subjects, members, events).
-3. Open design questions unchanged (DESIGN.md §9): resource hierarchy/cascade,
+1. **Publish to RubyGems** — parked (using the vendored/path engine for now).
+   Prepped (A13); `gem build` clean, `v0.1.0`. Tag `v0.1.0`, `gem push` (needs
+   RubyGems creds), then swap the showcase's `path:` gem for `gem "current_scope"`.
+2. **README screenshots** — the UI is clean and verified; capture the dashboard,
+   permission grid, subjects, members, events when convenient.
+3. Open design questions (DESIGN.md §9): resource hierarchy/cascade,
    multiple org-wide roles, scoped-role capability restriction.
 
 ## Still to be done (open design questions — DESIGN.md §9)

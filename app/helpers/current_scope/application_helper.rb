@@ -19,13 +19,16 @@ module CurrentScope
       return "(none)" if subject.nil?
 
       label = CurrentScope.config.subject_label
-      if label.respond_to?(:call)
-        label.call(subject).to_s
-      elsif label && subject.respond_to?(label)
-        subject.public_send(label).to_s
-      else
-        current_scope_label(subject)
-      end
+      return label.call(subject).to_s if label.respond_to?(:call)
+      return subject.public_send(label).to_s if label && subject.respond_to?(label)
+
+      # Default: a subject is a person, so prefer human identifiers over a
+      # generic "Class #id" — including when the model includes Scopeable, whose
+      # current_scope_label is id-based. Covers `email` and Rails 8 auth's
+      # `email_address`. Config overrides this entirely.
+      full_name = [ subject.try(:first_name), subject.try(:last_name) ].compact.join(" ").presence
+      subject.try(:email) || subject.try(:email_address) ||
+        subject.try(:name) || full_name || current_scope_label(subject)
     end
 
     # Best-effort label for a stored GID string (event actor/subject). Falls

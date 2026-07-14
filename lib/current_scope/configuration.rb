@@ -67,8 +67,8 @@ module CurrentScope
     # human. Accepts:
     #   - a Symbol — a method on the subject, e.g. :email or :name
     #   - a Proc   — subject -> String, e.g. ->(u) { "#{u.first_name} #{u.last_name}" }
-    #   - nil (default) — best-effort: the subject's current_scope_label, else
-    #     name / email / title, else "Class #id".
+    #   - nil (default) — best-effort, people-first: email, else name, else
+    #     first+last, else the generic current_scope_label / "Class #id".
     attr_accessor :subject_label
 
     # Tri-state: false | true (default) | :strict — controls

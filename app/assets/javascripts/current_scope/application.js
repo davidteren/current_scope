@@ -82,3 +82,75 @@ document.addEventListener("click", function (event) {
     });
   });
 })();
+
+// Subjects page: client-side filter, multi-select, and a bulk "grant scoped role
+// to selected" action. Framework-free (no Stimulus dependency) so it works in
+// any host; pure progressive enhancement — single-subject assignment still works
+// with JS off via each row's "+ scoped role" link.
+(function () {
+  function rows() {
+    var list = document.querySelector("[data-cs-filter-list]");
+    return list ? Array.prototype.slice.call(list.querySelectorAll("[data-cs-row]")) : [];
+  }
+  function visibleRows() { return rows().filter(function (r) { return !r.hidden; }); }
+  function selectOf(row) { return row.querySelector("[data-cs-select]"); }
+  function selectedRows() {
+    return visibleRows().filter(function (r) { var cb = selectOf(r); return cb && cb.checked; });
+  }
+
+  function syncBulk() {
+    var bar = document.querySelector("[data-cs-bulk]");
+    if (bar) {
+      var n = selectedRows().length;
+      bar.hidden = n === 0;
+      var count = bar.querySelector("[data-cs-bulk-count]");
+      if (count) count.textContent = String(n);
+    }
+    var all = document.querySelector("[data-cs-select-all]");
+    if (all) {
+      var vis = visibleRows();
+      var checked = vis.filter(function (r) { var cb = selectOf(r); return cb && cb.checked; });
+      all.checked = vis.length > 0 && checked.length === vis.length;
+      all.indeterminate = checked.length > 0 && checked.length < vis.length;
+    }
+  }
+
+  document.addEventListener("input", function (event) {
+    if (!event.target.matches || !event.target.matches("[data-cs-filter]")) return;
+    var needle = event.target.value.trim().toLowerCase();
+    var anyVisible = false;
+    rows().forEach(function (row) {
+      var match = !needle || row.textContent.toLowerCase().indexOf(needle) !== -1;
+      row.hidden = !match;
+      if (match) anyVisible = true;
+    });
+    var empty = document.querySelector("[data-cs-filter-empty]");
+    if (empty) empty.hidden = anyVisible || rows().length === 0;
+    syncBulk();
+  });
+
+  document.addEventListener("change", function (event) {
+    if (event.target.matches && event.target.matches("[data-cs-select-all]")) {
+      visibleRows().forEach(function (r) { var cb = selectOf(r); if (cb) cb.checked = event.target.checked; });
+      syncBulk();
+    } else if (event.target.matches && event.target.matches("[data-cs-select]")) {
+      syncBulk();
+    }
+  });
+
+  document.addEventListener("click", function (event) {
+    if (event.target.closest && event.target.closest("[data-cs-bulk-clear]")) {
+      rows().forEach(function (r) { var cb = selectOf(r); if (cb) cb.checked = false; });
+      syncBulk();
+      return;
+    }
+    var go = event.target.closest && event.target.closest("[data-cs-bulk-scoped]");
+    if (!go) return;
+    event.preventDefault();
+    var gids = selectedRows().map(function (r) { return selectOf(r).value; });
+    if (!gids.length) return;
+    var base = go.getAttribute("data-cs-bulk-url");
+    var query = gids.map(function (g) { return "subject_gids[]=" + encodeURIComponent(g); }).join("&");
+    window.location = base + (base.indexOf("?") === -1 ? "?" : "&") + query;
+  });
+})();

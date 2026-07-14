@@ -1,17 +1,42 @@
 <h1>Subjects</h1>
 <p class="cs-lede">Everyone who can hold a role, with their one org-wide role and
-  any per-record scoped roles. Assign or revoke inline.</p>
+  any per-record scoped roles. Filter to find people; select several to grant a
+  scoped role in one go.</p>
+
+<div class="cs-toolbar">
+  <input type="search" class="cs-filter" data-cs-filter
+         placeholder="Filter subjects, roles, records…" aria-label="Filter subjects">
+  <span class="cs-spacer"></span>
+</div>
+
+<div class="cs-bulk" data-cs-bulk hidden>
+  <strong><span data-cs-bulk-count>0</span> selected</strong>
+  <span class="cs-spacer"></span>
+  <%= link_to "Grant scoped role to selected…", "#", class: "cs-btn cs-btn-primary",
+        data: { cs_bulk_scoped: true, cs_bulk_url: new_scoped_role_assignment_path } %>
+  <button type="button" class="cs-btn" data-cs-bulk-clear>Clear</button>
+</div>
 
 <div class="cs-card cs-card--flush">
-<table class="cs-table">
+<table class="cs-table" data-cs-filter-list>
   <thead>
-    <tr><th>Subject</th><th>Org-wide role</th><th>Scoped roles</th></tr>
+    <tr>
+      <th class="cs-select-cell">
+        <input type="checkbox" data-cs-select-all aria-label="Select all subjects">
+      </th>
+      <th>Subject</th><th>Org-wide role</th><th>Scoped roles</th>
+    </tr>
   </thead>
   <tbody>
     <% @subjects.each do |subject| %>
       <% key = [ subject.class.name, subject.id ] %>
-      <tr>
-        <td><%= current_scope_label(subject) %></td>
+      <% label = current_scope_subject_label(subject) %>
+      <tr data-cs-row>
+        <td class="cs-select-cell">
+          <input type="checkbox" data-cs-select value="<%= subject.to_gid %>"
+                 aria-label="Select <%= label %>">
+        </td>
+        <td><%= label %></td>
         <td>
           <%= form_with url: role_assignment_path, method: :post do %>
             <%= hidden_field_tag :subject_gid, subject.to_gid %>
@@ -40,6 +65,8 @@
   </tbody>
 </table>
 </div>
+
+<p class="cs-filter-empty" data-cs-filter-empty hidden>No subjects match that filter.</p>
 
 <nav class="cs-pagination" aria-label="Subjects pagination">
   <% if @page > 1 %><%= link_to "← Previous", subjects_path(page: @page - 1) %><% end %>

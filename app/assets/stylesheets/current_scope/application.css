@@ -305,6 +305,28 @@ a:hover { color: var(--cs-accent-strong); }
 .cs-toolbar { display: flex; align-items: center; gap: 0.75rem; margin: 0 0 1.25rem; }
 .cs-toolbar .cs-spacer { flex: 1; }
 
+/* ---- Filter + bulk (subjects) ----------------------------------------- */
+
+.cs-filter { min-width: min(22rem, 100%); }
+
+.cs-bulk {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--cs-accent);
+  border-radius: var(--cs-radius);
+  background: var(--cs-accent-wash);
+  font-size: 0.875rem;
+}
+.cs-bulk .cs-spacer { flex: 1; }
+
+/* Select column — narrow, centered checkboxes. */
+.cs-select-cell { width: 1%; text-align: center; padding-inline: 0.75rem; }
+
+.cs-filter-empty { color: var(--cs-muted); font-size: 0.875rem; margin: 0.75rem 0; }
+
 /* ---- Cards ------------------------------------------------------------ */
 
 .cs-card {

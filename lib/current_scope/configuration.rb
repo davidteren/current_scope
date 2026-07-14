@@ -62,6 +62,15 @@ module CurrentScope
     # assignable subjects.
     attr_accessor :subject_class
 
+    # How a subject is identified in the management UI (subjects table, picker,
+    # bulk bar). A subject id is meaningless with UUID keys, so pick something
+    # human. Accepts:
+    #   - a Symbol — a method on the subject, e.g. :email or :name
+    #   - a Proc   — subject -> String, e.g. ->(u) { "#{u.first_name} #{u.last_name}" }
+    #   - nil (default) — best-effort: the subject's current_scope_label, else
+    #     name / email / title, else "Class #id".
+    attr_accessor :subject_label
+
     # Tri-state: false | true (default) | :strict — controls
     # CurrentScope::Event.record!.
     #   false   — record! is a silent no-op; hosts that don't want the ledger

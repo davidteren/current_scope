@@ -19,6 +19,7 @@ module CurrentScope
       @roles = Role.order(:name)
       @subjects = CurrentScope.config.subject_class.constantize.order(:id)
       @scopeable = CurrentScope.scopeable_resources
+      @bulk_subjects = resolve_bulk_subjects # [] unless a multi-select bulk grant
 
       @resource = deep_linked_resource
       @resource_type = resolve_type(params[:resource_type]) || @resource&.class
@@ -27,18 +28,27 @@ module CurrentScope
     end
 
     def create
-      subject = GlobalID::Locator.locate(params.expect(:subject_gid))
       resource = GlobalID::Locator.locate(params.expect(:resource_gid))
       role = Role.find(params.expect(:role_id))
+      subjects = grant_subjects
+      granted = 0
 
-      ScopedRoleAssignment.transaction do
-        ScopedRoleAssignment.create!(subject: subject, resource: resource, role: role)
-        Event.record!(event: "scoped_role.granted", target: subject,
-                      details: { role: role.name, resource: helpers.current_scope_label(resource) })
+      subjects.each do |subject|
+        next if subject.nil?
+
+        ScopedRoleAssignment.transaction do
+          assignment = ScopedRoleAssignment.find_or_create_by!(subject: subject, resource: resource, role: role)
+          next unless assignment.previously_new_record?
+
+          Event.record!(event: "scoped_role.granted", target: subject,
+                        details: { role: role.name, resource: helpers.current_scope_label(resource) })
+          granted += 1
+        end
+      rescue ActiveRecord::RecordNotUnique
+        next # a concurrent grant of the same triple — treat as already done
       end
-      redirect_to subjects_path, notice: "Scoped role granted."
-    rescue ActiveRecord::RecordNotUnique
-      redirect_to subjects_path, alert: "That scoped role is already granted."
+
+      redirect_to subjects_path, notice: grant_notice(granted, subjects.size)
     rescue ActiveRecord::RecordInvalid => e
       redirect_to subjects_path, alert: e.message
     rescue ActiveRecord::RecordNotFound, NameError
@@ -80,6 +90,30 @@ module CurrentScope
     rescue ActiveRecord::RecordNotFound, NameError
       flash.now[:alert] = "That linked record is no longer available — pick one below."
       nil
+    end
+
+    # The subjects to grant to: the multi-select bulk set when present, else the
+    # single cascade subject.
+    def grant_subjects
+      gids = Array(params[:subject_gids]).select(&:present?)
+      gids = [ params.expect(:subject_gid) ] if gids.empty?
+      gids.map { |gid| GlobalID::Locator.locate(gid) }
+    end
+
+    # Resolve the bulk subject_gids for display (dead links drop out).
+    def resolve_bulk_subjects
+      Array(params[:subject_gids]).select(&:present?).filter_map do |gid|
+        GlobalID::Locator.locate(gid)
+      rescue ActiveRecord::RecordNotFound, NameError
+        nil
+      end
+    end
+
+    def grant_notice(granted, attempted)
+      return "Those subjects already have that scoped role." if granted.zero?
+      return "Scoped role granted." if granted == 1 && attempted == 1
+
+      "Scoped role granted to #{granted} #{'subject'.pluralize(granted)}."
     end
 
     # Only registered Scopeable types are resolvable from params — never

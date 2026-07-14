@@ -12,6 +12,22 @@ module CurrentScope
       name || "#{record.class.name} ##{record.id}"
     end
 
+    # Human label for a subject (user/account), honouring config.subject_label
+    # so a host on UUID keys can show email or a full name instead of an
+    # opaque id. Falls back to the best-effort current_scope_label.
+    def current_scope_subject_label(subject)
+      return "(none)" if subject.nil?
+
+      label = CurrentScope.config.subject_label
+      if label.respond_to?(:call)
+        label.call(subject).to_s
+      elsif label && subject.respond_to?(label)
+        subject.public_send(label).to_s
+      else
+        current_scope_label(subject)
+      end
+    end
+
     # Best-effort label for a stored GID string (event actor/subject). Falls
     # back to the raw GID when the record is gone — the ledger outlives the
     # identities it names.

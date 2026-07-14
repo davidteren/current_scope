@@ -5,6 +5,18 @@ CurrentScope.configure do |config|
   # Class whose instances hold roles, used by the management UI.
   # config.subject_class = "User"
 
+  # How a subject is identified in the management UI (an id is meaningless with
+  # UUID keys). A Symbol names a method; a Proc takes the subject. Defaults to a
+  # best-effort label (current_scope_label, else name/email/title, else id).
+  # config.subject_label = :email
+  # config.subject_label = ->(u) { "#{u.first_name} #{u.last_name}" }
+
+  # Fold the role-editor grid's action columns. Default = CRUD (new/edit hide
+  # into create/update; index+show read as one). Set to nil to show every raw
+  # action as its own column.
+  # config.permission_grid_groups = { "read" => %w[index show], "create" => %w[new create],
+  #                                   "update" => %w[edit update], "destroy" => %w[destroy] }
+
   # --- Impersonation (act-as) ---------------------------------------------
   # These three knobs layer, in this order:
   #

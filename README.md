@@ -36,6 +36,27 @@ The decision order, fixed:
 5. otherwise       → default deny
 ```
 
+## Screenshots
+
+The mounted management UI at `/current_scope` — self-contained (no web fonts, no
+build step, CSP-safe), first-class light **and** dark themes.
+
+**Permission grid** — one row per controller, CRUD action groups derived from
+your routes; ticked cells glow, a partial group reads as indeterminate.
+
+![Permission grid](docs/screenshots/permission-grid.png)
+
+**Subjects** — everyone who can hold a role, their one org-wide role, and any
+per-record scoped roles; server-side search across all subjects.
+
+![Subjects](docs/screenshots/subjects.png)
+
+| Roles | Members | Events |
+|---|---|---|
+| ![Roles](docs/screenshots/roles.png) | ![Members](docs/screenshots/members.png) | ![Events](docs/screenshots/events.png) |
+
+> Regenerate: `CAPTURE_SCREENSHOTS=1 RAILS_ENV=test bin/rails test test/system/screenshots_test.rb`
+
 ## Installation
 
 ```ruby

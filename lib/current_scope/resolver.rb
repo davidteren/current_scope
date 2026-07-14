@@ -37,8 +37,14 @@ module CurrentScope
       [ false, :no_grant ]
     end
 
+    # The subject's one org-wide role. Memoized per request (via Current) so the
+    # many gate checks a single request makes don't each re-query — the decision
+    # is identical, only the lookup is cached, keeping the resolver a pure
+    # decision function over its inputs.
     def org_role(subject)
-      RoleAssignment.find_by(subject: subject)&.role
+      CurrentScope::Current.memoized_org_role(subject) do
+        RoleAssignment.find_by(subject: subject)&.role
+      end
     end
 
     def full_access?(subject)

@@ -53,6 +53,9 @@
                   <%= submit_tag "Remove", name: nil, class: "cs-btn" %>
                 <% end %>
               <% else %>
+                <%# Orphaned assignment (subject deleted): remove it by id. %>
+                <%= button_to "Remove", remove_role_assignment_path(assignment), method: :delete,
+                      class: "cs-btn", form: { data: { cs_confirm: "Remove this orphaned org-wide assignment?" } } %>
                 <span class="cs-subtle">subject unavailable</span>
               <% end %>
             </td>

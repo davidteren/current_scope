@@ -33,6 +33,20 @@ class SubjectFlowsSystemTest < ApplicationSystemTestCase
     assert_equal "Owner", CurrentScope::RoleAssignment.find_by(subject: @owner).role.name
   end
 
+  test "a selected subject stays visible and selected when a filter would hide it" do
+    alice = User.create!(name: "Alice Adams")
+    User.create!(name: "Bob Brown")
+    visit "/current_scope/subjects"
+    find("tr", text: "Alice Adams").find("[data-cs-select]").check
+
+    find("[data-cs-filter]").set("Bob") # would hide Alice, but she's selected
+
+    assert_selector "tr[data-cs-row]:not([hidden])", text: "Alice Adams"
+    within "[data-cs-bulk]" do
+      assert_text "1 selected" # Alice is still counted, not silently dropped
+    end
+  end
+
   test "the bulk bar is hidden until a subject is selected" do
     User.create!(name: "Someone Else")
     visit "/current_scope/subjects"

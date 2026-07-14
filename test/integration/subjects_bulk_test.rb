@@ -97,6 +97,26 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
     assert_select "tr[data-cs-row][data-cs-filter-text*=?]", "Reviewer"
   end
 
+  test "a bulk set counts only the subjects whose role actually changed" do
+    alice = User.create!(name: "Alice")
+    bob = User.create!(name: "Bob")
+    CurrentScope::RoleAssignment.create!(subject: alice, role: @role) # already holds @role
+
+    post current_scope.role_assignment_url, headers: as(@owner), params: {
+      role_id: @role.id, subject_gids: [ alice.to_gid.to_s, bob.to_gid.to_s ]
+    }
+    # only bob changed ⇒ singular notice, not "for 2 subjects"
+    assert_equal "Org-wide role set.", flash[:notice]
+  end
+
+  test "a bulk clear that changes nothing reports no changes, not a false success" do
+    alice = User.create!(name: "Alice") # holds no org-wide role
+    post current_scope.role_assignment_url, headers: as(@owner), params: {
+      role_id: "", subject_gids: [ alice.to_gid.to_s ]
+    }
+    assert_equal "No org-wide role changes.", flash[:notice]
+  end
+
   test "the bulk bar offers an org-wide role form" do
     User.create!(name: "Someone")
     get current_scope.subjects_url, headers: as(@owner)

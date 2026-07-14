@@ -49,6 +49,21 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
     assert_equal @role, CurrentScope::RoleAssignment.find_by(subject: carol)&.role
   end
 
+  test "an orphaned org-wide assignment (deleted subject) can be removed by id" do
+    ghost = User.create!(name: "Ghost")
+    assignment = CurrentScope::RoleAssignment.create!(subject: ghost, role: @role)
+    ghost.delete # hard-delete, no cascade → the assignment is now orphaned
+
+    get current_scope.members_role_url(@role), headers: as(@owner)
+    assert_response :success
+    assert_select "form[action=?]", current_scope.remove_role_assignment_path(assignment)
+
+    assert_difference -> { CurrentScope::RoleAssignment.count }, -1 do
+      delete current_scope.remove_role_assignment_url(assignment), headers: as(@owner)
+    end
+    assert_not CurrentScope::RoleAssignment.exists?(assignment.id)
+  end
+
   test "removing an org-wide holder clears their role" do
     dave = User.create!(name: "Dave")
     CurrentScope::RoleAssignment.create!(subject: dave, role: @role)

@@ -1,0 +1,26 @@
+lib/current_scope/guard.rb
+  s_1ccf4e18ef955f::t_038d8c8db6f2c9 66-70
+test/sod_bypass_test.rb
+  s_1ccf4e18ef955f::t_46364c840b1260 111-120
+lib/current_scope/resolver.rb
+  s_1ccf4e18ef955f::t_a8cedea159fd42 135-148
+  s_1ccf4e18ef955f::t_51b0761f779834 28-32
+README.md
+  s_1ccf4e18ef955f::t_d40bc02f8d45ac 286-291
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "2cdb4af73466a176afb8e0c3f6bcc5a5778d0e7d",
+  "prompts": {},
+  "sessions": {
+    "s_1ccf4e18ef955f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6c20aff2-288a-4aca-85c8-7668bd8bc0b8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

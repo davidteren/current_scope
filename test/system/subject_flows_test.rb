@@ -1,0 +1,64 @@
+require "application_system_test_case"
+
+# Subjects page interactive flows: multi-select + bulk org-role assignment (the
+# JS injects the checked subjects into the POST form), pagination, and that a
+# mutation shows up in the events ledger.
+class SubjectFlowsSystemTest < ApplicationSystemTestCase
+  setup do
+    @owner = User.create!(name: "Olivia Owner")
+    CurrentScope::RoleAssignment.create!(
+      subject: @owner, role: CurrentScope::Role.create!(name: "Owner", full_access: true))
+    sign_in(@owner)
+  end
+
+  test "multi-select + bulk org-role sets the role for exactly the checked subjects" do
+    alice = User.create!(name: "Alice Adams")
+    bob = User.create!(name: "Bob Brown")
+    role = CurrentScope::Role.create!(name: "Reviewer")
+
+    visit "/current_scope/subjects"
+    find("tr", text: "Alice Adams").find("[data-cs-select]").check
+    find("tr", text: "Bob Brown").find("[data-cs-select]").check
+
+    within "[data-cs-bulk]" do
+      assert_text "2 selected"
+      select "Reviewer", from: "role_id"
+      click_button "Set for selected"
+    end
+
+    assert_text "Org-wide role set"
+    assert_equal role, CurrentScope::RoleAssignment.find_by(subject: alice)&.role
+    assert_equal role, CurrentScope::RoleAssignment.find_by(subject: bob)&.role
+    # Olivia (unchecked) keeps her Owner role.
+    assert_equal "Owner", CurrentScope::RoleAssignment.find_by(subject: @owner).role.name
+  end
+
+  test "the bulk bar is hidden until a subject is selected" do
+    User.create!(name: "Someone Else")
+    visit "/current_scope/subjects"
+    assert_no_selector "[data-cs-bulk]:not([hidden])"
+    find("tr", text: "Someone Else").find("[data-cs-select]").check
+    assert_selector "[data-cs-bulk]:not([hidden])"
+  end
+
+  test "subjects paginate past the page size" do
+    55.times { |i| User.create!(name: "Bulk User #{format('%02d', i)}") } # + owner > PER_PAGE(50)
+    visit "/current_scope/subjects"
+    assert_text "Page 1"
+    click_link "Next →"
+    assert_text "Page 2"
+    assert_rendered
+  end
+
+  test "a mutation is recorded in the events ledger" do
+    visit "/current_scope/roles/new"
+    fill_in "role_name", with: "Freshly Made"
+    click_button "Create role"
+    assert_text "Role created."
+
+    visit "/current_scope/events"
+    assert_rendered
+    assert_text "role.created"
+    assert_text "Freshly Made"
+  end
+end

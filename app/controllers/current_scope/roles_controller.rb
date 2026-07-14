@@ -40,11 +40,16 @@ module CurrentScope
 
     def members
       @role = Role.find(params[:id])
-      @org_holders = RoleAssignment.where(role: @role).includes(:subject).to_a
-      @scoped_holders = ScopedRoleAssignment.where(role: @role).includes(:subject, :resource).to_a
+      # No polymorphic includes: eager-loading a stale/renamed subject_type or
+      # resource_type raises NameError. Lazy-load per row and label defensively
+      # in the view (current_scope_holder_* helpers), like the audit ledger does.
+      @org_holders = RoleAssignment.where(role: @role).to_a
+      @scoped_holders = ScopedRoleAssignment.where(role: @role).to_a
 
-      held_ids = RoleAssignment.where(role: @role, subject_type: subject_class.name).pluck(:subject_id)
-      remaining = subject_class.where.not(id: held_ids).order(:id)
+      # Exclude via a subquery, not a plucked Ruby array, so a role with many
+      # holders doesn't build a huge NOT IN bind list.
+      held = RoleAssignment.where(role: @role, subject_type: subject_class.name).select(:subject_id)
+      remaining = subject_class.where.not(id: held).order(:id)
       @candidates = remaining.limit(ADD_LIMIT).to_a
       @more_candidates = remaining.offset(ADD_LIMIT).exists?
     end

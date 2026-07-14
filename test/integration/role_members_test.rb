@@ -29,6 +29,17 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
     assert_select "select[name='subject_gids[]'] option", { text: "Alice", count: 0 }
   end
 
+  test "members survives a stale/renamed polymorphic resource type without 500ing" do
+    folder = Folder.create!(name: "Space")
+    bob = User.create!(name: "Bob")
+    sra = CurrentScope::ScopedRoleAssignment.create!(subject: bob, resource: folder, role: @role)
+    sra.update_column(:resource_type, "RemovedModel") # class no longer constantizes
+
+    get current_scope.members_role_url(@role), headers: as(@owner)
+    assert_response :success
+    assert_select "td", text: "RemovedModel ##{folder.id}"
+  end
+
   test "adding org-wide members from the role side sets the role and returns to members" do
     carol = User.create!(name: "Carol")
     post current_scope.role_assignment_url,

@@ -1,0 +1,28 @@
+.github/workflows/ci.yml
+  s_1ccf4e18ef955f::t_bc5afda7b28fd6 67-69,73
+test/system/theme_toggle_test.rb
+  s_1ccf4e18ef955f::t_24dae2bcdd164b 1-34
+test/system/subject_flows_test.rb
+  s_1ccf4e18ef955f::t_d426798eeb677d 1-64
+test/system/scoped_picker_test.rb
+  s_1ccf4e18ef955f::t_aaa684b66c82eb 1-30
+test/system/role_editing_test.rb
+  s_1ccf4e18ef955f::t_e72247d355de13 1-17,20,22-62
+  s_1ccf4e18ef955f::t_fb0519f7cfa0f5 18-19,21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "1bcfc8aec4e6f8a5251cb49d35fd836232da891c",
+  "prompts": {},
+  "sessions": {
+    "s_1ccf4e18ef955f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6c20aff2-288a-4aca-85c8-7668bd8bc0b8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

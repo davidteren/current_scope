@@ -1,6 +1,6 @@
 # STATUS
 
-> Last updated: 2026-07-12
+> Last updated: 2026-07-14
 
 ## What this is
 
@@ -140,19 +140,41 @@ overridable. **201 runs green, RuboCop clean.**
 hot-reload; **`lib/` changes (config, resolver, PORO) need a server restart**;
 schema changes need `current_scope:install:migrations` + `db:migrate`.
 
+### This session (2026-07-14) — merged to `main`
+
+Reviewed PR #6 (bots + intent-engineering lenses + a correctness/security/
+adversarial cross-model pass), fixed all confirmed findings, merged it, then
+shipped the next three items — each its own PR, reviewed, bot-findings addressed,
+test-first. **Combined suite: 234 runs green, RuboCop clean.**
+
+- [x] **PR #6 merged** (`65b91c2`) — admin dashboard UI + the review pass: P1
+      role-save privilege-escalation fixed (partial CRUD groups can't silently
+      promote on save), bulk subject-class boundary + atomicity + dedup,
+      role-name filter correctness, and a11y/CSS polish.
+- [x] **Members view — PR #7** (`12c11f1`) — each Role shows its org-wide + scoped
+      holders with an add-members control (assign from the role side); survives
+      stale polymorphic types; org-wide assign returns via `redirect_back_or_to`.
+- [x] **v0.2 break-glass — PR #8** (`4d00f69`) — `config.allow_sod_bypass`
+      (default off): a privileged, **always-audited** waiver of the SoD veto for
+      a flagged record, gated on the initiator holding `bypass_sod`. Resolver
+      stays pure (reports `:sod_bypassed`); Guard records `sod.bypassed` + sets
+      `X-Current-Scope-Reason`. Recursion guard (bypass action ∉ `sod_actions`),
+      fail-closed hook, no impersonation laundering. README documents it.
+- [x] **Per-request resolver memoization — PR #9** (`652710d`) — the org-role
+      lookup is memoized on `CurrentScope::Current` (request-scoped), invalidated
+      on any `RoleAssignment` write, so a view's N gate checks share one query.
+
 ## Next
 
-1. **Merge PR #6** (`feat/admin-dashboard-ui`) — big but coherent; review + merge.
-2. **Role-centric "members" view** — on each Role, list who holds it (org-wide +
-   as a scoped role) with an add-users control. Assign from the role side, not
-   just the subject side. (Discussed, not started.)
-3. **Publish to RubyGems** — prepped (A13). Tag `v0.1.0`, push the gem, then swap
-   the showcase's vendored path gem for `gem "current_scope"`. NOTE: the showcase
-   currently runs the engine live via `path: "../current_scope"` (Gemfile:68);
-   the vendored line (67) is commented out.
-4. **v0.2 break-glass (`allow_sod_bypass`)** — plan `docs/plans/2026-07-12-001-...`
-   ready to implement.
-5. **Per-request resolver memoization** (DESIGN.md §9.4); **README screenshots**.
+1. **Publish to RubyGems** — prepped (A13); `gem build` clean, `v0.1.0`. Tag
+   `v0.1.0`, `gem push` (needs RubyGems creds), then swap the showcase's vendored
+   path gem for `gem "current_scope"`. NOTE: the showcase currently runs the
+   engine live via `path: "../current_scope"` (Gemfile:68); the vendored line
+   (67) is commented out.
+2. **README screenshots** — needs the showcase running in a browser (capture the
+   dashboard, permission grid, subjects, members, events).
+3. Open design questions unchanged (DESIGN.md §9): resource hierarchy/cascade,
+   multiple org-wide roles, scoped-role capability restriction.
 
 ## Still to be done (open design questions — DESIGN.md §9)
 

@@ -1,0 +1,50 @@
+lib/current_scope/configuration.rb
+  s_b081cbfee96db8::t_d6965ef63fdcf2 65-73
+app/views/current_scope/subjects/index.html.erb
+  s_b081cbfee96db8::t_9e2f1b6deaf432 3-18,21,23-28,33-39,69
+  s_c7dd35259ee837::t_99b3ebda744c51 70
+app/assets/javascripts/current_scope/application.js
+  s_b081cbfee96db8::t_1f1dbda8fe1c52 85-156
+app/views/current_scope/scoped_role_assignments/new.html.erb
+  s_b081cbfee96db8::t_150af6088a1eae 32-51
+  s_b081cbfee96db8::t_1985be8f3d679e 1
+  s_b081cbfee96db8::t_a9b988fd7d083e 118-127,131
+test/integration/scoped_assignment_picker_test.rb
+  s_b081cbfee96db8::t_5038192073f98f 137-138
+  s_b081cbfee96db8::t_1115ca5bf26246 153-155
+test/integration/subjects_bulk_test.rb
+  s_b081cbfee96db8::t_89f137a259c256 1-74
+lib/generators/current_scope/install/templates/initializer.rb
+  s_b081cbfee96db8::t_df130931836818 8-19
+app/helpers/current_scope/application_helper.rb
+  s_b081cbfee96db8::t_6db5e17cb1fa4c 15-30
+app/controllers/current_scope/scoped_role_assignments_controller.rb
+  s_b081cbfee96db8::t_64b10d459c0a35 22,33-34,36-48,50-51
+  s_b081cbfee96db8::t_31cf07074a7759 95-118
+app/assets/stylesheets/current_scope/application.css
+  s_b081cbfee96db8::t_50a69982a545f2 308-329
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "cc1008a8908e7d4d35414ce63e809180f65c4ff9",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    },
+    "s_c7dd35259ee837": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6840d73c-0a1f-4743-a2cd-8f525834cd43",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

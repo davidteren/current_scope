@@ -1,0 +1,25 @@
+current_scope.gemspec
+  s_b081cbfee96db8::t_f7573d9aeb78bd 16-20
+test/gemspec_test.rb
+  s_b081cbfee96db8::t_cb9cf6b3b08bec 18-26
+STATUS.md
+  s_b081cbfee96db8::t_8fc54a591d36da 94-113,117-118
+CHANGELOG.md
+  s_b081cbfee96db8::t_58696f095c3a36 1-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "c56e342645a8d1e94f91a3cb5524203c6b2867aa",
+  "prompts": {},
+  "sessions": {
+    "s_b081cbfee96db8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df1ee391-9964-4011-913f-bfb1251f5bfd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,65 @@
+app/helpers/current_scope/application_helper.rb
+  s_1ccf4e18ef955f::t_bbbd81118b6de8 21-25
+  s_1ccf4e18ef955f::t_a0383ba4f6d0f7 36-46
+app/assets/stylesheets/current_scope/application.css
+  s_1ccf4e18ef955f::t_643318a1f6fba8 540-542,544
+  s_1ccf4e18ef955f::t_5d860d613b2da0 354
+  s_1ccf4e18ef955f::t_01bc0ab10bd00b 231
+  s_1ccf4e18ef955f::t_383bc13eabbbd7 316
+  s_1ccf4e18ef955f::t_c0c9f573649833 58
+  s_1ccf4e18ef955f::t_16870c277be530 404-405,408
+  s_1ccf4e18ef955f::t_8b951437f7991f 575-579
+  s_1ccf4e18ef955f::t_0a1d8f708e7b1f 553
+  s_1ccf4e18ef955f::t_040f0b4b123759 11-16,19
+  s_1ccf4e18ef955f::t_f7bbf50fe45416 113
+  s_1ccf4e18ef955f::t_85b1964c762f76 334-336
+  s_1ccf4e18ef955f::t_01b853322af3a6 88-90
+app/views/layouts/current_scope/application.html.erb
+  s_1ccf4e18ef955f::t_6ed10d6c067958 1
+  s_1ccf4e18ef955f::t_a45f54d046f076 38
+app/controllers/current_scope/scoped_role_assignments_controller.rb
+  s_1ccf4e18ef955f::t_974c6595407d1d 101-102
+  s_1ccf4e18ef955f::t_91f17037b4c931 34-37
+  s_1ccf4e18ef955f::t_6e5421b030212f 105-106,108
+STATUS.md
+  s_1ccf4e18ef955f::t_1fa7082fe68a7b 123
+lib/current_scope/permission_grid.rb
+  s_1ccf4e18ef955f::t_f7eecad6ba3f28 36-44,50-51,57-59
+  s_1ccf4e18ef955f::t_ea1528f813f284 14
+app/controllers/current_scope/role_assignments_controller.rb
+  s_1ccf4e18ef955f::t_8b304f991b7a0f 7-8,15-23
+app/assets/javascripts/current_scope/application.js
+  s_1ccf4e18ef955f::t_9cb456140ee786 46-49
+  s_1ccf4e18ef955f::t_d26daac04a69cc 63-73,89-92,96
+  s_1ccf4e18ef955f::t_23991ba8c9a081 126-128,130
+  s_1ccf4e18ef955f::t_74ba5519892cb4 19-29
+  s_1ccf4e18ef955f::t_edd553a70f09fe 31
+app/views/current_scope/subjects/index.html.erb
+  s_1ccf4e18ef955f::t_9621ab5c4f665a 61,65,67
+app/views/current_scope/roles/edit.html.erb
+  s_1ccf4e18ef955f::t_f06bbf2e6414f4 65-70
+test/permission_grid_test.rb
+  s_1ccf4e18ef955f::t_e1bcb32def3c65 57,60-61,63,65,70,74-83
+test/integration/subjects_bulk_test.rb
+  s_1ccf4e18ef955f::t_12d39c89deb4cf 60-82
+app/controllers/current_scope/application_controller.rb
+  s_1ccf4e18ef955f::t_95575d9feebccd 27-43
+test/integration/role_grid_test.rb
+  s_1ccf4e18ef955f::t_0dcaecf0ce8f3d 48-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "2e4402ef26a719ebe6e89400fe0be010250f21aa",
+  "prompts": {},
+  "sessions": {
+    "s_1ccf4e18ef955f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6c20aff2-288a-4aca-85c8-7668bd8bc0b8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+app/assets/stylesheets/current_scope/application.css
+  s_1ccf4e18ef955f::t_9b09d29350434a 355-360
+  s_1ccf4e18ef955f::t_b72ee6665db01d 361
+  s_1ccf4e18ef955f::t_6dcace86b15677 699-701
+test/system/management_ui_smoke_test.rb
+  s_1ccf4e18ef955f::t_51eda94a300d4e 73-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "292b987874ec5d081bdddf94aa2a6118b5844063",
+  "prompts": {},
+  "sessions": {
+    "s_1ccf4e18ef955f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6c20aff2-288a-4aca-85c8-7668bd8bc0b8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+.github/workflows/ci.yml
+  s_1ccf4e18ef955f::t_ed93e5aae6c289 25
+  s_1ccf4e18ef955f::t_b0205198af8a79 76
+  s_1ccf4e18ef955f::t_02e5e12e2cb9a2 16,52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "5eb6046b2f137194528eb324b3a091d0d8cf20ea",
+  "prompts": {},
+  "sessions": {
+    "s_1ccf4e18ef955f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6c20aff2-288a-4aca-85c8-7668bd8bc0b8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -153,4 +153,21 @@ document.addEventListener("click", function (event) {
     var query = gids.map(function (g) { return "subject_gids[]=" + encodeURIComponent(g); }).join("&");
     window.location = base + (base.indexOf("?") === -1 ? "?" : "&") + query;
   });
+
+  // Bulk org-wide role: inject the checked subjects into the POST form on submit.
+  document.addEventListener("submit", function (event) {
+    var form = event.target.closest && event.target.closest("[data-cs-bulk-org]");
+    if (!form) return;
+    var gids = selectedRows().map(function (r) { return selectOf(r).value; });
+    if (!gids.length) { event.preventDefault(); return; }
+    form.querySelectorAll("[data-cs-injected]").forEach(function (n) { n.remove(); });
+    gids.forEach(function (g) {
+      var input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "subject_gids[]";
+      input.value = g;
+      input.setAttribute("data-cs-injected", "");
+      form.appendChild(input);
+    });
+  });
 })();

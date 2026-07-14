@@ -57,6 +57,38 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
     assert_equal 1, CurrentScope::ScopedRoleAssignment.where(subject: bob, resource: folder, role: @role).count
   end
 
+  test "the bulk bar offers an org-wide role form" do
+    User.create!(name: "Someone")
+    get current_scope.subjects_url, headers: as(@owner)
+    assert_select "[data-cs-bulk] [data-cs-bulk-org]"
+  end
+
+  test "a bulk org-wide assignment sets the role for every selected subject" do
+    alice = User.create!(name: "Alice")
+    bob = User.create!(name: "Bob")
+
+    post current_scope.role_assignment_url, headers: as(@owner), params: {
+      role_id: @role.id, subject_gids: [ alice.to_gid.to_s, bob.to_gid.to_s ]
+    }
+    assert_redirected_to current_scope.subjects_path
+
+    assert_equal @role, CurrentScope::RoleAssignment.find_by(subject: alice)&.role
+    assert_equal @role, CurrentScope::RoleAssignment.find_by(subject: bob)&.role
+  end
+
+  test "a bulk org-wide clear (blank role) removes the role for every selected subject" do
+    alice = User.create!(name: "Alice")
+    bob = User.create!(name: "Bob")
+    CurrentScope::RoleAssignment.create!(subject: alice, role: @role)
+    CurrentScope::RoleAssignment.create!(subject: bob, role: @role)
+
+    post current_scope.role_assignment_url, headers: as(@owner), params: {
+      role_id: "", subject_gids: [ alice.to_gid.to_s, bob.to_gid.to_s ]
+    }
+    assert_nil CurrentScope::RoleAssignment.find_by(subject: alice)
+    assert_nil CurrentScope::RoleAssignment.find_by(subject: bob)
+  end
+
   test "a bulk grant skips subjects that already have it and reports the rest" do
     folder = Folder.create!(name: "Team space")
     alice = User.create!(name: "Alice")

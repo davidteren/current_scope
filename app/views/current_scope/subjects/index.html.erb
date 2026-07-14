@@ -12,7 +12,15 @@
 <div class="cs-bulk" data-cs-bulk hidden>
   <strong><span data-cs-bulk-count>0</span> selected</strong>
   <span class="cs-spacer"></span>
-  <%= link_to "Grant scoped role to selected…", "#", class: "cs-btn cs-btn-primary",
+  <%# Org-wide role for the selection. JS injects the checked subjects as
+      subject_gids[] on submit; blank role clears it for all. %>
+  <%= form_with url: role_assignment_path, method: :post, class: "cs-bulk-org",
+        data: { cs_bulk_org: true } do %>
+    <%= select_tag :role_id, options_from_collection_for_select(@roles, :id, :name),
+          include_blank: "org role…", aria: { label: "Org-wide role for selected" } %>
+    <%= submit_tag "Set for selected", name: nil, class: "cs-btn" %>
+  <% end %>
+  <%= link_to "Grant scoped role…", "#", class: "cs-btn cs-btn-primary",
         data: { cs_bulk_scoped: true, cs_bulk_url: new_scoped_role_assignment_path } %>
   <button type="button" class="cs-btn" data-cs-bulk-clear>Clear</button>
 </div>

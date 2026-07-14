@@ -169,8 +169,12 @@ document.addEventListener("DOMContentLoaded", function () {
       // back to textContent only if a row didn't provide one.
       var haystack = (row.getAttribute("data-cs-filter-text") || row.textContent).toLowerCase();
       var match = !needle || haystack.indexOf(needle) !== -1;
-      row.hidden = !match;
-      if (match) anyVisible = true;
+      // Keep a checked (selected) row visible even when it doesn't match, so a
+      // subject can never sit hidden-but-selected inside a bulk action — what
+      // you see stays what you'll act on. selectedRows() scans all rows.
+      var cb = selectOf(row);
+      row.hidden = !match && !(cb && cb.checked);
+      if (!row.hidden) anyVisible = true;
     });
     var empty = document.querySelector("[data-cs-filter-empty]");
     if (empty) empty.hidden = anyVisible || rows().length === 0;

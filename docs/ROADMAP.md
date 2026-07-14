@@ -36,6 +36,15 @@ a label, it isn't. Both can coexist on the same record.
 Ordered by how often a real host app hits them. Each is additive — none changes the
 v0.1 model.
 
+> **Shipped since this section was written** (see [STATUS.md](../STATUS.md) for
+> details) — the items below are kept for their rationale, but they are **built**:
+> **2.1 Audit** (append-only `current_scope_events` ledger), **2.2 Impersonation /
+> act-as** (`Current.actor` + `sod_identity` + read-only `MutationGuard`),
+> **2.4 Resolver memoization** (per-request org-role memo on `CurrentScope::Current`),
+> and **2.6 `scope_for`**. Still open: **2.3 hierarchy/cascade** and **2.5 feature
+> flags**. Also shipped beyond this list: the admin dashboard UI, a role-side
+> **members** view, and a **break-glass** SoD override (`allow_sod_bypass`).
+
 ### 2.1 Audit / change history &nbsp;·&nbsp; priority: HIGH
 - **What:** a durable record of every authorization change — role created/renamed,
   a permission ticked/unticked on the grid, an org-wide role assigned, a scoped role

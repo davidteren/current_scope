@@ -1,0 +1,37 @@
+app/views/current_scope/subjects/index.html.erb
+  s_e7ad10274cb2b2::t_8849cd957e6581 97,99
+  s_e7ad10274cb2b2::t_e124cd087ead69 7-12,15-18
+app/assets/stylesheets/current_scope/application.css
+  s_1ccf4e18ef955f::t_aa20a7a5ee7b87 323-327
+app/controllers/current_scope/subjects_controller.rb
+  s_e7ad10274cb2b2::t_977ca4043d1fd1 5-9,11-14,26-55
+test/system/subject_flows_test.rb
+  s_1ccf4e18ef955f::t_5297f69da3b2af 58-68
+test/integration/subjects_search_test.rb
+  s_e7ad10274cb2b2::t_f4cb052f24a578 1-42,63
+  s_1ccf4e18ef955f::t_0f787505131b85 43-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "f7766c53874ec9775b3299181115738484c72281",
+  "prompts": {},
+  "sessions": {
+    "s_1ccf4e18ef955f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6c20aff2-288a-4aca-85c8-7668bd8bc0b8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    },
+    "s_e7ad10274cb2b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e05e87c6-5f4f-4820-a7a5-01ed3f5a1285",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

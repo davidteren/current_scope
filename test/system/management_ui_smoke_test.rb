@@ -70,6 +70,34 @@ class ManagementUiSmokeTest < ApplicationSystemTestCase
     shot("subjects-index")
   end
 
+  test "subjects table stays usable at a narrow width (no crushed rows / no page overflow)" do
+    # A subject with several long scoped-role labels is what crushed the table:
+    # squeezed columns wrapped the chips into a very tall row and the table
+    # overflowed the viewport. Reproduce that data, then check it holds up narrow.
+    heavy = User.create!(name: "Heavy Scoped User")
+    3.times do |i|
+      folder = Folder.create!(name: "Long Project Name Number #{i} For Wrap Testing")
+      CurrentScope::ScopedRoleAssignment.create!(subject: heavy, resource: folder, role: @editor)
+    end
+
+    current_window.resize_to(500, 900)
+    visit "/current_scope/subjects"
+    assert_rendered
+    metrics = page.evaluate_script(<<~JS)
+      (() => {
+        const rows = [...document.querySelectorAll('tbody tr[data-cs-row]')].map(r => r.getBoundingClientRect().height);
+        return { maxRow: Math.max(...rows),
+                 pageOverflows: document.documentElement.scrollWidth > window.innerWidth };
+      })()
+    JS
+    assert_operator metrics["maxRow"], :<, 120,
+      "a subjects row is crushed into a tall wrapped block at narrow width (#{metrics["maxRow"]}px)"
+    assert_not metrics["pageOverflows"], "the subjects table overflows the viewport at narrow width"
+    shot("subjects-narrow")
+  ensure
+    current_window.resize_to(1280, 900)
+  end
+
   test "events index renders" do
     visit "/current_scope/events"
     assert_rendered

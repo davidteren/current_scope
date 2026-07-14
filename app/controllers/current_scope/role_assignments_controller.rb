@@ -2,9 +2,7 @@ module CurrentScope
   # Sets (or clears) a subject's single org-wide role.
   class RoleAssignmentsController < ApplicationController
     def create
-      gids = Array(params[:subject_gids]).select(&:present?)
-      gids = [ params[:subject_gid] ].compact if gids.empty?
-      subjects = locate_subjects(gids)
+      subjects = locate_subjects(submitted_subject_gids)
       if subjects.empty?
         redirect_to subjects_path, alert: "No subjects selected."
         return

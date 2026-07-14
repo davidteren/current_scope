@@ -50,6 +50,19 @@ document.addEventListener("click", function (event) {
   btn.setAttribute("aria-pressed", String(next === "dark"));
 });
 
+// Sync the toggle's aria-pressed to the theme actually rendered. The server can
+// only set it from the cookie; with no cookie + OS dark the page is dark but the
+// server rendered aria-pressed="false". Correct it once we can read matchMedia.
+document.addEventListener("DOMContentLoaded", function () {
+  var btn = document.querySelector("[data-cs-theme-toggle]");
+  if (!btn) return;
+  var current = document.documentElement.getAttribute("data-cs-theme");
+  var effectiveDark = current
+    ? current === "dark"
+    : window.matchMedia("(prefers-color-scheme: dark)").matches;
+  btn.setAttribute("aria-pressed", String(effectiveDark));
+});
+
 // Permission grid: a per-row "enable all" master checkbox toggles every action in its
 // controller row, and stays in sync (checked / indeterminate / unchecked) as individual
 // actions change. Progressive enhancement — with JS off, each action checkbox still works.
@@ -152,7 +165,10 @@ document.addEventListener("click", function (event) {
     var needle = event.target.value.trim().toLowerCase();
     var anyVisible = false;
     rows().forEach(function (row) {
-      var match = !needle || row.textContent.toLowerCase().indexOf(needle) !== -1;
+      // Prefer the row's explicit filter text (subject + roles + records); fall
+      // back to textContent only if a row didn't provide one.
+      var haystack = (row.getAttribute("data-cs-filter-text") || row.textContent).toLowerCase();
+      var match = !needle || haystack.indexOf(needle) !== -1;
       row.hidden = !match;
       if (match) anyVisible = true;
     });

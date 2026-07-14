@@ -80,6 +80,23 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
     assert_equal "No subjects selected.", flash[:alert]
   end
 
+  test "duplicate subject_gids in a bulk org assignment are counted and audited once" do
+    alice = User.create!(name: "Alice")
+    assert_difference -> { CurrentScope::RoleAssignment.count }, 1 do
+      post current_scope.role_assignment_url, headers: as(@owner), params: {
+        role_id: @role.id, subject_gids: [ alice.to_gid.to_s, alice.to_gid.to_s ]
+      }
+    end
+    assert_equal "Org-wide role set.", flash[:notice] # singular ⇒ counted once, not twice
+  end
+
+  test "subject rows carry filter text including their roles (role-name filtering works)" do
+    alice = User.create!(name: "Alice")
+    CurrentScope::RoleAssignment.create!(subject: alice, role: @role) # @role => "Reviewer"
+    get current_scope.subjects_url, headers: as(@owner)
+    assert_select "tr[data-cs-row][data-cs-filter-text*=?]", "Reviewer"
+  end
+
   test "the bulk bar offers an org-wide role form" do
     User.create!(name: "Someone")
     get current_scope.subjects_url, headers: as(@owner)

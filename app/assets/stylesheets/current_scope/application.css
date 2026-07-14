@@ -479,6 +479,12 @@ a:hover { color: var(--cs-accent-strong); }
 /* GRANTED: the cell lights up in cobalt. */
 .cs-grid td:has(input:checked) { background: var(--cs-accent-wash); }
 
+/* PARTIAL: some-but-not-all of the group is granted. JS also sets the checkbox
+   indeterminate, but this keys off the data attribute so the "partial, not
+   ungranted" state is still visible with JS disabled. */
+.cs-grid td:has(input[data-cs-partial="true"]) { background: var(--cs-accent-wash); }
+.cs-grid input[data-cs-partial="true"] { outline: 2px dashed var(--cs-accent); outline-offset: 1px; }
+
 /* Checkboxes / radios use the accent. */
 input[type="checkbox"], input[type="radio"] {
   accent-color: var(--cs-accent);

@@ -53,7 +53,10 @@
             <% grid.columns.each do |column| %>
               <% cell = grid.cell(controller, column, granted) %>
               <% if cell.blank %>
-                <td class="cs-cell-blank" aria-hidden="true"></td>
+                <%# Not routed here — an empty cell. Kept in the a11y tree (no
+                    aria-hidden) so column/row alignment stays intact for screen
+                    readers; the "·" marker is decorative CSS. %>
+                <td class="cs-cell-blank"></td>
               <% else %>
                 <td>
                   <label>

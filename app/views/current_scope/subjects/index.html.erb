@@ -8,6 +8,9 @@
          placeholder="Filter subjects, roles, records…" aria-label="Filter subjects">
   <span class="cs-spacer"></span>
 </div>
+<% if @page > 1 || @has_next_page %>
+  <p class="cs-hint">Filtering and selection apply to this page of subjects. Use the pages below to reach the rest.</p>
+<% end %>
 
 <div class="cs-bulk" data-cs-bulk hidden>
   <strong><span data-cs-bulk-count>0</span> selected</strong>
@@ -39,7 +42,13 @@
     <% @subjects.each do |subject| %>
       <% key = [ subject.class.name, subject.id ] %>
       <% label = current_scope_subject_label(subject) %>
-      <tr data-cs-row>
+      <%# Filter against a precise text set — subject label, current org role, and
+          scoped roles/records — NOT the row's textContent: every row embeds a
+          <select> listing all role names, which would match every query. %>
+      <% org_role_name = @roles.find { |r| r.id == @assignments[key]&.role_id }&.name %>
+      <% filter_text = [ label, org_role_name,
+                         *(@scoped[key] || []).map { |sra| "#{sra.role.name} #{current_scope_label(sra.resource)}" } ].compact.join(" ") %>
+      <tr data-cs-row data-cs-filter-text="<%= filter_text %>">
         <td class="cs-select-cell">
           <input type="checkbox" data-cs-select value="<%= subject.to_gid %>"
                  aria-label="Select <%= label %>">
@@ -76,7 +85,7 @@
 </table>
 </div>
 
-<p class="cs-filter-empty" data-cs-filter-empty hidden>No subjects match that filter.</p>
+<p class="cs-filter-empty" data-cs-filter-empty hidden>No subjects on this page match your filter.</p>
 
 <nav class="cs-pagination" aria-label="Subjects pagination">
   <% if @page > 1 %><%= link_to "← Previous", subjects_path(page: @page - 1) %><% end %>

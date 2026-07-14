@@ -7,6 +7,10 @@
 
   <p><%= f.label :name %> <%= f.text_field :name %></p>
   <p>
+    <%= f.label :description %>
+    <%= f.text_area :description, rows: 2, placeholder: "What is this role for? (optional)" %>
+  </p>
+  <p>
     <%= f.label :full_access do %>
       <%= f.check_box :full_access %> Full access — every permission, present and future
       (the grid below is ignored while this is on)
@@ -15,29 +19,55 @@
 
   <h2>Permission grid</h2>
   <p class="cs-hint">
-    One row per controller, one checkbox per action — derived from the app's
-    routes, so new controllers appear here automatically.
+    One row per controller, one checkbox per action group — derived from the
+    app's routes, so new controllers appear here automatically. Columns are
+    fixed: a blank cell means the controller doesn't route that action.
   </p>
 
+  <% grid = CurrentScope::PermissionGrid.new %>
+  <% granted = @role.permission_keys.to_set %>
   <%= hidden_field_tag "role[permission_keys][]", "" %>
+  <%= hidden_field_tag "role[permission_groups][]", "" %>
   <div class="cs-grid-wrap">
     <table class="cs-grid">
-      <% granted = @role.permission_keys.to_set %>
-      <% CurrentScope.catalog.grouped.sort.each do |controller, actions| %>
+      <thead>
         <tr>
-          <th scope="row"><%= controller %></th>
-          <% actions.sort.each do |action| %>
-            <% key = "#{controller}##{action}" %>
-            <td>
-              <label>
-                <%= check_box_tag "role[permission_keys][]", key, granted.include?(key),
-                      id: "perm_#{key.parameterize(separator: "_")}" %>
-                <%= action %>
-              </label>
-            </td>
+          <th scope="col" class="cs-grid-corner">Controller</th>
+          <% grid.columns.each do |column| %>
+            <th scope="col"><%= column.label %></th>
           <% end %>
         </tr>
-      <% end %>
+      </thead>
+      <tbody>
+        <% grid.controllers.each do |controller| %>
+          <tr>
+            <th scope="row">
+              <%# Per-row master: enable/disable every action in this controller at once.
+                  Progressive enhancement — with JS off, each cell checkbox still works. %>
+              <label class="cs-row-all" title="Enable all <%= controller %> permissions">
+                <input type="checkbox" data-cs-row-all
+                       aria-label="Enable all <%= controller %> permissions">
+                <span><%= controller %></span>
+              </label>
+            </th>
+            <% grid.columns.each do |column| %>
+              <% cell = grid.cell(controller, column, granted) %>
+              <% if cell.blank %>
+                <td class="cs-cell-blank" aria-hidden="true"></td>
+              <% else %>
+                <td>
+                  <label>
+                    <%= check_box_tag cell.name, cell.value, cell.checked,
+                          id: "perm_#{cell.value.parameterize(separator: '_')}",
+                          data: { cs_partial: cell.partial },
+                          "aria-label": "#{controller} #{column.label}" %>
+                  </label>
+                </td>
+              <% end %>
+            <% end %>
+          </tr>
+        <% end %>
+      </tbody>
     </table>
   </div>
 

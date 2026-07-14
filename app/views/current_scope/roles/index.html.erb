@@ -15,7 +15,12 @@
   <tbody>
     <% @roles.each do |role| %>
       <tr>
-        <td><%= link_to role.name, edit_role_path(role) %></td>
+        <td>
+          <%= link_to role.name, edit_role_path(role) %>
+          <% if role.description.present? %>
+            <div class="cs-subtle"><%= role.description %></div>
+          <% end %>
+        </td>
         <td>
           <% if role.full_access? %>
             full access (all current and future permissions)

@@ -35,3 +35,50 @@ document.addEventListener("click", function (event) {
   document.cookie = "cs_theme=" + next + ";path=/;max-age=31536000;samesite=lax";
   btn.setAttribute("aria-pressed", String(next === "dark"));
 });
+
+// Permission grid: a per-row "enable all" master checkbox toggles every action in its
+// controller row, and stays in sync (checked / indeterminate / unchecked) as individual
+// actions change. Progressive enhancement — with JS off, each action checkbox still works.
+(function () {
+  // Matches both channels: raw action checkboxes (role[permission_keys][]) and
+  // grouped CRUD checkboxes (role[permission_groups][]).
+  var ACTION = 'input[type="checkbox"][name^="role[permission"]';
+
+  function actionsIn(row) { return row.querySelectorAll(ACTION); }
+
+  function syncMaster(row) {
+    var master = row.querySelector("[data-cs-row-all]");
+    if (!master) return;
+    var boxes = actionsIn(row), checked = 0;
+    boxes.forEach(function (b) { if (b.checked) checked++; });
+    master.checked = boxes.length > 0 && checked === boxes.length;
+    master.indeterminate = checked > 0 && checked < boxes.length;
+  }
+
+  document.addEventListener("change", function (event) {
+    var el = event.target;
+    if (!el || typeof el.matches !== "function") return;
+
+    if (el.matches("[data-cs-row-all]")) {
+      var row = el.closest("tr");
+      if (row) actionsIn(row).forEach(function (b) { b.checked = el.checked; });
+      return;
+    }
+    if (el.matches(ACTION)) {
+      var r = el.closest("tr");
+      if (r) syncMaster(r);
+    }
+  });
+
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll("[data-cs-row-all]").forEach(function (master) {
+      var row = master.closest("tr");
+      if (row) syncMaster(row);
+    });
+    // A grouped CRUD checkbox that's checked but only partially granted
+    // (e.g. read = index but not show) reads as indeterminate.
+    document.querySelectorAll('[data-cs-partial="true"]').forEach(function (cb) {
+      cb.indeterminate = true;
+    });
+  });
+})();

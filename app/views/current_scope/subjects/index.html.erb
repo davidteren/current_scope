@@ -24,12 +24,16 @@
         <td>
           <% (@scoped[key] || []).each do |sra| %>
             <span class="cs-chip">
-              <%= sra.role.name %> of <%= current_scope_label(sra.resource) %>
+              <span class="cs-chip-label"><%= sra.role.name %> of <%= current_scope_label(sra.resource) %></span>
               <%= button_to "×", scoped_role_assignment_path(sra), method: :delete,
-                    class: "cs-chip-remove" %>
+                    class: "cs-chip-remove",
+                    title: "Revoke this scoped role",
+                    aria: { label: "Revoke #{sra.role.name} on #{current_scope_label(sra.resource)}" },
+                    data: { turbo_confirm: "Revoke #{sra.role.name} on #{current_scope_label(sra.resource)}?" } %>
             </span>
           <% end %>
-          <%= link_to "+ scoped role", new_scoped_role_assignment_path(subject_gid: subject.to_gid) %>
+          <%= link_to "+ scoped role", new_scoped_role_assignment_path(subject_gid: subject.to_gid),
+                class: "cs-add-scoped" %>
         </td>
       </tr>
     <% end %>

@@ -1,6 +1,7 @@
 require "current_scope/version"
 require "current_scope/configuration"
 require "current_scope/permission_catalog"
+require "current_scope/permission_grid"
 require "current_scope/resolver"
 require "current_scope/permissions"
 require "current_scope/context"

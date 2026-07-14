@@ -7,6 +7,10 @@
 
   <p><%= f.label :name %> <%= f.text_field :name %></p>
   <p>
+    <%= f.label :description %>
+    <%= f.text_area :description, rows: 2, placeholder: "What is this role for? (optional)" %>
+  </p>
+  <p>
     <%= f.label :full_access do %>
       <%= f.check_box :full_access %> Full access — every permission, present and future
     <% end %>

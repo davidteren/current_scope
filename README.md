@@ -4,6 +4,24 @@
 [![CI](https://github.com/davidteren/current_scope/actions/workflows/ci.yml/badge.svg)](https://github.com/davidteren/current_scope/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](MIT-LICENSE)
 [![Website](https://img.shields.io/badge/website-davidteren.github.io%2Fcurrent__scope-4d7cfe)](https://davidteren.github.io/current_scope/)
+[![Status: not production-ready](https://img.shields.io/badge/status-not%20production--ready-e8590c)](https://github.com/davidteren/current_scope/issues)
+
+> ## ⚠️ Not production-ready
+>
+> There are some known issues which are currently being worked on. **This is not
+> production-ready**, but it is ready for experimentation and spiking, or
+> whatever people want to do with it — just not yet for production.
+>
+> This is an **authorization** library, so the bar is different: a bug here is a
+> user seeing or doing something they shouldn't. The open work is tracked in the
+> [issue tracker](https://github.com/davidteren/current_scope/issues), and
+> several items are security-relevant — permission keys that can be dropped
+> silently, advisory checks that don't consult the catalog, and gaps in the
+> separation-of-duties veto. Each is being worked through with a written plan and
+> an adversarial review pass.
+>
+> Kick the tyres, build a spike, tell us what breaks. Don't put it in front of
+> real users yet.
 
 **Website:** [davidteren.github.io/current_scope](https://davidteren.github.io/current_scope/) — overview, the resolver, and quickstart at a glance.
 

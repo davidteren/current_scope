@@ -1,0 +1,19 @@
+docs/solutions/workflow-issues/a-correction-rots-the-plan-it-fixes.md
+  s_4d1327efb21c21::t_c6fb89fb4a6513 56-61,63-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "bf3cf9efa87454f0493cd7fb22aef2a16b8170c1",
+  "prompts": {},
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

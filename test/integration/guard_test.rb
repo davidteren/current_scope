@@ -152,6 +152,33 @@ class GuardTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  # Keying member-detection on :id alone would read this as a collection action
+  # and hand Alice a report she holds no grant on.
+  test "a member route with a CUSTOM param also fails closed" do
+    other = Report.create!(title: "Q4", requested_by: @bob)
+    viewer = role("Viewer", "slug_reports#show")
+    CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: viewer, resource: @report)
+
+    get slug_report_url(other.title), headers: sign_in(@alice)
+    assert_response :forbidden, "param: :slug is a member param, not a collection"
+    assert_equal "no_grant", response.headers["X-Current-Scope-Reason"]
+  end
+
+  # The non-regression on the above: a nested collection's only dynamic segment
+  # is the parent's :project_id, which must NOT read as a member route — a
+  # scoped-only subject has to keep reaching its index (the whole point of #19).
+  test "a nested collection route still reaches its index on a scoped grant" do
+    other = Report.create!(title: "Q4", requested_by: @bob)
+    project = Project.create!(name: "Apollo")
+    viewer = role("Viewer", "nested_reports#index")
+    CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: viewer, resource: @report)
+
+    get project_nested_reports_url(project), headers: sign_in(@alice)
+    assert_response :success, "a nested collection must not be mistaken for a member route"
+    assert_equal "Q3", response.body
+    assert_no_match(/Q4/, response.body, "and scope_for must still narrow it")
+  end
+
   test "a member route with no record hook still honors an org-wide grant" do
     # Unchanged: the org path never reads the record, so the sentinel is inert
     # here. Only the scoped paths are affected.

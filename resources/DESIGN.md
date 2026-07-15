@@ -213,7 +213,9 @@ One resolver answers every check, in this fixed order:
 resolve(subject, permission, record = nil):
   1. SoD veto        → if this is an approve-style action on `record`
                         AND subject initiated `record`  → DENY   (overrides all)
-                        (unless break-glass lifts it → ALLOW, audited)
+                        (unless break-glass lifts it → ALLOW; the Guard records
+                         an audit event, which `config.audit = false` turns into
+                         a no-op — an audit-off host permits and records nothing)
   2. full_access     → if subject's org-wide role.full_access?  → ALLOW
   3. org-wide role   → if subject's org-wide role includes `permission` → ALLOW
   4. scoped role     → if subject holds a scoped role on THIS `record`

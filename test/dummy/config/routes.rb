@@ -15,6 +15,13 @@ Rails.application.routes.draw do
   post "sod_nil/approve", to: "sod_nil#approve"
   # A member route whose controller declares no current_scope_record hook.
   resources :hookless_member, only: :show
+  # Same, but with a custom member param — must not read as a collection.
+  resources :slug_reports, only: :show, param: :slug
+  # A nested COLLECTION — its only dynamic segment is the parent's :project_id,
+  # so it must still read as a collection and stay reachable.
+  resources :projects, only: [] do
+    resources :nested_reports, only: :index
+  end
   post "writes/guarded", to: "writes#guarded", as: :writes_guarded
   post "writes/unguarded", to: "writes#unguarded", as: :writes_unguarded
 

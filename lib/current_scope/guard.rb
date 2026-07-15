@@ -39,9 +39,7 @@ module CurrentScope
     # record. Fail-closed on a misconfiguration, exactly as before this path
     # existed.
     #
-    # Keyed on :id, so a route with a custom `param:` still passes nil. Narrow
-    # by design: a nested collection (/projects/:project_id/reports) carries no
-    # :id, and must keep reaching its index.
+    # See member_route? for how the two are told apart, and its limits.
     NO_RECORD = Object.new.freeze
 
     included do
@@ -87,7 +85,35 @@ module CurrentScope
       record = respond_to?(:current_scope_record, true) ? send(:current_scope_record) : nil
       return record unless record.nil?
 
-      request.path_parameters[:id].present? ? NO_RECORD : nil
+      member_route? ? NO_RECORD : nil
+    end
+
+    # Does this route name a record? Rails' own naming convention answers it: a
+    # resource's member param is :id (or whatever `param:` renames it to), while
+    # a nested PARENT's param is always suffixed `_id`. So a dynamic segment
+    # whose key is not `*_id` is this controller's own record.
+    #
+    #   /reports                        {}                        collection
+    #   /reports/1                      {id}                      member
+    #   /reports/1/approve              {id}                      member
+    #   /reports/slug-here              {slug}    (param: :slug)   member
+    #   /projects/7/reports             {project_id}              collection ← must stay
+    #   /projects/7/reports/1           {project_id, id}          member
+    #
+    # Keying on :id alone would read `resources :reports, param: :slug` as a
+    # collection and hand an ungranted record to anyone with a scoped grant
+    # ticking the action.
+    #
+    # Known false positive, and deliberately the safe direction: a nested parent
+    # with a custom param (`resources :projects, param: :slug` → nested routes
+    # get :project_slug) reads as a member route, so a scoped subject is denied
+    # its nested index. A visible 403, not silent over-permission. Both this and
+    # the heuristic itself go away once the host can declare the collection's
+    # model outright (#50).
+    def member_route?
+      request.path_parameters
+             .except(:controller, :action, :format)
+             .keys.any? { |key| !key.to_s.end_with?("_id") }
     end
 
     # Break-glass audit (KTD-1): the resolver stays pure and only reports

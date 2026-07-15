@@ -101,15 +101,28 @@ module CurrentScope
       Role.where(full_access: true).or(Role.where(id: roles_ticking(permission)))
     end
 
-    # Role ids that EXPLICITLY tick `permission` — full_access deliberately NOT
-    # unioned in. Only for the record-less branch, which binds the grant to no
-    # record at all: wildcarding full_access there would mean one scoped
-    # full_access grant on one record ("Owner of Report #7") opened EVERY
-    # record-less gate in the host app — every #index and #create on every
-    # controller — since a full_access role satisfies every key. That is the
-    # `resource:` bound scoped_grant? applies and the record-less branch cannot.
+    # Role ids that EXPLICITLY tick `permission` — full_access roles deliberately
+    # excluded, whether or not they also carry a RolePermission row. Only for the
+    # record-less branch, which binds the grant to no record at all: honoring
+    # full_access there would mean one scoped full_access grant on one record
+    # ("Owner of Report #7") opened EVERY record-less gate in the host app —
+    # every #index and #create on every controller — since a full_access role
+    # satisfies every key. That is the `resource:` bound scoped_grant? applies
+    # and the record-less branch cannot.
+    #
+    # The `where.not` is load-bearing, not belt-and-braces: a role can be
+    # full_access AND retain explicit rows (tick grid cells, then flip the
+    # full-access toggle), and matching on the leftover row alone would walk it
+    # straight back through the branch full_access is barred from.
+    #
+    # roles_granting's set is unchanged by this exclusion — it unions
+    # full_access back in, so full_access ∪ (ticking − full_access) == the same
+    # roles it always matched.
     def roles_ticking(permission)
-      RolePermission.where(permission_key: permission).select(:role_id)
+      RolePermission
+        .where(permission_key: permission)
+        .where.not(role_id: Role.where(full_access: true).select(:id))
+        .select(:role_id)
     end
 
     # The separation-of-duties outcome for this decision: :none (no conflict, or
@@ -234,10 +247,29 @@ module CurrentScope
     # not the per-row gate. Revisit if that ever shows up in a profile.
     def record_less_scoped_grant?(subject:, permission:, record:)
       return false unless record.nil? || record.is_a?(Class)
+      return false if sod_action?(permission)
 
       ScopedRoleAssignment
         .where(subject: subject, role_id: roles_ticking(permission))
         .exists?
+    end
+
+    # An SoD action is record-targeted BY DEFINITION — "the subject who
+    # initiated a record can never approve THAT record". So a record-less SoD
+    # check is a contradiction in terms: there is no record for the veto to
+    # measure, and `sod_decision` returns :none for exactly that reason. Opening
+    # such a gate off a scoped grant would let a host that mis-gates a member
+    # SoD action (current_scope_record returning nil on `reports#approve` —
+    # precisely what warn_on_nil_sod_record exists to catch) hand out the action
+    # with the four-eyes veto silently skipped. The veto is a structural
+    # guarantee, so it must not rest on an opt-in dev warning; deny instead.
+    #
+    # This does NOT close the older org-grant asymmetry — a nil record on an SoD
+    # action still passes for an org-wide grant, which is characterized and
+    # pinned in test/sod_nil_record_test.rb. It only stops the record-less scoped
+    # branch from widening that hole to scoped grants too.
+    def sod_action?(permission)
+      CurrentScope.config.sod_actions.include?(permission.split("#").last)
     end
   end
 end

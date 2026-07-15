@@ -160,6 +160,15 @@ tied to no record:
   everywhere else. A full_access role satisfies every key, so one scoped
   full_access grant would otherwise pass every record-less gate in the app.
   Bounding it needs the type, which the `nil` target does not carry (§3.4 above).
+- **An SoD action is never opened this way.** A four-eyes action is
+  record-targeted by definition — there is no record for the veto to measure, so
+  the veto cannot run (§3.6). Rather than hand out the action with the guarantee
+  silently skipped, a record-less SoD check is denied.
+- **A record-less `nil` must be the host's honest "no record here."** The Guard
+  passes a sentinel instead when a *member* route (`/reports/:id`) has no
+  `current_scope_record` hook, or the hook returns nil: the route names a record
+  the gate couldn't get, which is the opposite claim. That fails closed, rather
+  than reading a misconfiguration as "no record needed" and opening up.
 - **The gate admits; it does not filter.** Passing a collection gate is not a
   claim about what the action then renders. `scope_for` is the filter, and it is
   the host's to call — the engine cannot narrow a list built from `Model.all`.
@@ -204,11 +213,17 @@ One resolver answers every check, in this fixed order:
 resolve(subject, permission, record = nil):
   1. SoD veto        → if this is an approve-style action on `record`
                         AND subject initiated `record`  → DENY   (overrides all)
+                        (unless break-glass lifts it → ALLOW, audited)
   2. full_access     → if subject's org-wide role.full_access?  → ALLOW
   3. org-wide role   → if subject's org-wide role includes `permission` → ALLOW
   4. scoped role     → if subject holds a scoped role on THIS `record`
                         whose role includes `permission`  → ALLOW
-  5. otherwise       → DENY   (default-deny)
+  5. scoped role,    → if `record` is RECORD-LESS (nil for a collection action,
+     record-less        or a Class) AND subject holds ANY scoped role that
+                        EXPLICITLY ticks `permission`  → ALLOW
+                        (full_access does not count here, and an SoD action is
+                         never opened this way — see §3.4)
+  6. otherwise       → DENY   (default-deny)
 ```
 
 ```ruby
@@ -220,7 +235,10 @@ module Grantwork
       return true if role&.full_access?                            # 2
       return true if role&.grants?(permission)                     # 3
       return true if scoped_grant?(subject:, permission:, record:) # 4
-      false                                                        # 5
+      return true if record_less_scoped_grant?(                    # 5
+        subject:, permission:, record:
+      )
+      false                                                        # 6
     end
 
     private

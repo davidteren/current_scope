@@ -24,6 +24,26 @@ module CurrentScope
     extend ActiveSupport::Concern
     include MutationGuard
 
+    # "The route names a record, but the gate could not get one." Passed to the
+    # resolver instead of nil when a MEMBER route (path_parameters[:id]) has no
+    # current_scope_record hook, or the hook returns nil.
+    #
+    # A collection action's nil is the host saying "there is no record here",
+    # and the resolver honors a scoped grant on it (that is how a scoped-only
+    # subject reaches their index). A member route's nil says the opposite —
+    # there IS a record, we just failed to name it — and treating the two alike
+    # would let a controller that forgets the hook hand a scoped subject every
+    # record of that type, where it previously 403'd. Not nil and not a Class,
+    # so the resolver's record-less branch skips it and the decision falls to
+    # deny; org-wide and full_access are unaffected, since they never read the
+    # record. Fail-closed on a misconfiguration, exactly as before this path
+    # existed.
+    #
+    # Keyed on :id, so a route with a custom `param:` still passes nil. Narrow
+    # by design: a nested collection (/projects/:project_id/reports) carries no
+    # :id, and must keep reaching its index.
+    NO_RECORD = Object.new.freeze
+
     included do
       before_action :current_scope_check!
     end
@@ -45,7 +65,7 @@ module CurrentScope
               "skip_before_action :current_scope_check!."
       end
 
-      record = respond_to?(:current_scope_record, true) ? send(:current_scope_record) : nil
+      record = resolve_current_scope_record
 
       # The real actor (Current.actor) enters here explicitly — the resolver
       # never reads Current itself (PDP purity). It only matters under SoD
@@ -58,6 +78,16 @@ module CurrentScope
 
       record_sod_bypass(permission, record) if reason == :sod_bypassed
       nudge_on_nil_sod_record(permission, record)
+    end
+
+    # The record this gate decides against, or NO_RECORD when the route names one
+    # and we couldn't get it (see NO_RECORD). A collection action's honest nil
+    # passes through untouched.
+    def resolve_current_scope_record
+      record = respond_to?(:current_scope_record, true) ? send(:current_scope_record) : nil
+      return record unless record.nil?
+
+      request.path_parameters[:id].present? ? NO_RECORD : nil
     end
 
     # Break-glass audit (KTD-1): the resolver stays pure and only reports
@@ -84,7 +114,10 @@ module CurrentScope
     # allowed_to?/scope_for calls. Prod behavior is unchanged either way.
     def nudge_on_nil_sod_record(permission, record)
       return unless CurrentScope.config.warn_on_nil_sod_record
-      return unless record.nil?
+      # NO_RECORD counts: it IS the member-action-with-no-record case this nudge
+      # exists to catch, so it must not go quiet just because the Guard now
+      # labels that case instead of passing a bare nil.
+      return unless record.nil? || record.equal?(NO_RECORD)
       return unless CurrentScope.config.sod_actions.include?(permission.split("#").last)
 
       Rails.logger&.warn(

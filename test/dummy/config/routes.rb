@@ -13,6 +13,8 @@ Rails.application.routes.draw do
   get "tripwire_public", to: "tripwire_ungated#public_action"
   get "tripwire_gated", to: "tripwire_gated#show"
   post "sod_nil/approve", to: "sod_nil#approve"
+  # A member route whose controller declares no current_scope_record hook.
+  resources :hookless_member, only: :show
   post "writes/guarded", to: "writes#guarded", as: :writes_guarded
   post "writes/unguarded", to: "writes#unguarded", as: :writes_unguarded
 

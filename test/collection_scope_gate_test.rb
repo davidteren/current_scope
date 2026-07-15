@@ -64,6 +64,22 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
     end
   end
 
+  # A role can be full_access AND carry explicit rows — tick grid cells, then
+  # flip the full-access toggle. Matching on the leftover row would walk it right
+  # back through the branch full_access is barred from.
+  test "a scoped full_access role with explicit permission rows is still barred" do
+    owner = role("Owner", "reports#index", full_access: true)
+    scope_grant(@alice, owner, @report)
+
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: nil),
+      "the explicit row must not smuggle a full_access role past the exclusion"
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: Report)
+
+    # Unchanged where it is bound to a record: full_access still means full
+    # access to the record it was granted on.
+    assert @resolver.allow?(subject: @alice, permission: "reports#index", record: @report)
+  end
+
   test "a scoped full_access role still grants everything on its OWN record" do
     scope_grant(@alice, role("Owner", full_access: true), @report)
 
@@ -195,19 +211,36 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
     assert @resolver.allow?(subject: @alice, permission: "reports#create", record: nil)
   end
 
-  test "OQ-2: a nil-record SoD action ticked by a scoped role now resolves allow" do
+  # An SoD action is record-targeted by definition, so a record-less SoD check is
+  # a contradiction — there is no record for the veto to measure. The branch
+  # refuses rather than handing out a four-eyes action with the veto skipped,
+  # which is what a host mis-gating `reports#approve` with a nil record would
+  # otherwise get. The veto is a structural guarantee; it must not depend on an
+  # opt-in dev warning.
+  test "a record-less SoD action is never opened by a scoped grant" do
     original = CurrentScope.config.sod_actions
     CurrentScope.config.sod_actions = %w[approve]
-    # Reachable ONLY when a host mis-gates a member SoD action with a nil record
-    # (what warn_on_nil_sod_record exists to catch). No veto is skipped that an
-    # org grant of the same key wouldn't also skip: sod_decision already returns
-    # :none for any record-less target, so there was never a veto here to sit
-    # downstream of. The Guard's nudge still fires — see SodNilRecordNudgeTest.
-    scope_grant(@bob, role("Reviewer", "reports#approve"), @report)
+    scope_grant(@alice, role("Reviewer", "reports#approve"), @report) # alice did NOT initiate it
 
-    allowed, reason = @resolver.decide(subject: @bob, permission: "reports#approve", record: nil)
-    assert allowed
-    assert_nil reason
+    [ nil, Report ].each do |target|
+      allowed, reason = @resolver.decide(subject: @alice, permission: "reports#approve", record: target)
+      assert_not allowed, "a record-less SoD target (#{target.inspect}) must not be opened by a scoped grant"
+      assert_equal :no_grant, reason
+    end
+
+    # The same grant still works where SoD can actually be evaluated.
+    assert @resolver.allow?(subject: @alice, permission: "reports#approve", record: @report)
+  ensure
+    CurrentScope.config.sod_actions = original
+  end
+
+  test "the SoD exclusion tracks config, not a hardcoded action list" do
+    original = CurrentScope.config.sod_actions
+    CurrentScope.config.sod_actions = []
+    scope_grant(@alice, role("Reviewer", "reports#approve"), @report)
+
+    # approve is not an SoD action here, so it is an ordinary collection key.
+    assert @resolver.allow?(subject: @alice, permission: "reports#approve", record: nil)
   ensure
     CurrentScope.config.sod_actions = original
   end

@@ -121,10 +121,45 @@ class GuardTest < ActionDispatch::IntegrationTest
     get reports_url, headers: sign_in(@alice)
     assert_response :success, "a scoped-only subject must reach their index without an org grant"
 
-    # The paired half: the gate let her in, and the list narrows to the grant.
+    # End-to-end, in the response body — not just at the resolver. The gate let
+    # her in and the controller's scope_for narrowed the list to her grant.
+    assert_equal "Q3", response.body
+    assert_no_match(/Q4/, response.body, "the ungranted report must not reach the response")
+
+    # And the resolver half the controller is built on.
     scoped = CurrentScope.resolver.scope_for(subject: @alice, model: Report, permission: "reports#index")
     assert_equal [ @report.id ], scoped.ids
     assert_not_includes scoped.ids, other.id, "an org-wide grant would have leaked this record"
+  end
+
+  # A member route whose controller declares no current_scope_record hook: the
+  # gate cannot name the record, so it must NOT read that as "collection action,
+  # no record" and open up. Alice is scoped on @report only — without the
+  # NO_RECORD sentinel she would reach ANY report through this route, which is
+  # strictly worse than the 403 she got before the record-less gate existed.
+  test "a member route with no record hook fails closed for a scoped grant" do
+    other = Report.create!(title: "Q4", requested_by: @bob)
+    viewer = role("Viewer", "hookless_member#show")
+    CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: viewer, resource: @report)
+
+    get hookless_member_url(other), headers: sign_in(@alice)
+    assert_response :forbidden, "a member route that cannot name its record must fail closed"
+    assert_equal "no_grant", response.headers["X-Current-Scope-Reason"]
+
+    # Not even the record she IS scoped on — the gate has no way to know which
+    # record this route meant, so it refuses either way rather than guess.
+    get hookless_member_url(@report), headers: sign_in(@alice)
+    assert_response :forbidden
+  end
+
+  test "a member route with no record hook still honors an org-wide grant" do
+    # Unchanged: the org path never reads the record, so the sentinel is inert
+    # here. Only the scoped paths are affected.
+    assign(@alice, role("Member", "hookless_member#show"))
+
+    get hookless_member_url(@report), headers: sign_in(@alice)
+    assert_response :success
+    assert_equal "Q3", response.body
   end
 
   test "gating an excluded controller raises a configuration error" do

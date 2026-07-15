@@ -38,6 +38,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   turn one scoped grant into a pass on every `#index` and `#create` in the app.
   It keeps its full authority over its own record.
 
+  Two things this path deliberately will **not** do, both fail-closed: it never
+  opens a **separation-of-duties action** (a four-eyes action is
+  record-targeted by definition, so a record-less one has no record for the veto
+  to measure — it is denied rather than granted with the veto skipped); and it
+  never fires for a **member route whose `current_scope_record` is missing or
+  returns nil** (`/reports/:id` names a record — if the gate can't get it, that
+  is a misconfiguration, not a collection action, and it must not be read as
+  "no record needed"). Both keep the pre-0.2.x behavior for misconfigured hosts.
+
 ## [0.2.0] - 2026-07-14
 
 ### Added

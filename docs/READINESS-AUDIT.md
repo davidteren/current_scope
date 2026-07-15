@@ -1,11 +1,38 @@
 # CurrentScope — Readiness Audit &amp; Remediation
 
-> Point-in-time audit of the engine (v0.1.0) for real-world adoption, with a concrete
-> remediation worklist. **An agent working this doc should address every item, in
-> priority order (P0 → P4).** Each item states where it is, why it matters, a fix
-> direction, and an acceptance check. Keep the engine suite green + RuboCop omakase
-> clean per change, and **add a regression test for every fix** — especially the
-> silent-fail-open items (A2/A4/A5/A6). Update STATUS.md as items land.
+> ## ✅ Complete — historical record, not a worklist
+>
+> **Every item in this document (A1–A13) has landed.** Worked end to end in
+> [PR #5](https://github.com/davidteren/current_scope/pull/5) against
+> `docs/plans/2026-07-12-002-feat-engine-readiness-remediation-plan.md`; see
+> STATUS.md → "Readiness remediation — A1–A13" for the per-item record.
+>
+> **Do not work this document.** It is kept because the *reasoning* is still worth
+> reading — why each gap mattered, and which invariants must not regress. The
+> "Verified holding — DO NOT regress" section below is the part that stays live:
+> those are standing invariants, and the audit is where they are written down.
+>
+> The engine has moved on since v0.1.0: it is published on RubyGems as
+> `current_scope` v0.2.0 (A13/P4 below, done), and several findings here were
+> superseded by later work — the record-less scoped gate, the silent key drop,
+> break-glass grantability, and the denial-reason vocabulary all changed shape
+> in v0.2 and after. So read an item's *reasoning* as current and its
+> *file:line* citations as v0.1.0-era. **Current work lives in the
+> [issue tracker](https://github.com/davidteren/current_scope/issues) and
+> `docs/plans/`**; `STATUS.md` is the live status.
+>
+> <details>
+> <summary>The original instruction to an agent working this doc (superseded)</summary>
+>
+> Point-in-time audit of the engine (v0.1.0) for real-world adoption, with a
+> concrete remediation worklist. **An agent working this doc should address every
+> item, in priority order (P0 → P4).** Each item states where it is, why it
+> matters, a fix direction, and an acceptance check. Keep the engine suite green +
+> RuboCop omakase clean per change, and **add a regression test for every fix** —
+> especially the silent-fail-open items (A2/A4/A5/A6). Update STATUS.md as items
+> land.
+>
+> </details>
 
 ## Verdict
 
@@ -13,13 +40,18 @@ The gate itself is **trustworthy as designed** — the resolver is fail-closed, 
 overrides `full_access`, the management UI is gated server-side on every action, the
 production guardrail fails loud at boot, the ledger is append-only, and there is no
 cross-request subject leak or self-escalation path. **No in-gem authorization bypass
-was found.** The gaps are three shapes: (1) packaging claims that don't match the code,
-(2) security protections that fail **silently** when a host mis-wires them, and (3)
-adoption ergonomics. Address them below.
+was found.** The gaps were three shapes: (1) packaging claims that didn't match the code,
+(2) security protections that failed **silently** when a host mis-wired them, and (3)
+adoption ergonomics. All were addressed below.
 
 ---
 
-## P0 — Fix before real use
+> **Everything below is the record of work that is DONE.** Each item keeps its
+> original "Fix:" and "Accept:" wording because that is what makes the reasoning
+> readable — they are not instructions to you. The one section that is still live
+> is [Verified holding — DO NOT regress](#verified-holding--do-not-regress).
+
+## ✅ P0 — Fix before real use — *landed (A1–A3)*
 
 ### A1 — Gemspec Rails floor is false (Rails-8 API under a `>= 7.1` claim)
 - **Where:** `current_scope.gemspec` (`add_dependency "rails", ">= 7.1"`); the management
@@ -72,7 +104,7 @@ adoption ergonomics. Address them below.
 
 ---
 
-## P1 — Harden (silent fail-opens on host misconfig)
+## ✅ P1 — Harden (silent fail-opens on host misconfig) — *landed (A4–A6)*
 
 ### A4 — No "was this action gated?" tripwire
 - **Where:** `lib/current_scope/guard.rb` (mixin the host must `include`); no auto-include.
@@ -107,7 +139,7 @@ adoption ergonomics. Address them below.
 
 ---
 
-## P2 — Correctness polish
+## ✅ P2 — Correctness polish — *landed (A7–A9)*
 
 ### A7 — `scope_for` under-lists STI subclasses
 - **Where:** `lib/current_scope/resolver.rb:61-65` (filters `resource_type: model.name`)
@@ -138,7 +170,7 @@ adoption ergonomics. Address them below.
 
 ---
 
-## P3 — Adoption polish
+## ✅ P3 — Adoption polish — *landed (A10–A12)*
 
 - **A10 — `config.audit` is undiscoverable.** It's load-bearing (lets a host skip the
   events migration) but absent from the generated initializer
@@ -154,7 +186,7 @@ adoption ergonomics. Address them below.
 
 ---
 
-## P4 — Publish to RubyGems (vendoring works today → not a *use* blocker)
+## ✅ P4 — Publish to RubyGems — *landed (A13); v0.2.0 is on RubyGems*
 
 - **A13 —** Add `CHANGELOG.md`; add gemspec metadata (`changelog_uri`,
   `rubygems_mfa_required`); fix the duplicate homepage/source and open-ended `rails`
@@ -189,9 +221,11 @@ regression tests rather than loosening them:**
 
 ---
 
-## How to work this doc
+## How this doc was worked
 
-Address P0 → P4 in order. Each item is small and independently committable. For every fix,
-add a regression test — the silent-fail-open items (A2, A4, A5, A6) especially need a test
-that fails loudly if the protection is ever removed. Keep the engine suite green and
-RuboCop omakase clean on each commit, and tick items off in STATUS.md as they land.
+*Past tense: this is how A1–A13 were done, not a brief.* P0 → P4 in order, each item small
+and independently committable, a regression test per fix — the silent-fail-open items (A2,
+A4, A5, A6) each got a test that fails loudly if the protection is ever removed. Engine
+suite green and RuboCop omakase clean per commit, items ticked off in STATUS.md as they
+landed. It worked, and the same shape is still how this repo works — see `docs/plans/`,
+which is where the live version of that process lives now.

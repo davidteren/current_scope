@@ -17,14 +17,16 @@ controllers, views, and ViewComponents.
   on CurrentAttributes vs dry-effects vs explicit passing, Action Policy ideas
 - Usage: [README.md](README.md)
 - **What's next / gaps / proposals: [docs/ROADMAP.md](docs/ROADMAP.md)**
-- **Readiness audit + remediation worklist: [docs/READINESS-AUDIT.md](docs/READINESS-AUDIT.md)**
-  — P0→P4 items to make the engine safely adoptable (gemspec Rails floor, silent
-  impersonation fail-open, host test helper, gating tripwire, …); an agent can work it end to end
+- Readiness audit: [docs/READINESS-AUDIT.md](docs/READINESS-AUDIT.md) — **complete
+  (A1–A13, PR #5); historical, not a worklist.** Kept for its reasoning and for the
+  "Verified holding — DO NOT regress" invariants. Current work is in the
+  [issues](https://github.com/davidteren/current_scope/issues) + `docs/plans/`
 - Showcase app: **[davidteren/current_scope_showcase](https://github.com/davidteren/current_scope_showcase)**
-  (own repo; the engine is vendored in-tree there)
+  (own repo; consumes the published gem — no longer vendored)
 
-Version `0.1.0`. **Not yet published to RubyGems** — the showcase consumes the
-engine via an in-tree vendored path gem, and CI needs no external checkout.
+Version `0.2.0`, **published to RubyGems** (tag `v0.2.0`) — the showcase consumes
+it as an ordinary `gem "current_scope"`. Not production-ready; see the README
+banner.
 
 ## Done (all committed on `main`)
 
@@ -194,9 +196,10 @@ build. **Suite now: 243 unit + 19 system green, RuboCop clean.**
 
 ## Next
 
-1. **Publish to RubyGems** — parked (using the vendored/path engine for now).
-   Prepped (A13); `gem build` clean, `v0.1.0`. Tag `v0.1.0`, `gem push` (needs
-   RubyGems creds), then swap the showcase's `path:` gem for `gem "current_scope"`.
+1. ~~**Publish to RubyGems**~~ — **done.** `v0.2.0` is on RubyGems and the
+   showcase consumes it as a normal gem dependency. Releasing now means: bump
+   `lib/current_scope/version.rb` + CHANGELOG, tag, `gem push`, then bump the
+   showcase's `gem "current_scope"`.
 2. **README screenshots** — the UI is clean and verified; capture the dashboard,
    permission grid, subjects, members, events when convenient.
 3. Open design questions (DESIGN.md §9): resource hierarchy/cascade,
@@ -221,5 +224,6 @@ build. **Suite now: 243 unit + 19 system green, RuboCop clean.**
   keeps its SCRIPT_NAME — use literal paths (`post "/session"`) for host routes.
 - Inside the mounted engine, bare host route helpers resolve against engine
   routes — use `main_app.` (bit us once: `request_authentication`).
-- Showcase lives in the sibling repo `current_scope_showcase`; refresh its
-  vendored engine copy with `bin/vendor-engine` there when the engine changes.
+- Showcase lives in the sibling repo `current_scope_showcase` and consumes the
+  PUBLISHED gem. An engine change reaches it by release + version bump there —
+  there is no vendored copy to refresh.

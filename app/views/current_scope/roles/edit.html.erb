@@ -24,6 +24,15 @@
     One row per controller, one checkbox per action group — derived from the
     app's routes, so new controllers appear here automatically. Columns are
     fixed: a blank cell means the controller doesn't route that action.
+    <%# The break-glass column is the one thing here that is NOT an action you
+        can route, so the "derived from the app's routes" line above would
+        otherwise make it look like a mistake. %>
+    <% if CurrentScope.config.allow_sod_bypass %>
+      Break-glass is on, so controllers with a separation-of-duties action also
+      show a <code><%= CurrentScope.config.sod_bypass_permission.to_s.split("#").last %></code>
+      column: granting it lets that role's holder override the four-eyes veto on
+      their own record, where the record allows it. Every use is audited.
+    <% end %>
   </p>
 
   <% grid = CurrentScope::PermissionGrid.new %>

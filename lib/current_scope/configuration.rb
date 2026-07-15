@@ -93,6 +93,12 @@ module CurrentScope
     # record's route key like any permission, so it's editable in the role grid —
     # never a hardcoded role. Must NOT be listed in sod_actions (it isn't an SoD
     # action; keeping it out also bounds the bypass re-entrancy).
+    #
+    # It isn't a routable action, so the catalog injects it rather than deriving
+    # it: the grid shows a column for it ONLY when allow_sod_bypass is on, and
+    # only on controllers that route an action listed in sod_actions. With the
+    # flag off it isn't grantable at all — nothing to tick, and the key is
+    # rejected if assigned. (#21)
     attr_accessor :sod_bypass_permission
 
     # Tri-state: false | true (default) | :strict — controls

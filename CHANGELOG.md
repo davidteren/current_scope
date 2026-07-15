@@ -6,6 +6,44 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **The break-glass `bypass_sod` permission is now grantable through the role
+  grid**, as the README and `configuration.rb` have always claimed. It isn't a
+  routable action, so a route-derived catalog could never contain it: no cell
+  existed to tick anywhere in the UI, and a hand-crafted grant was dropped by
+  `Role#permission_keys=`. The documented "trusted admin may self-approve" role
+  was therefore unbuildable with the shipped tooling — break-glass was reachable
+  only through `full_access` (which grants it implicitly along with everything
+  else, defeating the point of a *scoped* trusted approver) or a console
+  `RolePermission` insert. The catalog now injects the virtual key, which is the
+  one seam the grid, the role setter and the Guard all read, so the cell renders
+  and the save sticks with no special case in any of them. (#21)
+
+  The column appears only where it can mean something: `config.allow_sod_bypass`
+  on, **and** a controller that routes an action listed in `config.sod_actions`.
+  With break-glass off (the default) the catalog is byte-for-byte the routed set
+  — no new columns, and the key is rejected if assigned. Nothing about the
+  resolver, the decision order, or the three live conditions for a bypass
+  changed; the permission was always checked correctly, it just couldn't be
+  granted.
+
+  The key is named after the **resource**, not the controller path, because that
+  is what the resolver looks up (it derives the bypass key from the record's
+  `route_key`). So `Admin::ReportsController#approve` contributes
+  `reports#bypass_sod` — the key that actually works — and a namespace-only
+  resource shows its bypass cell on a `reports` row that no controller routes.
+
+  Known limit: a controller named differently from the records it acts on (an
+  `approvals` controller approving `Invoice`s) still contributes an inert
+  `approvals#bypass_sod` while the live `invoices#bypass_sod` is not injected.
+  Closing that needs to know the SoD-gated model, which the catalog
+  deliberately does not load. Tracked in the issue's OQ-2.
+
+  `config.allow_sod_bypass = true` with a blank `config.sod_bypass_permission`
+  now raises `ConfigurationError` rather than injecting a malformed key: a
+  permission nobody can hold means break-glass is inert while the host believes
+  it is armed.
+
 ### Changed
 - **`Role#permission_keys=` now rejects unknown keys loudly instead of dropping
   them.** A key that isn't in the route-derived catalog makes the role invalid —

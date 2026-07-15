@@ -1,0 +1,48 @@
+test/integration/report_only_test.rb
+  s_4d1327efb21c21::t_b53c01891897e8 297-305,308-337
+  s_4d1327efb21c21::t_65ec710259d590 411-413,418-426,428-435,439-440,444-446,448-451,453
+  s_4d1327efb21c21::t_fd896cb0077303 261,265-268
+  s_4d1327efb21c21::t_54ebeea598350a 270-272,296,306-307,338-363
+  s_4d1327efb21c21::t_f943be55cd634e 364,405-410,414-417,427,436-438,441-443,447,452,454
+  s_4d1327efb21c21::t_13d8a82947cf7a 113-163
+  s_4d1327efb21c21::t_b94917159d7777 269
+lib/current_scope/resolver.rb
+  s_4d1327efb21c21::t_37ab842f43deb4 93-114
+  s_4d1327efb21c21::t_40c000f0d01afe 115-129
+  s_4d1327efb21c21::t_fe7a7be815caf1 170
+  s_4d1327efb21c21::t_74ba88e061851f 180
+CHANGELOG.md
+  s_4d1327efb21c21::t_f78894b8dc23f3 34-41
+lib/current_scope/guard.rb
+  s_4d1327efb21c21::t_33d3c4d6f2e70e 90
+  s_4d1327efb21c21::t_aa349e45ce0538 127-129,132-138,140-144,146-151,153
+  s_4d1327efb21c21::t_a544c9641b8e56 154,156,163-164,166-180,200-201
+  s_4d1327efb21c21::t_d5b900ac5d37a9 117-122,125-126,130-131,145,152
+  s_4d1327efb21c21::t_2bde159d08d03a 155
+lib/current_scope/configuration.rb
+  s_4d1327efb21c21::t_2a15ca2fb42a47 239-270
+  s_4d1327efb21c21::t_51c12a8acaaeb8 185
+README.md
+  s_4d1327efb21c21::t_6b4b2ed5d8af2b 153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "1a01d692cbab2dc23047afe5c307519bd72babb9",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

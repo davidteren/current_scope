@@ -26,6 +26,10 @@ module CurrentScope
                    subject: User.first, role: CurrentScope::Role.find_by!(name: "Owner"))
             4. Manage roles at /current_scope (full-access subjects only).
 
+          Adopting into an app that already has auth and users? Read
+          docs/guides/adopting-in-an-existing-app.md first — callback ordering,
+          Devise, the skip_before_action fail-open trap, and a rollout ladder.
+
         NEXT
 
         say_retrofit_warning if existing_app?

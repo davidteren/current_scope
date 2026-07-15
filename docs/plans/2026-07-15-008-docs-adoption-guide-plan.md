@@ -54,6 +54,39 @@ Four verified traps, all hit within minutes in the legacy-scenario test apps, no
 
 ## Key Technical Decisions
 
+> ## ⚠️ PRE-FLIGHT (2026-07-15): three deferrals to #37 are ORPHANED. #37 does not do any of them.
+>
+> This plan defers three things to "#37 (report-only mode)". #37 has now been implemented
+> (PR #59), so this is checkable rather than assumable — and all three are false:
+>
+> | this plan says | reality |
+> |---|---|
+> | KTD-4: the skip-inheritance **runtime** gap "is what #37 closes" | Report mode lives *inside* `current_scope_check!`. `skip_before_action` means the gate never runs, so report mode is **structurally incapable** of seeing an ungated action. It reports would-be denials on **gated** controllers. |
+> | KTD-5 / Scope Boundaries: "a non-raising report-only inventory ... is #37's job" | Report mode inventories the **ungranted** surface (gated, no grant). The tripwire inventories the **ungated** surface (no gate at all). Different axes; #37 does not subsume the tripwire. |
+> | Deferred: grid-marking of skipped/ungated controllers is "tracked by #37" | PR #59 changed no grid code at all (`app/` diff: `event.rb` only). |
+>
+> **This is the compound doc's "orphaned deferral" rot mode, and it is about to get worse.**
+> The naive check passes *today* — #37 is OPEN, so a reader confirms the target exists and
+> moves on. But PR #59 says `Closes #37`. The moment it merges, these three deferrals point
+> at a **closed** issue that never did the work, and the trail goes cold exactly when it
+> stops being checkable.
+>
+> **Consequence: the skip-inheritance production gap is UNOWNED.** It is the one trap in
+> this engine that fails *open*, this plan calls it "the guide's headline SECURITY warning",
+> and its runtime remedy is deferred to an issue that does not address it. Tracked now in
+> its own issue (see below) rather than left inside a doc-plan's KTD.
+>
+> **Corrected for the guide:** the rollout ladder now leads with `config.enforcement =
+> :report`, which did not exist when this plan was written and is a strictly better first
+> rung than "turn Guard on for one namespace at a time". The tripwire keeps its place as the
+> **ungated-surface** inventory — the two are complementary, not alternatives, and the guide
+> says which answers which question. The guide states the skip-inheritance residual honestly
+> (dev/test detection only, no production net) instead of promising that #37 closes it.
+>
+> **Also superseded:** R3 scopes coexistence to Pundit. The current adoption lens is a host
+> running **Action Policy** (and #45 owns migration tooling for Pundit / CanCanCan / Action
+> Policy). The guide covers the pattern rather than one library, and points at #45.
+
 - **KTD-1 — Docs + one generator string only; zero engine behavior change.** Every trap is current, correct, deliberate behavior. Include-order sensitivity is intrinsic to `before_action` registration; skip-inheritance is Rails' own semantics; the dual-grant is the route-derived-catalog design the gem is built on (`permission_catalog.rb`). The honest fix is to *teach* these, not to file down the seams. Anything that tempts a code change (e.g. "make skip not inherit", "alias HTML and API keys") is out of scope and, if genuinely warranted, belongs in a separate issue — flag, don't smuggle under a `docs` label.
 - **KTD-2 — New `docs/guides/` directory, not a README section.** The retrofit material is long (six sub-topics, three recipes, a rollout ladder) and would swamp the README's quickstart. `docs/` already holds `ROADMAP.md`, `RESEARCH.md`, `READINESS-AUDIT.md`; a `guides/` subdir is the natural home and matches the "deeper walkthrough lives below the quickstart" house pattern. The README gets a one-line pointer (R7), not the content.
 - **KTD-3 — Devise recipe = exclude AND skip, and say why both.** The shipped seams already make this work: `excluded_controllers` removes the Devise paths from the catalog (`permission_catalog.rb:27`) so they aren't dead grid rows, and `skip_before_action :current_scope_check!` stops Guard from *raising* on the now-uncatalogued controller (`guard.rb:41-46`). Neither alone is correct: exclude-only → Guard raises `ConfigurationError` on sign-in; skip-only → sign-in works but Devise actions litter the grid as ungrantable no-op rows (the finding's third symptom, cross-issue with #37). The guide prescribes both together and explains the two-knobs-must-agree relationship explicitly.

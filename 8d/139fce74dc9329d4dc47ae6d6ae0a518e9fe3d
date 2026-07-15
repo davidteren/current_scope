@@ -1,0 +1,30 @@
+CONCEPTS.md
+  s_4d1327efb21c21::t_9ed04399d30e7d 7,14
+docs/plans/2026-07-15-001-fix-scoped-collection-gate-plan.md
+  s_4d1327efb21c21::t_e52191f50d492c 90,103-106
+docs/plans/2026-07-15-024-feat-wildcard-grants-plan.md
+  s_4d1327efb21c21::t_48758fe21ab2c6 25
+docs/solutions/workflow-issues/plan-code-sketches-are-intent-not-code.md
+  s_4d1327efb21c21::t_45b9fcb24e79a3 249,274-278
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "8d139fce74dc9329d4dc47ae6d6ae0a518e9fe3d",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

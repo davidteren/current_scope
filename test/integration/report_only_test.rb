@@ -195,15 +195,31 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
   # sets audit = :strict and hasn't run the migration is EXACTLY who report mode
   # is for, and they must not get a 500 on every ungranted request.
 
-  # ponytail: plain singleton swap — minitest 6 dropped minitest/mock, and this
+  # ponytail: plain singleton swaps — minitest 6 dropped minitest/mock, and this
   # is not worth a dependency.
-  def with_broken_ledger
+  def with_broken_ledger(error: nil)
+    error ||= ActiveRecord::StatementInvalid.new("no such table: current_scope_events")
     singleton = CurrentScope::Event.singleton_class
     original = CurrentScope::Event.method(:record!)
-    singleton.define_method(:record!) { |**| raise ActiveRecord::StatementInvalid, "no such table: current_scope_events" }
+    singleton.define_method(:record!) { |**| raise error }
     yield
   ensure
     singleton.define_method(:record!, original)
+    # The warn-once latch is per-process; a leaked `true` would silently disarm
+    # the warning for every later test (and make this suite order-dependent).
+    CurrentScope::Guard.reset_ledger_warning!
+  end
+
+  # ponytail: a real logger over a StringIO. A hand-rolled fake has to satisfy
+  # everything Rails asks of a logger during a request, which it won't.
+  def capture_warnings
+    io = StringIO.new
+    original = Rails.logger
+    Rails.logger = ActiveSupport::Logger.new(io).tap { |l| l.level = Logger::WARN }
+    yield
+    io.string.lines.map(&:chomp).reject(&:empty?)
+  ensure
+    Rails.logger = original
   end
 
   test "report mode still proceeds when the ledger cannot record" do
@@ -218,6 +234,58 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
 
     assert_response :success, "an unrecordable observation must not become a 500"
     assert_equal "would_deny", response.headers["X-Current-Scope-Reason"]
+  end
+
+  # The failure is PERSISTENT, not incidental: :report + audit :strict + no
+  # migration fails identically on every single request. Warning per-request
+  # floods the log with the same line and buries the one thing the operator needs
+  # — that the ledger is empty because the table is missing, and how to fix it.
+  #
+  # It is also the exact scenario report mode exists for, so it is the one a host
+  # is most likely to be in. (#59 review, qodo)
+  test "a persistently broken ledger warns once, not once per request" do
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.audit = :strict
+
+    warnings = capture_warnings do
+      with_broken_ledger do
+        3.times { get reports_url, headers: sign_in(@alice) }
+      end
+    end
+
+    ledger_warnings = warnings.grep(/could not record|events table/i)
+    assert_equal 1, ledger_warnings.size,
+                 "3 identical failures should say it once — got:\n#{ledger_warnings.join("\n")}"
+  end
+
+  test "the ledger-failure warning names the fix, not just the exception class" do
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.audit = :strict
+
+    warnings = capture_warnings do
+      with_broken_ledger { get reports_url, headers: sign_in(@alice) }
+    end
+    warning = warnings.grep(/could not record|events table/i).join
+
+    assert_match(/migrat/i, warning, "a missing table has one fix — say it")
+    assert_match "current_scope_events", warning, "name the table so it's greppable"
+    assert_match(/allowed|proceed|through/i, warning,
+                 "say the request still went through — otherwise this reads as a blocked request")
+  end
+
+  test "a ledger failure that is NOT a missing table reports the real error" do
+    CurrentScope.config.enforcement = :report
+
+    warnings = capture_warnings do
+      with_broken_ledger(error: ActiveRecord::ConnectionNotEstablished.new("connection refused")) do
+        get reports_url, headers: sign_in(@alice)
+      end
+    end
+    warning = warnings.join
+
+    assert_match "ConnectionNotEstablished", warning,
+                 "telling this host to run migrations would send them after the wrong problem"
+    assert_no_match(/run .*migrat/i, warning)
   end
 
   test "report mode proceeds for an anonymous subject, recording nothing" do

@@ -57,6 +57,33 @@ class ReportTaskTest < ActiveSupport::TestCase
     assert_match "Bob", output
   end
 
+  # The suffix the README advertises. It's a GlobalID + RoleAssignment lookup —
+  # the kind of seam that breaks quietly when an association moves — and it
+  # carries real meaning: someone who already holds a role that simply doesn't
+  # tick these keys is a different fix from someone with no role at all.
+  # (#59 review, cubic)
+  test "names the subject's current org role — a held role that doesn't tick these keys reads differently" do
+    CurrentScope::RoleAssignment.create!(subject: @alice, role: CurrentScope::Role.create!(name: "Member"))
+    would_deny(@alice, "reports#index")
+    would_deny(@bob, "reports#index")
+
+    output = run_task
+
+    assert_match(/Alice — currently Member/, output)
+    assert_match(/^\s+Bob\s*$/, output, "a subject with no org role gets no suffix, not a dangling dash")
+  end
+
+  test "a subject whose record is gone still reports its denials" do
+    would_deny(@alice, "reports#index")
+    @alice.destroy   # the GID no longer resolves
+
+    output = run_task
+
+    # Best-effort by design: one unresolvable subject must not abort the summary
+    # for everyone else, and the rows are still the evidence they always were.
+    assert_match "reports#index", output
+  end
+
   test "ignores ledger events that are not would-be denials" do
     would_deny(@alice, "reports#index")
     CurrentScope::Current.actor = @bob
@@ -65,7 +92,7 @@ class ReportTaskTest < ActiveSupport::TestCase
     output = run_task
 
     assert_match "reports#index", output
-    assert_no_match(/role.created/, output)
+    assert_no_match(/role\.created/, output)
   end
 
   # The empty case is the one a host actually hits first, and "no output" is

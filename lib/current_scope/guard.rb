@@ -56,6 +56,24 @@ module CurrentScope
     # hook is how you opt in.
     NO_RECORD = Object.new.freeze
 
+    class << self
+      # Warn-once latch for a failed would-be-denial recording, mirroring
+      # Event.warn_missing_events_table_once. Lives on the module, not the
+      # controller: the failure is per-process (a missing table, a dead
+      # connection), so per-instance state would warn once per request and
+      # defeat the point.
+      #
+      # ponytail: a plain ivar, not a Mutex. Worst case under a race is a second
+      # warning line — the thing being prevented is a flood, not a duplicate.
+      def ledger_warning_emitted? = @ledger_warning_emitted
+      def ledger_warning_emitted! = @ledger_warning_emitted = true
+
+      # Test seam: the latch would otherwise leak across examples, silently
+      # disarming the warning for every test after the first and making the
+      # suite order-dependent.
+      def reset_ledger_warning! = @ledger_warning_emitted = false
+    end
+
     included do
       before_action :current_scope_check!
     end
@@ -195,11 +213,42 @@ module CurrentScope
         details: { permission: permission, reason: "no_grant" }
       )
     rescue StandardError => e
-      # ponytail: swallow and warn. An unrecordable observation is a lost log
-      # line; a raise here is a 500 on a request report mode promised to pass.
-      Rails.logger&.warn("[CurrentScope] report-only: could not record would_deny (#{e.class}) — " \
-                         "the request was allowed through; the ledger row is missing")
+      # ponytail: swallow and warn ONCE. An unrecordable observation is a lost
+      # log line; a raise here is a 500 on a request report mode promised to pass.
+      warn_ledger_failure_once(e)
       nil
+    end
+
+    # The failure this catches is PERSISTENT, not incidental: :report + audit
+    # :strict + an un-migrated events table fails identically on every request.
+    # Warning per-request floods the log with one repeated line and buries the
+    # thing the operator actually needs — that the ledger is empty because the
+    # table is missing, and what to do about it. And it is the exact situation
+    # report mode exists for, so it is the one a host is most likely to be in.
+    #
+    # Warn-once per process, mirroring Event.warn_missing_events_table_once —
+    # the same failure, the same treatment. (#59 review) The message names the
+    # fix for a missing table and otherwise reports the real error, because
+    # telling someone with a dead connection to run migrations sends them after
+    # the wrong problem.
+    def warn_ledger_failure_once(error)
+      return if CurrentScope::Guard.ledger_warning_emitted?
+
+      CurrentScope::Guard.ledger_warning_emitted!
+      Rails.logger&.warn("[CurrentScope] report-only: #{ledger_failure_hint(error)} " \
+                         "The request WAS allowed through — only the access.would_deny " \
+                         "row is missing. This warns once per process.")
+    end
+
+    def ledger_failure_hint(error)
+      if error.is_a?(ActiveRecord::StatementInvalid) && error.message.include?("current_scope_events")
+        "the current_scope_events table is missing, so would-be denials are not being " \
+        "recorded and `rails current_scope:report` will be empty. Run " \
+        "`rails current_scope:install:migrations && rails db:migrate`, or set " \
+        "config.audit = false if you don't want the ledger."
+      else
+        "could not record a would-be denial (#{error.class}: #{error.message.to_s.truncate(120)})."
+      end
     end
 
     # The record this gate decides against, or NO_RECORD when the controller

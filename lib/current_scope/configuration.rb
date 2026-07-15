@@ -182,6 +182,7 @@ module CurrentScope
               "management console."
       end
 
+      warn_report_mode_in_production if mode == :report && production?
       @enforcement = mode
     end
 
@@ -234,6 +235,38 @@ module CurrentScope
     end
 
     private
+
+    # Report mode in production is DELIBERATELY allowed — surveying real traffic
+    # is the most honest way to find out what to grant, and a staging run won't
+    # show you the flows your actual users take. Refusing it here would break the
+    # feature's best use case.
+    #
+    # But "we are not enforcing authorization" is not a state a production app
+    # should be in silently, or for long. The failure mode is quiet: nothing
+    # breaks, no one is refused, and the temporary survey becomes the permanent
+    # posture because nothing ever reminded anyone. So it says so at boot, once,
+    # where a deploy log will keep it.
+    #
+    # ponytail: a warn, not a raise. Unlike allow_mutations_while_impersonating
+    # (which has an env-gate refusal) this has a legitimate production use and a
+    # deliberate exit — the host is mid-migration, and the loud reminder is the
+    # right amount of friction.
+    def warn_report_mode_in_production
+      message = "[CurrentScope] config.enforcement = :report in PRODUCTION — " \
+                "authorization is NOT being enforced. Missing grants are logged " \
+                "as access.would_deny and the request is ALLOWED THROUGH. This is " \
+                "an adoption ramp, not a production posture: seed the grants the " \
+                "ledger names, then set config.enforcement = :enforce."
+
+      if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
+        Rails.logger.warn(message)
+      else
+        # Boot order: an initializer can run before the logger exists. Say it
+        # anyway — a warning nobody sees is the thing this method exists to
+        # prevent.
+        warn(message)
+      end
+    end
 
     def production?
       defined?(Rails) && Rails.respond_to?(:env) && Rails.env.production?

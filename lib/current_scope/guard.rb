@@ -87,7 +87,7 @@ module CurrentScope
         record: record, actor: CurrentScope::Current.actor
       )
       unless allowed
-        return report_would_deny(permission, record) if report_only_denial?(reason)
+        return report_would_deny(permission, record) if report_only_denial?(reason, permission, record)
 
         raise CurrentScope::AccessDenied.new(permission, reason: reason)
       end
@@ -114,27 +114,70 @@ module CurrentScope
     # rather than by anyone remembering to add it. New reasons are refusals until
     # someone deliberately says otherwise — fail-closed, applied to the mode
     # itself.
-    def report_only_denial?(reason)
-      CurrentScope.config.report_only? && reason == :no_grant
+    #
+    # ...but :no_grant is not always the innocent reason it looks like. See below.
+    def report_only_denial?(reason, permission, record)
+      CurrentScope.config.report_only? &&
+        reason == :no_grant &&
+        !sod_veto_blind_spot?(permission, record)
     end
 
-    # Observe and proceed. R3: report mode NEVER raises — that is the whole
-    # promise, and it holds regardless of audit posture or ledger state.
+    # The SoD blind spot: a :no_grant that is NOT evidence the veto approved.
     #
-    # Hence the rescue around the ledger write. Every other caller of
-    # Event.record! is a mutation being performed, where :strict re-raising to
-    # roll back an unaudited change is correct. This is not a mutation: it is an
-    # observation of a request that is being let through anyway. Inheriting that
-    # raise would mean a host that sets audit = :strict and hasn't run the events
-    # migration 500s on every ungranted request — the exact opposite of what
-    # report mode promises, landing on the exact host it exists for.
+    # The veto has nothing to measure without a record, so the resolver skips it
+    # and the decision falls through to the ordinary grant check. What comes back
+    # is :no_grant — indistinguishable from an ordinary missing grant, but meaning
+    # "nobody asked the veto", not "the veto passed".
+    #
+    # In :enforce that costs nothing; :no_grant is a 403 either way, so the
+    # skipped veto never decides anything (config.warn_on_nil_sod_record exists to
+    # surface it on the ALLOW path). Report mode is what turns it into a hole:
+    # :no_grant is exactly what it downgrades, so a host that mis-declares
+    # current_scope_record on an SoD action gets the action EXECUTED with the
+    # four-eyes rule never consulted. The subject could be the initiator. Nobody
+    # checked.
+    #
+    # So report mode declines to speak where the veto couldn't, and downgrades
+    # only a denial the veto actually saw and passed. This costs a retrofitting
+    # host nothing real: an SoD action reached without a record is a
+    # misconfiguration they must fix regardless, and it still 403s as it does
+    # today.
+    #
+    # ASKS the resolver rather than re-deriving "did the veto run" — the resolver
+    # owns that condition and a second copy would drift, with the drifting copy
+    # being the one guarding the fraud control. An earlier draft of this did
+    # enumerate its own "record-less" set (nil, NO_RECORD, Class) and missed the
+    # commonest mistake of all: a hook returning `params[:id]`, a String, which
+    # the resolver skips the veto for but that guess would have waved through.
+    def sod_veto_blind_spot?(permission, record)
+      CurrentScope.resolver.sod_veto_skipped?(permission: permission, record: record)
+    end
+
+    # Observe and proceed.
     def report_would_deny(permission, record)
       Rails.logger&.warn(
         "[CurrentScope] report-only: would DENY #{permission.inspect} " \
         "(reason: no_grant) — grant it before setting config.enforcement = :enforce"
       )
       response.set_header("X-Current-Scope-Reason", "would_deny")
+      record_would_deny_event(permission, record)
+    end
 
+    # R3: report mode NEVER raises — that is its whole promise, and it has to hold
+    # regardless of audit posture or the state of the ledger.
+    #
+    # Every other caller of Event.record! is a mutation being performed, where
+    # :strict re-raising to roll back an unaudited change is exactly right. This
+    # is not a mutation: it observes a request that is being let through anyway.
+    # Inheriting that raise would mean a host running audit = :strict who hasn't
+    # run the events migration 500s on every ungranted request — the opposite of
+    # what report mode promises, landing on the exact host it exists for.
+    #
+    # The rescue wraps ONLY this call. Event.record! is the one thing here with a
+    # documented raise contract, so it is the one thing worth catching; a broad
+    # rescue over the whole observation would also swallow a broken logger or
+    # response, which are app-fatal anyway and shouldn't be hidden. (#59 review)
+    def record_would_deny_event(permission, record)
       subject = CurrentScope::Current.user
       # No ambient subject ⇒ nothing to attribute the row to, and Event.record!
       # raises on a nil actor. Guard on the SUBJECT, not on `target` — a record
@@ -154,7 +197,8 @@ module CurrentScope
     rescue StandardError => e
       # ponytail: swallow and warn. An unrecordable observation is a lost log
       # line; a raise here is a 500 on a request report mode promised to pass.
-      Rails.logger&.warn("[CurrentScope] report-only: could not record would_deny (#{e.class})")
+      Rails.logger&.warn("[CurrentScope] report-only: could not record would_deny (#{e.class}) — " \
+                         "the request was allowed through; the ledger row is missing")
       nil
     end
 

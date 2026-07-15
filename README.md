@@ -150,6 +150,7 @@ else still refuses:
 | Still enforced in `:report` | Why it can't be relaxed |
 |---|---|
 | Separation-of-duties veto | Lifting it lets an initiator really approve their own record — a fraud action executed, not a role gap surfaced. |
+| SoD actions the veto *couldn't* run on | If an SoD action is gated without a record, the veto has no initiator to measure and is skipped — so the refusal that comes back says "not granted", not "SoD approved". Report mode won't speak for a rule nobody asked, and still refuses. (`config.warn_on_nil_sod_record` surfaces the misconfiguration behind it.) |
 | The management console | It's where grants are made. An observation flag that opened it would be a privilege escalation. |
 | Impersonation read-only gate | Runs before the permission check and answers to its own rule. |
 

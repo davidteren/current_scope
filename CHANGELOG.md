@@ -31,11 +31,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   which is when it matters.
 
   Report mode is an **adoption ramp, not an off switch**, and it is not a way to
-  run in production. It relaxes exactly one denial — "nobody has granted this
-  yet". A separation-of-duties veto still refuses (relaxing it would let an
-  initiator actually approve their own record — a fraud action executed, not a
-  role gap surfaced), and the management console, where grants are made, is never
-  opened by it. `:enforce` remains the default and is unchanged. (#37)
+  run in production — enabling it there logs a loud boot warning saying so. It
+  relaxes exactly one denial: "nobody has granted this yet". A separation-of-duties
+  veto still refuses (relaxing it would let an initiator actually approve their own
+  record — a fraud action executed, not a role gap surfaced), and so does an SoD
+  action the veto couldn't run on at all, because a refusal that reads `no_grant`
+  there means *nobody asked the veto*, not *the veto approved*. The management
+  console, where grants are made, is never opened by it. `:enforce` remains the
+  default and is unchanged. (#37)
 
 ### Fixed
 - **The management UI's 403 now says why.** Opening the console without a

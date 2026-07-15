@@ -110,6 +110,57 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
     assert_equal "sod_veto", response.headers["X-Current-Scope-Reason"]
   end
 
+  # The SoD blind spot. Found in review of #59 (cubic P1), and it is the same
+  # shape as every other escalation on this engine: a rule that is safe because
+  # of a property its existing callers have, reused where that property is gone.
+  #
+  # The veto is meaningless without a record, so the resolver SKIPS it and
+  # returns :none for a nil/Class target (resolver.rb:137). The denial that
+  # comes back is therefore :no_grant — which is exactly what report mode
+  # downgrades. Result: an SoD-listed action executes while the veto that was
+  # supposed to stop it was never asked.
+  #
+  # In enforce mode :no_grant saved us by accident. Report mode removes the
+  # accident.
+  test "report mode does NOT let an SoD action through when the veto could not run" do
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[approve]
+
+    # SodNilController: an approve action whose current_scope_record returns nil.
+    # The veto never sees a record, so it never runs.
+    post "/sod_nil/approve", headers: sign_in(@bob)
+
+    assert_response :forbidden,
+                    "report mode must not downgrade a denial the SoD veto never got to see — " \
+                    "the initiator could be this very subject and nobody asked"
+    assert_equal "no_grant", response.headers["X-Current-Scope-Reason"]
+  end
+
+  test "report mode still reports ordinary would-be denials on non-SoD actions" do
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[approve]
+
+    # The blind-spot rule must not swallow the feature: a plain collection action
+    # is still surveyed while SoD is configured.
+    get reports_url, headers: sign_in(@alice)
+
+    assert_response :success
+    assert_equal "would_deny", response.headers["X-Current-Scope-Reason"]
+  end
+
+  test "report mode reports a would-be denial on an SoD action that HAS a record" do
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[approve]
+
+    # @alice did not initiate @report, so the veto RAN and passed; the only thing
+    # missing is the grant. That is report mode's job, and the blind-spot rule
+    # must not over-refuse it.
+    post approve_report_url(@report), headers: sign_in(@alice)
+
+    assert_response :success
+    assert_equal "would_deny", response.headers["X-Current-Scope-Reason"]
+  end
+
   test "report mode does NOT relax the engine console's 403" do
     CurrentScope.config.enforcement = :report
     assign(@alice, role("Member")) # no full_access
@@ -207,11 +258,18 @@ end
 class ReportOnlyRuleTest < ActiveSupport::TestCase
   setup do
     @original = CurrentScope.config.enforcement
+    @original_sod_actions = CurrentScope.config.sod_actions
     @controller = ReportsController.new
   end
-  teardown { CurrentScope.config.enforcement = @original }
 
-  def report_only_denial?(reason) = @controller.send(:report_only_denial?, reason)
+  teardown do
+    CurrentScope.config.enforcement = @original
+    CurrentScope.config.sod_actions = @original_sod_actions
+  end
+
+  def report_only_denial?(reason, permission = "reports#index", record = nil)
+    @controller.send(:report_only_denial?, reason, permission, record)
+  end
 
   test "under report, only a missing grant is downgraded to an observation" do
     CurrentScope.config.enforcement = :report
@@ -234,6 +292,75 @@ class ReportOnlyRuleTest < ActiveSupport::TestCase
     CurrentScope.config.enforcement = :enforce
 
     assert_not report_only_denial?(:no_grant)
+  end
+
+  # The SoD blind spot, at the unit level: :no_grant on an SoD action the veto
+  # never ran against does not mean "the veto passed" — it means nobody asked.
+  #
+  # The set of targets that skip the veto is the RESOLVER's to define, not this
+  # rule's. Anything that isn't a record instance skips it (resolver.rb:137), and
+  # that includes values a host hands back by mistake — the classic being
+  # `params[:id]`, a String. An enumerated guess at "record-less" (nil, a Class)
+  # misses exactly those, which is how this fix was wrong on its first draft.
+  test "a missing grant on an SoD action the veto could not run against is NOT downgraded" do
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[approve]
+
+    blind = {
+      "nil (collection action)" => nil,
+      "NO_RECORD (no hook declared)" => CurrentScope::Guard::NO_RECORD,
+      "a Class (allowed_to?(:approve, Report))" => Report,
+      "a String — the host returned params[:id]" => "42",
+      "an Integer — the host returned params[:id].to_i" => 42,
+      "a PORO the host hands back" => Object.new
+    }
+
+    blind.each do |describe_it, record|
+      assert_not report_only_denial?(:no_grant, "reports#approve", record),
+                 "#{describe_it}: the resolver skips the veto here, so :no_grant is not " \
+                 "evidence the veto passed — report mode must not speak for a rule that never ran"
+    end
+  end
+
+  # The rule must not re-derive "did the veto run" — the resolver owns that, and
+  # a second copy of the condition is a copy that drifts. This pins them together:
+  # for every target, report mode downgrades only when the resolver actually let
+  # the veto decide.
+  test "the blind spot tracks the resolver's own skip condition, not a guess at it" do
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[approve]
+
+    [ nil, CurrentScope::Guard::NO_RECORD, Report, "42", 42, Object.new, Report.new ].each do |record|
+      veto_ran = CurrentScope.resolver.sod_veto_applies?(permission: "reports#approve", record: record)
+
+      assert_equal veto_ran, report_only_denial?(:no_grant, "reports#approve", record),
+                   "downgrading #{record.inspect} must agree with whether the veto ran on it"
+    end
+  end
+
+  test "a missing grant on an SoD action WITH a record is downgraded — the veto ran and passed" do
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[approve]
+
+    assert report_only_denial?(:no_grant, "reports#approve", Report.new),
+           "the veto saw the record and did not veto; the only thing missing is the grant, " \
+           "which is exactly what report mode surveys"
+  end
+
+  test "the blind spot is scoped to SoD actions — a plain action with no record still reports" do
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[approve]
+
+    assert report_only_denial?(:no_grant, "reports#index", nil),
+           "a collection action has no record by design — that is not a blind spot"
+  end
+
+  test "with SoD off, nothing is a blind spot" do
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = []
+
+    assert report_only_denial?(:no_grant, "reports#approve", nil),
+           "an empty sod_actions makes the veto inert; there is no rule being spoken for"
   end
 end
 
@@ -274,5 +401,55 @@ class ReportOnlyConfigTest < ActiveSupport::TestCase
     assert_raises(CurrentScope::ConfigurationError) { CurrentScope.config.enforcement = :nonsense }
 
     assert_equal :report, CurrentScope.config.enforcement, "a failed write must not half-apply"
+  end
+
+  # Report mode in production is allowed on purpose — surveying real traffic is
+  # the point, and a staging run doesn't show you the flows real users take. But
+  # "we are not enforcing authorization" fails quietly: nothing breaks, nobody is
+  # refused, and the temporary survey silently becomes the permanent posture. So
+  # it has to announce itself. (#59 review, qodo)
+  # ponytail: plain singleton swaps — minitest 6 dropped minitest/mock, and this
+  # isn't worth a dependency. Captures what the boot warning actually said.
+  def capture_warnings(production:)
+    logged = []
+    logger = Object.new
+    logger.define_singleton_method(:warn) { |m| logged << m }
+
+    original_logger = Rails.logger
+    Rails.logger = logger
+    Rails.env.define_singleton_method(:production?) { production }
+    yield
+    logged.join("\n")
+  ensure
+    Rails.logger = original_logger
+    Rails.env.singleton_class.remove_method(:production?)
+  end
+
+  test "report mode in production warns loudly, and still works" do
+    warning = capture_warnings(production: true) { CurrentScope.config.enforcement = :report }
+
+    assert_equal :report, CurrentScope.config.enforcement,
+                 "prod report mode is deliberate — surveying real traffic is the point, not a mistake to refuse"
+    assert_match(/not being enforced/i, warning)
+    assert_match "access.would_deny", warning, "the warning must say where to find the gaps"
+    assert_match ":enforce", warning, "and how to get out"
+  end
+
+  test "enforce in production says nothing" do
+    assert_empty capture_warnings(production: true) { CurrentScope.config.enforcement = :enforce },
+                 "the safe posture is not news"
+  end
+
+  test "report mode outside production says nothing" do
+    assert_empty capture_warnings(production: false) { CurrentScope.config.enforcement = :report },
+                 "report mode in dev/test is the normal way to use it"
+  end
+
+  test "a rejected value in production warns about nothing — it never became a mode" do
+    warning = capture_warnings(production: true) do
+      assert_raises(CurrentScope::ConfigurationError) { CurrentScope.config.enforcement = :repot }
+    end
+
+    assert_empty warning, "the typo raised; there is no report mode to warn about"
   end
 end

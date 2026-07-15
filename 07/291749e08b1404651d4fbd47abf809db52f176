@@ -1,0 +1,33 @@
+docs/plans/2026-07-15-001-fix-scoped-collection-gate-plan.md
+  s_4d1327efb21c21::t_845457db1d3312 125-126
+  s_4d1327efb21c21::t_cddfde97a92027 109-110,112-115
+docs/plans/2026-07-15-003-fix-bypass-sod-ungrantable-plan.md
+  s_4d1327efb21c21::t_fc10f6e3c948f9 80-84
+docs/plans/2026-07-15-024-feat-wildcard-grants-plan.md
+  s_4d1327efb21c21::t_7ff71abf6b2cb3 9
+docs/solutions/workflow-issues/plan-code-sketches-are-intent-not-code.md
+  s_4d1327efb21c21::t_334a5493d020b2 1-266
+CONCEPTS.md
+  s_4d1327efb21c21::t_9a72fd8df50183 1-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "07291749e08b1404651d4fbd47abf809db52f176",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

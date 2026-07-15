@@ -6,6 +6,54 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **Scoped grants now open a record-less gate** — a subject holding only scoped
+  grants was 403'd on every collection action (`#index` and friends), because
+  the gate asks the resolver with `record: nil` and the scoped branch required a
+  persisted record. The only way in was an org-wide grant, which makes
+  `scope_for` return *every* record — so no grant combination produced the
+  scoped index the README advertises. A record-less target (nil, or a Class for
+  `allowed_to?(:index, Model)`) is now allowed when the subject holds any scoped
+  grant whose role ticks the key; `scope_for` is unchanged and still narrows the
+  list. Fixed at the shared resolver seam, so the gate and the `allowed_to?`
+  view helper agree. (#19)
+
+  **⚠ Upgrade-visible — check your index actions before upgrading.** A scoped
+  grant whose role ticks a collection key now opens that gate where it
+  previously 403'd. **If a gated `#index` does not call `scope_for`, subjects
+  who used to hit a 403 wall will now reach it and see every record the action
+  queries.** `scope_for` is guidance, not an enforced constraint, so the engine
+  cannot narrow a list the host renders with `Model.all` — the gate only decides
+  *whether* the action runs. Before upgrading, for every collection action whose
+  key a scoped role ticks, confirm the action scopes its own query. This is the
+  one way the fix can expose data rather than merely admit a user.
+
+  Otherwise it grants nothing a role author did not tick, and no decision on a
+  persisted record changes — a grant on X still confers nothing on Y, and the
+  SoD veto, full_access and org-role paths are untouched. Two further notes:
+  the rule is uniform across record-less targets, so a scoped role ticking
+  `create` or a bulk key opens those gates too, exactly as an org-wide grant of
+  that key already does; and a **scoped `full_access` role does not open
+  record-less gates at all** — it satisfies every key, so honoring it here would
+  turn one scoped grant into a pass on every `#index` and `#create` in the app.
+  It keeps its full authority over its own record.
+
+  Two things this path deliberately will **not** do, both fail-closed: it never
+  opens a **separation-of-duties action** (a four-eyes action is
+  record-targeted by definition, so a record-less one has no record for the veto
+  to measure — it is denied rather than granted with the veto skipped); and it
+  never fires on a controller that **declares no `current_scope_record` hook**.
+  A hook returning nil is the host saying "this action has no record", and the
+  gate trusts it; no hook says nothing, and reading silence as "collection
+  action" would let a controller that forgot the hook hand a scoped subject
+  every record of its type. Both keep the pre-0.2.x behavior for misconfigured
+  hosts.
+
+  **If a collection-only controller has no hook and you want its gate to honor
+  scoped grants, declare one:** `def current_scope_record = nil`. Nothing that
+  worked before stops working — without a hook, scoped grants could never open a
+  collection gate anyway — but this is the line that opts in.
+
 ## [0.2.0] - 2026-07-14
 
 ### Added

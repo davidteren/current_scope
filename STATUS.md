@@ -30,8 +30,9 @@ engine via an in-tree vendored path gem, and CI needs no external checkout.
 
 ### v0.1 core (engine at repo root)
 
-- [x] Resolver with fixed decision order: SoD veto → full_access → org-wide
-      role → scoped role → default-deny (`lib/current_scope/resolver.rb`)
+- [x] Resolver with fixed decision order: SoD veto (or an audited break-glass
+      bypass) → full_access → org-wide role → scoped role → scoped role on a
+      record-less target → default-deny (`lib/current_scope/resolver.rb`)
 - [x] PermissionCatalog derived from routes — no permissions table; new
       controllers appear in the grid automatically
 - [x] Models: `Role`, `RolePermission`, `RoleAssignment` (one org-wide role per

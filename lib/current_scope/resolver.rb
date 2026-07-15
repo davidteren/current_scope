@@ -10,7 +10,11 @@ module CurrentScope
   #                      present and future.
   #   3. org-wide role — the role's permission set includes this permission.
   #   4. scoped role   — a role held on THIS record grants the permission.
-  #   5. default-deny  — nothing granted means denied.
+  #   5. scoped role,  — the target is record-less (nil for a collection action,
+  #      record-less     a Class for a class-form check), so no specific record
+  #                      can be named: ANY scoped grant ticking the key opens it.
+  #                      scope_for then narrows the list to those records.
+  #   6. default-deny  — nothing granted means denied.
   class Resolver
     INITIATOR_METHOD = :current_scope_initiator
     # Host-defined per-record opt-in for break-glass. Absent ⇒ never bypassed
@@ -42,6 +46,7 @@ module CurrentScope
       return [ true, nil ] if role&.full_access?
       return [ true, nil ] if role&.grants?(permission)
       return [ true, nil ] if scoped_grant?(subject: subject, permission: permission, record: record)
+      return [ true, nil ] if record_less_scoped_grant?(subject: subject, permission: permission, record: record)
 
       [ false, :no_grant ]
     end
@@ -89,10 +94,35 @@ module CurrentScope
 
     # Role ids that satisfy `permission`: full_access (grants everything) or an
     # explicit grant of the key. The one place "does this role grant it?" is
-    # expressed for scoped grants — shared by the gate and scope_for.
+    # expressed for scoped grants — shared by the gate and scope_for. Safe to
+    # wildcard full_access here because BOTH callers bind the grant to a record:
+    # scoped_grant? by `resource:`, scope_for by `resource_type:`.
     def roles_granting(permission)
-      Role.where(full_access: true)
-          .or(Role.where(id: RolePermission.where(permission_key: permission).select(:role_id)))
+      Role.where(full_access: true).or(Role.where(id: roles_ticking(permission)))
+    end
+
+    # Role ids that EXPLICITLY tick `permission` — full_access roles deliberately
+    # excluded, whether or not they also carry a RolePermission row. Only for the
+    # record-less branch, which binds the grant to no record at all: honoring
+    # full_access there would mean one scoped full_access grant on one record
+    # ("Owner of Report #7") opened EVERY record-less gate in the host app —
+    # every #index and #create on every controller — since a full_access role
+    # satisfies every key. That is the `resource:` bound scoped_grant? applies
+    # and the record-less branch cannot.
+    #
+    # The `where.not` is load-bearing, not belt-and-braces: a role can be
+    # full_access AND retain explicit rows (tick grid cells, then flip the
+    # full-access toggle), and matching on the leftover row alone would walk it
+    # straight back through the branch full_access is barred from.
+    #
+    # roles_granting's set is unchanged by this exclusion — it unions
+    # full_access back in, so full_access ∪ (ticking − full_access) == the same
+    # roles it always matched.
+    def roles_ticking(permission)
+      RolePermission
+        .where(permission_key: permission)
+        .where.not(role_id: Role.where(full_access: true).select(:id))
+        .select(:role_id)
     end
 
     # The separation-of-duties outcome for this decision: :none (no conflict, or
@@ -166,6 +196,80 @@ module CurrentScope
       ScopedRoleAssignment
         .where(subject: subject, resource: record, role_id: roles_granting(permission))
         .exists?
+    end
+
+    # A record-less target is allowed when the subject holds ANY scoped grant
+    # whose role ticks the key — the list-side complement to scope_for, which
+    # then narrows the collection to the granted records. Without this, the two
+    # halves of the per-record feature contradict each other: the gate turns a
+    # scoped-only subject away from their index, and the org-wide grant that gets
+    # them past it makes scope_for return every record.
+    #
+    # "Record-less" is a CLOSED set of exactly two shapes, tested positively:
+    #
+    #   nil     — a collection action; the Guard's hook returns nil when there is
+    #             no record (guard.rb), which is the documented contract.
+    #   a Class — the class form, allowed_to?(:index, Report).
+    #
+    # Positive, never `unless record.respond_to?(:new_record?)`: a negative test
+    # admits an OPEN set, so a host whose current_scope_record wrongly returns
+    # params[:id] (a String) or any other non-record would land here and be
+    # ALLOWED on the strength of a grant held over some *other* record — a
+    # fail-open in a fail-closed engine, and a breach of this branch's own
+    # invariant that a grant on X must not act on Y. Anything that is not
+    # literally nil-or-a-Class is not a record-less target and gets no say here.
+    #
+    # Consequence, deliberate: an UNPERSISTED instance (Report.new) is not
+    # record-less by this test, and scoped_grant? needs persisted? — so it is
+    # denied, while the class form is allowed. That asymmetry is only reachable
+    # by gating a collection action with Model.new instead of the documented nil,
+    # and it fails CLOSED (a 403 the host sees immediately), which is the safe
+    # direction to be wrong in.
+    #
+    # Requires an EXPLICIT tick (roles_ticking, not roles_granting): this is the
+    # only grant check that binds to no record, so a full_access role — which
+    # satisfies every key — would turn one scoped grant on one record into a
+    # pass on every #index and #create in the host app. "Owner of Report #7"
+    # means full access to Report #7, not to every collection in the product.
+    # The cost of that strictness: a scoped full_access role does not open its
+    # own index either, so it keeps the pre-existing 403 that #19 fixes for
+    # explicitly-ticked roles. Reaching that needs the Guard to tell the
+    # resolver which model the collection is (see OQ-2) — until then, deny is
+    # the honest answer rather than an app-wide wildcard.
+    #
+    # Deliberately NOT memoized, unlike org_role. The memo there caches one
+    # lookup keyed by subject, invalidated by RoleAssignment writes alone. This
+    # predicate's answer derives from three tables (scoped assignments, roles,
+    # role permissions), so a memo would need invalidation hooks on all three —
+    # and a stale entry here is a stale ALLOW. Only record-less checks by
+    # scoped-only subjects reach this line (org and full_access short-circuit
+    # above), so the cost is a query on a handful of nav-level checks per page,
+    # not the per-row gate. Revisit if that ever shows up in a profile.
+    def record_less_scoped_grant?(subject:, permission:, record:)
+      return false unless record.nil? || record.is_a?(Class)
+      return false if sod_action?(permission)
+
+      ScopedRoleAssignment
+        .where(subject: subject, role_id: roles_ticking(permission))
+        .exists?
+    end
+
+    # An SoD action is record-targeted BY DEFINITION — "the subject who
+    # initiated a record can never approve THAT record". So a record-less SoD
+    # check is a contradiction in terms: there is no record for the veto to
+    # measure, and `sod_decision` returns :none for exactly that reason. Opening
+    # such a gate off a scoped grant would let a host that mis-gates a member
+    # SoD action (current_scope_record returning nil on `reports#approve` —
+    # precisely what warn_on_nil_sod_record exists to catch) hand out the action
+    # with the four-eyes veto silently skipped. The veto is a structural
+    # guarantee, so it must not rest on an opt-in dev warning; deny instead.
+    #
+    # This does NOT close the older org-grant asymmetry — a nil record on an SoD
+    # action still passes for an org-wide grant, which is characterized and
+    # pinned in test/sod_nil_record_test.rb. It only stops the record-less scoped
+    # branch from widening that hole to scoped grants too.
+    def sod_action?(permission)
+      CurrentScope.config.sod_actions.include?(permission.split("#").last)
     end
   end
 end

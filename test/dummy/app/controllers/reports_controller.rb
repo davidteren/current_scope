@@ -2,7 +2,11 @@ class ReportsController < ApplicationController
   include CurrentScope::Guard
 
   def index
-    render plain: Report.order(:id).pluck(:title).join(",")
+    # scope_for, not Report.all — the gate decides whether this action runs, it
+    # cannot filter the list. A scoped-only subject reaches this action (the
+    # record-less gate), so an unscoped query here would hand them every report.
+    # The dummy is the engine's worked example; it follows its own README.
+    render plain: scope_for(Report).order(:id).pluck(:title).join(",")
   end
 
   def show

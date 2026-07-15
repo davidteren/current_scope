@@ -13,6 +13,16 @@ Rails.application.routes.draw do
   get "tripwire_public", to: "tripwire_ungated#public_action"
   get "tripwire_gated", to: "tripwire_gated#show"
   post "sod_nil/approve", to: "sod_nil#approve"
+  # A member route whose controller declares no current_scope_record hook.
+  resources :hookless_member, only: :show
+  # Same, but with custom member params — neither may read as a collection.
+  resources :slug_reports, only: :show, param: :slug
+  resources :external_id_reports, only: :show, param: :external_id
+  # A nested COLLECTION — its only dynamic segment is the parent's :project_id,
+  # so it must still read as a collection and stay reachable.
+  resources :projects, only: [] do
+    resources :nested_reports, only: :index
+  end
   post "writes/guarded", to: "writes#guarded", as: :writes_guarded
   post "writes/unguarded", to: "writes#unguarded", as: :writes_unguarded
 

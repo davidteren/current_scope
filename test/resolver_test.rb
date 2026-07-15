@@ -132,11 +132,21 @@ class ResolverTest < ActiveSupport::TestCase
     assert_not @resolver.allow?(subject: @alice, permission: "reports#destroy", record: Report)
   end
 
-  test "scoped role never leaks to org-wide checks" do
+  # A scoped grant opens the record-less gate for the keys its role ticks (so the
+  # subject can reach the list scope_for narrows — see CollectionScopeGateTest),
+  # but it is still not an org-wide grant: it confers nothing on any OTHER
+  # record, and nothing on a key the role does not tick.
+  test "scoped role never leaks into org-wide reach over other records" do
     editor = role("Editor", "reports#index")
+    other = Report.create!(title: "Q4", requested_by: @bob)
     CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: editor, resource: @report)
 
-    assert_not @resolver.allow?(subject: @alice, permission: "reports#index")
+    assert @resolver.allow?(subject: @alice, permission: "reports#index"),
+      "the record-less gate opens — scope_for is what narrows the list"
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: other),
+      "but the grant on @report must confer nothing on a sibling record"
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#destroy"),
+      "and nothing on a key the role does not tick"
   end
 
   # --- SoD with two identities (:either default) ---

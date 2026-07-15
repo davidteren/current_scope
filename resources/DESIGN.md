@@ -136,6 +136,53 @@ different roles on different records:
 Its permissions apply **only when the action targets that record.** Being
 "Editor of Project #7" grants nothing on Project #8.
 
+The one qualifier: a **record-less** check — a collection action like `#index`,
+which reaches the resolver with no record, or the class form
+`allowed_to?(:index, Project)` — names no record for the grant to be measured
+against. There, any scoped grant whose role ticks the key opens the gate, and
+`scope_for` narrows the resulting list to the granted records. This is what lets
+"Editor of Project #7" reach a project index at all without an org-wide grant
+(which would mean *see everything*). It never widens a decision on an actual
+record: Project #8 is still denied.
+
+This is uniform across record-less actions rather than special-cased to
+`#index`: a scoped role ticking `create` or a bulk key opens those gates too,
+as an org-wide grant of that key already does. The role author's ticks are the
+control — a record-less action has no record to filter on either way. The
+target shape is a closed set (`nil` or a `Class`); anything else is not
+record-less and is denied, so a hook that returns something other than a record
+fails closed.
+
+Two bounds worth stating, because a record-less check is the one grant check
+tied to no record:
+
+- **A tick must be explicit.** `full_access` is *not* honored here, though it is
+  everywhere else. A full_access role satisfies every key, so one scoped
+  full_access grant would otherwise pass every record-less gate in the app.
+  Bounding it needs the type, which the `nil` target does not carry (§3.4 above).
+- **An SoD action is never opened this way.** A four-eyes action is
+  record-targeted by definition — there is no record for the veto to measure, so
+  the veto cannot run (§3.6). Rather than hand out the action with the guarantee
+  silently skipped, a record-less SoD check is denied.
+- **A record-less `nil` must be a declaration, not an accident.** A
+  `current_scope_record` hook returning nil is the host stating *"this action
+  has no record"* (§3.4), and the gate trusts it. A controller that declares no
+  hook has stated nothing, so the gate assumes nothing and scoped grants cannot
+  open it — otherwise a controller that simply forgot the hook would hand a
+  scoped subject every record of its type. Silence costs nothing that was
+  available before: without a hook, scoped grants could never open a collection
+  gate anyway.
+
+  The gate reads the declaration rather than the route deliberately. Guessing
+  member-vs-collection from path parameters cannot be made correct — `:id`
+  misses `param: :slug`; "any key not suffixed `_id`" misses
+  `param: :external_id` and falsely accuses a nested parent with a custom param.
+  Every such rule fails on the next routing option, because the route does not
+  encode what the host means. The hook does.
+- **The gate admits; it does not filter.** Passing a collection gate is not a
+  claim about what the action then renders. `scope_for` is the filter, and it is
+  the host's to call — the engine cannot narrow a list built from `Model.all`.
+
 **Assigning a scoped role NEVER changes the subject's org-wide role.** The two
 are independent axes: one org-wide role (broad, coarse) + N scoped roles
 (narrow, per-record).
@@ -176,11 +223,19 @@ One resolver answers every check, in this fixed order:
 resolve(subject, permission, record = nil):
   1. SoD veto        → if this is an approve-style action on `record`
                         AND subject initiated `record`  → DENY   (overrides all)
+                        (unless break-glass lifts it → ALLOW; the Guard records
+                         an audit event, which `config.audit = false` turns into
+                         a no-op — an audit-off host permits and records nothing)
   2. full_access     → if subject's org-wide role.full_access?  → ALLOW
   3. org-wide role   → if subject's org-wide role includes `permission` → ALLOW
   4. scoped role     → if subject holds a scoped role on THIS `record`
                         whose role includes `permission`  → ALLOW
-  5. otherwise       → DENY   (default-deny)
+  5. scoped role,    → if `record` is RECORD-LESS (nil for a collection action,
+     record-less        or a Class) AND subject holds ANY scoped role that
+                        EXPLICITLY ticks `permission`  → ALLOW
+                        (full_access does not count here, and an SoD action is
+                         never opened this way — see §3.4)
+  6. otherwise       → DENY   (default-deny)
 ```
 
 ```ruby
@@ -192,7 +247,10 @@ module Grantwork
       return true if role&.full_access?                            # 2
       return true if role&.grants?(permission)                     # 3
       return true if scoped_grant?(subject:, permission:, record:) # 4
-      false                                                        # 5
+      return true if record_less_scoped_grant?(                    # 5
+        subject:, permission:, record:
+      )
+      false                                                        # 6
     end
 
     private

@@ -87,7 +87,7 @@ flowchart TD
 - **Dependencies:** none.
 - **Files:** `lib/current_scope/resolver.rb`, `test/resolver_test.rb` (extend), and a focused new `test/collection_scope_gate_test.rb`.
 - **Approach:** in `decide`, after the persisted `scoped_grant?` line and before the final `[false, :no_grant]`, add:
-  `return [ true, nil ] if collection_scoped_grant?(subject: subject, permission: permission, record: record)`.
+  `return [ true, nil ] if record_less_scoped_grant?(subject: subject, permission: permission, record: record)`.
   Implement the private predicate directionally as:
   ```ruby
   # A record-less target (nil for a collection action, or a Class for
@@ -100,15 +100,23 @@ flowchart TD
     # POSITIVE, closed set (KTD-3). The negation !respond_to?(:new_record?)
     # would admit String/Integer/PORO and fail OPEN.
     return false unless record.nil? || record.is_a?(Class)
+    # An SoD action is record-targeted by definition, so a record-less one has
+    # no record for the veto to measure — deny rather than hand out a four-eyes
+    # action with the guarantee skipped.
+    return false if sod_action?(permission)
 
     ScopedRoleAssignment
       .where(subject: subject, role_id: roles_ticking(permission)) # NOT roles_granting — KTD-6
       .exists?
   end
 
-  # Explicit ticks only; full_access deliberately not unioned in (KTD-6).
+  # Explicit ticks only; full_access roles deliberately EXCLUDED (KTD-6) —
+  # whether or not they also carry a RolePermission row.
   def roles_ticking(permission)
-    RolePermission.where(permission_key: permission).select(:role_id)
+    RolePermission
+      .where(permission_key: permission)
+      .where.not(role_id: Role.where(full_access: true).select(:id))
+      .select(:role_id)
   end
 
   # Existing helper, now expressed in terms of the above — full_access is safe
@@ -118,6 +126,8 @@ flowchart TD
   end
   ```
   Name it `record_less_scoped_grant?`, not `collection_...`: it fires for `nil` **and** any Class, and a class-form `create` check is not a collection. Pure: one existence read, no writes, no `self` state.
+
+  > **The `where.not` is load-bearing, not belt-and-braces.** A role can be `full_access` **and** retain explicit `RolePermission` rows — tick grid cells, then flip the full-access toggle — and matching on the leftover row alone walks it straight back through the bar KTD-6 puts it behind. This clause was itself missing from the first *corrected* version of this sketch, written in review by the person who found the escalation: a sketch that has already been through review can still under-specify the fix by one clause. Re-derive from the source, not from the sketch. (`test/collection_scope_gate_test.rb`, "a scoped full_access role with explicit permission rows is still barred".)
 - **Execution note (test-first — this is a gate/resolver security path):** write the failing tests first and watch them go red before editing `decide`. The load-bearing assertion is R5 (persisted-record decisions unchanged) — assert it explicitly so a future refactor can't quietly widen the branch.
 - **Patterns to follow:** the existing `scoped_grant?` / `scope_for` pair and the `roles_granting` shared helper; the `[bool, reason]` tuple convention in `decide` (record-less scoped allow carries reason `nil`, like the org-role allow — it is an ordinary grant, not an audited exception).
 - **Test scenarios:**
@@ -130,7 +140,11 @@ flowchart TD
   - **Org grant present →** unchanged: allowed via the org-role path before the new branch is reached (ordering).
   - **full_access →** unchanged.
   - **SoD veto still upstream (persisted record):** a subject who initiated the persisted record X is still denied `:sod_veto` on an SoD action targeting X, even while holding a scoped grant that ticks the key — the veto runs before both the persisted-scoped and the new record-less branches (R5). (A record-less SoD target proves nothing here: `sod_decision` returns `:none` for it — see the next scenario.)
-  - **Nil-record SoD action + scoped grant ticking it:** `allow?(subject: alice, permission: "reports#approve", record: nil)`, where alice's scoped role ticks `reports#approve`, now returns `[true, nil]` — previously `[false, :no_grant]`. This is reachable **only** when a host mis-gates a *member* SoD action with a nil record (exactly what `warn_on_nil_sod_record` exists to catch): `sod_decision` already returns `:none` for any record-less target (`resolver.rb:107`), so there was never a veto for the new branch to sit downstream of. Assert the allow AND that the Guard's `nudge_on_nil_sod_record` still fires on it (emitted after the allow, `guard.rb:60`).
+  - **Nil-record SoD action + scoped grant ticking it:** `allow?(subject: alice, permission: "reports#approve", record: nil)`, where alice's scoped role ticks `reports#approve`, stays **denied** `[false, :no_grant]` — the branch refuses SoD actions outright (see the `sod_action?` guard in the sketch above).
+
+    > **This scenario originally said the opposite** — "now returns `[true, nil]` … Assert the allow" — on the reasoning that `sod_decision` returns `:none` for a record-less target, so no veto was being skipped that an org grant of the same key wouldn't also skip. Review rejected that: an SoD action is record-targeted *by definition*, so a record-less one has no record for the veto to measure, and handing out a four-eyes action with the guarantee silently skipped is not something an opt-in dev warning (`warn_on_nil_sod_record`) can be allowed to backstop. The reachable case is a host mis-gating a *member* SoD action with a nil record; the answer is to deny it. See `test/collection_scope_gate_test.rb`, "a record-less SoD action is never opened by a scoped grant", and PR #49.
+    >
+    > This does **not** close the older org-grant asymmetry — a nil record on an SoD action still passes for an org-wide grant, which is characterised and pinned in `test/sod_nil_record_test.rb`. It only stops this branch widening that hole to scoped grants.
   - **Purity:** `decide`/`allow?` on the new path creates zero DB rows (no `current_scope_events`, no writes).
 - **Verification:** new + existing resolver tests green; `test/resolver_test.rb` and `test/scope_for_test.rb` pass unchanged; RuboCop omakase clean.
 

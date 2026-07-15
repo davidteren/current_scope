@@ -1,0 +1,30 @@
+test/scope_for_test.rb
+  s_4d1327efb21c21::t_02e13d5fe526ce 129-141
+resources/DESIGN.md
+  s_4d1327efb21c21::t_9359c6cdfa2ac6 148-155
+README.md
+  s_4d1327efb21c21::t_83a3f010128670 201-206
+lib/current_scope/resolver.rb
+  s_4d1327efb21c21::t_4b3f945a0db955 203-211
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "9bb57573012f19c5553008421c9e628357bdbd54",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

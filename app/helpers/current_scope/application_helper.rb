@@ -67,6 +67,18 @@ module CurrentScope
         CurrentScope::ApplicationHelper.warn_unknown_subject_label_once(label)
         nil
       end
+    rescue StandardError => e
+      # Last resort, and the reason it exists: every branch above calls a method
+      # ON the host's config value to classify it — `nil?`, `respond_to?`,
+      # `is_a?`. A pathological value breaks the classification itself, before
+      # any specific guard can classify it, so the guards cannot be where this
+      # is caught. A BasicObject has no #nil?; a delegator can raise from
+      # respond_to?.
+      #
+      # Deliberately does NOT touch `label`: it is the thing that just proved it
+      # cannot be touched. The warning is keyed off the error alone.
+      CurrentScope::ApplicationHelper.warn_subject_label_broken_once(e)
+      nil
     end
 
     # Members-list labels that survive a stale/renamed polymorphic type — a
@@ -156,19 +168,37 @@ module CurrentScope
         return unless new_subject_label_warning?(:raised, label)
 
         Rails.logger&.warn(
-          "[CurrentScope] config.subject_label raised #{error.class}: #{one_line(error.message)} " \
+          "[CurrentScope] config.subject_label raised #{error.class}: #{safe_message(error)} " \
           "— that subject fell back to the default label rather than erroring the page. A " \
           "subject_label must be total: it runs for every subject, including ones with nil or " \
           "blank attributes."
         )
       end
 
+      # The configured value could not even be classified — see the rescue in
+      # configured_subject_label. Keyed by the error's class, and says nothing
+      # about the label itself, because reading the label is what failed.
+      def warn_subject_label_broken_once(error)
+        return unless new_subject_label_warning?(:broken, error.class)
+
+        Rails.logger&.warn(
+          "[CurrentScope] config.subject_label could not be read — #{error.class}: " \
+          "#{safe_message(error)}. Every subject is falling back to the default label. Set it to " \
+          "a Symbol (e.g. :email), a Proc taking the subject, or nil."
+        )
+      end
+
       private
 
-      # A host exception message is arbitrary text and may carry newlines, which
-      # would split one warning across several log records.
-      def one_line(message)
-        message.to_s.gsub(/\s+/, " ").strip.truncate(200)
+      # A host exception's message is arbitrary text produced by arbitrary code:
+      # it may carry newlines that split one warning across several log records,
+      # run to any length, or raise from #message itself. All three would land
+      # in the rescue this runs inside — reporting the failure must not become
+      # the failure.
+      def safe_message(error)
+        error.message.to_s.gsub(/\s+/, " ").strip.truncate(200)
+      rescue StandardError
+        "(message unavailable)"
       end
 
       # A plain Hash, not a Set: this runs inside the rescue that stops a bad

@@ -225,5 +225,54 @@ module CurrentScope
       assert_equal 1, logs.lines.size, "an exception message must not split the warning across records"
       assert_match "line one line two line three", logs
     end
+
+    # --- Reporting the failure must not become the failure ---
+    #
+    # Everything in the warning path runs inside the rescue that stops the 500,
+    # so an exception whose own #message raises would escape it — turning the
+    # diagnostic into the outage it was diagnosing.
+
+    test "an exception whose message raises still falls back and still warns" do
+      hostile = Class.new(StandardError) do
+        def message = raise("message exploded")
+      end
+      CurrentScope.config.subject_label = ->(_) { raise hostile }
+
+      logs = capture_logs do
+        assert_nothing_raised do
+          assert_equal "a@b.co", current_scope_subject_label(Person.new("a@b.co", "Ada"))
+        end
+      end
+
+      assert_match "config.subject_label", logs, "a broken message must not cost us the warning"
+      assert_match "(message unavailable)", logs
+    end
+
+    # --- A label that can't even be classified ---
+    #
+    # Every branch calls a method ON the config value to classify it (nil?,
+    # respond_to?, is_a?). A value that breaks those breaks the classification
+    # before any guard can guard it, so the last-resort rescue is the only
+    # place this can be caught.
+
+    test "a label that cannot be classified falls back instead of 500ing" do
+      CurrentScope.config.subject_label = BasicObject.new # no #nil?, no #class
+
+      assert_nothing_raised do
+        assert_equal "a@b.co", current_scope_subject_label(Person.new("a@b.co", "Ada"))
+      end
+    end
+
+    test "an unclassifiable label warns once, without touching the label" do
+      CurrentScope.config.subject_label = BasicObject.new
+
+      logs = capture_logs do
+        current_scope_subject_label(Person.new("a@b.co", "Ada"))
+        current_scope_subject_label(Person.new("c@d.co", "Grace"))
+      end
+
+      assert_equal 1, logs.scan(/config\.subject_label/).size
+      assert_match "could not be read", logs
+    end
   end
 end

@@ -1,0 +1,73 @@
+docs/plans/2026-07-15-001-fix-scoped-collection-gate-plan.md
+  s_27e720dfab3b7a::t_ac19952dc892f2 1-171
+docs/plans/2026-07-15-020-feat-grid-at-scale-plan.md
+  s_27e720dfab3b7a::t_cc489e5de850c5 1-191
+docs/plans/2026-07-15-019-feat-report-only-mode-plan.md
+  s_27e720dfab3b7a::t_7d5c39ad4635a5 1-215
+docs/plans/2026-07-15-024-feat-wildcard-grants-plan.md
+  s_27e720dfab3b7a::t_6a6d49ac022dfe 1-164
+docs/plans/2026-07-15-007-docs-canonical-quickstart-plan.md
+  s_27e720dfab3b7a::t_90d5acd0e6da0f 1-174
+docs/plans/2026-07-15-011-docs-sod-gaps-plan.md
+  s_27e720dfab3b7a::t_eb17c926496274 1-130
+docs/plans/2026-07-15-021-feat-denial-ergonomics-plan.md
+  s_27e720dfab3b7a::t_ea4b36e953f6ce 1-173
+docs/plans/2026-07-15-026-feat-error-message-polish-plan.md
+  s_27e720dfab3b7a::t_0e45069ec28d35 1-145
+docs/plans/2026-07-15-028-feat-dx-skills-plan.md
+  s_27e720dfab3b7a::t_ded01bf6e0084e 1-543
+docs/plans/2026-07-15-003-fix-bypass-sod-ungrantable-plan.md
+  s_27e720dfab3b7a::t_cf834a2c76c876 1-165
+docs/plans/2026-07-15-010-docs-config-reference-sync-plan.md
+  s_27e720dfab3b7a::t_2dceb9565b3904 1-131
+docs/plans/2026-07-15-005-fix-engine-403-no-reason-plan.md
+  s_27e720dfab3b7a::t_3c361dc39044b0 1-145
+docs/plans/2026-07-15-025-feat-phantom-permissions-plan.md
+  s_27e720dfab3b7a::t_09801be2cf5ef1 1-172
+docs/plans/2026-07-15-022-feat-boot-validate-bypass-config-plan.md
+  s_27e720dfab3b7a::t_39bd5c3d53e852 1-130
+docs/plans/2026-07-15-023-feat-dev-diagnostics-plan.md
+  s_27e720dfab3b7a::t_79c776f8a13c11 1-170
+docs/plans/2026-07-15-027-feat-migration-tooling-plan.md
+  s_27e720dfab3b7a::t_934f738b8a1e27 1-260
+docs/plans/2026-07-15-015-docs-site-source-plan.md
+  s_27e720dfab3b7a::t_66538c7ff42764 1-169
+docs/plans/2026-07-15-002-fix-permission-keys-silent-drop-plan.md
+  s_27e720dfab3b7a::t_e0d02f122ec8bd 1-165
+docs/plans/2026-07-15-008-docs-adoption-guide-plan.md
+  s_27e720dfab3b7a::t_6d5930cf5d9883 1-136
+docs/plans/2026-07-15-017-docs-testing-guide-plan.md
+  s_27e720dfab3b7a::t_e0f44898743da2 1-162
+docs/plans/2026-07-15-006-docs-denial-behavior-plan.md
+  s_27e720dfab3b7a::t_6eb5c6908b3d26 1-133
+docs/plans/2026-07-15-009-docs-upgrading-01-02-plan.md
+  s_27e720dfab3b7a::t_9f5859d88a04a2 1-149
+docs/plans/2026-07-15-013-feat-theming-overrides-plan.md
+  s_27e720dfab3b7a::t_692b00cd065e15 1-170
+docs/plans/2026-07-15-016-docs-readme-restructure-plan.md
+  s_27e720dfab3b7a::t_d81978231c330a 1-197
+docs/plans/2026-07-15-012-fix-audit-ledger-gaps-plan.md
+  s_27e720dfab3b7a::t_690ba73a8df24f 1-187
+docs/plans/2026-07-15-004-fix-subject-label-proc-500-plan.md
+  s_27e720dfab3b7a::t_960cea9046476e 1-153
+docs/plans/2026-07-15-014-docs-security-production-checklist-plan.md
+  s_27e720dfab3b7a::t_2de2071274cc28 1-156
+docs/plans/2026-07-15-018-docs-advisory-allowed-to-catalog-plan.md
+  s_27e720dfab3b7a::t_10a481d15bedd2 1-114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "e6197186803e92a6303b7659f1a4a5e334453d94",
+  "prompts": {},
+  "sessions": {
+    "s_27e720dfab3b7a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "daa212d5-49e0-4fc9-aace-18a14a7b3cfa",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

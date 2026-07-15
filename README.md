@@ -115,6 +115,13 @@ end
 
 ### Retrofitting an app that already has users
 
+> **Retrofitting a real app?** There's a full guide:
+> [Adopting CurrentScope in an existing app](docs/guides/adopting-in-an-existing-app.md)
+> — callback ordering vs. your authentication, the Devise recipe, the
+> `skip_before_action` fail-open trap, hybrid HTML+API grants, and a rollout
+> ladder. The short version is below.
+
+
 The gate is fail-closed, so the line you just added denies **everything** until
 grants exist. On a greenfield app that's invisible — you seed the Owner role and
 move on. On an app that already has controllers and traffic, it means your suite

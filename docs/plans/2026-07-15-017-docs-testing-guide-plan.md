@@ -40,7 +40,7 @@ Authorization testing is mostly negative-space testing: you assert the door is *
 ### Requirements
 
 - **R1.** The guide shows a **denial** request test: an ungranted subject hits a gated action and the test asserts `assert_response :forbidden` **and** the `X-Current-Scope-Reason` header equals the machine-readable reason (`"no_grant"` for a plain missing grant).
-- **R2.** The guide documents `with_current_user(user, actor: admin)` — the act-as form — with one sentence on when it applies (in-process checks of impersonation-aware affordances), mirroring the existing `test_helpers.rb` comment so the two never drift.
+- **R2.** The guide documents `with_current_user(user, actor: admin)` — the act-as form — with one sentence on when it applies (in-process checks of impersonation-aware affordances). The published example must be copy-paste-runnable: `impersonating?` lives in `CurrentScope::Permissions`, not `TestHelpers`, so the example test class also `include`s `CurrentScope::Permissions` (or frames the check as a rendered component/view assertion). Do **not** mirror the `test_helpers.rb:10-12` header comment verbatim — it calls `impersonating?` with only `TestHelpers` included and would raise `NoMethodError`.
 - **R3.** The guide includes an **RSpec** variant showing `include CurrentScope::TestHelpers` in a `type: :request` spec, seeding a grant and asserting both an allow and a denial with RSpec matchers (`have_http_status(:forbidden)`, `response.headers[...]`). It must not imply the gem ships any RSpec support beyond the plain includable module.
 - **R4.** The guide adds a **system-test note**: a system/integration test that drives a *mutation* (non-GET) while impersonating hits the read-only mutation guard first, so either the test asserts that 403 deliberately, or the exercised controller must `skip_before_action :current_scope_mutation_guard!` (cross-referencing the existing controller guidance), so the denial under test is the *permission* denial the author intended.
 - **R5.** Every code fact in the new prose is accurate to source at `docs/plans/…` write time — reason strings, method signatures, header name, and the persist-vs-in-process distinction between `grant_role!` and `with_current_user`.
@@ -73,14 +73,21 @@ Authorization testing is mostly negative-space testing: you assert the door is *
   assert_response :forbidden
   assert_equal "no_grant", response.headers["X-Current-Scope-Reason"]
   ```
-  One sentence of prose: denials render `head :forbidden` and carry the machine-readable reason on `X-Current-Scope-Reason` (`no_grant`, `sod_veto`, `impersonation_gate`), so tests can assert *why* the gate refused, not just that it did — link to the reason list already in the Impersonation section rather than re-enumerating. Separately, add a short paragraph + snippet for the act-as form, lifted from `test_helpers.rb:6-14`:
+  One sentence of prose: denials render `head :forbidden` and carry the machine-readable reason on `X-Current-Scope-Reason` (`no_grant`, `sod_veto`, `impersonation_gate`), so tests can assert *why* the gate refused, not just that it did — link to the reason list already in the Impersonation section rather than re-enumerating. Separately, add a short paragraph + snippet for the act-as form. Do **not** lift the snippet verbatim from `test_helpers.rb:6-14`: that header comment calls `impersonating?` after only `include CurrentScope::TestHelpers`, but `impersonating?` lives in `CurrentScope::Permissions` (`permissions.rb:52`, exposed as a view `helper_method` via `context.rb:13`), **not** in `TestHelpers` — copy-pasted as-is it raises `NoMethodError`. Make the promoted example runnable by including `Permissions` alongside `TestHelpers`, matching the canonical in-process check at `test/current_test.rb:45-51`:
   ```ruby
   # directional
-  with_current_user(users(:bob), actor: users(:admin)) do   # act-as: bob impersonated by admin
-    assert impersonating?
+  class ImpersonationHelperTest < ActiveSupport::TestCase
+    include CurrentScope::TestHelpers
+    include CurrentScope::Permissions          # impersonating? lives here, not in TestHelpers
+
+    test "act-as marks an impersonation session in-process" do
+      with_current_user(users(:bob), actor: users(:admin)) do   # act-as: bob impersonated by admin
+        assert impersonating?
+      end
+    end
   end
   ```
-  Note it is for in-process checks of impersonation-aware affordances (banners, disabled destructive controls), and that a *real* impersonated mutation goes through the request path and the mutation guard (forward-reference U3's note).
+  (Equivalently, frame the act-as check as a rendered impersonation-aware component/view assertion like the existing `ApproveButtonComponentTest`, where `impersonating?` resolves as a helper.) Note it is for in-process checks of impersonation-aware affordances (banners, disabled destructive controls), and that a *real* impersonated mutation goes through the request path and the mutation guard (forward-reference U3's note). The source comment at `test_helpers.rb:10-12` carries the same latent gap; fixing that comment is an engine change outside this docs plan's scope, so the published example must correct it, not mirror it.
 - **Patterns to follow:** the existing section's two-example rhythm (component test, then request test) and its "in-process vs persisted grant" framing; the reason-list phrasing already at `README.md:486-488`.
 - **Test scenarios:** none — documentation prose. The *example's* correctness is verified at runtime in U2's dummy assertion (KTD-5) so the published `"no_grant"` string is proven, not assumed.
 - **Verification:** the section now shows a denial test asserting both status and header, and the `actor:` keyword appears in README (no longer source-comment-only); reason string and method signatures match `mutation_guard.rb` / `test_helpers.rb`.

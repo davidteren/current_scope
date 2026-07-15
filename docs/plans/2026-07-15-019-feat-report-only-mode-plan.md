@@ -114,15 +114,17 @@ flowchart TD
 - **Requirements:** R3, R4, R6, R7, KTD-1, KTD-2, KTD-3, KTD-4.
 - **Dependencies:** U1.
 - **Files:** `lib/current_scope/guard.rb`, `test/integration/guard_report_mode_test.rb` (new; integration-style through `test/dummy`, mirroring `test/integration/guard_test.rb`).
-- **Approach:** in `current_scope_check!`, replace the unconditional `raise ... unless allowed` (`guard.rb:57`) with a branch: when `!allowed`, if `CurrentScope.config.enforcement == :report && reason == :no_grant`, call a new private `report_would_deny(permission, record)` and fall through (do not raise); otherwise raise `AccessDenied` as today. The existing `record_sod_bypass`/`nudge_on_nil_sod_record` tail runs only on the allowed path and is untouched. `report_would_deny` (sibling of `record_sod_bypass`): emit `Rails.logger&.warn` naming subject/permission/`no_grant`; set `response.set_header("X-Current-Scope-Reason", "would_deny")`; and record the ledger row with `target = record || CurrentScope::Current.user` (skip the row, log-only, if that target is also nil — an unauthenticated `:no_grant` can't be attributed):
+- **Approach:** in `current_scope_check!`, replace the unconditional `raise ... unless allowed` (`guard.rb:57`) with a branch: when `!allowed`, if `CurrentScope.config.enforcement == :report && reason == :no_grant`, call a new private `report_would_deny(permission, record)` and fall through (do not raise); otherwise raise `AccessDenied` as today. The existing `record_sod_bypass`/`nudge_on_nil_sod_record` tail runs only on the allowed path and is untouched. `report_would_deny` (sibling of `record_sod_bypass`): emit `Rails.logger&.warn` naming subject/permission/`no_grant`; set `response.set_header("X-Current-Scope-Reason", "would_deny")`; and record the ledger row with `target = record || CurrentScope::Current.user` — but skip the row (log-only, still allow) when there is **no ambient subject** (`CurrentScope::Current.user` is nil), because an unauthenticated `:no_grant` can't be attributed. Guard on the ambient subject, **not** on `target`: a member action carrying a non-nil `record` under a nil subject would pass a `target`-based guard and reach `Event.record!`, which raises `ConfigurationError` on the nil `Current.actor` (`event.rb:40-45`) — turning an observe-mode request into a 500. Guarding on `Current.user` keeps report mode from ever raising (R3 non-disruption):
   ```ruby
   # ponytail: reuse Event ledger; target = the denied subject (or the record) — the axis :report groups on
   def report_would_deny(permission, record)
     Rails.logger&.warn("[CurrentScope] report-only: would DENY \"#{permission}\" (reason: no_grant)")
     response.set_header("X-Current-Scope-Reason", "would_deny")
-    target = record || CurrentScope::Current.user
-    return unless target
-    CurrentScope::Event.record!(event: "access.would_deny", target: target,
+    # No ambient subject ⇒ nothing to attribute the row to, and Event.record! would
+    # raise on the nil actor. Guard on the subject, not on `target` (a record can be
+    # non-nil while the subject is nil), so observe mode never raises.
+    return unless CurrentScope::Current.user
+    CurrentScope::Event.record!(event: "access.would_deny", target: record || CurrentScope::Current.user,
                                 details: { permission: permission, reason: "no_grant" })
   end
   ```
@@ -134,6 +136,7 @@ flowchart TD
   - **SoD veto still blocks in report mode:** with `sod_actions` set and an initiator conflict, the SoD action under `:report` → **403**, `X-Current-Scope-Reason: sod_veto`, no `access.would_deny` row. (Proves R4/KTD-3 — the security veto is not relaxed.)
   - **Granted action in report mode:** a subject who *does* hold the permission → normal allow, no `would_deny` header, no `access.would_deny` row (report only fires on would-be denials).
   - **Collection action (nil record):** roleless index action under `:report` → allowed, `would_deny` row targets the subject (record is nil).
+  - **Unauthenticated `:no_grant` (nil subject, member action):** no ambient subject/actor set, a member action carrying a non-nil `record` under `:report` → allowed (not 403, **no raise**), `X-Current-Scope-Reason: would_deny` header set, log line emitted, and **zero** `access.would_deny` rows (the denial can't be attributed, so it's log-only). Guards against `Event.record!` raising `ConfigurationError` on the nil actor and turning observe mode into a 500.
   - **Audit off:** `config.audit = false` under `:report` → request allowed, header set, log line emitted, zero rows (R6 tail).
   - **Catalog error still raises:** an excluded/unrouted permission under `:report` still raises `ConfigurationError` (report mode never masks a wiring mistake).
 - **Verification:** report-mode integration test green; `test/integration/guard_test.rb` unchanged and passing; no double-recording; RuboCop clean.

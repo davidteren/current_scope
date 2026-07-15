@@ -87,7 +87,11 @@ radius on the enforcement engine.
 - **R3.** `bin/rails g current_scope:skills` copies the packaged skills into the host app's
   `.claude/skills/`, from the *installed gem's* copy (so the skill version always matches the
   bundled gem version — no separate release train, no drift). Re-running is idempotent and
-  reports what it wrote/skipped.
+  reports what it wrote/skipped. The **primary re-run case is a gem upgrade**, where the
+  shipped skill content has changed: the skills are **gem-owned**, so on divergent content the
+  generator **overwrites** the host copy (via forced collision handling — never an interactive
+  "Overwrite?" prompt), and any host-local edits to skill files are replaced. Identical →
+  skipped, changed → overwritten, both reported.
 - **R4.** `/current-scope-install` guides: generator + migrations, `Context`-then-`Guard`
   include order, an **auth-detection branch** (Devise / Rails 8 built-in auth / custom→ask)
   that wires `config.user_method` and the session-endpoint skips, the
@@ -351,8 +355,11 @@ Phasing: **P1 = U1–U5** (install + doctor + packaging + generator + drift guar
 - **Approach:** a `Rails::Generators::Base` subclass whose `source_root` resolves to the
   installed gem's `.claude/skills` (`File.expand_path("../../../../.claude/skills", __dir__)`
   — directional; the point is "up to gem root, into `.claude/skills`"), copying the tree into
-  the host's `.claude/skills/` with `directory`/`copy_file` (idempotent, reports
-  written/skipped), and a `say` "Next steps" block naming the four `/current-scope-*`
+  the host's `.claude/skills/` with `directory`/`copy_file` passing `force: true` so
+  divergent content (the gem-upgrade case) is overwritten and reported rather than triggering
+  Thor's interactive conflict prompt (idempotent: identical → skipped, changed → overwritten,
+  both reported; skills are gem-owned so overwrite is the intended upgrade behavior), and a
+  `say` "Next steps" block naming the four `/current-scope-*`
   triggers. Widen the gemspec glob to include `.claude/skills/**/*` alongside
   `{app,config,db,lib}` so the tree is present in the packaged gem (without this, R3's copy
   source is empty in a bundled host). `ponytail:` reuse `directory` for the whole tree rather
@@ -364,7 +371,12 @@ Phasing: **P1 = U1–U5** (install + doctor + packaging + generator + drift guar
     `.claude/skills/current-scope-*/SKILL.md` path (guards against the ship-drop regression).
   - **Copy happy-path:** running the generator into an empty tmp host writes all four skill
     directories under `.claude/skills/`.
-  - **Idempotent:** a second run reports the files as identical/skipped and does not error.
+  - **Idempotent (identical):** a second run with unchanged content reports the files as
+    identical/skipped and does not error.
+  - **Upgrade (content changed):** a re-run where the gem's canonical skill content differs
+    from the host copy overwrites the host file and reports it — no interactive prompt, no
+    stale copy left behind. This exercises the primary post-upgrade flow the no-drift promise
+    depends on, not just the identical-skip case.
   - **Source = gem dir:** the copied content byte-matches the gem's canonical
     `.claude/skills/` (proves single-source-of-truth, no `templates/` duplicate).
 - **Verification:** generator test green; a manual `gem build` + install into a scratch app

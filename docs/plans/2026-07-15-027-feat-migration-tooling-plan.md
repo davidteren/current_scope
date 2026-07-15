@@ -174,15 +174,16 @@ Generated-into-host paths are marked *(host)* — they land in the operator's ap
 - **Requirements:** R1, R13.
 - **Dependencies:** U2 (mapping must exist before rewriting call sites).
 - **Files:** `.claude/skills/current-scope-migrate/rewriters/call_sites.md` (the exact rewrite table + prism match/replace shapes).
-- **Approach:** under `--write` only: delete `authorize @x` (the `before_action :current_scope_check!` gate replaces it); `policy(@x).update?` and `can?(:update, @x)` → `allowed_to?(:update, @x)`; `policy_scope(X)` / `accessible_by(...)` / Action Policy `relation_scope` → `scope_for(X)`. Rewrites are AST-scoped (prism), not regex, and each is listed in the report before application so the diff is reviewable. Anything ambiguous (a `policy(@x)` used for a non-boolean, a block-form `can?`) is left untouched and reported, never rewritten.
+- **Approach:** under `--write` only: delete `authorize @x` **only on actions actually covered by the Guard gate** — the `before_action :current_scope_check!` replaces it there. **Exclude any controller carrying `skip_before_action :current_scope_check!` (and any action outside the gate) from the mechanical delete**, routing those `authorize` calls to the report as manual/review-required: deleting `authorize` on an ungated action silently removes *all* authorization, and U8's partial-adoption recipe relies on exactly this skip to let Pundit and current_scope coexist. `policy(@x).update?` and `can?(:update, @x)` → `allowed_to?(:update, @x)`; `policy_scope(X)` / `accessible_by(...)` / Action Policy `relation_scope` → `scope_for(X)`. Rewrites are AST-scoped (prism), not regex, and each is listed in the report before application so the diff is reviewable. Anything ambiguous (a `policy(@x)` used for a non-boolean, a block-form `can?`) is left untouched and reported, never rewritten. Note that in-process parity (U3) tests the PDP, not gate wiring — it cannot detect an `authorize` deleted from an ungated action, so the safety of this deletion comes from the gate-coverage check above, never from U3.
 - **Patterns to follow:** `allowed_to?` (headline method) and `scope_for` usage in `README.md` "Usage"; the Guard's `current_scope_check!` as the reason `authorize` deletes cleanly.
 - **Test scenarios:**
-  - `authorize @post` in a controller action → line removed; the action is already gate-covered. (happy)
+  - `authorize @post` in a gate-covered controller action (no `skip_before_action`) → line removed; the action is already gate-covered. (happy)
+  - `authorize @post` on a controller carrying `skip_before_action :current_scope_check!` → left untouched, routed to the report as manual/review-required (deleting it would strip all authorization from an ungated action). (edge/safety)
   - `policy(@post).update?` in a view → `allowed_to?(:update, @post)`. (mapping)
   - `policy_scope(Post)` → `scope_for(Post)`. (mapping)
   - `can?(:update, @post) { |p| ... }` block form → left untouched, reported as manual. (edge/honest)
   - no `--write` flag → nothing changes on disk. (R1)
-- **Verification:** run `--write` against a scenario app copy; `git diff` shows only the enumerated rewrites; the app boots and its parity spec (U3) still passes.
+- **Verification:** run `--write` against a scenario app copy; `git diff` shows only the enumerated rewrites; the app boots and its parity spec (U3) still passes. Because parity does not verify gate wiring, additionally confirm no `authorize` was removed from a controller carrying `skip_before_action :current_scope_check!`.
 
 ### U6. CanCanCan support
 

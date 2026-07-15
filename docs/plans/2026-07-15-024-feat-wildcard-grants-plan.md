@@ -6,7 +6,7 @@ artifact_contract: ce-unified-plan/v1
 artifact_readiness: implementation-ready
 product_contract_source: ce-plan-bootstrap
 execution: code
-issue: https://github.com/davidteren/current_scope/issues/42
+issue: https://github.com/davidteren/current_scope/issues/24
 ---
 
 # Whole-Controller Wildcard Grants in the Model API (`controller#*`) - Plan
@@ -22,7 +22,7 @@ issue: https://github.com/davidteren/current_scope/issues/42
 
 ## Product Contract
 
-> **Product Contract preservation:** enhancement, no upstream requirements doc (`product_contract_source: ce-plan-bootstrap`). Grounded in issue #42, whose finding is verified against source (`app/models/current_scope/role.rb:31-33`, `lib/current_scope/permission_grid.rb:65-73`, `app/controllers/current_scope/roles_controller.rb:130-131`).
+> **Product Contract preservation:** enhancement, no upstream requirements doc (`product_contract_source: ce-plan-bootstrap`). Grounded in issue #24, whose finding is verified against source (`app/models/current_scope/role.rb:31-33`, `lib/current_scope/permission_grid.rb:65-73`, `app/controllers/current_scope/roles_controller.rb:130-131`).
 
 ### Summary
 

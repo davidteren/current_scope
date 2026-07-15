@@ -411,11 +411,40 @@ an audit-mandatory app never commits an unaudited change (the mutation rolls
 back). `config.warn_on_nil_sod_record` (default off) is a dev/test aid — see the
 [Separation of duties](#separation-of-duties-opt-in) note.
 
-Two loud-by-design behaviors: a controller excluded from the catalog can't be
+Three loud-by-design behaviors. A controller excluded from the catalog can't be
 granted, so gating it is a misconfiguration — Guard raises and tells you to
-either stop excluding it or `skip_before_action :current_scope_check!`. And a
+either stop excluding it or `skip_before_action :current_scope_check!`. A
 `user_method` that the controller doesn't respond to raises instead of
-silently turning every request into a 403.
+silently turning every request into a 403. And **granting a permission key that
+isn't in the catalog makes the role invalid**, naming the key:
+
+```ruby
+role.permission_keys = %w[reports#aprove]   # typo
+role.save   # => false
+role.errors[:permission_keys]
+# => ["not in the permission catalog: reports#aprove — check for typos, or use
+#     assign_permission_keys(..., scrub: true) to drop stale keys deliberately"]
+```
+
+A grant that vanishes is the worst kind of bug this library can have: the role
+looks right in the UI, the save succeeds, and the denial arrives later as an
+unexplained 403. So a key the app doesn't route is an error, not a shrug — that
+covers typos, programmatic grants of unrouted keys, and the never-routed
+break-glass permission (which stays ungrantable; see #21).
+
+There is one legitimate reason to drop a key silently: a controller was removed,
+so a role still holds keys that no longer route. That is named at the call site
+rather than assumed:
+
+```ruby
+role.assign_permission_keys(keys, scrub: true)   # stale keys dropped, no error
+role.permission_keys_change[:rejected]           # => ["gone#index"] — log it if you want
+```
+
+`scrub:` is deliberately not reachable from `permission_keys=`, so form params
+and strong-params flows always take the strict path. The role editor is
+unaffected: its grid is built from routed actions, so everything it submits is
+already in the catalog, and a stale key is cleaned up transparently on save.
 
 ### Impersonation (act-as)
 

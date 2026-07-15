@@ -126,7 +126,11 @@ module CurrentScope
       # Grid group columns (CRUD checkboxes) submit "controller:group" tokens on
       # a separate, optional channel — permitted leniently so a raw permission_keys
       # post (no groups) still works. Expand them into action keys; the model's
-      # permission_keys= dedups and drops anything not in the catalog.
+      # permission_keys= dedups, and REJECTS anything not in the catalog (the
+      # save fails and `edit` re-renders with the error). The grid can't submit
+      # such a key — cells are built from routed actions only — so a rejection
+      # here means a hand-crafted request, which is worth saying out loud rather
+      # than dropping silently.
       groups = params.fetch(:role, {}).permit(permission_groups: [])[:permission_groups]
       permitted[:permission_keys] = Array(permitted[:permission_keys]) + PermissionGrid.new.expand(groups)
       permitted

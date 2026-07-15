@@ -255,6 +255,26 @@ module CurrentScope
     # before any guard can guard it, so the last-resort rescue is the only
     # place this can be caught.
 
+    test "an exception overriding #class keeps its own warning, not a misattributed one" do
+      # #class is interpolated before safe_message can run. The method-level
+      # rescue already stops this reaching the page — but without safe_class the
+      # accurate warning is lost and replaced by one about the SECOND failure,
+      # which points at the wrong thing.
+      hostile = Class.new(StandardError) do
+        def class = raise("class exploded")
+      end
+      CurrentScope.config.subject_label = ->(_) { raise hostile }
+
+      logs = capture_logs do
+        assert_nothing_raised do
+          assert_equal "a@b.co", current_scope_subject_label(Person.new("a@b.co", "Ada"))
+        end
+      end
+
+      assert_match "config.subject_label raised", logs, "the accurate warning must survive"
+      assert_no_match(/could not be read/, logs, "and must not degrade to the fallback warning")
+    end
+
     test "a label that cannot be classified falls back instead of 500ing" do
       CurrentScope.config.subject_label = BasicObject.new # no #nil?, no #class
 

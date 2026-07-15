@@ -136,9 +136,10 @@ module CurrentScope
       # which defaults off because a nil record is often legitimate): a label the
       # subject can't answer, or one that raises, is unambiguously a mistake.
       # Mirrors Event.warn_missing_events_table_once.
-      # This subject didn't answer to the configured method. Says "this subject"
-      # rather than "subjects": under STI some subclasses may answer and others
-      # not, and warn-once means the first non-responder speaks for the rest.
+      #
+      # Says "this subject" rather than "subjects": under STI some subclasses may
+      # answer and others not, and warn-once means the first non-responder would
+      # otherwise speak for all of them.
       def warn_unknown_subject_label_once(label)
         return unless new_subject_label_warning?(:unknown, label)
 
@@ -168,7 +169,7 @@ module CurrentScope
         return unless new_subject_label_warning?(:raised, label)
 
         Rails.logger&.warn(
-          "[CurrentScope] config.subject_label raised #{error.class}: #{safe_message(error)} " \
+          "[CurrentScope] config.subject_label raised #{safe_class(error)}: #{safe_message(error)} " \
           "— that subject fell back to the default label rather than erroring the page. A " \
           "subject_label must be total: it runs for every subject, including ones with nil or " \
           "blank attributes."
@@ -179,10 +180,10 @@ module CurrentScope
       # configured_subject_label. Keyed by the error's class, and says nothing
       # about the label itself, because reading the label is what failed.
       def warn_subject_label_broken_once(error)
-        return unless new_subject_label_warning?(:broken, error.class)
+        return unless new_subject_label_warning?(:broken, safe_class(error))
 
         Rails.logger&.warn(
-          "[CurrentScope] config.subject_label could not be read — #{error.class}: " \
+          "[CurrentScope] config.subject_label could not be read — #{safe_class(error)}: " \
           "#{safe_message(error)}. Every subject is falling back to the default label. Set it to " \
           "a Symbol (e.g. :email), a Proc taking the subject, or nil."
         )
@@ -199,6 +200,18 @@ module CurrentScope
         error.message.to_s.gsub(/\s+/, " ").strip.truncate(200)
       rescue StandardError
         "(message unavailable)"
+      end
+
+      # Same reason as safe_message, one step earlier: `#class` is interpolated
+      # before safe_message is even called, and an exception raised by a host
+      # Proc can override it. The method-level rescue in configured_subject_label
+      # does stop that reaching the page — but at the cost of the accurate
+      # warning, replaced by a misattributed one about the secondary failure.
+      # The diagnostic is the whole point of warning at all, so protect it.
+      def safe_class(error)
+        error.class.name.presence || "an exception"
+      rescue StandardError
+        "an exception"
       end
 
       # A plain Hash, not a Set: this runs inside the rescue that stops a bad

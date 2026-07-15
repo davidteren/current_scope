@@ -82,17 +82,29 @@ class GuardTest < ActionDispatch::IntegrationTest
     assert_response :forbidden, "the ?id= must make no difference"
   end
 
-  test "a ?id= query string cannot shut a collection gate the subject legitimately holds" do
+  # This is the test that actually holds the path_parameters rule up, so it is
+  # built to FAIL if the hook ever reads params: the ?id= names a record Alice
+  # has NO grant on, which is the only shape that still discriminates now that
+  # the record-less branch allows on any scoped grant ticking the key.
+  #
+  #   correct hook  → path_parameters has no :id on the collection route → nil
+  #                 → record-less branch → Alice's reports#index grant → 200
+  #   mutated hook  → params[:id] smuggles `other` in → scoped_grant? finds no
+  #                 → grant on `other` → 403 → RED
+  #
+  # (Verified by mutation: flipping the hook to `report if params[:id]` turns
+  # this red and leaves the rest of the file green.)
+  test "a ?id= query string is inert on a collection route (hook reads path_parameters)" do
+    other = Report.create!(title: "Q4", requested_by: @bob) # Alice holds NO grant on this
     viewer = role("Viewer", "reports#index")
     CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: viewer, resource: @report)
 
-    # The converse of the smuggle test: the scoped grant opens the record-less
-    # index gate, and the query string is inert here too.
-    get reports_url(id: @report.id), headers: sign_in(@alice)
-    assert_response :success
+    get reports_url(id: other.id), headers: sign_in(@alice)
+    assert_response :success, "the hook must ignore params[:id] — reading it would smuggle " \
+      "an ungranted record into the gate and wrongly deny"
 
     get reports_url, headers: sign_in(@alice)
-    assert_response :success
+    assert_response :success, "the ?id= must make no difference"
   end
 
   # The story the README's "Scoping a list" section promises, end to end: a

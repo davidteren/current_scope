@@ -53,15 +53,19 @@ implemented, and it can be wrong while the prose around it is right — either w
 written, or right when written and rotted since. It names four rot modes: superseded
 premise, drifted citation, unreconciled correction, orphaned deferral.
 
-Every one of those four is a story about **time**. A document is written, it stops moving,
-the tree keeps moving, and the gap opens by itself. The check they imply is a check against
-the world: is this issue still open, does this citation still resolve, has the thing it calls
-"unchanged" changed.
+Three of those four are stories about **time**. A document is written, it stops moving, the
+tree keeps moving, and the gap opens by itself. The check they imply is a check against the
+world: is this issue still open, does this citation still resolve, has the thing it calls
+"unchanged" changed. The fourth — orphaned deferral — is not about time; that doc is explicit
+that it "needs no tree movement at all — it was wrong on the day it was written." But it is
+still a claim about something **external**: another plan, which never scoped the work.
 
-This is a fifth mode, and it is different in kind. **It is self-inflicted, and it is
-instant.** No time passes. Nothing in the tree moves. The author's own corrective edit is
-what creates the gap, in the same session, in the same file — the moment you fix the
-reasoning, the instructions become wrong, and they say nothing about it.
+This is a fifth mode, and what makes it different is that it has **no external referent at
+all**. It is self-inflicted and instant. Nothing outside the document moves, and nothing
+inside it was wrong when written. The author's own corrective edit is what creates the gap,
+in the same session, in the same file — the moment you fix the reasoning, the instructions
+become wrong, and they say nothing about it. Every other mode is a document falling out of
+step with the world; this is a document falling out of step with itself.
 
 The specimen is plan 029 (`docs/plans/2026-07-15-029-feat-thread-collection-model-plan.md`,
 PR #66, merged 2026-07-15). It plans a security fix to the one grant check in the engine

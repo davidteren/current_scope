@@ -86,10 +86,76 @@ module CurrentScope
         subject: CurrentScope::Current.user, permission: permission,
         record: record, actor: CurrentScope::Current.actor
       )
-      raise CurrentScope::AccessDenied.new(permission, reason: reason) unless allowed
+      unless allowed
+        return report_would_deny(permission, record) if report_only_denial?(reason)
+
+        raise CurrentScope::AccessDenied.new(permission, reason: reason)
+      end
 
       record_sod_bypass(permission, record) if reason == :sod_bypassed
       nudge_on_nil_sod_record(permission, record)
+    end
+
+    # Report mode lifts EXACTLY ONE wall: :no_grant — "nobody has granted this
+    # subject this permission yet", which is the entire state of a host that has
+    # mounted the gate and not yet seeded its grants. That is the thing report
+    # mode exists to survey.
+    #
+    # Matched POSITIVELY, on one reason, and that is the whole design. Every
+    # other denial is a real refusal about a real rule and must still 403:
+    # :sod_veto (relaxing it lets an initiator actually self-approve — a fraud
+    # action executed, not a role gap surfaced), :impersonation_gate, and
+    # :not_full_access (the management console — report mode must never hand out
+    # the UI where grants are made).
+    #
+    # An "everything except the vetoes I know about" rule would have been correct
+    # the day it was written and wrong by the next release: :not_full_access did
+    # not exist when this was designed, and it is excluded here by construction
+    # rather than by anyone remembering to add it. New reasons are refusals until
+    # someone deliberately says otherwise — fail-closed, applied to the mode
+    # itself.
+    def report_only_denial?(reason)
+      CurrentScope.config.report_only? && reason == :no_grant
+    end
+
+    # Observe and proceed. R3: report mode NEVER raises — that is the whole
+    # promise, and it holds regardless of audit posture or ledger state.
+    #
+    # Hence the rescue around the ledger write. Every other caller of
+    # Event.record! is a mutation being performed, where :strict re-raising to
+    # roll back an unaudited change is correct. This is not a mutation: it is an
+    # observation of a request that is being let through anyway. Inheriting that
+    # raise would mean a host that sets audit = :strict and hasn't run the events
+    # migration 500s on every ungranted request — the exact opposite of what
+    # report mode promises, landing on the exact host it exists for.
+    def report_would_deny(permission, record)
+      Rails.logger&.warn(
+        "[CurrentScope] report-only: would DENY #{permission.inspect} " \
+        "(reason: no_grant) — grant it before setting config.enforcement = :enforce"
+      )
+      response.set_header("X-Current-Scope-Reason", "would_deny")
+
+      subject = CurrentScope::Current.user
+      # No ambient subject ⇒ nothing to attribute the row to, and Event.record!
+      # raises on a nil actor. Guard on the SUBJECT, not on `target` — a record
+      # can be non-nil while the subject is nil.
+      return if subject.nil?
+
+      # NO_RECORD (the controller declared no hook) and nil (it declared "no
+      # record here") both mean there is nothing to attribute the row to but the
+      # subject. Compared by identity — NO_RECORD is an Object instance, so
+      # `is_a?` would match every record there is.
+      target = record.equal?(NO_RECORD) ? nil : record
+
+      CurrentScope::Event.record!(
+        event: "access.would_deny", target: target || subject,
+        details: { permission: permission, reason: "no_grant" }
+      )
+    rescue StandardError => e
+      # ponytail: swallow and warn. An unrecordable observation is a lost log
+      # line; a raise here is a 500 on a request report mode promised to pass.
+      Rails.logger&.warn("[CurrentScope] report-only: could not record would_deny (#{e.class})")
+      nil
     end
 
     # The record this gate decides against, or NO_RECORD when the controller

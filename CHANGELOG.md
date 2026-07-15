@@ -6,6 +6,37 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Report-only enforcement — retrofit an existing app without breaking it.**
+  Adding a fail-closed gate to an app that already has users and controllers has
+  been all-or-nothing: the moment you mount it, everything is denied, because no
+  grants exist yet. Your suite goes red, your users get 403s, and the only way to
+  find out what you needed to grant was to break things and read the wreckage.
+  That is a bad first day with an authorization library, and it is the reason a
+  retrofit gets abandoned rather than finished.
+
+  Report mode inverts that. Set `config.enforcement = :report` and the gate logs
+  what it *would* have denied and lets the request through, recording each one to
+  the ledger as `access.would_deny` with the subject and the permission they were
+  missing:
+
+  ```ruby
+  CurrentScope::Event.where(event: "access.would_deny").pluck(:subject, :details)
+  ```
+
+  That list is the work: seed the roles it names, watch it empty out, then set
+  `config.enforcement = :enforce`. Every step is one line back, and you learn
+  what to grant before anyone is refused rather than after. The install generator
+  now says this up front when it detects an app that already has controllers,
+  which is when it matters.
+
+  Report mode is an **adoption ramp, not an off switch**, and it is not a way to
+  run in production. It relaxes exactly one denial — "nobody has granted this
+  yet". A separation-of-duties veto still refuses (relaxing it would let an
+  initiator actually approve their own record — a fraud action executed, not a
+  role gap surfaced), and the management console, where grants are made, is never
+  opened by it. `:enforce` remains the default and is unchanged. (#37)
+
 ### Fixed
 - **The management UI's 403 now says why.** Opening the console without a
   full-access role returned a bare, bodyless `403` with no

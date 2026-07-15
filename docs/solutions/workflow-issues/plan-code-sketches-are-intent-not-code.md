@@ -11,15 +11,12 @@ applies_when:
   - "A plan defers to another issue, or to another plan, for part of its correctness"
   - "Implementing a plan drafted before other plans in the same batch merged"
   - "A plan's instruction contradicts its own reasoning, or reuses a helper without stating what makes that safe"
-  - "Implementing any of the plans from the 2026-07-15 drafting pass that remain open"
-  - "Reviewing a PR that implements a plan on a security-sensitive path"
 symptoms:
+  - "Shipped code follows the plan faithfully and is still wrong"
   - "Green test suite; implementation review still catches privilege escalations"
   - "A plan asserts implementation-ready and its premises have since expired"
   - "A plan defers work to an issue that is open, whose plan never scopes that work"
-  - "Shipped code follows the plan faithfully and is still wrong"
   - "A duck-type negation admits an open set where a closed set was meant"
-  - "A sketch keys an identifier off one thing while the component reading it keys off another"
 root_cause: missing_workflow_step
 resolution_type: workflow_improvement
 related_components:
@@ -30,13 +27,12 @@ related_components:
 tags:
   - planning
   - plan-staleness
+  - plan-drift
   - plan-coupling
   - code-sketch
   - ce-unified-plan
   - implementation-review
   - privilege-escalation
-  - fail-closed
-  - plan-drift
 related_issues:
   - "#19 (closed, PR #49) — plan 001: KTD-3 negation and KTD-4 helper reuse"
   - "#20 (closed, PR #52) — plan 002: bare literal sketches, no directional hedge"
@@ -47,7 +43,7 @@ related_issues:
 
 ## Context
 
-`docs/plans/` holds 31 plans, all carrying `artifact_contract: ce-unified-plan/v1`; 28 of them (`2026-07-15-001` … `-028`) were drafted in a single pass and landed together in PR #47 (`80180da`, merged 2026-07-15 07:38 UTC). Each plan states its reasoning as prose in a **Key Technical Decisions** section, and most also carry a Ruby **code sketch** in an Implementation Unit — explicitly labelled directional ("Directionally:" in `2026-07-15-003-fix-bypass-sod-ungrantable-plan.md:78`).
+`docs/plans/` holds 32 plans, all carrying `artifact_contract: ce-unified-plan/v1`; 28 of them (`2026-07-15-001` … `-028`) were drafted in a single pass and landed together in PR #47 (`80180da`, merged 2026-07-15 07:38 UTC). Each plan states its reasoning as prose in a **Key Technical Decisions** section, and most also carry a Ruby **code sketch** in an Implementation Unit — explicitly labelled directional ("Directionally:" in `2026-07-15-003-fix-bypass-sod-ungrantable-plan.md:78`).
 
 Five have since been implemented and merged: plan 001 → issue #19 → PR #49, plan 002 → #20 → PR #52, plan 003 → #21 → PR #53, plan 004 → #22 → PR #54, plan 005 → #23 → PR #55. The rest of the batch (issues #24-#46) was open when this was written.
 
@@ -304,7 +300,7 @@ Plan 006 (issue #24) documents what a denial renders. It was accurate the mornin
 | `current_scope_denied` is "deliberately left unchanged" | it changed — it delegates to `current_scope_render_denied(reason)` |
 | defers the default's correctness to "#23/#39's job" | **#23 merged before plan 006 was picked up** |
 
-Shelf life under seven hours. No signal — the plan still asserts `artifact_readiness: implementation-ready`, as **all 31 plans in this repo do**, none of them with an expiry.
+Shelf life under seven hours. No signal — the plan still asserts `artifact_readiness: implementation-ready`, as **every plan in this repo does**, none of them with an expiry.
 
 The plan saw it coming and could not act. Its own Open Questions flag the reason-code set as *"Assumed complete as of 2026-07-15"* and name the exact invalidating event — *"if the resolver adds reasons"*. The resolver added one that day. Its coupling section says that if #23 changes the default, *"revise this section as part of that plan."* #23 did. It didn't.
 
@@ -313,8 +309,8 @@ The plan saw it coming and could not act. Its own Open Questions flag the reason
 ### Four ways a plan rots
 
 1. **Superseded premise** — it defers to an issue that has since merged, and merged differently than assumed. *(Plan 006 → #23.)*
-2. **Drifted citation** — `file:line` references and counts, true at drafting. *(Plan 016: "`docs/plans/` (16 plan files)" against a real 31, and a "580-line README" that is 684.)*
-3. **Unreconciled correction** — the code was fixed in review and the plan that produced the defect still says the old thing. *(Plan 003's sketch, until PR #56.)*
+2. **Drifted citation** — `file:line` references and counts, true at drafting. *(Plan 016: "`docs/plans/` (16 plan files)" against a real count that was 31 when this was written and is 32 now — this example has itself drifted twice, which is the mode demonstrating itself. Also a "580-line README" that is 684.)*
+3. **Unreconciled correction** — the code was fixed in review and the plan that produced the defect still says the old thing. *(Plan 003's sketch, until PR #56.)* The mirror case — where the plan's **own reasoning** is corrected and its **own instructions** are left saying the old thing, with no external referent and no time passing — is its own mode, and its own document: [a correction is itself a rot event](a-correction-rots-the-plan-it-fixes.md).
 4. **Orphaned deferral** — it defers work to another plan that never scoped it. *(Plan 015 defers a README fix to "#25, which owns README edits"; plan 007 is #25's plan, edits the README extensively, and never mentions it.)*
 
 Mode 4 needs **no tree movement at all** — it was wrong on the day it was written, and no amount of waiting reveals it.

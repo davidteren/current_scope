@@ -1,0 +1,30 @@
+test/integration/management_ui_test.rb
+  s_4d1327efb21c21::t_31a943874f3b33 51-60
+app/controllers/current_scope/application_controller.rb
+  s_4d1327efb21c21::t_cbe1e5053ec955 44-56,60-62
+test/integration/impersonation_gate_test.rb
+  s_4d1327efb21c21::t_2521b7987fb2a0 87-94
+lib/current_scope/mutation_guard.rb
+  s_4d1327efb21c21::t_74d3b5fbcdd5f2 58,67-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "00b8ef727de4529cb6c3bfd63934433d70f9169f",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

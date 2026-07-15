@@ -1,0 +1,24 @@
+docs/plans/2026-07-15-023-feat-dev-diagnostics-plan.md
+  s_4d1327efb21c21::t_f2fe06712890df 79-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "850f4eef560078ac2e3b5a0a095865e3262ca79e",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

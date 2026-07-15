@@ -106,9 +106,13 @@ flowchart TD
       .exists?
   end
 
-  # Explicit ticks only; full_access deliberately not unioned in (KTD-6).
+  # Explicit ticks only; full_access roles deliberately EXCLUDED (KTD-6) —
+  # whether or not they also carry a RolePermission row.
   def roles_ticking(permission)
-    RolePermission.where(permission_key: permission).select(:role_id)
+    RolePermission
+      .where(permission_key: permission)
+      .where.not(role_id: Role.where(full_access: true).select(:id))
+      .select(:role_id)
   end
 
   # Existing helper, now expressed in terms of the above — full_access is safe
@@ -118,6 +122,8 @@ flowchart TD
   end
   ```
   Name it `record_less_scoped_grant?`, not `collection_...`: it fires for `nil` **and** any Class, and a class-form `create` check is not a collection. Pure: one existence read, no writes, no `self` state.
+
+  > **The `where.not` is load-bearing, not belt-and-braces.** A role can be `full_access` **and** retain explicit `RolePermission` rows — tick grid cells, then flip the full-access toggle — and matching on the leftover row alone walks it straight back through the bar KTD-6 puts it behind. This clause was itself missing from the first *corrected* version of this sketch, written in review by the person who found the escalation: a sketch that has already been through review can still under-specify the fix by one clause. Re-derive from the source, not from the sketch. (`test/collection_scope_gate_test.rb`, "a scoped full_access role with explicit permission rows is still barred".)
 - **Execution note (test-first — this is a gate/resolver security path):** write the failing tests first and watch them go red before editing `decide`. The load-bearing assertion is R5 (persisted-record decisions unchanged) — assert it explicitly so a future refactor can't quietly widen the branch.
 - **Patterns to follow:** the existing `scoped_grant?` / `scope_for` pair and the `roles_granting` shared helper; the `[bool, reason]` tuple convention in `decide` (record-less scoped allow carries reason `nil`, like the org-role allow — it is an ordinary grant, not an audited exception).
 - **Test scenarios:**

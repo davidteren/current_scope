@@ -6,7 +6,7 @@ artifact_contract: ce-unified-plan/v1
 artifact_readiness: implementation-ready
 product_contract_source: ce-plan-bootstrap
 execution: code
-issue: https://github.com/davidteren/current_scope/issues/24
+issue: https://github.com/davidteren/current_scope/issues/42
 ---
 
 # Whole-Controller Wildcard Grants in the Model API (`controller#*`) - Plan

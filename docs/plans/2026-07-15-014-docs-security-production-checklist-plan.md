@@ -24,7 +24,7 @@ issue: https://github.com/davidteren/current_scope/issues/32
 
 ## Product Contract
 
-> **Product Contract preservation:** documentation issue, no upstream requirements doc (`product_contract_source: ce-plan-bootstrap`). Grounded entirely in the filed finding (`issue #32`) and re-verified 2026-07-15 against `lib/current_scope/guard.rb:33-95` (the gate, the record-before-decide ordering at :48/:53, the nil-SoD nudge), `lib/current_scope/mutation_guard.rb:29-53` (`AccessDenied → head :forbidden`), `lib/current_scope/configuration.rb:51-55,157-179` (`excluded_controllers`, the prod impersonation env-gate), `lib/generators/current_scope/install/templates/initializer.rb:70-73` (excluded-controllers comment), and ``README.md`'s namespaced-controller foot-gun note,200-221,258-272,349-372,391-402,446-448,461-470` (key-derivation foot-gun, record-level recipe, nil-SoD note, config loud-behaviors, actor_method note, clear-act-as note).
+> **Product Contract preservation:** documentation issue, no upstream requirements doc (`product_contract_source: ce-plan-bootstrap`). Grounded entirely in the filed finding (`issue #32`) and re-verified 2026-07-15 against `lib/current_scope/guard.rb:33-95` (the gate, the record-before-decide ordering at :48/:53, the nil-SoD nudge), `lib/current_scope/mutation_guard.rb:29-53` (`AccessDenied → head :forbidden`), `lib/current_scope/configuration.rb:51-55,157-179` (`excluded_controllers`, the prod impersonation env-gate), `lib/generators/current_scope/install/templates/initializer.rb:70-73` (excluded-controllers comment), and `README.md`'s foot-gun and loud-behaviour notes (key-derivation foot-gun, record-level recipe, nil-SoD note, config loud-behaviors, actor_method note, clear-act-as note).
 
 ### Summary
 

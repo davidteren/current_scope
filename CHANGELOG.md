@@ -18,14 +18,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   list. Fixed at the shared resolver seam, so the gate and the `allowed_to?`
   view helper agree. (#19)
 
-  **Upgrade-visible:** a scoped grant whose role ticks a collection key now
-  opens that gate where it previously 403'd. This grants nothing a role author
-  did not tick, and no decision on a persisted record changes — a grant on X
-  still confers nothing on Y, and the SoD veto, full_access and org-role paths
-  are untouched. Note the rule is uniform across record-less targets: a scoped
-  role that ticks `create` or a bulk key opens those collection gates too, just
-  as an org-wide grant of the same key already does. If you relied on the old
-  403, audit which collection keys your scoped roles tick.
+  **⚠ Upgrade-visible — check your index actions before upgrading.** A scoped
+  grant whose role ticks a collection key now opens that gate where it
+  previously 403'd. **If a gated `#index` does not call `scope_for`, subjects
+  who used to hit a 403 wall will now reach it and see every record the action
+  queries.** `scope_for` is guidance, not an enforced constraint, so the engine
+  cannot narrow a list the host renders with `Model.all` — the gate only decides
+  *whether* the action runs. Before upgrading, for every collection action whose
+  key a scoped role ticks, confirm the action scopes its own query. This is the
+  one way the fix can expose data rather than merely admit a user.
+
+  Otherwise it grants nothing a role author did not tick, and no decision on a
+  persisted record changes — a grant on X still confers nothing on Y, and the
+  SoD veto, full_access and org-role paths are untouched. Two further notes:
+  the rule is uniform across record-less targets, so a scoped role ticking
+  `create` or a bulk key opens those gates too, exactly as an org-wide grant of
+  that key already does; and a **scoped `full_access` role does not open
+  record-less gates at all** — it satisfies every key, so honoring it here would
+  turn one scoped grant into a pass on every `#index` and `#create` in the app.
+  It keeps its full authority over its own record.
 
 ## [0.2.0] - 2026-07-14
 

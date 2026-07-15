@@ -198,11 +198,24 @@ grant means "see everything", so `scope_for` would return `Project.all`). The
 same holds for the class form, `allowed_to?(:index, Project)`, so a view helper
 and the gate never disagree.
 
+> **The gate admits; `scope_for` narrows. Both halves are yours to wire.** The
+> gate only decides *whether* `#index` runs — it cannot filter a list you build
+> with `Project.all`. If a scoped role ticks a collection key and that action
+> doesn't call `scope_for`, the subject reaches the action and sees everything
+> it queries. Gate a collection action for scoped roles only alongside a
+> `scope_for` list.
+
 The rule is uniform across record-less actions, not special-cased to `#index`:
 a scoped role that ticks `create` or a bulk key opens *those* collection gates
 too, exactly as an org-wide grant of the same key already does. Tick a
 collection key on a scoped role only when you mean it — there is no record
 filter on `create`.
+
+A scoped **`full_access`** role is the exception: it does not open record-less
+gates. A full_access role satisfies *every* key, so honoring it where no record
+is named would make one scoped grant a pass on every `#index` and `#create` in
+the app. "Owner of Project #7" keeps full authority over Project #7 — to reach
+a scoped index, tick the key on the role explicitly.
 
 It returns a chainable `ActiveRecord::Relation`, so `.where`/`.order`/`.page`
 compose normally. `permission:` defaults to the model's `index` key and accepts

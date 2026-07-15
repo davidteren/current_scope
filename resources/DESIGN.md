@@ -153,6 +153,17 @@ target shape is a closed set (`nil` or a `Class`); anything else is not
 record-less and is denied, so a hook that returns something other than a record
 fails closed.
 
+Two bounds worth stating, because a record-less check is the one grant check
+tied to no record:
+
+- **A tick must be explicit.** `full_access` is *not* honored here, though it is
+  everywhere else. A full_access role satisfies every key, so one scoped
+  full_access grant would otherwise pass every record-less gate in the app.
+  Bounding it needs the type, which the `nil` target does not carry (§3.4 above).
+- **The gate admits; it does not filter.** Passing a collection gate is not a
+  claim about what the action then renders. `scope_for` is the filter, and it is
+  the host's to call — the engine cannot narrow a list built from `Model.all`.
+
 **Assigning a scoped role NEVER changes the subject's org-wide role.** The two
 are independent axes: one org-wide role (broad, coarse) + N scoped roles
 (narrow, per-record).

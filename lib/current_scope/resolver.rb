@@ -94,10 +94,22 @@ module CurrentScope
 
     # Role ids that satisfy `permission`: full_access (grants everything) or an
     # explicit grant of the key. The one place "does this role grant it?" is
-    # expressed for scoped grants — shared by the gate and scope_for.
+    # expressed for scoped grants — shared by the gate and scope_for. Safe to
+    # wildcard full_access here because BOTH callers bind the grant to a record:
+    # scoped_grant? by `resource:`, scope_for by `resource_type:`.
     def roles_granting(permission)
-      Role.where(full_access: true)
-          .or(Role.where(id: RolePermission.where(permission_key: permission).select(:role_id)))
+      Role.where(full_access: true).or(Role.where(id: roles_ticking(permission)))
+    end
+
+    # Role ids that EXPLICITLY tick `permission` — full_access deliberately NOT
+    # unioned in. Only for the record-less branch, which binds the grant to no
+    # record at all: wildcarding full_access there would mean one scoped
+    # full_access grant on one record ("Owner of Report #7") opened EVERY
+    # record-less gate in the host app — every #index and #create on every
+    # controller — since a full_access role satisfies every key. That is the
+    # `resource:` bound scoped_grant? applies and the record-less branch cannot.
+    def roles_ticking(permission)
+      RolePermission.where(permission_key: permission).select(:role_id)
     end
 
     # The separation-of-duties outcome for this decision: :none (no conflict, or
@@ -201,6 +213,17 @@ module CurrentScope
     # and it fails CLOSED (a 403 the host sees immediately), which is the safe
     # direction to be wrong in.
     #
+    # Requires an EXPLICIT tick (roles_ticking, not roles_granting): this is the
+    # only grant check that binds to no record, so a full_access role — which
+    # satisfies every key — would turn one scoped grant on one record into a
+    # pass on every #index and #create in the host app. "Owner of Report #7"
+    # means full access to Report #7, not to every collection in the product.
+    # The cost of that strictness: a scoped full_access role does not open its
+    # own index either, so it keeps the pre-existing 403 that #19 fixes for
+    # explicitly-ticked roles. Reaching that needs the Guard to tell the
+    # resolver which model the collection is (see OQ-2) — until then, deny is
+    # the honest answer rather than an app-wide wildcard.
+    #
     # Deliberately NOT memoized, unlike org_role. The memo there caches one
     # lookup keyed by subject, invalidated by RoleAssignment writes alone. This
     # predicate's answer derives from three tables (scoped assignments, roles,
@@ -213,7 +236,7 @@ module CurrentScope
       return false unless record.nil? || record.is_a?(Class)
 
       ScopedRoleAssignment
-        .where(subject: subject, role_id: roles_granting(permission))
+        .where(subject: subject, role_id: roles_ticking(permission))
         .exists?
     end
   end

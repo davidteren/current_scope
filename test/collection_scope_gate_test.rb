@@ -47,10 +47,30 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
       "the view helper and the gate must never disagree"
   end
 
-  test "a scoped full_access role opens the record-less gate for any key" do
-    scope_grant(@alice, role("RecordOwner", full_access: true), @report)
+  # The record-less branch requires an EXPLICIT tick, so a scoped full_access
+  # role does NOT open it. A full_access role satisfies every key, and this is
+  # the one grant check bound to no record — wildcarding it would turn a single
+  # scoped grant on a single record into a pass on every #index and #create in
+  # the host app. That is reachable with stock data: seed_defaults! ships a
+  # full_access "Owner" role and the scoped picker offers every role.
+  test "a scoped full_access role does NOT open record-less gates app-wide" do
+    scope_grant(@alice, role("Owner", full_access: true), @report)
 
-    assert @resolver.allow?(subject: @alice, permission: "reports#index", record: nil)
+    %w[reports#index reports#create projects#index documents#create widgets#anything].each do |key|
+      assert_not @resolver.allow?(subject: @alice, permission: key, record: nil),
+        "one scoped full_access grant on one Report must not open #{key}"
+      assert_not @resolver.allow?(subject: @alice, permission: key, record: Report),
+        "nor the class form of #{key}"
+    end
+  end
+
+  test "a scoped full_access role still grants everything on its OWN record" do
+    scope_grant(@alice, role("Owner", full_access: true), @report)
+
+    # The per-record half is untouched — scoped_grant? binds by `resource:`, so
+    # full_access is safe to wildcard there. This is what the grant means.
+    assert @resolver.allow?(subject: @alice, permission: "reports#destroy", record: @report)
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#destroy", record: @other)
   end
 
   # --- R4: still fail-closed ---

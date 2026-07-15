@@ -6,6 +6,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **Scoped grants now open a record-less gate** — a subject holding only scoped
+  grants was 403'd on every collection action (`#index` and friends), because
+  the gate asks the resolver with `record: nil` and the scoped branch required a
+  persisted record. The only way in was an org-wide grant, which makes
+  `scope_for` return *every* record — so no grant combination produced the
+  scoped index the README advertises. A record-less target (nil, or a Class for
+  `allowed_to?(:index, Model)`) is now allowed when the subject holds any scoped
+  grant whose role ticks the key; `scope_for` is unchanged and still narrows the
+  list. Fixed at the shared resolver seam, so the gate and the `allowed_to?`
+  view helper agree. (#19)
+
+  **Upgrade-visible:** a scoped grant whose role ticks a collection key now
+  opens that gate where it previously 403'd. This grants nothing a role author
+  did not tick, and no decision on a persisted record changes — a grant on X
+  still confers nothing on Y, and the SoD veto, full_access and org-role paths
+  are untouched. Note the rule is uniform across record-less targets: a scoped
+  role that ticks `create` or a bulk key opens those collection gates too, just
+  as an org-wide grant of the same key already does. If you relied on the old
+  403, audit which collection keys your scoped roles tick.
+
 ## [0.2.0] - 2026-07-14
 
 ### Added

@@ -189,6 +189,15 @@ end
 - **scoped grants** → only the specific records that role was granted on.
 - **no grant** (or no subject) → empty, fail-closed like the gate.
 
+The gate agrees. A collection action like `#index` has no record to name, so it
+asks a record-less question — and a scoped grant whose role ticks that key
+answers it: the subject reaches the list, and `scope_for` narrows it to the
+records they were actually granted. **No org-wide grant is needed to reach a
+scoped index** (and reaching for one would defeat the purpose — an org-wide
+grant means "see everything", so `scope_for` would return `Project.all`). The
+same holds for the class form, `allowed_to?(:index, Project)`, so a view helper
+and the gate never disagree.
+
 It returns a chainable `ActiveRecord::Relation`, so `.where`/`.order`/`.page`
 compose normally. `permission:` defaults to the model's `index` key and accepts
 a bare action or a full key (`scope_for(Report, permission: :approve)`).

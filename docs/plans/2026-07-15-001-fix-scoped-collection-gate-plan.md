@@ -87,7 +87,7 @@ flowchart TD
 - **Dependencies:** none.
 - **Files:** `lib/current_scope/resolver.rb`, `test/resolver_test.rb` (extend), and a focused new `test/collection_scope_gate_test.rb`.
 - **Approach:** in `decide`, after the persisted `scoped_grant?` line and before the final `[false, :no_grant]`, add:
-  `return [ true, nil ] if collection_scoped_grant?(subject: subject, permission: permission, record: record)`.
+  `return [ true, nil ] if record_less_scoped_grant?(subject: subject, permission: permission, record: record)`.
   Implement the private predicate directionally as:
   ```ruby
   # A record-less target (nil for a collection action, or a Class for
@@ -100,6 +100,10 @@ flowchart TD
     # POSITIVE, closed set (KTD-3). The negation !respond_to?(:new_record?)
     # would admit String/Integer/PORO and fail OPEN.
     return false unless record.nil? || record.is_a?(Class)
+    # An SoD action is record-targeted by definition, so a record-less one has
+    # no record for the veto to measure — deny rather than hand out a four-eyes
+    # action with the guarantee skipped.
+    return false if sod_action?(permission)
 
     ScopedRoleAssignment
       .where(subject: subject, role_id: roles_ticking(permission)) # NOT roles_granting — KTD-6

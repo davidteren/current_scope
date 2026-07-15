@@ -246,7 +246,7 @@ Plan 003's KTD-2 prose is right, and is unchanged from `aa82d16` to `main` (`doc
 
 Verify that against the source. `sod_bypassed?` calls `CurrentScope.allowed?(CurrentScope.config.sod_bypass_permission, subject: initiator, record: record)` (`resolver.rb:188`) with **no `controller_path:`**. `allowed?` builds the key via `permission_key(action, record: record, controller_path: nil)` (`lib/current_scope.rb:77-84`), and `permission_key` with no `controller_path` returns `"#{route_key}##{action}"` (`lib/current_scope.rb:99-105`). So for the default bare-action form the key the resolver reads is derived from the **record**. (A host that configures the full-key form instead gets it used verbatim — that path is not record-derived, and the catalog tolerates it.)
 
-The sketch in U1 (`:80`) — still on `main` today, uncorrected:
+The sketch in U1 said — and, for eleven days after PR #53 corrected the code, still said:
 
 > for each, add `"#{controller}##{bypass_action}"`.
 
@@ -271,7 +271,11 @@ end
 
 Pinned by `test/permission_catalog_test.rb:163-168`, *"a namespaced SoD controller injects the record's key, not its own path"*.
 
-**Actionable for whoever picks up the rest:** plan 003's U1 sketch at line 80 contradicted both its own KTD-2 prose and the code that shipped in PR #53, and was never folded back until PR #56 did it. Assume the other plans are in the same state — drafted in one pass, reviewed as prose, instructions unverified against a tree that has since moved under them by five merged PRs.
+**Actionable for whoever picks up the rest.** Plan 003's U1 sketch contradicted both its own KTD-2 prose and the code that shipped in PR #53, and nothing folded the correction back — the plan kept handing out the wrong answer while the repo held the right one. PR #56 (the one that introduced this document) fixed it, along with plan 001's under-specified `roles_ticking` and plan 024's wrong issue link.
+
+Do not read that as "the plans are clean now." Those three were found because this learning went looking for them. Assume the rest are in the same state — drafted in one pass, reviewed as prose, instructions unverified against a tree that has since moved under them by five merged PRs.
+
+> **This paragraph is a specimen too.** Its first draft said plan 003's sketch was *"still on `main` today, uncorrected"* — in the same PR that corrected it. Review caught that the claim would be false the moment it merged, sending readers after a landmine that no longer existed. A document about work going stale, going stale against its own diff. The lesson is not "be more careful": it is that **a claim about the present tense of a repository is a claim with an expiry date**, including the ones written by someone who has just spent a day learning exactly that.
 
 That last clause is the hinge, and it earns the section that follows: a plan can also be **right when written and wrong by the time you read it**. That is a different defect with a different check, and the sketch checks above will not find it.
 

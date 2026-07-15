@@ -4,14 +4,14 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 ## Relationships
 
-A **subject** holds at most one **org-wide role** and any number of **scoped roles** — holding none of either is normal, and is the ordinary state of someone granted access to a single record. A role is a bundle of **permissions**; which permissions may be bundled is fixed by the **permission catalog**.
+A **subject** holds at most one **org-wide role** and any number of **scoped roles**. Both are optional and independent: holding no org-wide role at all is ordinary — it is the state of someone granted access to a single record and nothing else — and holding neither is simply someone with no access yet. A role is a bundle of **permissions**; which permissions may be bundled is fixed by the **permission catalog**.
 
 The **gate** and the **scoped list** are the two halves of every per-record feature: the gate decides whether an action runs at all, the list decides which records it operates on. Both ask the **resolver**, so they read the same grants — but they bind those grants differently, and only the gate is enforced. Where they bind differently they can disagree, and one such disagreement is live: a **full access** role held on a single record opens nothing at the gate for a record-less check, while the scoped list still returns that record. Treat "the gate let them in" and "it is in their list" as separate claims.
 
 ## The grant model
 
 **Subject**
-The identity whose permissions are being checked — typically a person, but the host names the class. Distinct from the **actor**: they are the same until someone is impersonating, and then permissions resolve against the subject while attribution follows the actor. A subject holds at most one org-wide role and any number of scoped roles; the two are independent axes, and assigning one never changes the other. Holding neither is normal — a subject with only a scoped role, or with nothing at all, is an ordinary state, not a broken one.
+The identity whose permissions are being checked — typically a person, but the host names the class. Distinct from the **actor**: they are the same until someone is impersonating, and then permissions resolve against the subject while attribution follows the actor. A subject holds at most one org-wide role and any number of scoped roles; the two are independent axes, and assigning one never changes the other. Neither is required. A subject with **only** scoped roles and no org-wide role is an ordinary state, not a broken one — it is precisely what per-record access means — and a subject with nothing at all is simply one nobody has granted anything to.
 
 **Actor**
 The real identity behind a request, as opposed to the subject it is acting as. The two differ only while impersonating: an admin (actor) operating as someone else (subject). Permission decisions read the subject; attribution and the audit trail read the actor. The distinction is load-bearing for separation of duties — if the veto only ever looked at the subject, impersonating a colleague would launder a self-approval into an allowed one.

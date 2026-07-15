@@ -53,6 +53,12 @@ Five have since been implemented and merged: plan 001 → issue #19 → PR #49, 
 
 > **Counts here are a snapshot, and they were already wrong once.** The first draft of this document said "25 of the 28 remain" and listed `#22-#46` as open. Both were false *at the moment it was committed* — #22 had merged 57 minutes earlier and #23 twenty-three minutes earlier. The document about plans going stale went stale inside its own drafting window, and shipped that way into the PR that introduced it. That is not an embarrassing aside; it is the second half of the learning, and it has its own section below. Trust the issue tracker over any number written here.
 
+> **This document is for the moment you implement a plan.** Its sibling,
+> [a correction is itself a rot event](a-correction-rots-the-plan-it-fixes.md), is for the
+> moment you *change a plan's mind* — it covers the fifth rot mode, the one that is not about
+> time: your own corrective edit fixes the reasoning and leaves the instructions saying the old
+> thing. If you are editing a plan rather than reading one, start there.
+
 Implementing those three surfaced a repeating failure mode: **an instruction in the plan was wrong, and it was the instruction — not the reasoning around it — that got implemented.** The defects were not caught by the test suite. They were caught by review, and two of them were privilege escalations.
 
 Be precise about the shape, because it decides which check finds it. In two of the three, the plan contained its own correction — a premise a line or two from the instruction that contradicted it, so reading the KTD against itself was enough. In the third it did not: KTD-4 said only "reuse this helper", the reuse was wrong, and **nothing in the plan said otherwise**. Only reading the helper's definition finds that one. A rule of "check the sketch against the prose" would have caught two of these three and missed the one that caused the worse escalation.

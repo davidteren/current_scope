@@ -1,0 +1,33 @@
+test/models/role_test.rb
+  s_4d1327efb21c21::t_121573ef4caa53 37-41,44-48
+lib/current_scope/permission_catalog.rb
+  s_4d1327efb21c21::t_88b71f1cb6c69a 16-20,22,27-29
+  s_4d1327efb21c21::t_03714a63530550 30
+app/controllers/current_scope/roles_controller.rb
+  s_4d1327efb21c21::t_a64ef169a90947 107
+test/permission_catalog_test.rb
+  s_4d1327efb21c21::t_0dbbc65f090634 13-23
+CHANGELOG.md
+  s_4d1327efb21c21::t_66b1b0d8470ab0 35-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "b42eadc21938207ae7930e44aa3f9304a1aa22d5",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

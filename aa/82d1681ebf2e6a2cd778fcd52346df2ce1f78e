@@ -1,0 +1,115 @@
+docs/plans/2026-07-15-028-feat-dx-skills-plan.md
+  s_27e720dfab3b7a::t_ce84e2e76a3d00 90-94
+  s_27e720dfab3b7a::t_44d5e2ddcd69aa 358-362
+  s_27e720dfab3b7a::t_83ca73feed7ab0 374-379
+docs/plans/2026-07-15-024-feat-wildcard-grants-plan.md
+  s_27e720dfab3b7a::t_5d872843e0e340 25
+  s_27e720dfab3b7a::t_af7abb714296d5 9
+docs/plans/2026-07-15-005-fix-engine-403-no-reason-plan.md
+  s_27e720dfab3b7a::t_d496295f1d1921 83
+  s_27e720dfab3b7a::t_561b7c0245f7e7 51
+  s_27e720dfab3b7a::t_db8ce93dbf85d2 100
+docs/plans/2026-07-15-022-feat-boot-validate-bypass-config-plan.md
+  s_27e720dfab3b7a::t_ba686dc1755504 50
+  s_27e720dfab3b7a::t_bd86c8b0ee5d29 36
+docs/plans/2026-07-15-012-fix-audit-ledger-gaps-plan.md
+  s_27e720dfab3b7a::t_d2962659a18d2f 101
+  s_27e720dfab3b7a::t_dad8697f2e2292 52
+  s_27e720dfab3b7a::t_d872fcd045ce6a 98-99
+  s_27e720dfab3b7a::t_9604e38cecdd8e 80
+  s_27e720dfab3b7a::t_93a7108122d8dc 65
+  s_27e720dfab3b7a::t_104ea1effc2385 188
+  s_27e720dfab3b7a::t_849928750e13e1 86
+  s_27e720dfab3b7a::t_fa59b53369b831 111
+docs/plans/2026-07-15-020-feat-grid-at-scale-plan.md
+  s_27e720dfab3b7a::t_bdf9232bc3c13e 109
+  s_27e720dfab3b7a::t_ffeff9eac83b70 55
+  s_27e720dfab3b7a::t_637059dc512665 43
+  s_27e720dfab3b7a::t_01bedadb0b86f4 113-114
+  s_27e720dfab3b7a::t_284ffdc46eb458 182
+docs/plans/2026-07-15-013-feat-theming-overrides-plan.md
+  s_27e720dfab3b7a::t_666578228e0632 113
+  s_27e720dfab3b7a::t_2bc2464eaea818 139
+  s_27e720dfab3b7a::t_118b4834923d8a 91
+  s_27e720dfab3b7a::t_980f746d2e0ca0 51
+  s_27e720dfab3b7a::t_960c164244c71a 96
+  s_27e720dfab3b7a::t_e718da9a18c5da 41
+  s_27e720dfab3b7a::t_f420cbb1e8e87d 105
+docs/plans/2026-07-15-027-feat-migration-tooling-plan.md
+  s_27e720dfab3b7a::t_61359d98c96569 180-181,186
+  s_27e720dfab3b7a::t_343470735fe2e8 177
+docs/plans/2026-07-15-008-docs-adoption-guide-plan.md
+  s_27e720dfab3b7a::t_a59d8425b1dfa9 39
+  s_27e720dfab3b7a::t_b68563ea1844a2 60
+  s_27e720dfab3b7a::t_9186e5e3915c18 78
+  s_27e720dfab3b7a::t_aa955a83acdb7a 47
+docs/plans/2026-07-15-016-docs-readme-restructure-plan.md
+  s_27e720dfab3b7a::t_5c52dfbb19c164 118
+  s_27e720dfab3b7a::t_4a234c3b7bd4c2 152
+  s_27e720dfab3b7a::t_70b5158fdbd202 130
+  s_27e720dfab3b7a::t_582c76f8ef517b 155
+  s_27e720dfab3b7a::t_83bb4c1454912a 133
+docs/plans/2026-07-15-015-docs-site-source-plan.md
+  s_27e720dfab3b7a::t_40151f944e2b7d 20
+  s_27e720dfab3b7a::t_5bae554048e5bc 134
+  s_27e720dfab3b7a::t_46a36a5034c482 154
+  s_27e720dfab3b7a::t_195de70b09c3e2 53
+docs/plans/2026-07-15-017-docs-testing-guide-plan.md
+  s_27e720dfab3b7a::t_6749a3a04bdd13 43
+  s_27e720dfab3b7a::t_bc1df30c9d78b8 76,79-87,90
+docs/plans/2026-07-15-023-feat-dev-diagnostics-plan.md
+  s_27e720dfab3b7a::t_c13a706a32666b 102
+  s_27e720dfab3b7a::t_59ab2cb20f567b 91
+  s_27e720dfab3b7a::t_06e0b027abf442 55
+docs/plans/2026-07-15-009-docs-upgrading-01-02-plan.md
+  s_27e720dfab3b7a::t_a68e9d385b2d5c 60
+  s_27e720dfab3b7a::t_94d66b5fedbbc0 104
+docs/plans/2026-07-15-010-docs-config-reference-sync-plan.md
+  s_27e720dfab3b7a::t_6b8693824e0ac1 42
+  s_27e720dfab3b7a::t_25ab68d084ba7c 88
+docs/plans/2026-07-15-011-docs-sod-gaps-plan.md
+  s_27e720dfab3b7a::t_fc31eab2fc8bd6 85
+  s_27e720dfab3b7a::t_78b7a40c7824a8 50
+  s_27e720dfab3b7a::t_925835086caeca 37
+  s_27e720dfab3b7a::t_52ab44950a9c85 79
+  s_27e720dfab3b7a::t_d0d1488447e071 68-72
+docs/plans/2026-07-15-006-docs-denial-behavior-plan.md
+  s_27e720dfab3b7a::t_5e1f5f619d8045 125
+  s_27e720dfab3b7a::t_59233a8336abcb 126
+  s_27e720dfab3b7a::t_9b864f539d6e61 74
+  s_27e720dfab3b7a::t_c78325fe27fc09 45
+  s_27e720dfab3b7a::t_0d83f703e973bf 47
+  s_27e720dfab3b7a::t_420c400968deb6 49
+  s_27e720dfab3b7a::t_2a644498a749e1 72
+  s_27e720dfab3b7a::t_be7485b2977656 57
+docs/plans/2026-07-15-018-docs-advisory-allowed-to-catalog-plan.md
+  s_27e720dfab3b7a::t_a28865129e290c 70
+  s_27e720dfab3b7a::t_c7ebc6b6f6a2a0 67
+  s_27e720dfab3b7a::t_588b609bbaf7bd 44
+  s_27e720dfab3b7a::t_9ca3df0f14e977 37
+docs/plans/2026-07-15-003-fix-bypass-sod-ungrantable-plan.md
+  s_27e720dfab3b7a::t_eb7813ffcab480 63
+docs/plans/2026-07-15-019-feat-report-only-mode-plan.md
+  s_27e720dfab3b7a::t_a9282183a8f340 117,123-127
+  s_27e720dfab3b7a::t_08be31f5d02252 139
+docs/plans/2026-07-15-001-fix-scoped-collection-gate-plan.md
+  s_27e720dfab3b7a::t_2f2be8ad9bfce6 114-115
+  s_27e720dfab3b7a::t_495fd4efff69e4 51
+  s_27e720dfab3b7a::t_650847668ce441 165
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "aa82d1681ebf2e6a2cd778fcd52346df2ce1f78e",
+  "prompts": {},
+  "sessions": {
+    "s_27e720dfab3b7a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "daa212d5-49e0-4fc9-aace-18a14a7b3cfa",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

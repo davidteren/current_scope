@@ -8,6 +8,8 @@ A **subject** holds at most one **org-wide role** and any number of **scoped rol
 
 The **gate** and the **scoped list** are the two halves of every per-record feature: the gate decides whether an action runs at all, the list decides which records it operates on. Both ask the **resolver**, so they read the same grants — but they bind those grants differently, and only the gate is enforced. Where they bind differently they can disagree, and one such disagreement is live: a **full access** role held on a single record opens nothing at the gate for a record-less check, while the scoped list still returns that record. Treat "the gate let them in" and "it is in their list" as separate claims.
 
+The **resolver** decides, the **gate** enforces, and the **ledger** records — but not the same things, and this is the easiest thing here to get wrong. The ledger holds *changes to who can do what*, plus the single audited exception: grants made and withdrawn, roles edited, impersonation begun and ended, a veto lifted. It does **not** hold decisions. An ordinary refusal leaves no trace, deliberately — a fail-closed system refuses constantly, and a record of every refusal would be noise rather than history. "It was denied" and "it is in the ledger" are unrelated claims.
+
 ## The grant model
 
 **Subject**
@@ -49,10 +51,25 @@ The enforcement point: a fail-closed check that runs before every action and ref
 The list-side companion to the gate: the set of records a subject may act on, derived from the same grants the gate reads. It **narrows**. Unlike the gate it is advisory — the host chooses to use it — so an action that ignores it and fetches everything will show everything to anyone the gate admitted.
 
 **Permission catalog**
-The set of permissions that exist and may be granted, derived from the application's routes rather than stored in a table. A new resource becomes grantable by existing; nothing is maintained by hand. It is the single definition of grantability: the role editor renders from it, the role form validates against it, and the gate refuses to guard anything outside it.
+The set of permissions that exist and may be granted, derived from the application's routes rather than stored in a table. Referred to as "the catalog" where context makes it unambiguous. A new resource becomes grantable by existing; nothing is maintained by hand. It is the single definition of grantability: the role editor renders from it, the role form validates against it, and the gate refuses to guard anything outside it.
 
 **Record-less target**
 A permission check with no particular record to decide about — asking "may I open this list at all?" rather than "may I touch this record?". It must mean *there is no record here*, stated deliberately, and not *a record was expected and we failed to find one*: treating the second as the first turns a question about one record into a claim about all of them. The two are not distinguishable from the value alone, which is why saying which one is meant is the host's job rather than something inferred.
+
+## The record
+
+**Ledger**
+The append-only history of *changes* to authorization — grants made and withdrawn, roles edited, impersonation begun and ended — plus the one audited exception, a lifted veto. It is not a decision log: an ordinary allow or refusal is never recorded. Rows are never rewritten: there is no notion of editing a past event, and the history outlives the things it names — a role that was deleted still renders in its own history, because each entry keeps a human label for its target rather than only a reference to it.
+
+Append-only is a design rule enforced at the record layer, not a guarantee the storage engine makes. Bulk operations and raw queries reach past it; how much the database itself refuses depends on which database it is. Treat the ledger as tamper-*evident* by intent and honest about its ceiling, not as tamper-proof.
+
+**Event**
+One entry in the ledger: who did it, on whose behalf, to what, and what changed. Both identities are always present — they are the same entry unless someone was impersonating, so the impersonated entries are exactly the ones where they differ, which is what makes "what did this admin do while acting as someone else" answerable at all.
+
+**Audit mode**
+How a host wants the ledger treated, of which there are three postures rather than a switch: off (record nothing), on (the default), and mandatory (a change that cannot be recorded must not happen — it is rolled back rather than silently proceeding unrecorded). The third exists because for some hosts an unrecorded change is worse than a failed one.
+
+The tolerance in "on" is narrower than it sounds, and worth knowing before relying on it: it forgives exactly one thing — the ledger never having been installed, which is what an existing host hits when it upgrades and has not yet run the migration. That case warns once and carries on. Any *other* recording failure still raises, in every mode. "On" is not a promise that recording can never break a request.
 
 ## The constraints
 
@@ -68,6 +85,30 @@ A lifted veto is recorded wherever the gate enforces it and the audit ledger is 
 
 **Fail-closed**
 The posture that anything not granted is denied, and that a mistake resolves toward refusal rather than permission. Its counterpart obligation is loudness: a misconfiguration must announce itself, because a silent denial nobody can diagnose is only marginally better than a silent allow.
+
+## The surfaces
+
+**Console**
+The management UI the engine mounts: where roles are edited, grants made, and the ledger read. It is the one place permissions are *granted*, which is why it cannot be gated by a grantable permission — that would be circular — and is instead open only to **full access** held org-wide.
+
+**Permission grid**
+How the console presents the **catalog**: one row per controller, one column per action or group of actions, a tick where the role holds it. It is an aligned matrix by design — a blank cell means the controller does not route that action at all, which is a different statement from an unticked one, and the alignment is what lets a reader scan a column down the whole application.
+
+**Group**
+A column that stands for several actions at once, so that the everyday CRUD verbs read as one decision rather than seven. A group a role holds only *part* of is the interesting case: it renders as neither on nor off, and re-saving the form must not quietly promote it to the whole group. That is a real escalation, and it is the reason the partial state exists rather than being rounded to the nearest checkbox.
+
+**Pickable type**
+A record type that has opted into being offered in the console's scoped-grant picker. Opting in is a **browsing** convenience, not a permission boundary: any record can be the target of a scoped grant whether or not its type opted in, so a type's absence from the dropdown means "not offered here", never "not grantable". Reading it as a restriction is the mistake it invites.
+
+## The safety aids
+
+These exist because the engine's guarantees have edges the engine cannot see past on its own. Each one is opt-in, and each one is a way of asking the host to confirm something the library would otherwise have to assume.
+
+**Tripwire**
+An opt-in check that catches an action which ran without being gated at all. The gate can only speak for controllers that installed it, so the dangerous case — a controller that never did — is invisible from inside. The tripwire is included on that controller deliberately, and complains after the fact. It cannot see an action that never reached its end, so it is a strong aid rather than total coverage.
+
+**Test helpers**
+The grant-making tools a host's own test suite uses, so that a test can put a subject in a given state without reaching into storage and without depending on the console. They exist because a fail-closed library makes every ungranted test fail, and the fix for that should be one honest line in a test rather than a workaround.
 
 ## Flagged ambiguities
 

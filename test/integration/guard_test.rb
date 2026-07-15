@@ -60,13 +60,39 @@ class GuardTest < ActionDispatch::IntegrationTest
     assert_equal "sod_veto", response.headers["X-Current-Scope-Reason"]
   end
 
+  # current_scope_record keys off request.path_parameters, never params, so a
+  # query-string ?id= is inert on a collection route. Asserted in BOTH
+  # directions — the ?id= must change nothing, neither opening a gate that is
+  # shut nor shutting one that is open. (Before the record-less scoped gate
+  # landed, the "shut" half passed for the wrong reason: a scoped-only subject
+  # was denied every collection action regardless of the query string, so it
+  # proved the bug, not the path_parameters rule.)
   test "a ?id= query string cannot smuggle a scoped record into a collection action" do
     assign(@alice, role("Member"))   # no org-wide permissions
-    viewer = role("Viewer", "reports#index", "reports#show")
+    viewer = role("Viewer", "reports#show") # scoped, but does NOT tick reports#index
     CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: viewer, resource: @report)
 
+    # The grant is on @report and ticks show — naming that very record in the
+    # query string must not upgrade it into index access.
     get reports_url(id: @report.id), headers: sign_in(@alice)
     assert_response :forbidden
+    assert_equal "no_grant", response.headers["X-Current-Scope-Reason"]
+
+    get reports_url, headers: sign_in(@alice)
+    assert_response :forbidden, "the ?id= must make no difference"
+  end
+
+  test "a ?id= query string cannot shut a collection gate the subject legitimately holds" do
+    viewer = role("Viewer", "reports#index")
+    CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: viewer, resource: @report)
+
+    # The converse of the smuggle test: the scoped grant opens the record-less
+    # index gate, and the query string is inert here too.
+    get reports_url(id: @report.id), headers: sign_in(@alice)
+    assert_response :success
+
+    get reports_url, headers: sign_in(@alice)
+    assert_response :success
   end
 
   test "gating an excluded controller raises a configuration error" do

@@ -10,7 +10,11 @@ module CurrentScope
   #                      present and future.
   #   3. org-wide role — the role's permission set includes this permission.
   #   4. scoped role   — a role held on THIS record grants the permission.
-  #   5. default-deny  — nothing granted means denied.
+  #   5. scoped role,  — the target is record-less (nil for a collection action,
+  #      record-less     a Class for a class-form check), so no specific record
+  #                      can be named: ANY scoped grant ticking the key opens it.
+  #                      scope_for then narrows the list to those records.
+  #   6. default-deny  — nothing granted means denied.
   class Resolver
     INITIATOR_METHOD = :current_scope_initiator
     # Host-defined per-record opt-in for break-glass. Absent ⇒ never bypassed
@@ -42,6 +46,7 @@ module CurrentScope
       return [ true, nil ] if role&.full_access?
       return [ true, nil ] if role&.grants?(permission)
       return [ true, nil ] if scoped_grant?(subject: subject, permission: permission, record: record)
+      return [ true, nil ] if collection_scoped_grant?(subject: subject, permission: permission, record: record)
 
       [ false, :no_grant ]
     end
@@ -165,6 +170,24 @@ module CurrentScope
 
       ScopedRoleAssignment
         .where(subject: subject, resource: record, role_id: roles_granting(permission))
+        .exists?
+    end
+
+    # A record-less target (nil for a collection action, or a Class for
+    # allowed_to?(:index, Model)) is allowed when the subject holds ANY scoped
+    # grant whose role ticks the key — the list-side complement to scope_for,
+    # which then narrows the collection to the granted records. Without this, the
+    # two halves of the per-record feature contradict each other: the gate turns
+    # a scoped-only subject away from their index, and the org-wide grant that
+    # gets them past it makes scope_for return every record.
+    #
+    # Never fires for an instance — a grant on X must not act on Y; that stays
+    # scoped_grant?'s job, and it is the invariant this branch must not widen.
+    def collection_scoped_grant?(subject:, permission:, record:)
+      return false if record.respond_to?(:new_record?) # a specific instance → scoped_grant? owns it
+
+      ScopedRoleAssignment
+        .where(subject: subject, role_id: roles_granting(permission))
         .exists?
     end
   end

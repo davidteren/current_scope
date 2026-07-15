@@ -1,0 +1,28 @@
+lib/current_scope/guard.rb
+  s_4d1327efb21c21::t_d55407d313f58a 243-248,250
+test/integration/report_only_test.rb
+  s_4d1327efb21c21::t_5ef5f8f650f104 276-300
+app/models/current_scope/event.rb
+  s_4d1327efb21c21::t_72af06e6cd6b98 115-120
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "f0c447cee942e483bd8e900a0c07217db02a78a0",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

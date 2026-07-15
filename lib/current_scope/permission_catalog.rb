@@ -13,11 +13,20 @@ module CurrentScope
           .transform_values { |ks| ks.map { |k| k.split("#").last } }
     end
 
+    # Hot: the Guard asks this on EVERY gated request, and a role save asks it
+    # once per staged key. Set lookup, not Array#include? — the array is sorted
+    # for display, and scanning it linearly made every request pay for the size
+    # of the host's route table. Memoized alongside `keys` and dropped with it
+    # on reset!.
     def include?(key)
-      keys.include?(key)
+      key_set.include?(key)
     end
 
     private
+
+    def key_set
+      @key_set ||= keys.to_set
+    end
 
     def derive
       Rails.application.routes.routes.filter_map { |route|

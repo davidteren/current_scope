@@ -6,6 +6,43 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **`Role#permission_keys=` now rejects unknown keys loudly instead of dropping
+  them.** A key that isn't in the route-derived catalog makes the role invalid —
+  `save` returns `false`, `save!`/`update!` raise `ActiveRecord::RecordInvalid`,
+  and `errors[:permission_keys]` names the offending keys. Previously they were
+  silently discarded at assignment: a typo (`reports#aprove`), a programmatic
+  grant of an unrouted key, or a `db/seeds.rb` granting the never-routed
+  break-glass permission all saved cleanly and produced a role that looked
+  correct and denied at runtime for no visible reason. Nothing outside the
+  catalog was ever persisted, and still isn't — only the signal changed, from
+  silence to an error. (#20)
+
+  **Upgrade-visible, and only for programmatic callers.** If you assign literal
+  key sets that contain stale keys (from controllers you have since removed),
+  those call sites now fail instead of self-cleaning. Name the intent:
+
+  ```ruby
+  role.assign_permission_keys(keys, scrub: true)   # drops non-catalog keys, no error
+  role.permission_keys_change[:rejected]           # => ["gone#index"]
+  ```
+
+  `scrub:` is not reachable through `permission_keys=`, so mass assignment and
+  strong params always take the strict path. The management UI is unaffected —
+  its grid only ever submits catalog keys, and a role holding a stale key still
+  has it cleaned up transparently on save.
+
+  **If a seed grants the break-glass permission, it will now raise — and that is
+  the point.** `config.sod_bypass_permission` (default `"bypass_sod"`) is a bare
+  action name, not a `controller#action` key, so no route can ever produce it
+  and it was silently dropped every time: the role saved cleanly and could never
+  bypass. The failure is telling you that grant has never worked. Do **not**
+  paper over it with `scrub: true` — that just restores the silent version.
+  Making break-glass grantable is tracked in #21.
+
+- `permission_keys_change` gained a `:rejected` array alongside `:added` /
+  `:removed`, so a caller that opted into scrubbing can still log what went.
+
 ### Fixed
 - **Scoped grants now open a record-less gate** — a subject holding only scoped
   grants was 403'd on every collection action (`#index` and friends), because

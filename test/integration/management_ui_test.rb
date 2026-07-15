@@ -31,14 +31,29 @@ class ManagementUiTest < ActionDispatch::IntegrationTest
     assert_match "reports:read", response.body
   end
 
-  test "saving the grid replaces permissions and drops keys not in the catalog" do
+  test "saving the grid replaces permissions" do
     patch current_scope.role_url(@member_role), headers: as(@owner), params: {
       role: { name: "Member", full_access: "0",
-              permission_keys: [ "", "reports#index", "bogus#nope" ] }
+              permission_keys: [ "", "reports#index" ] } # "" is the grid's hidden padding
     }
     assert_redirected_to current_scope.roles_url
 
     assert_equal [ "reports#index" ], @member_role.reload.permission_keys
+  end
+
+  # A key outside the catalog cannot come from the grid — cells are built from
+  # routed actions only. So it means a hand-crafted request or a caller that
+  # believes in a permission the app doesn't route, and either way the answer is
+  # to say so, not to drop it and redirect as though it had been granted.
+  test "a permission key outside the catalog is rejected loudly, not dropped" do
+    patch current_scope.role_url(@member_role), headers: as(@owner), params: {
+      role: { name: "Member", full_access: "0",
+              permission_keys: [ "", "reports#index", "bogus#nope" ] }
+    }
+    assert_response :unprocessable_entity
+    assert_match "bogus#nope", response.body
+
+    assert_empty @member_role.reload.permission_keys, "a rejected save must persist nothing"
   end
 
   test "setting and clearing a subject's org-wide role" do

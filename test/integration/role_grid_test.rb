@@ -78,4 +78,51 @@ class RoleGridTest < ActionDispatch::IntegrationTest
     assert_includes keys, "reports#approve"
     assert_includes keys, "reports#index"
   end
+
+  # --- The strict-key validation must not disturb the editor (#20) ---
+  #
+  # permission_keys= now rejects a key outside the catalog instead of dropping
+  # it. The grid is its highest-traffic caller, so these are the guardrail that
+  # the strict default didn't land on the operator: the grid builds cells from
+  # routed actions only, so everything it submits is already in the catalog.
+
+  test "a stale key from a removed controller is cleaned up transparently on save" do
+    # A role holding a key whose controller no longer routes — what's left after
+    # a controller is deleted. Inserted directly, since the strict setter is now
+    # exactly what refuses to create this state.
+    @role.role_permissions.insert_all([ { permission_key: "reports#index" },
+                                        { permission_key: "gone#index" } ])
+    assert_includes @role.reload.permission_keys, "gone#index"
+
+    # The grid never renders a row for an unrouted controller, so it never
+    # round-trips the stale key: the submitted set is all-catalog and valid.
+    patch current_scope.role_url(@role), headers: as(@owner),
+          params: { role: { name: "Editor", full_access: "0",
+                            permission_keys: [ "", "reports#index" ] } }
+
+    assert_redirected_to current_scope.roles_url, "the operator must not see an error for someone else's mess"
+    assert_equal [ "reports#index" ], @role.reload.permission_keys, "the stale key is gone"
+  end
+
+  test "a stale key does not block an unrelated edit to the role" do
+    @role.role_permissions.insert_all([ { permission_key: "gone#index" } ])
+
+    patch current_scope.role_url(@role), headers: as(@owner),
+          params: { role: { name: "Renamed", full_access: "0", permission_keys: [ "" ] } }
+
+    assert_redirected_to current_scope.roles_url
+    assert_equal "Renamed", @role.reload.name
+  end
+
+  test "the edit view never renders a hidden input for a stale key" do
+    @role.role_permissions.insert_all([ { permission_key: "reports#index" },
+                                        { permission_key: "gone#index" } ])
+
+    get current_scope.edit_role_url(@role), headers: as(@owner)
+    assert_response :success
+    # The claim the strict default rests on: if the grid could round-trip a
+    # stale key, every save of this role would 422 on a mess the operator
+    # didn't make and can't see.
+    assert_select "input[value=?]", "gone#index", count: 0
+  end
 end

@@ -24,7 +24,7 @@ issue: https://github.com/davidteren/current_scope/issues/32
 
 ## Product Contract
 
-> **Product Contract preservation:** documentation issue, no upstream requirements doc (`product_contract_source: ce-plan-bootstrap`). Grounded entirely in the filed finding (`issue #32`) and re-verified 2026-07-15 against `lib/current_scope/guard.rb:33-95` (the gate, the record-before-decide ordering at :48/:53, the nil-SoD nudge), `lib/current_scope/mutation_guard.rb:29-53` (`AccessDenied → head :forbidden`), `lib/current_scope/configuration.rb:51-55,157-179` (`excluded_controllers`, the prod impersonation env-gate), `lib/generators/current_scope/install/templates/initializer.rb:70-73` (excluded-controllers comment), and `README.md:154-163,200-221,258-272,349-372,391-402,446-448,461-470` (key-derivation foot-gun, record-level recipe, nil-SoD note, config loud-behaviors, actor_method note, clear-act-as note).
+> **Product Contract preservation:** documentation issue, no upstream requirements doc (`product_contract_source: ce-plan-bootstrap`). Grounded entirely in the filed finding (`issue #32`) and re-verified 2026-07-15 against `lib/current_scope/guard.rb:33-95` (the gate, the record-before-decide ordering at :48/:53, the nil-SoD nudge), `lib/current_scope/mutation_guard.rb:29-53` (`AccessDenied → head :forbidden`), `lib/current_scope/configuration.rb:51-55,157-179` (`excluded_controllers`, the prod impersonation env-gate), `lib/generators/current_scope/install/templates/initializer.rb:70-73` (excluded-controllers comment), and ``README.md`'s namespaced-controller foot-gun note,200-221,258-272,349-372,391-402,446-448,461-470` (key-derivation foot-gun, record-level recipe, nil-SoD note, config loud-behaviors, actor_method note, clear-act-as note).
 
 ### Summary
 
@@ -36,7 +36,7 @@ Every security caveat CurrentScope has is *technically* documented, but scattere
 | **403/404 record oracle** | nowhere — the recipe at `README.md:200-221` recommends the exact pattern that produces it | the side channel and a 404-normalization mitigation for sensitive resources |
 | **nil-record SoD skip** | `README.md:264-272` blockquote | not linked from where the mistake is made (the record-level recipe) or from a security page |
 | **`actor_method` unset** | `README.md:391-402` blockquote | no security-page home |
-| **key-derivation mismatch** | `README.md:154-163` blockquote | no security-page home |
+| **key-derivation mismatch** | `README.md`'s "Residual foot-gun — namespaced/custom-named controllers" note blockquote | no security-page home |
 | **production concerns** (audit `:strict`, first-admin, prod impersonation env-gate, clear act-as) | scattered across README | no single going-to-production checklist |
 
 Fail-closed is the product promise. The places where it quietly becomes fail-open (excluded+skip) or leaks information (403/404) deserve one page a deployer can read before shipping.
@@ -57,7 +57,7 @@ Two verified findings, both **docs-gap** (the mechanics are correct; the *conseq
 - **R4.** The `excluded_controllers` comment in the **initializer template** (`initializer.rb:70-73`) and in **`configuration.rb`** (`:51-55`) gains the same one-line consequence note (excluded + skip = ungated by CurrentScope → BYO auth), so the warning is present at the point of configuration, not only on the page.
 - **R5.** The page documents the **403-vs-404 record-existence oracle**: why it happens (record loaded before the decision, by design — `guard.rb:48` before `:53`), who it affects (unauthorized/anonymous callers can enumerate ids on member actions), and a **mitigation recipe** for sensitive resources — rescue `ActiveRecord::RecordNotFound` (or `AccessDenied`) to a uniform 404 so existing-but-forbidden and missing are indistinguishable. The recipe is presented as an **opt-in host choice for sensitive resources**, explicitly not an engine default (the divergence is acceptable for most apps).
 - **R6.** The README's **"Record-level decisions"** recipe (`README.md:200-221`) gains a one-line cross-reference to (a) the nil-record SoD note already in the README and (b) the new 403/404 oracle mitigation on the security page — placed where the reader is writing the exact hook that produces both foot-guns.
-- **R7.** The page collects the **three foot-guns** with links to their existing README treatments (not duplicating them): nil-record SoD skip (`README.md:264-272`), `actor_method` unset (`README.md:391-402`), key-derivation mismatch (`README.md:154-163`).
+- **R7.** The page collects the **three foot-guns** with links to their existing README treatments (not duplicating them): nil-record SoD skip (`README.md:264-272`), `actor_method` unset (`README.md:391-402`), key-derivation mismatch (`README.md`'s "Residual foot-gun — namespaced/custom-named controllers" note).
 - **R8.** The page carries a **going-to-production checklist**: audit `= :strict` for audit-mandatory apps; bootstrapping the first admin on a fresh prod DB (rake task / `grant!`); the impersonation prod env-gate (`allow_mutations_while_impersonating` refused in production without `CURRENT_SCOPE_ALLOW_PROD_IMPERSONATION_MUTATIONS`); clearing act-as on both sign-in and sign-out; and the `GatingTripwire` for catching ungated controllers in dev/test. Each item links its fuller README/section treatment.
 
 ---

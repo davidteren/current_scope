@@ -1,0 +1,41 @@
+test/integration/guard_test.rb
+  s_4d1327efb21c21::t_a520e49dcb2e7a 155-159,161-164,167,169-171
+test/dummy/config/routes.rb
+  s_4d1327efb21c21::t_ba949f1c8fde2a 18,20
+test/dummy/app/controllers/nested_reports_controller.rb
+  s_4d1327efb21c21::t_a46fa13ef2defc 1-5,9-15
+  s_4d1327efb21c21::t_59c8bb67f2ba2a 16
+resources/DESIGN.md
+  s_4d1327efb21c21::t_da7ac57f8a4336 167-181
+CHANGELOG.md
+  s_4d1327efb21c21::t_a28c3275d12751 45-55
+test/dummy/app/controllers/external_id_reports_controller.rb
+  s_4d1327efb21c21::t_67693d7b5e7fb9 1-15
+test/dummy/app/controllers/slug_reports_controller.rb
+  s_4d1327efb21c21::t_d905be3509e153 2-9
+lib/current_scope/guard.rb
+  s_4d1327efb21c21::t_e4899568d3a91c 39-41,43-50,52-56
+  s_4d1327efb21c21::t_3ac79d3bca06d8 95-105,107,109
+  s_4d1327efb21c21::t_6b70c577713e29 6-8,20-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "691b0936e21835c2c76a4be412da7ad86d960ca9",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

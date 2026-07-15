@@ -105,10 +105,36 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
   test "R5: an unpersisted instance is not a record-less target" do
     scope_grant(@alice, role("Editor", "reports#create"), @report)
 
-    # A new_record? instance answers new_record? — it is an instance, so the
-    # record-less branch skips it and scoped_grant? (which needs persisted?)
-    # denies. Unchanged behavior; pinned so the branch can't widen to instances.
+    # Report.new is neither nil nor a Class, so the record-less branch skips it,
+    # and scoped_grant? needs persisted? — denied. Only reachable by gating a
+    # collection action with Model.new instead of the documented nil, and it
+    # fails closed. Pinned so the branch can't widen to instances.
     assert_not @resolver.allow?(subject: @alice, permission: "reports#create", record: Report.new)
+  end
+
+  # The record-less test is POSITIVE (nil or a Class) precisely so these fail
+  # closed. A negative `unless record.respond_to?(:new_record?)` admits an open
+  # set: a host whose current_scope_record wrongly returns params[:id] would
+  # hand a String to the gate and be ALLOWED here on the strength of a grant
+  # held over some OTHER record — privilege escalation, and the exact inversion
+  # of "a grant on X must not act on Y".
+  test "R5: a non-record target fails CLOSED, never open" do
+    # Alice is scoped on @report ONLY, and holds no org grant.
+    scope_grant(@alice, role("Editor", "reports#show"), @report)
+
+    [ @other.id.to_s, @other.id, :garbage, "anything", 42, {}, [], Object.new ].each do |target|
+      assert_not @resolver.allow?(subject: @alice, permission: "reports#show", record: target),
+        "a #{target.class} target must never be treated as record-less — it would grant " \
+        "access off a scoped grant held over a different record"
+    end
+  end
+
+  test "R5: a non-record target is denied even when it names a granted record" do
+    scope_grant(@alice, role("Editor", "reports#show"), @report)
+
+    # Naming the very record she IS scoped on must not help either — the gate
+    # decides on records, not on strings that look like ids.
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#show", record: @report.id.to_s)
   end
 
   test "R5: the SoD veto still runs upstream of the record-less branch" do

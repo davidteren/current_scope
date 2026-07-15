@@ -46,7 +46,7 @@ module CurrentScope
       return [ true, nil ] if role&.full_access?
       return [ true, nil ] if role&.grants?(permission)
       return [ true, nil ] if scoped_grant?(subject: subject, permission: permission, record: record)
-      return [ true, nil ] if collection_scoped_grant?(subject: subject, permission: permission, record: record)
+      return [ true, nil ] if record_less_scoped_grant?(subject: subject, permission: permission, record: record)
 
       [ false, :no_grant ]
     end
@@ -173,18 +173,35 @@ module CurrentScope
         .exists?
     end
 
-    # A record-less target (nil for a collection action, or a Class for
-    # allowed_to?(:index, Model)) is allowed when the subject holds ANY scoped
-    # grant whose role ticks the key — the list-side complement to scope_for,
-    # which then narrows the collection to the granted records. Without this, the
-    # two halves of the per-record feature contradict each other: the gate turns
-    # a scoped-only subject away from their index, and the org-wide grant that
-    # gets them past it makes scope_for return every record.
+    # A record-less target is allowed when the subject holds ANY scoped grant
+    # whose role ticks the key — the list-side complement to scope_for, which
+    # then narrows the collection to the granted records. Without this, the two
+    # halves of the per-record feature contradict each other: the gate turns a
+    # scoped-only subject away from their index, and the org-wide grant that gets
+    # them past it makes scope_for return every record.
     #
-    # Never fires for an instance — a grant on X must not act on Y; that stays
-    # scoped_grant?'s job, and it is the invariant this branch must not widen.
-    def collection_scoped_grant?(subject:, permission:, record:)
-      return false if record.respond_to?(:new_record?) # a specific instance → scoped_grant? owns it
+    # "Record-less" is a CLOSED set of exactly two shapes, tested positively:
+    #
+    #   nil     — a collection action; the Guard's hook returns nil when there is
+    #             no record (guard.rb), which is the documented contract.
+    #   a Class — the class form, allowed_to?(:index, Report).
+    #
+    # Positive, never `unless record.respond_to?(:new_record?)`: a negative test
+    # admits an OPEN set, so a host whose current_scope_record wrongly returns
+    # params[:id] (a String) or any other non-record would land here and be
+    # ALLOWED on the strength of a grant held over some *other* record — a
+    # fail-open in a fail-closed engine, and a breach of this branch's own
+    # invariant that a grant on X must not act on Y. Anything that is not
+    # literally nil-or-a-Class is not a record-less target and gets no say here.
+    #
+    # Consequence, deliberate: an UNPERSISTED instance (Report.new) is not
+    # record-less by this test, and scoped_grant? needs persisted? — so it is
+    # denied, while the class form is allowed. That asymmetry is only reachable
+    # by gating a collection action with Model.new instead of the documented nil,
+    # and it fails CLOSED (a 403 the host sees immediately), which is the safe
+    # direction to be wrong in.
+    def record_less_scoped_grant?(subject:, permission:, record:)
+      return false unless record.nil? || record.is_a?(Class)
 
       ScopedRoleAssignment
         .where(subject: subject, role_id: roles_granting(permission))

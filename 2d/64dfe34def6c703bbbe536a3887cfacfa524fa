@@ -1,0 +1,19 @@
+docs/guides/adopting-in-an-existing-app.md
+  s_4d1327efb21c21::t_9d15133a79726e 280-285,312
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "2d64dfe34def6c703bbbe536a3887cfacfa524fa",
+  "prompts": {},
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

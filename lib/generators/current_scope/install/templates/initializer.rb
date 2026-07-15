@@ -113,8 +113,9 @@ CurrentScope.configure do |config|
 
   # Short-form allowed_to?(:show, record) derived a DIFFERENT key than the gate
   # on the current controller enforces (the namespaced/custom-named controller
-  # foot-gun). The view and the gate disagree: a link that 403s, or a hidden one
-  # that would have worked.
+  # foot-gun): a link that 403s, or a hidden one that would have worked. A hint,
+  # not an accusation — asking about another resource derives a different key too,
+  # and that's correct — so it warns once per site and names both readings.
   # config.warn_on_cross_controller_derivation = Rails.env.local?
   # ------------------------------------------------------------------------
 

@@ -506,7 +506,7 @@ one now says so in the log.
 |---|---|---|
 | `warn_on_nil_sod_record` | An SoD action was **allowed** while the gate had no record, so the veto was skipped | A veto that never ran looks identical to a veto that passed |
 | `warn_on_inert_scoped_grant` | Denied `no_grant`, the subject **holds a scoped grant** that would satisfy it, and the controller declares no `current_scope_record` | The 403 is byte-identical to "never granted", so you go audit the grants — which are fine — instead of the controller, which isn't |
-| `warn_on_cross_controller_derivation` | Short-form `allowed_to?(:show, record)` derived a **different key** than the gate on this controller enforces | The view and the gate disagree; the symptom (a link that 403s, or a hidden one that works) shows up nowhere near the cause |
+| `warn_on_cross_controller_derivation` | Short-form `allowed_to?(:show, record)` derived a **different key** than the gate on this controller enforces | If you meant this controller's gate, the view and the gate disagree — and the symptom (a link that 403s, or a hidden one that works) shows up nowhere near the cause |
 
 All three are **log-only** — no decision, exception, header, or audit row changes
 because of them, in any environment — and all three default **on in development
@@ -517,6 +517,12 @@ config.warn_on_nil_sod_record = Rails.env.local?              # the defaults;
 config.warn_on_inert_scoped_grant = Rails.env.local?          # override either
 config.warn_on_cross_controller_derivation = Rails.env.local? # way
 ```
+
+The last one is a **hint, not an accusation**, and says so: asking about a
+different resource than the current controller handles derives a different key
+too, and that is correct and common. Nothing at the call site distinguishes the
+two, so it warns **once per site** and names both readings. The first two are
+unambiguous.
 
 The default is the point. These catch mistakes you make while *writing* the app,
 which is exactly when dev/test is where you are — and a diagnostic that ships off

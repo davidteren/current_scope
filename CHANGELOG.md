@@ -68,9 +68,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     the controller, which isn't.
   - **`config.warn_on_cross_controller_derivation`** (new): short-form
     `allowed_to?(:show, record)` derived a different key than the gate on the
-    current controller enforces — the documented namespaced-controller foot-gun. The
-    view and the gate silently disagree, and the symptom (a link that 403s, or one
-    that's hidden but would work) shows up nowhere near the cause.
+    current controller enforces — the documented namespaced-controller foot-gun. If
+    you meant this controller's gate, the view and the gate silently disagree, and
+    the symptom (a link that 403s, or one that's hidden but would work) shows up
+    nowhere near the cause. This one is a **hint, not an accusation**: asking about
+    a different resource than the controller handles derives a different key too,
+    and that's correct. Nothing at the call site tells the two apart, so it warns
+    **once per site** and names both readings rather than claiming a bug it can't
+    prove.
 
   All three are **log-only**: no decision, exception, header, or audit row changes
   in any environment. All three default **on in development and test, off in

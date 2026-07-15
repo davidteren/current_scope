@@ -338,11 +338,18 @@ module CurrentScope
         subject: CurrentScope::Current.user, permission: permission
       )
 
+      # Says only what the predicate proves. scoped_grant_exists? has no resource
+      # filter — it can't have one, the missing record IS the bug — so it
+      # establishes that a matching scoped grant exists on SOME record, not that
+      # it would have applied to whichever record this action meant. Claiming
+      # "would satisfy it" overstates that, and a diagnostic that overstates is
+      # how a diagnostic starts being ignored. (#61 review, qodo)
       Rails.logger&.warn(
-        "[CurrentScope] denied \"#{permission}\" (no_grant), but this subject holds a scoped " \
-        "grant that would satisfy it — and #{controller_path} declares no current_scope_record, " \
-        "so the gate had no record to apply it to. If this is a member action, declare the hook " \
-        "(`def current_scope_record = set_thing`); if the controller is collection-only, " \
+        "[CurrentScope] denied \"#{permission}\" (no_grant) — this subject holds a scoped grant " \
+        "for it on some record, and #{controller_path} declares no current_scope_record, so the " \
+        "gate had no record to match it against. If this is a member action, declare the hook " \
+        "(`def current_scope_record = set_thing`) — if the subject holds the grant on the record " \
+        "in question, that fixes this. If the controller is collection-only, " \
         "`def current_scope_record = nil` says so and lets scoped grants through."
       )
     end

@@ -60,6 +60,14 @@ module  CurrentScope
       @catalog = nil
     end
 
+    # The cross-controller nudge warns once per site (see below). That latch is
+    # per-process, so it must be clearable: a leaked one silently disarms the
+    # warning for every later test and makes the suite order-dependent. Also
+    # cleared on engine to_prepare, since a reload can change what's routed.
+    def reset_cross_controller_warnings!
+      @cross_controller_warned = nil
+    end
+
     # Models that opted into the scoped-role picker via CurrentScope::Scopeable.
     # Stored as class-name strings and resolved lazily so dev-mode reloading
     # never pins a stale constant. Rebuilt from scratch on every engine
@@ -159,36 +167,59 @@ module  CurrentScope
 
     private
 
-    # The documented namespaced/custom-named controller foot-gun (#41): the
-    # short form derived a DIFFERENT key than the gate for this action enforces,
-    # so the view and the gate now disagree — a link that 403s, or a hidden one
-    # that would have worked. Silent, and the symptom appears nowhere near the
-    # cause.
+    # The documented namespaced/custom-named controller foot-gun (#41): the short
+    # form derived a DIFFERENT key than the gate on this controller enforces, so a
+    # view can show a link that 403s (or hide one that works). Silent, and the
+    # symptom appears nowhere near the cause.
     #
-    # The catalog check is what separates the foot-gun from the ordinary case.
-    # A cross-resource check (`allowed_to?(:show, report)` from a projects view)
-    # SHOULD derive reports#show — that's correct and common, and warning about
-    # it would make this noise. It's only a divergence when the current
-    # controller genuinely gates this action itself, i.e. "{controller_path}#
-    # {action}" is a real catalog entry — then two different answers exist for
-    # one question and the caller is silently getting the one the gate doesn't use.
+    # THIS SIGNAL IS AMBIGUOUS AND CANNOT BE MADE PRECISE. Two callers produce
+    # byte-identical inputs here:
     #
-    # ponytail: derivation is on a hot path (every view helper call), so the
-    # config flag is checked FIRST — with it off this costs one boolean, and the
-    # catalog is never touched.
+    #   DashboardController renders Reports; allowed_to?(:show, report) is meant
+    #     to mirror THIS controller's gate (dashboard#show)   -> foot-gun.
+    #   DocumentsController lists documents with links to reports;
+    #     allowed_to?(:show, report) genuinely means reports#show -> correct.
+    #
+    # Both have a controller path that doesn't end in the record's route_key, and
+    # both route "{controller_path}##{action}". Nothing at the call site
+    # distinguishes intent. An earlier draft treated the catalog hit as proof of
+    # the foot-gun and warned "they disagree" — which is a false positive on every
+    # row of the second case. (#59/#61 review, cubic)
+    #
+    # So: warn ONCE per (controller_path, action, route_key), and say plainly that
+    # either reading may be right. One line per distinct site is a hint; one line
+    # per row is noise people learn to filter — and a diagnostic that cries wolf is
+    # worse than none, which is the whole thesis of this PR.
+    #
+    # ponytail: derivation is a hot path (every view helper call), so the flag is
+    # checked FIRST — off costs one boolean and never touches the catalog.
     def warn_on_cross_controller_derivation(action, route_key, controller_path)
       return unless config.warn_on_cross_controller_derivation
-      return if controller_path.blank?
+      return if controller_path.nil? || controller_path.empty?
+      # A "log-only" diagnostic that raises isn't log-only. catalog reads
+      # Rails.application.routes, so a host that forces the flag on outside a
+      # booted Rails must get silence, not a NameError out of key derivation.
+      # (#61 review, qodo)
+      return unless defined?(Rails) && Rails.respond_to?(:application) && Rails.application
 
       gate_key = "#{controller_path}##{action}"
       return unless catalog.include?(gate_key)
+      return unless cross_controller_warning_unseen?(gate_key, route_key)
 
       Rails.logger&.warn(
-        "[CurrentScope] allowed_to?(#{action.to_sym.inspect}, <#{route_key.singularize.camelize}>) " \
-        "derived \"#{route_key}##{action}\", but the gate on #{controller_path} enforces " \
-        "\"#{gate_key}\" — they disagree, so this check can show a link that 403s (or hide one " \
-        "that works). Pass the explicit key: allowed_to?(\"#{gate_key}\")."
+        "[CurrentScope] allowed_to?(#{action.to_sym.inspect}, <#{route_key.singularize.camelize}>) on " \
+        "#{controller_path} derived \"#{route_key}##{action}\", but the gate here enforces " \
+        "\"#{gate_key}\". If you meant this controller's own gate, they disagree — pass the explicit " \
+        "key: allowed_to?(\"#{gate_key}\"). If you're asking about a different resource than this " \
+        "controller handles, the derived key is correct and this is expected. Warned once per site."
       )
+    end
+
+    # ponytail: a plain Set, not a Mutex — worst case under a race is one extra
+    # line, and a flood is the thing being prevented. Dev/test only by default.
+    def cross_controller_warning_unseen?(gate_key, route_key)
+      @cross_controller_warned ||= Set.new
+      @cross_controller_warned.add?("#{gate_key}|#{route_key}") ? true : false
     end
 
     # A2: the boundary events are the one place a host declares it is actually

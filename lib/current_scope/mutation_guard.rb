@@ -55,7 +55,7 @@ module CurrentScope
     def current_scope_denied(exception = nil)
       reason = exception.respond_to?(:reason) ? exception.reason : nil
       response.headers["X-Current-Scope-Reason"] = reason.to_s if reason
-      render_access_denied
+      current_scope_render_denied(reason)
     end
 
     # How a denial renders — the one part a controller may vary. Default: a
@@ -64,7 +64,16 @@ module CurrentScope
     # a body here would push an engine-shaped response into an app that never
     # asked for one, with no layout or view to render it in. The engine's own
     # controller overrides this to explain itself; nothing else should.
-    def render_access_denied
+    #
+    # `current_scope_`-prefixed like every other method this concern mixes into
+    # a host controller (current_scope_check!, current_scope_denied,
+    # current_scope_mutation_guard!, current_scope_record). A bare
+    # `render_access_denied` is a name a host app could plausibly already have,
+    # and we would silently call theirs.
+    #
+    # Takes the reason: an overrider that renders a body needs to know WHICH
+    # denial it is answering, or it will explain the wrong one.
+    def current_scope_render_denied(_reason = nil)
       head :forbidden
     end
   end

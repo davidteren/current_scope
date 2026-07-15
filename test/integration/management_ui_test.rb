@@ -48,6 +48,16 @@ class ManagementUiTest < ActionDispatch::IntegrationTest
     assert_not_empty response.body
   end
 
+  # The explanation page answers ONE question, so it must only be shown to
+  # someone asking it. A non-HTML client asked for something else entirely.
+  test "a non-HTML request gets the bodyless 403, not an HTML body" do
+    get current_scope.roles_url, headers: as(@member).merge("Accept" => "application/json")
+
+    assert_response :forbidden
+    assert_equal "not_full_access", response.headers["X-Current-Scope-Reason"], "the reason is the signal here"
+    assert_empty response.body, "an HTML page under a content type nobody asked for is not an answer"
+  end
+
   # R1: presentation changed, not the gate. Every engine surface stays closed to
   # exactly who it closed to before.
   test "who is denied does not change" do

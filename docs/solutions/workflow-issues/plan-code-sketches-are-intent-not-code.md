@@ -1,5 +1,5 @@
 ---
-title: "A plan's code sketch is intent to verify, not code to paste"
+title: "A plan is intent to verify, not instructions to follow"
 module: docs/plans
 date: 2026-07-15
 problem_type: workflow_issue
@@ -8,11 +8,15 @@ severity: high
 applies_when:
   - "Implementing any plan in docs/plans/ (artifact_contract: ce-unified-plan/v1)"
   - "A plan's Key Technical Decisions section carries a directional code sketch"
+  - "A plan defers to another issue, or to another plan, for part of its correctness"
+  - "Implementing a plan drafted before other plans in the same batch merged"
   - "A plan's instruction contradicts its own reasoning, or reuses a helper without stating what makes that safe"
-  - "Working any of the 25 unimplemented plans from the 2026-07-15 drafting pass"
+  - "Implementing any of the plans from the 2026-07-15 drafting pass that remain open"
   - "Reviewing a PR that implements a plan on a security-sensitive path"
 symptoms:
   - "Green test suite; implementation review still catches privilege escalations"
+  - "A plan asserts implementation-ready and its premises have since expired"
+  - "A plan defers work to an issue that is open, whose plan never scopes that work"
   - "Shipped code follows the plan faithfully and is still wrong"
   - "A duck-type negation admits an open set where a closed set was meant"
   - "A sketch keys an identifier off one thing while the component reading it keys off another"
@@ -25,6 +29,8 @@ related_components:
   - "lib/current_scope/permission_catalog.rb"
 tags:
   - planning
+  - plan-staleness
+  - plan-coupling
   - code-sketch
   - ce-unified-plan
   - implementation-review
@@ -36,14 +42,16 @@ related_issues:
   - "#20 (closed, PR #52) — plan 002: bare literal sketches, no directional hedge"
   - "#21 (closed, PR #53) — plan 003: KTD-2 controller-path keying"
   - "#50 (open) — the residual this class of drift left behind"
-  - "#22-#46 (open) — the 25 plans this learning is addressed to"
+  - "#24-#46 (open at time of writing) — the plans this learning is addressed to"
 ---
 
 ## Context
 
 `docs/plans/` holds 31 plans, all carrying `artifact_contract: ce-unified-plan/v1`; 28 of them (`2026-07-15-001` … `-028`) were drafted in a single pass and landed together in PR #47 (`80180da`, merged 2026-07-15 07:38 UTC). Each plan states its reasoning as prose in a **Key Technical Decisions** section, and most also carry a Ruby **code sketch** in an Implementation Unit — explicitly labelled directional ("Directionally:" in `2026-07-15-003-fix-bypass-sod-ungrantable-plan.md:78`).
 
-Three have since been implemented: plan 001 → issue #19 → PR #49, plan 002 → #20 → PR #52, plan 003 → #21 → PR #53. All three are `MERGED` on `main` (`51faf40`, `2538e22`, `e2c1e79`). **25 of the 28 remain unimplemented.** The current branch is `fix/subject-label-error-isolation` — plan 004, implemented and unmerged.
+Five have since been implemented and merged: plan 001 → issue #19 → PR #49, plan 002 → #20 → PR #52, plan 003 → #21 → PR #53, plan 004 → #22 → PR #54, plan 005 → #23 → PR #55. The rest of the batch (issues #24-#46) was open when this was written.
+
+> **Counts here are a snapshot, and they were already wrong once.** The first draft of this document said "25 of the 28 remain" and listed `#22-#46` as open. Both were false *at the moment it was committed* — #22 had merged 57 minutes earlier and #23 twenty-three minutes earlier. The document about plans going stale went stale inside its own drafting window, and shipped that way into the PR that introduced it. That is not an embarrassing aside; it is the second half of the learning, and it has its own section below. Trust the issue tracker over any number written here.
 
 Implementing those three surfaced a repeating failure mode: **an instruction in the plan was wrong, and it was the instruction — not the reasoning around it — that got implemented.** The defects were not caught by the test suite. They were caught by review, and two of them were privilege escalations.
 
@@ -263,4 +271,60 @@ end
 
 Pinned by `test/permission_catalog_test.rb:163-168`, *"a namespaced SoD controller injects the record's key, not its own path"*.
 
-**Actionable for whoever picks up the remaining 25:** plan 003's U1 sketch at line 80 still contradicts both its own KTD-2 prose and the code that shipped in PR #53. Unlike plan 001, it was never folded back. Assume the other 25 plans are in the same state — drafted in the same pass, reviewed as prose, sketches unverified against a tree that has since moved under them by three merged PRs.
+**Actionable for whoever picks up the rest:** plan 003's U1 sketch at line 80 contradicted both its own KTD-2 prose and the code that shipped in PR #53, and was never folded back until PR #56 did it. Assume the other plans are in the same state — drafted in one pass, reviewed as prose, instructions unverified against a tree that has since moved under them by five merged PRs.
+
+That last clause is the hinge, and it earns the section that follows: a plan can also be **right when written and wrong by the time you read it**. That is a different defect with a different check, and the sketch checks above will not find it.
+
+---
+
+## The other half: a plan can be right when written and wrong when you read it
+
+Everything above is about an instruction that was **wrong when written**. There is a second defect with the same symptom and a different cause: an instruction that was **correct when written**, and expired.
+
+Both fire at the same instant, for the same reader, on the same task — *"I am about to implement a plan from `docs/plans/`."* They are one checklist, not two. (Two partial checklists at one moment is the failure this document's own guardrail section warns about.)
+
+### The trigger case: plan 006 dated its own expiry, and nothing ran it
+
+Plan 006 (issue #24) documents what a denial renders. It was accurate the morning it was written. By the afternoon, four of its statements were false:
+
+| Plan 006 says | Reality after PR #55 |
+|---|---|
+| "the three denial reason codes" | four — `:not_full_access` was added |
+| a denial "renders an empty body" | true for host denials; the engine's UI now renders a page |
+| `current_scope_denied` is "deliberately left unchanged" | it changed — it delegates to `current_scope_render_denied(reason)` |
+| defers the default's correctness to "#23/#39's job" | **#23 merged before plan 006 was picked up** |
+
+Shelf life under seven hours. No signal — the plan still asserts `artifact_readiness: implementation-ready`, as **all 31 plans in this repo do**, none of them with an expiry.
+
+The plan saw it coming and could not act. Its own Open Questions flag the reason-code set as *"Assumed complete as of 2026-07-15"* and name the exact invalidating event — *"if the resolver adds reasons"*. The resolver added one that day. Its coupling section says that if #23 changes the default, *"revise this section as part of that plan."* #23 did. It didn't.
+
+**A plan cannot enforce its own coupling.** Writing "revise me" into a document does nothing; the revision has to be someone's job at the moment the invalidating change lands, or it doesn't happen.
+
+### Four ways a plan rots
+
+1. **Superseded premise** — it defers to an issue that has since merged, and merged differently than assumed. *(Plan 006 → #23.)*
+2. **Drifted citation** — `file:line` references and counts, true at drafting. *(Plan 016: "`docs/plans/` (16 plan files)" against a real 31, and a "580-line README" that is 684.)*
+3. **Unreconciled correction** — the code was fixed in review and the plan that produced the defect still says the old thing. *(Plan 003's sketch, until PR #56.)*
+4. **Orphaned deferral** — it defers work to another plan that never scoped it. *(Plan 015 defers a README fix to "#25, which owns README edits"; plan 007 is #25's plan, edits the README extensively, and never mentions it.)*
+
+Mode 4 needs **no tree movement at all** — it was wrong on the day it was written, and no amount of waiting reveals it.
+
+### The check
+
+Before implementing, diff the world against the plan's stated assumptions. Minutes of work, and it is what caught plan 006 before a word of it was written:
+
+- **Is every issue it defers to still open?** `gh issue view <n> --json state`. A closed one means the premise resolved — and may have resolved differently than assumed.
+- **If the target issue is open, does the target plan actually scope the work?** Grep it. *This is the one the obvious check misses:* plan 015 defers to #25, #25 is open, so "is it still open?" returns a **false green**. The question is not whether the issue exists, it is whether anyone is doing the thing.
+- **Do its citations still resolve?** Line numbers and counts drift silently and are cheap to spot-check.
+- **Has anything it calls "unchanged" changed?** That phrase is a claim about code the plan does not own.
+
+### Why this is not an argument for planning less
+
+28 plans drafted at once is 28 snapshots of a single moment. The first merge invalidates premises in the other 27 — **that is arithmetic, not sloppiness**, and it gets worse the more of them are in flight at a time. Fifteen of the plans that remained after five merges referenced issues that had since closed.
+
+The fix is not fewer plans. It is to read a plan's assumptions as **claims with expiry dates** rather than as settled fact, and to check them at implementation time — the same way this document says to re-derive its instructions rather than paste them. Same moment, same reader, same reflex.
+
+**Two corollaries worth keeping:**
+
+- **Cite plans by number, not path.** Plan 016 proposes moving `docs/plans/` to `docs/internal/plans/`, and enumerates only the README and STATUS.md as referencing it — an enumeration that was already false when written. A number survives the move; a path does not.
+- **A plan claiming `implementation-ready` is claiming it was ready once.** Nothing re-checks it. Treat the field as provenance, not as a warranty.

@@ -1,0 +1,45 @@
+lib/current_scope/guard.rb
+  s_4d1327efb21c21::t_da1c1fd4e8c592 311-349
+  s_4d1327efb21c21::t_5c1a94576eac1d 107,117,122-123
+lib/current_scope/configuration.rb
+  s_4d1327efb21c21::t_e5069624118121 243-245
+  s_4d1327efb21c21::t_f4c49ee13c1c23 128-149,152-168
+  s_4d1327efb21c21::t_d88cd2f4a3ebd2 307-317
+  s_4d1327efb21c21::t_7ee8f065ab9ae5 169
+test/integration/dev_diagnostics_test.rb
+  s_4d1327efb21c21::t_f0609d91ab0b7a 150-214
+  s_4d1327efb21c21::t_2c1c2782d26a20 1-149,215-337
+lib/current_scope/resolver.rb
+  s_4d1327efb21c21::t_855c33189ae70e 130-152
+lib/current_scope.rb
+  s_4d1327efb21c21::t_bea9d97e673010 115
+  s_4d1327efb21c21::t_ec9557af35c2d1 125,162-193
+README.md
+  s_4d1327efb21c21::t_81a297ee972bc7 380-383
+  s_4d1327efb21c21::t_c402d7868648ee 497-524
+CHANGELOG.md
+  s_4d1327efb21c21::t_f5fb4a8c390047 9,52-80
+lib/generators/current_scope/install/templates/initializer.rb
+  s_4d1327efb21c21::t_ec3a2699ead05b 92-119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "af88c7f70a943a828173089eea792e6e1b2eef51",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -7,6 +7,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- **The management UI's 403 now says why.** Opening the console without a
+  full-access role returned a bare, bodyless `403` with no
+  `X-Current-Scope-Reason` — the one denial in the gem that sat outside the
+  `AccessDenied` machinery, because `require_full_access!` rendered its own
+  `head :forbidden` instead of raising. "Why can't I open the management UI?" is
+  the first question an admin asks, and the answer was a blank page. It now
+  raises like every other denial, so it carries `X-Current-Scope-Reason:
+  not_full_access` and renders a short page explaining that the console is where
+  permissions are granted and therefore only full-access subjects enter. (#23)
+
+  **Who is denied has not changed** — the `full_access?` check is byte-for-byte
+  what it was. Only the shape of the refusal changed.
+
+  **Host denials are untouched:** a denial raised through `Guard` /
+  `MutationGuard` is still a bodyless `head :forbidden`. The rendered page is
+  the engine UI's alone — the shared denial path runs inside *your* controllers,
+  and pushing an engine-shaped body into an app's own response contract (with no
+  layout or view to render it in) would be a surprise nobody asked for. The
+  reason header is written in exactly one place, so no denial can forget it.
+
+- `AccessDenied#reason` gained `:not_full_access`, and the vocabulary
+  (`:sod_veto`, `:no_grant`, `:impersonation_gate`, `:not_full_access`) is now
+  documented in the README rather than only in a code comment.
 - **The break-glass `bypass_sod` permission is now grantable through the role
   grid**, as the README and `configuration.rb` have always claimed. It isn't a
   routable action, so a route-derived catalog could never contain it: no cell

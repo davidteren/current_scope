@@ -20,6 +20,56 @@ class ManagementUiTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  # The engine's front door was the one denial in the gem with no reason header
+  # and a 0-byte body — it rendered its own `head :forbidden` instead of routing
+  # through the shared AccessDenied path every other denial uses. "Why can't I
+  # open the management UI?" is the first question an admin asks, and the answer
+  # was nothing at all. (#23)
+  test "the engine 403 carries the reason header, like every other denial" do
+    get current_scope.roles_url, headers: as(@member)
+
+    assert_response :forbidden
+    assert_equal "not_full_access", response.headers["X-Current-Scope-Reason"]
+  end
+
+  test "the engine 403 says why, rather than returning a blank page" do
+    get current_scope.roles_url, headers: as(@member)
+
+    assert_response :forbidden
+    assert_not_empty response.body, "a bodyless 403 tells the admin nothing"
+    assert_match(/full-access/i, response.body)
+  end
+
+  test "an anonymous request to the engine gets the same reason and page" do
+    get current_scope.roles_url
+
+    assert_response :forbidden
+    assert_equal "not_full_access", response.headers["X-Current-Scope-Reason"]
+    assert_not_empty response.body
+  end
+
+  # The explanation page answers ONE question, so it must only be shown to
+  # someone asking it. A non-HTML client asked for something else entirely.
+  test "a non-HTML request gets the bodyless 403, not an HTML body" do
+    get current_scope.roles_url, headers: as(@member).merge("Accept" => "application/json")
+
+    assert_response :forbidden
+    assert_equal "not_full_access", response.headers["X-Current-Scope-Reason"], "the reason is the signal here"
+    assert_empty response.body, "an HTML page under a content type nobody asked for is not an answer"
+  end
+
+  # R1: presentation changed, not the gate. Every engine surface stays closed to
+  # exactly who it closed to before.
+  test "who is denied does not change" do
+    [ current_scope.roles_url, current_scope.subjects_url, current_scope.events_url ].each do |url|
+      get url, headers: as(@member)
+      assert_response :forbidden, "#{url} must stay closed to a non-full-access subject"
+
+      get url, headers: as(@owner)
+      assert_response :success, "#{url} must stay open to a full-access subject"
+    end
+  end
+
   test "a full-access subject can view and edit roles" do
     get current_scope.roles_url, headers: as(@owner)
     assert_response :success

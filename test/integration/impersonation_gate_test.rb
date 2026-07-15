@@ -84,6 +84,14 @@ class ImpersonationGateTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
     assert_equal "impersonation_gate", response.headers["X-Current-Scope-Reason"]
     assert_empty member_role.reload.permission_keys
+
+    # The engine renders an explanation page for its OWN denial (#23), and this
+    # is not it. This subject HAS full access — they are refused for being
+    # impersonated. Telling them to get a full-access role would be a
+    # confidently wrong answer, which is worse than saying nothing.
+    assert_no_match(/full-access role/, response.body,
+      "the impersonation gate must not borrow the full-access explanation")
+    assert_empty response.body, "a reason this page doesn't answer falls back to the bodyless 403"
   end
 
   test "the management UI is still viewable while impersonating (read-only)" do

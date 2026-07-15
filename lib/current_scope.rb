@@ -14,7 +14,17 @@ require "current_scope/engine"
 module  CurrentScope
   # Raised when the resolver denies an action gated by Guard (or when the
   # management UI is accessed without a full-access role). Carries an optional
-  # machine-readable reason (:sod_veto, :no_grant, :impersonation_gate).
+  # machine-readable reason, surfaced on the response as X-Current-Scope-Reason
+  # by current_scope_denied:
+  #
+  #   :sod_veto           — the record's initiator can't perform an SoD action on it
+  #   :no_grant           — nothing granted the permission (the default deny)
+  #   :impersonation_gate — a mutation while impersonating, which is read-only
+  #   :not_full_access    — the engine's management UI, which only full_access enters
+  #
+  # Every denial in the gem raises this and lands in current_scope_denied, so a
+  # denial cannot exist that forgets its reason. (:sod_bypassed is the one
+  # audited ALLOW, so it is set by the Guard rather than raised here.)
   class AccessDenied < StandardError
     attr_reader :reason
 

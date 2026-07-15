@@ -38,6 +38,27 @@ class GuardTest < ActionDispatch::IntegrationTest
     assert_equal "no_grant", response.headers["X-Current-Scope-Reason"]
   end
 
+  # A HOST denial stays a bodyless head :forbidden. The engine renders an
+  # explanation page for its own front door (#23), and that must not leak into
+  # the shared denial path — a host app would suddenly emit an engine-styled
+  # body into its own response contract, with no layout or view guarantee.
+  test "a host denial has no body — the engine's explanation page is engine-only" do
+    assign(@alice, role("Member", "reports#show"))
+
+    get reports_url, headers: sign_in(@alice)
+    assert_response :forbidden
+    assert_empty response.body, "the host's denial contract must not change"
+  end
+
+  test "a host SoD veto also stays bodyless" do
+    assign(@bob, role("Owner", full_access: true))
+
+    post approve_report_url(@report), headers: sign_in(@bob)
+    assert_response :forbidden
+    assert_equal "sod_veto", response.headers["X-Current-Scope-Reason"]
+    assert_empty response.body
+  end
+
   test "granting the controller action opens the gate" do
     assign(@alice, role("Member", "reports#index"))
     get reports_url, headers: sign_in(@alice)

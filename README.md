@@ -574,9 +574,22 @@ class ImpersonationsController < ApplicationController
 end
 ```
 
-Denials carry a machine-readable reason (`:sod_veto`, `:no_grant`,
-`:impersonation_gate`) on `AccessDenied#reason`, surfaced on the response as the
-`X-Current-Scope-Reason` header.
+Denials carry a machine-readable reason on `AccessDenied#reason`, surfaced on
+the response as the `X-Current-Scope-Reason` header:
+
+| Reason | Means |
+|---|---|
+| `sod_veto` | the record's initiator can't perform a separation-of-duties action on it |
+| `no_grant` | nothing granted the permission — the default deny |
+| `impersonation_gate` | a mutation while impersonating, which is read-only |
+| `not_full_access` | the management UI, which only full-access subjects enter |
+
+Every denial routes through one method, so a refusal can't reach a client
+without its reason. A **host** denial is a bodyless `403` — the reason header is
+the signal, and the gem won't render into your app's response contract. The
+engine's own management UI is the exception: it renders a short page saying a
+full-access role is required, because the person reading that one is an admin
+looking at a browser.
 
 **View/gate disagreement is by design.** `allowed_to?` is HTTP-ignorant: it
 still returns `true` for a permission the subject genuinely holds, even though

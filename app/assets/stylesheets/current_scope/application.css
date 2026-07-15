@@ -357,6 +357,17 @@ a:hover { color: var(--cs-accent-strong); }
   box-shadow: var(--cs-shadow);
 }
 .cs-card:not(.cs-card--flush) > * { padding-inline: 1.125rem; }
+
+/* The engine's front-door 403 — rendered standalone, without the console shell
+   (a sidebar of links this subject can't open would read as "you're in" and
+   then refuse every click). Only the centring is new; the surface, type and
+   theme tokens come from .cs-card and the base rules above. */
+.cs-denied {
+  max-width: 46rem;
+  margin: 12vh auto 0;
+  padding-block: 1.5rem;
+}
+.cs-denied p { margin: 0 0 0.75rem; max-width: 68ch; }
 /* Flush cards hold data tables. Let them scroll horizontally inside the card so
    a wide table never overflows the page. On a wide screen the table fills the
    card (base width:100%) and scoped-role chips wrap in their own cell — all

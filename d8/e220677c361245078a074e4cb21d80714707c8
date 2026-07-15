@@ -1,0 +1,19 @@
+docs/solutions/workflow-issues/plan-code-sketches-are-intent-not-code.md
+  s_4d1327efb21c21::t_e3207f2840f14d 15,30,46,303,312-313
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "d8e220677c361245078a074e4cb21d80714707c8",
+  "prompts": {},
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

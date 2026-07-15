@@ -1,0 +1,20 @@
+docs/plans/2026-07-15-029-feat-thread-collection-model-plan.md
+  s_4d1327efb21c21::t_0f28cc342007f0 1-160,162-176,178-311
+  s_4d1327efb21c21::t_e8681aa867c4b7 161,177,312-365
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "fc6a06b33b20a945d19d1e5991077e44aed00f34",
+  "prompts": {},
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

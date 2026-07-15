@@ -126,10 +126,19 @@ class ScopeForTest < ActiveSupport::TestCase
   end
 
   # The record-less companion to the matrix above: the gate decides whether the
-  # subject reaches the list at all, scope_for decides what is in it. They must
-  # agree on the record-less target too — anyone scope_for gives rows to can
-  # open the list, and anyone it gives nothing to cannot.
-  test "gate/list agreement: a record-less check and scope_for never disagree" do
+  # subject reaches the list at all, scope_for decides what is in it. Within a
+  # resource type they agree — anyone scope_for gives rows to can open the list,
+  # and anyone it gives nothing to cannot.
+  #
+  # Not a biconditional ACROSS types: the record-less gate matches on subject +
+  # role, while scope_for also filters resource_type. A subject scoped on a
+  # Report under a bundled role that also ticks projects#index therefore passes
+  # the projects#index gate and gets an empty list. Fail-closed on the data, so
+  # a confusing surface rather than a hole — the resolver has no model to filter
+  # on for the nil target ("projects#index" is a controller key, not a model
+  # name), so closing it needs the Guard to pass the controller's model. Tracked
+  # with OQ-2 rather than papered over here.
+  test "gate/list agreement: a record-less check and scope_for agree within a type" do
     scoped = User.create!(name: "Scoped")
     scope_grant(scoped, role("Editor", KEY), @p1)
 

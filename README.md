@@ -198,6 +198,12 @@ grant means "see everything", so `scope_for` would return `Project.all`). The
 same holds for the class form, `allowed_to?(:index, Project)`, so a view helper
 and the gate never disagree.
 
+The rule is uniform across record-less actions, not special-cased to `#index`:
+a scoped role that ticks `create` or a bulk key opens *those* collection gates
+too, exactly as an org-wide grant of the same key already does. Tick a
+collection key on a scoped role only when you mean it — there is no record
+filter on `create`.
+
 It returns a chainable `ActiveRecord::Relation`, so `.where`/`.order`/`.page`
 compose normally. `permission:` defaults to the model's `index` key and accepts
 a bare action or a full key (`scope_for(Report, permission: :approve)`).

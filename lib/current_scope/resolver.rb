@@ -200,6 +200,15 @@ module CurrentScope
     # by gating a collection action with Model.new instead of the documented nil,
     # and it fails CLOSED (a 403 the host sees immediately), which is the safe
     # direction to be wrong in.
+    #
+    # Deliberately NOT memoized, unlike org_role. The memo there caches one
+    # lookup keyed by subject, invalidated by RoleAssignment writes alone. This
+    # predicate's answer derives from three tables (scoped assignments, roles,
+    # role permissions), so a memo would need invalidation hooks on all three —
+    # and a stale entry here is a stale ALLOW. Only record-less checks by
+    # scoped-only subjects reach this line (org and full_access short-circuit
+    # above), so the cost is a query on a handful of nav-level checks per page,
+    # not the per-row gate. Revisit if that ever shows up in a profile.
     def record_less_scoped_grant?(subject:, permission:, record:)
       return false unless record.nil? || record.is_a?(Class)
 

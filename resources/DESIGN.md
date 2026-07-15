@@ -145,6 +145,14 @@ against. There, any scoped grant whose role ticks the key opens the gate, and
 (which would mean *see everything*). It never widens a decision on an actual
 record: Project #8 is still denied.
 
+This is uniform across record-less actions rather than special-cased to
+`#index`: a scoped role ticking `create` or a bulk key opens those gates too,
+as an org-wide grant of that key already does. The role author's ticks are the
+control — a record-less action has no record to filter on either way. The
+target shape is a closed set (`nil` or a `Class`); anything else is not
+record-less and is denied, so a hook that returns something other than a record
+fails closed.
+
 **Assigning a scoped role NEVER changes the subject's org-wide role.** The two
 are independent axes: one org-wide role (broad, coarse) + N scoped roles
 (narrow, per-record).

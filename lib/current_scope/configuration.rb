@@ -69,6 +69,15 @@ module CurrentScope
     #   - a Proc   — subject -> String, e.g. ->(u) { "#{u.first_name} #{u.last_name}" }
     #   - nil (default) — best-effort, people-first: email, else name, else
     #     first+last, else the generic current_scope_label / "Class #id".
+    #
+    # A Proc should be TOTAL — it runs for every subject the admin can see,
+    # including ones with nil or blank attributes, so `->(u) { u.email.upcase }`
+    # is a trap the first time someone is invited but hasn't filled in an email.
+    # Nothing here is load-bearing enough to break a page over, so a label that
+    # raises (or a Symbol the subject can't answer) degrades to the default chain
+    # for that subject and logs once — it never errors the page and never affects
+    # an authorization decision. If subject labels look wrong, check the log:
+    # a silent fallback is exactly what a broken label looks like from the UI.
     attr_accessor :subject_label
 
     # Break-glass override for the SoD veto. Default false — OFF preserves v0.1

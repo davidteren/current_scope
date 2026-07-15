@@ -36,13 +36,27 @@ module CurrentScope
     end
 
     # The configured subject_label (Symbol or Proc) applied to a subject, or nil
-    # when unset or when it resolves to a blank value.
+    # when unset, when it resolves to a blank value, or when it fails.
+    #
+    # subject_label is arbitrary host code running once per row on the admin's
+    # main tool for granting and reviewing roles. One subject with incomplete
+    # data (a Proc doing `u.email.upcase` on a subject whose email is nil) must
+    # not take the whole page down — the same intent the holder-label helpers
+    # below already encode for stale polymorphic types. A failure here costs one
+    # label; a raise costs the page.
     def configured_subject_label(subject)
       label = CurrentScope.config.subject_label
+      return if label.nil?
+
       if label.respond_to?(:call)
-        label.call(subject).to_s.presence
-      elsif label && subject.respond_to?(label)
-        subject.public_send(label).to_s.presence
+        resolve_subject_label(label) { label.call(subject) }
+      elsif subject.respond_to?(label)
+        resolve_subject_label(label) { subject.public_send(label) }
+      else
+        # Not a mistake we can render around: this config does nothing for EVERY
+        # subject, silently, which is why it needs saying out loud once.
+        CurrentScope::ApplicationHelper.warn_unknown_subject_label_once(label)
+        nil
       end
     end
 
@@ -67,6 +81,65 @@ module CurrentScope
     def current_scope_gid_label(gid)
       record = GlobalID::Locator.locate(gid)
       record ? current_scope_label(record) : gid
+    end
+
+    private
+
+    # ponytail: display fallback only — NEVER a decision path. This rescue makes
+    # a label degrade instead of erroring; the resolver, Guard and catalog are
+    # untouched, so it relaxes no fail-closed guarantee. (The same `rescue
+    # StandardError` on a decision path would be a fail-open bug.)
+    #
+    # StandardError rather than the NameError family the holder helpers catch:
+    # those wrap OUR call into a known-shaped record, while this runs a host's
+    # arbitrary Proc, which can raise anything. Catching only NameError would
+    # fix the reported NoMethodError and leave the same page-down bug for a
+    # differently-broken Proc.
+    #
+    # nil rejoins the existing "resolved blank -> default chain" path in
+    # current_scope_subject_label, so no caller learns a new branch.
+    def resolve_subject_label(label)
+      yield.to_s.presence
+    rescue StandardError => e
+      CurrentScope::ApplicationHelper.warn_subject_label_raised_once(label, e)
+      nil
+    end
+
+    class << self
+      # Warn ONCE per (reason, label): a misconfigured subject_label is the same
+      # mistake on every row, so one line is a signal and one-per-subject is
+      # noise the admin will scroll past. Keyed by the label value, so changing
+      # the config in dev warns again for the new value.
+      #
+      # Always-on rather than behind a warn_on_* flag (cf. warn_on_nil_sod_record,
+      # which defaults off because a nil record is often legitimate): a label the
+      # subject can't answer, or one that raises, is unambiguously a mistake.
+      # Mirrors Event.warn_missing_events_table_once.
+      def warn_unknown_subject_label_once(label)
+        return unless new_subject_label_warning?(:unknown, label)
+
+        Rails.logger&.warn(
+          "[CurrentScope] config.subject_label is #{label.inspect}, but subjects do not respond to " \
+          "it — every subject is falling back to the default label, so this config currently does " \
+          "nothing. Set it to a method the subject responds to (e.g. :email), a Proc, or nil."
+        )
+      end
+
+      def warn_subject_label_raised_once(label, error)
+        return unless new_subject_label_warning?(:raised, label)
+
+        Rails.logger&.warn(
+          "[CurrentScope] config.subject_label raised #{error.class}: #{error.message} — that " \
+          "subject fell back to the default label rather than erroring the page. A subject_label " \
+          "must be total: it runs for every subject, including ones with nil or blank attributes."
+        )
+      end
+
+      private
+
+      def new_subject_label_warning?(reason, label)
+        (@subject_label_warnings ||= Set.new).add?([ reason, label ])
+      end
     end
   end
 end

@@ -27,12 +27,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   changed; the permission was always checked correctly, it just couldn't be
   granted.
 
-  Known limit: injection keys off the *controller* that routes the SoD action,
-  while the resolver keys the bypass off the *record's* `route_key`. For a
-  conventional resource controller these are the same. For a controller named
-  differently from the records it acts on (an `approvals` controller approving
-  `Invoice`s), the injected cell is inert and the live key is still not
-  grantable. Tracked in the issue's OQ-2.
+  The key is named after the **resource**, not the controller path, because that
+  is what the resolver looks up (it derives the bypass key from the record's
+  `route_key`). So `Admin::ReportsController#approve` contributes
+  `reports#bypass_sod` — the key that actually works — and a namespace-only
+  resource shows its bypass cell on a `reports` row that no controller routes.
+
+  Known limit: a controller named differently from the records it acts on (an
+  `approvals` controller approving `Invoice`s) still contributes an inert
+  `approvals#bypass_sod` while the live `invoices#bypass_sod` is not injected.
+  Closing that needs to know the SoD-gated model, which the catalog
+  deliberately does not load. Tracked in the issue's OQ-2.
+
+  `config.allow_sod_bypass = true` with a blank `config.sod_bypass_permission`
+  now raises `ConfigurationError` rather than injecting a malformed key: a
+  permission nobody can hold means break-glass is inert while the host believes
+  it is armed.
 
 ### Changed
 - **`Role#permission_keys=` now rejects unknown keys loudly instead of dropping

@@ -116,13 +116,34 @@ class PermissionCatalogBypassTest < ActiveSupport::TestCase
     assert_empty cat.keys.grep(/#.*#/), "no double-# key may be produced"
   end
 
-  test "an excluded controller gets no bypass key" do
+  test "an excluded controller contributes no bypass key" do
+    original = CurrentScope.config.excluded_controllers
+    # Every controller that routes approve on Report — the plain one and the
+    # namespaced one — so the resource contributes nothing at all.
+    CurrentScope.config.excluded_controllers = original + [ /\Areports\z/, %r{\Aadmin/reports\z} ]
+    cat = catalog(allow: true)
+
+    assert_not cat.include?("reports#approve"), "precondition: reports is excluded"
+    assert_not cat.include?("admin/reports#approve"), "precondition: admin/reports is excluded"
+    assert_not cat.include?("reports#bypass_sod"), "exclusion is not a back door"
+  ensure
+    CurrentScope.config.excluded_controllers = original
+  end
+
+  # The bypass key is named after the RESOURCE, not the controller, so it
+  # survives as long as SOME non-excluded controller can perform the SoD action
+  # on it. Excluding the plain ReportsController (say it's an API you gate
+  # elsewhere) must not disable break-glass for reports approved through
+  # Admin::ReportsController — the veto still applies there, so it must remain
+  # liftable.
+  test "excluding one controller does not disable break-glass for a sibling's resource" do
     original = CurrentScope.config.excluded_controllers
     CurrentScope.config.excluded_controllers = original + [ /\Areports\z/ ]
     cat = catalog(allow: true)
 
-    assert_not cat.include?("reports#bypass_sod"), "exclusion is not a back door"
-    assert_not cat.include?("reports#approve"), "precondition: reports is excluded"
+    assert_not cat.include?("reports#approve"), "precondition: the plain controller is excluded"
+    assert_includes cat.keys, "admin/reports#approve", "but the namespaced one still gates approve"
+    assert cat.include?("reports#bypass_sod"), "so that veto must still be liftable"
   ensure
     CurrentScope.config.excluded_controllers = original
   end
@@ -131,6 +152,60 @@ class PermissionCatalogBypassTest < ActiveSupport::TestCase
     keys = catalog(allow: true).keys
 
     assert_equal keys.uniq.sort, keys
+  end
+
+  # The key must be the one the RESOLVER will ask for. It derives the bypass key
+  # from the record's route_key, never from the controller path — so for
+  # Admin::ReportsController (path "admin/reports", records are Reports) the live
+  # key is "reports#bypass_sod". Keying injection off the whole path would inject
+  # "admin/reports#bypass_sod": a cell that grants nothing, on the shape most
+  # real apps approve things in.
+  test "a namespaced SoD controller injects the record's key, not its own path" do
+    cat = catalog(allow: true)
+
+    assert_includes cat.keys, "admin/reports#approve", "precondition: the namespaced route is in the catalog"
+    assert_includes cat.keys, "reports#bypass_sod", "the resolver looks this up — it must exist"
+    assert_not cat.include?("admin/reports#bypass_sod"), "and this one would grant nothing"
+  end
+
+  test "the injected key matches what the resolver derives for the record" do
+    cat = catalog(allow: true)
+    report = Report.new(title: "x")
+
+    # The contract, asserted rather than assumed: the catalog and the resolver
+    # must name the same key, or the cell is decorative.
+    assert_includes cat.keys, CurrentScope.permission_key("bypass_sod", record: report)
+  end
+
+  test "two controllers on the same resource collapse to one bypass key" do
+    keys = catalog(allow: true).keys
+
+    # Both reports and admin/reports route approve.
+    assert_equal 1, keys.count("reports#bypass_sod")
+  end
+
+  # A blank action segment means the initiator must hold a permission nobody can
+  # hold — break-glass is inert while the host believes it is on. That is the
+  # undiagnosable deny this engine promises not to ship, so it raises.
+  test "a blank bypass permission raises rather than injecting a malformed key" do
+    [ nil, "", "reports#" ].each do |bad|
+      error = assert_raises(CurrentScope::ConfigurationError) do
+        catalog(allow: true, permission: bad).keys
+      end
+      assert_match "sod_bypass_permission", error.message
+    end
+  end
+
+  test "a malformed bypass permission never reaches the catalog as a key" do
+    # "reports#" splits to ["reports"] on a plain split, which would silently
+    # inject "reports#reports" — a grantable key for an action nobody routes.
+    assert_raises(CurrentScope::ConfigurationError) { catalog(allow: true, permission: "reports#").keys }
+  end
+
+  test "a blank bypass permission is harmless while break-glass is off" do
+    # Nothing is injected, so nothing is validated — a host that never turned
+    # the feature on must not be told about its config.
+    assert_nothing_raised { catalog(allow: false, permission: nil).keys }
   end
 end
 

@@ -59,27 +59,60 @@ module CurrentScope
     # precise set would be "controllers whose SoD-gated model defines an
     # initiator", but discovering that means loading application models, which
     # is expensive, boot-order fragile, and against the catalog's whole design.
-    # Over-inclusion is fail-safe (a cell the resolver never consults grants
-    # nothing). Under-inclusion is NOT, and is the honest limit here: the
-    # resolver keys the bypass off the RECORD's route_key, so a controller whose
-    # name differs from the record's (an `approvals` controller acting on
-    # `Invoice`) gets a dead `approvals#bypass_sod` cell while the live
-    # `invoices#bypass_sod` is never injected. Conventional resource controllers
-    # — where controller name == route_key — are unaffected. Tracked at OQ-2.
+    #
+    # The key is built from the controller's LAST path segment, because that is
+    # what the resolver will ask for: it derives the bypass key from the
+    # RECORD's route_key (permission_key → record.model_name.route_key), never
+    # from the controller path. Under Rails' resource conventions those agree —
+    # Admin::ReportsController's last segment "reports" IS Report's route_key —
+    # so keying off the whole path would inject "admin/reports#bypass_sod" while
+    # the resolver looks up "reports#bypass_sod", leaving break-glass ungrantable
+    # for every namespaced SoD controller and handing the admin a cell that
+    # silently does nothing. Namespaced admin controllers are common enough that
+    # this is the difference between the fix working and not.
+    #
+    # A namespace-only resource therefore gets its bypass cell on a "reports"
+    # row that no controller routes — the grid renders it aligned, blank
+    # everywhere else. Slightly odd to look at, and correct: it is the key the
+    # resolver actually reads.
+    #
+    # The irreducible limit: a controller named differently from the records it
+    # acts on (an `approvals` controller approving `Invoice`s) still injects
+    # `approvals#bypass_sod` while the live key is `invoices#bypass_sod`.
+    # Closing that needs to know the SoD-gated model, i.e. introspection.
+    # Tracked at OQ-2.
     def bypass_keys(routed)
       return [] unless CurrentScope.config.allow_sod_bypass
 
       sod_actions = CurrentScope.config.sod_actions
       return [] if sod_actions.empty?
 
-      # Tolerate either a bare action ("bypass_sod") or a full key.
-      bypass_action = CurrentScope.config.sod_bypass_permission.to_s.split("#").last
-
       routed.group_by { |key| key.split("#").first }
             .filter_map { |controller, keys|
               actions = keys.map { |k| k.split("#").last }
-              "#{controller}##{bypass_action}" if actions.intersect?(sod_actions)
+              "#{controller.split('/').last}##{bypass_action}" if actions.intersect?(sod_actions)
             }
+    end
+
+    # The action segment of config.sod_bypass_permission — tolerating either a
+    # bare action ("bypass_sod") or a full key ("reports#bypass_sod").
+    #
+    # `split("#", -1)` keeps the trailing empty field, so a malformed "reports#"
+    # yields "" and is caught here rather than silently becoming "reports" and
+    # injecting "reports#reports". Blank raises instead of skipping: the host
+    # turned break-glass ON, so a permission nobody can hold means the veto can
+    # never be lifted and the feature is inert — an undiagnosable deny, which is
+    # exactly what this engine promises not to do. (A boot-time check for this
+    # config belongs with #40.)
+    def bypass_action
+      action = CurrentScope.config.sod_bypass_permission.to_s.split("#", -1).last
+      return action if action.present?
+
+      raise ConfigurationError,
+            "config.allow_sod_bypass is on, but config.sod_bypass_permission " \
+            "(#{CurrentScope.config.sod_bypass_permission.inspect}) has no action segment. " \
+            "Name the permission the record's initiator must hold to break glass " \
+            "(the default is \"bypass_sod\"), or set config.allow_sod_bypass = false."
     end
   end
 end

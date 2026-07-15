@@ -6,6 +6,13 @@ Rails.application.routes.draw do
   # A full RESTful resource so the permission grid has every CRUD column.
   resources :documents
 
+  # A NAMESPACED SoD controller: path "admin/reports", records are Reports.
+  namespace :admin do
+    resources :reports, only: [] do
+      post :approve, on: :member
+    end
+  end
+
   resources :webhooks, only: :create
   get "bare", to: "bare#show"
   get "identity", to: "identity#show"

@@ -10,6 +10,17 @@ class PermissionCatalogTest < ActiveSupport::TestCase
     assert_includes @catalog.keys, "reports#approve"
   end
 
+  test "include? agrees with keys, both directions" do
+    # include? reads a memoized Set rather than scanning the (display-sorted)
+    # keys array — the Guard asks it on every gated request. Pin that the two
+    # can't drift apart.
+    @catalog.keys.each { |key| assert @catalog.include?(key), "#{key} is in keys but not include?" }
+
+    assert_not @catalog.include?("gone#index")
+    assert_not @catalog.include?("bypass_sod"), "a bare action name is not catalog-shaped"
+    assert_not @catalog.include?("")
+  end
+
   test "excludes infrastructure and engine controllers" do
     assert_not @catalog.keys.any? { |k| k.start_with?("rails/") }
     assert_not @catalog.keys.any? { |k| k.start_with?("active_storage/") }

@@ -32,6 +32,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   its grid only ever submits catalog keys, and a role holding a stale key still
   has it cleaned up transparently on save.
 
+  **If a seed grants the break-glass permission, it will now raise — and that is
+  the point.** `config.sod_bypass_permission` (default `"bypass_sod"`) is a bare
+  action name, not a `controller#action` key, so no route can ever produce it
+  and it was silently dropped every time: the role saved cleanly and could never
+  bypass. The failure is telling you that grant has never worked. Do **not**
+  paper over it with `scrub: true` — that just restores the silent version.
+  Making break-glass grantable is tracked in #21.
+
 - `permission_keys_change` gained a `:rejected` array alongside `:added` /
   `:removed`, so a caller that opted into scrubbing can still log what went.
 

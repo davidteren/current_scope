@@ -34,12 +34,18 @@ class RoleTest < ActiveSupport::TestCase
     assert_includes role.errors[:permission_keys].first, "scrub: true"
   end
 
-  # The break-glass permission is never a routed action, so it was ALWAYS
-  # dropped: a seed granting it saved cleanly and produced a role that could
-  # never bypass. Still not grantable (that is #21) — but now it says so.
+  # The break-glass permission can never be in a route-derived catalog: it is a
+  # bare action name ("bypass_sod"), not a controller#action key, so no route
+  # can produce it — which is exactly why it was ALWAYS dropped. A seed granting
+  # it saved cleanly and produced a role that could never bypass. Still not
+  # grantable (that is #21) — but now it says so instead of lying.
   test "granting the never-routed bypass permission errors instead of vanishing" do
     key = CurrentScope.config.sod_bypass_permission.to_s
-    assert_not CurrentScope.catalog.include?(key), "precondition: bypass_sod is not routed"
+    # Assert the SHAPE, not just absence: `catalog.include?(key)` being false
+    # proves nothing on its own — every catalog key is "controller#action", so a
+    # bare name misses by construction rather than by not being routed.
+    assert_not_includes key, "#", "precondition: the bypass permission is a bare action name"
+    assert_not CurrentScope.catalog.include?(key)
 
     role = CurrentScope::Role.new(name: "Breakglass")
     role.permission_keys = [ key ]

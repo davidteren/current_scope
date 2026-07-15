@@ -104,7 +104,7 @@ module CurrentScope
     # name AND the grid diff), else role.updated for a pure grid change. Emits
     # nothing when neither the name nor the grid moved.
     def record_role_update(role, previous_name)
-      diff = role.permission_keys_change || { added: [], removed: [] }
+      diff = role.permission_keys_change || { added: [], removed: [], rejected: [] }
       renamed = previous_name != role.name
       return unless renamed || diff[:added].any? || diff[:removed].any?
 

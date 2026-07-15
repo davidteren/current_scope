@@ -32,7 +32,8 @@ class DevDiagnosticsTest < ActionDispatch::IntegrationTest
       inert: CurrentScope.config.warn_on_inert_scoped_grant,
       sod: CurrentScope.config.warn_on_nil_sod_record,
       derivation: CurrentScope.config.warn_on_cross_controller_derivation,
-      sod_actions: CurrentScope.config.sod_actions
+      sod_actions: CurrentScope.config.sod_actions,
+      enforcement: CurrentScope.config.enforcement
     }
   end
 
@@ -41,6 +42,7 @@ class DevDiagnosticsTest < ActionDispatch::IntegrationTest
     CurrentScope.config.warn_on_nil_sod_record = @original[:sod]
     CurrentScope.config.warn_on_cross_controller_derivation = @original[:derivation]
     CurrentScope.config.sod_actions = @original[:sod_actions]
+    CurrentScope.config.enforcement = @original[:enforcement]
   end
 
   def sign_in(user) = { "X-User-Id" => user.id.to_s }
@@ -52,6 +54,7 @@ class DevDiagnosticsTest < ActionDispatch::IntegrationTest
   end
 
   def scoped(user, role, record) = CurrentScope::ScopedRoleAssignment.create!(subject: user, role: role, resource: record)
+  def assign_org(user, role) = CurrentScope::RoleAssignment.create!(subject: user, role: role)
 
   # --- The inert scoped grant: keyed on NO_RECORD, not nil ---
 
@@ -133,6 +136,48 @@ class DevDiagnosticsTest < ActionDispatch::IntegrationTest
     assert_equal 0, calls, "the flag must short-circuit BEFORE the query — this is the deny path"
   ensure
     CurrentScope.resolver.singleton_class.remove_method(:scoped_grant_exists?)
+  end
+
+  # --- The #37 interaction. Only reachable once both features exist ---
+  #
+  # A missing record hook is the one gap report mode CANNOT explain by itself:
+  # the would_deny row for that action never clears no matter what you grant,
+  # because the gate has no record to match a scoped grant against. So the person
+  # following report mode's advice grants the role, sees no change, and concludes
+  # the feature is broken. The inert-grant nudge is the line that says why — and
+  # report mode is exactly when they need it, since it's the mode a retrofitting
+  # host lives in.
+  #
+  # This pins the ORDERING chosen when the two branches merged: the nudge runs
+  # before the report-mode early return. Put it after, and it goes silent for the
+  # host it exists for.
+  test "the inert-grant nudge still fires in report mode, where the hook gap is invisible" do
+    CurrentScope.config.enforcement = :report
+    scoped(@alice, role("Editor", "hookless_member#show"), @report)
+
+    log = capture_log { get "/hookless_member/#{@report.id}", headers: sign_in(@alice) }
+
+    assert_response :success, "report mode let it through, as it should"
+    assert_equal 1, nudges(log).grep(/scoped grant/).size,
+                 "report mode is when a retrofitting host is LOOKING for gaps — a diagnostic " \
+                 "that goes quiet exactly then is a diagnostic that misses its audience"
+  ensure
+    CurrentScope.config.enforcement = :enforce
+  end
+
+  test "report mode does not suppress the SoD nil-record nudge either" do
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[approve]
+    assign_org(@alice, role("Approver", "sod_nil#approve"))
+
+    log = capture_log { post "/sod_nil/approve", headers: sign_in(@alice) }
+
+    assert_response :success
+    assert_equal 1, nudges(log).grep(/separation-of-duties/).size,
+                 "the veto was skipped and the request went through — that is precisely the " \
+                 "combination worth shouting about"
+  ensure
+    CurrentScope.config.enforcement = :enforce
   end
 
   # --- R4: log-only. The whole feature is worthless if it can change a decision ---

@@ -95,11 +95,16 @@ flowchart TD
   ```ruby
   # ponytail: tiny allow-list writer; fail loud, never silently disable enforcement
   def enforcement=(value)
-    mode = value.to_sym
+    # Coerce only what CAN be a Symbol: bare value.to_sym raises NoMethodError
+    # on nil (and on Integer), which is the wrong error — the writer promises a
+    # ConfigurationError naming the allowed values. Anything non-symbolizable
+    # falls through unchanged and fails the allow-list check below.
+    mode = value.respond_to?(:to_sym) ? value.to_sym : value
     raise ConfigurationError, "..." unless ENFORCEMENT_MODES.include?(mode)
     @enforcement = mode
   end
   ```
+  **Test the coercion, not just the allow-list:** `nil`, `42`, and `"nonsense"` must each raise `ConfigurationError` (not `NoMethodError`), while `"report"` and `:report` both set `:report`. The nil case is the one a host actually hits — `config.enforcement = ENV["..."]` is nil when the var is unset, and it must fail loud rather than crash with an unrelated error class.
 - **Patterns to follow:** the existing `attr_accessor` + `initialize` defaults + doc-comment style; the guarded-writer precedent of `allow_mutations_while_impersonating=`.
 - **Test scenarios:**
   - `enforcement` defaults to `:enforce`.

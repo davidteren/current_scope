@@ -137,6 +137,16 @@ flowchart TD
 
 ---
 
+### U3a. Retract the same overclaim from the README's pitch bullet
+
+- **Goal:** the README and the site stop contradicting each other *and* the README stops contradicting itself, so R5's "read as siblings" is actually reachable.
+- **Requirements:** R5.
+- **Dependencies:** U3 (use the same wording).
+- **Files:** `README.md` (the ambient-context pitch bullet, ~lines 33-34).
+- **Approach:** the bullet claims *"The view can never disagree with the gate — they ask the same resolver."* That is the same absolutist claim U3 retracts from the site, and the README already refutes it twice: the namespaced/custom-named-controller foot-gun (`README.md:154-163`, where `allowed_to?(:show, report)` derives `reports#show` while the Guard enforces `dashboard#show`) and the explicit *"View/gate disagreement is by design"* section (`README.md:490-494`). Reword to the non-absolutist framing U3 lands on — the view **reads the same resolver as the gate**, so they agree on the same question — and let the foot-gun section carry the caveat it already documents. One line; do not restate the caveat in the pitch.
+- **Test expectation: none — documentation only.**
+- **Verification:** no absolutist "can never disagree" phrasing survives in `README.md`; the bullet and `README.md:490-494` no longer contradict; wording matches the site's after U3.
+
 ## Scope Boundaries
 
 **In scope:** relocating the `gh-pages` static site into `docs/site/` on `main` (U1); a GitHub Actions Pages workflow deploying `docs/site/` (U1); adding the skip-the-gate step to the site quickstart with a lockout warning + README link (U2); rewording the three absolutist claims to "same resolver" and linking the README's foot-gun sections (U3); a `CHANGELOG.md` "Unreleased" documentation note. Faithful description of *current* engine behavior only.
@@ -151,7 +161,7 @@ flowchart TD
 - Site foot-gun coverage / guide pages (namespaced-controller display bug, SoD nil-record asymmetry, `actor_method` being security-critical) — either as expanded site content or by repositioning the site as a thin landing page linking in-repo guides (couples with adoption-guide issue #26).
 - Automated generation of the site quickstart from the README canonical quickstart (so they *cannot* drift), if the link+comment discipline proves insufficient over time.
 - CI content-lint (e.g. fail the build if the site reintroduces "can't disagree" or drops the skip step) — a cheap guardrail worth adding once the source is in-repo.
-- **Reconcile `README.md:33-34` with the site's reworded claims.** That summary bullet ("The view can never disagree with the gate — they ask the same resolver") carries the *same* absolutist overclaim U3 retracts from the site and contradicts the README's own "View/gate disagreement is by design" (`README.md:490-494`). Reword it to the non-absolutist "reads the same resolver" framing so README and site read as siblings (R5). README edits are owned by #25 (Cross-issue coupling) — do the reword there, not from this docs-site plan; until it lands, R5's "read as siblings" goal is only partially met (the site is fixed, the README bullet still overclaims).
+- ~~Reconcile `README.md:33-34` via #25.~~ **Moved into this plan's scope — see U3a below.** It was deferred here to #25 (canonical quickstart) on the reasoning that #25 owns README edits, but plan 007 scopes only the Installation-section restructure and never mentions the bullet, the overclaim, or the contradiction. Deferring to a plan that doesn't scope the work left R5 unsatisfiable by construction, so this plan owns the one-line reword directly.
 
 ---
 

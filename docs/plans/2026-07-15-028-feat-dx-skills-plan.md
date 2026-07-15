@@ -88,10 +88,19 @@ radius on the enforcement engine.
   `.claude/skills/`, from the *installed gem's* copy (so the skill version always matches the
   bundled gem version — no separate release train, no drift). Re-running is idempotent and
   reports what it wrote/skipped. The **primary re-run case is a gem upgrade**, where the
-  shipped skill content has changed: the skills are **gem-owned**, so on divergent content the
-  generator **overwrites** the host copy (via forced collision handling — never an interactive
-  "Overwrite?" prompt), and any host-local edits to skill files are replaced. Identical →
-  skipped, changed → overwritten, both reported.
+  shipped skill content has changed. Skills are **gem-owned in intent**, but the generator
+  must not destroy host edits to earn that: use **Rails' default collision handling** — the
+  same behavior `current_scope:install` already has, so the generator surprises nobody — and
+  add an explicit **`--force`** flag for the "just take the gem's copy" upgrade path. Identical
+  → skipped silently; changed → reported as a conflict (Rails' standard prompt/skip), or
+  overwritten when `--force` is passed. Always print a summary of written/skipped/conflicted.
+
+  Rationale: a non-interactive forced overwrite makes `bin/rails g current_scope:skills`
+  silently destructive on the exact run a host is most likely to make (an upgrade), which
+  violates least-astonishment and diverges from this gem's own generator precedent for no
+  gain — "gem-owned" is a policy, and `--force` expresses it without taking the choice away.
+  Hosts that genuinely want unattended upgrades wire `--force` into their own upgrade script.
+  *(Raised by review on the plans PR.)*
 - **R4.** `/current-scope-install` guides: generator + migrations, `Context`-then-`Guard`
   include order, an **auth-detection branch** (Devise / Rails 8 built-in auth / custom→ask)
   that wires `config.user_method` and the session-endpoint skips, the
@@ -175,9 +184,25 @@ radius on the enforcement engine.
   read ancestry, correlate). This keeps zero new Ruby in the gem for P1. **Tension surfaced:**
   R9's CI drift guard cannot run a Claude skill headlessly. Resolution: the CI drift guard is
   *not* "run the doctor" — it is a small symbol-existence test over the skill files (KTD-5),
-  which is the actually-cheap, actually-headless guard. The heavier "run doctor against a
-  demo app in CI" idea from the issue is downgraded to an open question, because the repo has
-  no built demo app today (`demo/` contains only `tmp/`), only `test/dummy`.
+  which is the actually-cheap, actually-headless guard.
+
+  **Reconciling with the issue explicitly** (rather than quietly dropping it): issue #46's
+  risk list asks to *"add a CI job that runs the doctor against the repo's `demo/` app so a
+  breaking change fails the build."* **That requirement is not executable as written and this
+  plan knowingly does not meet it** — `demo/` contains only `tmp/`; there is no demo app to
+  run against, and the doctor is a Claude skill, which no CI runner can invoke headlessly.
+  Two independent blockers, either one fatal. The *risk* the requirement exists to cover
+  (skills drifting from the gem API) is still covered, by KTD-5's symbol-existence test —
+  cheaper, headless, and it fails the build on exactly the breaking changes the issue names.
+  What is genuinely lost is end-to-end coverage: the drift guard proves the symbols the skills
+  name still exist, not that the doctor's *advice* is still correct.
+
+  **Trigger to revisit (not "someday"):** if a real `demo/` app lands, or the doctor's checks
+  are ported to a plain `rake current_scope:doctor` (issue #46's own deferred idea, which
+  would make it headlessly runnable), then add the CI job as the issue specifies. Either
+  event, not a date, is the condition. Tracked in Deferred to Follow-Up Work.
+  *(Requirement gap raised by review on the plans PR; reconciled here rather than left as an
+  unexplained divergence between the issue and the plan.)*
 
 - **KTD-5 — The drift guard is a symbol-existence test, not a second doctor.** The lazy,
   correct guard: a single test that scans the four `SKILL.md` files for a curated,

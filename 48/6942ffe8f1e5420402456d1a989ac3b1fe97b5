@@ -1,0 +1,35 @@
+docs/plans/2026-07-15-015-docs-site-source-plan.md
+  s_4d1327efb21c21::t_33798f5136678d 140-149
+  s_4d1327efb21c21::t_330d1664e6478d 164
+docs/plans/2026-07-15-028-feat-dx-skills-plan.md
+  s_4d1327efb21c21::t_f32437b615b428 91-103
+  s_4d1327efb21c21::t_39089865aab1ba 187-205
+docs/plans/2026-07-15-019-feat-report-only-mode-plan.md
+  s_4d1327efb21c21::t_f218b045357c5e 98-102,107
+docs/plans/2026-07-15-001-fix-scoped-collection-gate-plan.md
+  s_4d1327efb21c21::t_f0ce8502382bcf 54-55
+  s_4d1327efb21c21::t_4e580375300c3f 53
+  s_4d1327efb21c21::t_5ee6be0bbd4ecf 95-103,105,108-118,120
+  s_4d1327efb21c21::t_2cc9758a8c42ec 44-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "486942ffe8f1e5420402456d1a989ac3b1fe97b5",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+README.md
+  s_4d1327efb21c21::t_bca33f74cef49b 423,427-429
+  s_4d1327efb21c21::t_aaf58569cc9942 430
+app/models/current_scope/role.rb
+  s_4d1327efb21c21::t_9e14ef2d1961dc 52-57
+test/models/role_test.rb
+  s_4d1327efb21c21::t_7c30640ff3cee8 124-144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "9bb6adbb0727584955ab541a2429b7f25520d83c",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

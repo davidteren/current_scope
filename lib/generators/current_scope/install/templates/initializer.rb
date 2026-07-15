@@ -1,4 +1,32 @@
 CurrentScope.configure do |config|
+  # --- Retrofitting an existing app? Start here ---------------------------
+  #
+  # This engine is fail-closed: once the gate is mounted, anything not granted
+  # is denied. In an app that already has users and traffic, that means your
+  # controller suite goes RED and your users get 403s the moment you mount it —
+  # not because anything is misconfigured, but because no grants exist yet.
+  #
+  # So don't cut over blind. Run in report mode first:
+  #
+  #   config.enforcement = :report
+  #
+  # The gate then LOGS what it would have denied and lets the request through.
+  # Exercise the app (or run your suite), then read the gaps back out — each row
+  # names a subject and the permission they were missing:
+  #
+  #   bin/rails current_scope:report
+  #
+  # That list IS your grant-seeding work. Seed the roles it names, watch the
+  # would_deny rows stop appearing, then flip to :enforce. Reversible at every
+  # step — it's one line back.
+  #
+  # Report mode is an ADOPTION ramp, not a way to run in production. It relaxes
+  # exactly one thing: "nobody has granted this yet". A separation-of-duties
+  # veto still refuses, and the management console is never opened by it.
+  #
+  # config.enforcement = :enforce   # :enforce (default) | :report
+  # ------------------------------------------------------------------------
+
   # Controller method that returns the authenticated subject.
   # config.user_method = :current_user
 

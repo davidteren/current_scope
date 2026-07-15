@@ -1,0 +1,42 @@
+lib/current_scope/mutation_guard.rb
+  s_4d1327efb21c21::t_02e158f6b15560 49-54,58-67
+lib/current_scope.rb
+  s_4d1327efb21c21::t_189255914a29fe 17-27
+app/assets/stylesheets/current_scope/application.css
+  s_4d1327efb21c21::t_87e58b2f849fe8 360-370
+app/controllers/current_scope/application_controller.rb
+  s_4d1327efb21c21::t_7a2a3536d05cb7 24-31,33-43,47
+  s_4d1327efb21c21::t_fd08ccababc568 44-46,48
+app/views/current_scope/shared/access_denied.html.erb
+  s_4d1327efb21c21::t_348eb5d12a693c 1-15,17-30
+  s_4d1327efb21c21::t_8480b7cbb4b930 16
+test/integration/guard_test.rb
+  s_4d1327efb21c21::t_06210fcab75cb8 41-61
+CHANGELOG.md
+  s_4d1327efb21c21::t_7f8b28f42c906d 10-32
+README.md
+  s_4d1327efb21c21::t_63a6837c9016d6 577-592
+test/integration/management_ui_test.rb
+  s_4d1327efb21c21::t_577c19b8e31569 23-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "e7a99df73c34b90ea095513ec5b7022b98bad5bc",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

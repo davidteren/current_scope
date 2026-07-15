@@ -1,0 +1,24 @@
+test/integration/dev_diagnostics_test.rb
+  s_4d1327efb21c21::t_b6c336c2c81e53 35-36,45,57,141-182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "5b1f6c4d135db49bb3e72bb23689e6ab639c6a7e",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

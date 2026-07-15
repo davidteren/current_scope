@@ -95,6 +95,26 @@ class GuardTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  # The story the README's "Scoping a list" section promises, end to end: a
+  # subject holding ONLY a scoped grant reaches the gated index — no org-wide
+  # grant — and scope_for then hands them exactly their subset. Before the
+  # record-less gate landed there was no grant combination that produced this:
+  # the scoped-only subject was 403'd, and the org grant that got them in made
+  # scope_for return every record.
+  test "a scoped-only subject reaches the gated index and scope_for narrows to their subset" do
+    other = Report.create!(title: "Q4", requested_by: @bob) # never granted to Alice
+    viewer = role("Viewer", "reports#index")
+    CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: viewer, resource: @report)
+
+    get reports_url, headers: sign_in(@alice)
+    assert_response :success, "a scoped-only subject must reach their index without an org grant"
+
+    # The paired half: the gate let her in, and the list narrows to the grant.
+    scoped = CurrentScope.resolver.scope_for(subject: @alice, model: Report, permission: "reports#index")
+    assert_equal [ @report.id ], scoped.ids
+    assert_not_includes scoped.ids, other.id, "an org-wide grant would have leaked this record"
+  end
+
   test "gating an excluded controller raises a configuration error" do
     assign(@alice, role("Owner", full_access: true))
 

@@ -125,6 +125,33 @@ class ScopeForTest < ActiveSupport::TestCase
     end
   end
 
+  # The record-less companion to the matrix above: the gate decides whether the
+  # subject reaches the list at all, scope_for decides what is in it. They must
+  # agree on the record-less target too — anyone scope_for gives rows to can
+  # open the list, and anyone it gives nothing to cannot.
+  test "gate/list agreement: a record-less check and scope_for never disagree" do
+    scoped = User.create!(name: "Scoped")
+    scope_grant(scoped, role("Editor", KEY), @p1)
+
+    show_only = User.create!(name: "ShowOnly")
+    scope_grant(show_only, role("Viewer", "projects#show"), @p1)
+
+    none = User.create!(name: "None")
+
+    with_current_user(scoped) do
+      assert @host.allowed_to?(:index, Project), "scope_for hands them rows, so the list must open"
+      assert_equal [ @p1.id ], @host.scope_for(Project).ids
+    end
+
+    [ show_only, none ].each do |subject|
+      with_current_user(subject) do
+        assert_not @host.allowed_to?(:index, Project),
+          "#{subject.name}: scope_for hands them nothing, so the list must stay shut"
+        assert_empty @host.scope_for(Project).to_a
+      end
+    end
+  end
+
   test "under act-as, scope_for follows the effective subject (user), not the actor" do
     assign(@alice, role("Member", KEY)) # effective subject may list all
     actor = User.create!(name: "Actor") # actor holds no grants

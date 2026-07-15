@@ -8,7 +8,7 @@ A **subject** holds at most one **org-wide role** and any number of **scoped rol
 
 The **gate** and the **scoped list** are the two halves of every per-record feature: the gate decides whether an action runs at all, the list decides which records it operates on. Both ask the **resolver**, so they read the same grants — but they bind those grants differently, and only the gate is enforced. Where they bind differently they can disagree, and one such disagreement is live: a **full access** role held on a single record opens nothing at the gate for a record-less check, while the scoped list still returns that record. Treat "the gate let them in" and "it is in their list" as separate claims.
 
-Decisions are made by the **resolver**, enforced by the **gate**, and recorded in the **ledger**. Those are three separate concerns and they fail separately: a decision can be right while the gate never runs (nothing gated the action), and an enforced decision can go unrecorded (the ledger is switched off). Assume none of the three implies the others.
+The **resolver** decides, the **gate** enforces, and the **ledger** records — but not the same things, and this is the easiest thing here to get wrong. The ledger holds *changes to who can do what*, plus the single audited exception: grants made and withdrawn, roles edited, impersonation begun and ended, a veto lifted. It does **not** hold decisions. An ordinary refusal leaves no trace, deliberately — a fail-closed system refuses constantly, and a record of every refusal would be noise rather than history. "It was denied" and "it is in the ledger" are unrelated claims.
 
 ## The grant model
 
@@ -59,7 +59,7 @@ A permission check with no particular record to decide about — asking "may I o
 ## The record
 
 **Ledger**
-The append-only history of authorization changes and the one place a lifted veto is recorded. Rows are never rewritten: there is no notion of editing a past event, and the history outlives the things it names — a role that was deleted still renders in its own history, because each entry keeps a human label for its target rather than only a reference to it.
+The append-only history of *changes* to authorization — grants made and withdrawn, roles edited, impersonation begun and ended — plus the one audited exception, a lifted veto. It is not a decision log: an ordinary allow or refusal is never recorded. Rows are never rewritten: there is no notion of editing a past event, and the history outlives the things it names — a role that was deleted still renders in its own history, because each entry keeps a human label for its target rather than only a reference to it.
 
 Append-only is a design rule enforced at the record layer, not a guarantee the storage engine makes. Bulk operations and raw queries reach past it; how much the database itself refuses depends on which database it is. Treat the ledger as tamper-*evident* by intent and honest about its ceiling, not as tamper-proof.
 
@@ -67,7 +67,9 @@ Append-only is a design rule enforced at the record layer, not a guarantee the s
 One entry in the ledger: who did it, on whose behalf, to what, and what changed. Both identities are always present — they are the same entry unless someone was impersonating, so the impersonated entries are exactly the ones where they differ, which is what makes "what did this admin do while acting as someone else" answerable at all.
 
 **Audit mode**
-How a host wants the ledger treated, of which there are three postures rather than a switch: off (record nothing), on (record, and carry on if the ledger is unavailable), and mandatory (a change that cannot be recorded must not happen — the write is refused rather than silently proceeding unrecorded). The third exists because for some hosts an unrecorded change is worse than a failed one.
+How a host wants the ledger treated, of which there are three postures rather than a switch: off (record nothing), on (the default), and mandatory (a change that cannot be recorded must not happen — it is rolled back rather than silently proceeding unrecorded). The third exists because for some hosts an unrecorded change is worse than a failed one.
+
+The tolerance in "on" is narrower than it sounds, and worth knowing before relying on it: it forgives exactly one thing — the ledger never having been installed, which is what an existing host hits when it upgrades and has not yet run the migration. That case warns once and carries on. Any *other* recording failure still raises, in every mode. "On" is not a promise that recording can never break a request.
 
 ## The constraints
 

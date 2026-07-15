@@ -1,0 +1,42 @@
+test/report_task_test.rb
+  s_4d1327efb21c21::t_47dc369b8d79c6 1-41,44-81,89,125-126
+  s_4d1327efb21c21::t_29f6e4fc594c12 109-122
+  s_4d1327efb21c21::t_87867d52ed33fa 42-43
+  s_4d1327efb21c21::t_3535f10b806523 82-85,90-93,95,123-124
+  s_4d1327efb21c21::t_3b0df8d339a229 86-88,94,96-108
+README.md
+  s_4d1327efb21c21::t_30f6668b98698d 136-159
+lib/tasks/current_scope_tasks.rake
+  s_4d1327efb21c21::t_b72bb4cea7a289 19-43
+  s_4d1327efb21c21::t_dec22f08b65ebd 15-18,44-70,72-83
+  s_4d1327efb21c21::t_169630b0ddf316 71
+test/generators/install_generator_test.rb
+  s_4d1327efb21c21::t_5783e75d792a19 55-56
+CHANGELOG.md
+  s_4d1327efb21c21::t_53b7bcd064c70c 23-33,36-37
+lib/generators/current_scope/install/install_generator.rb
+  s_4d1327efb21c21::t_075556086234a2 55,57,59-60
+lib/generators/current_scope/install/templates/initializer.rb
+  s_4d1327efb21c21::t_dcd1dc52ea27a9 14-15,17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "b1f0bd386311ba036fba540e90173e460d86ed6b",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -47,10 +47,19 @@ module CurrentScope
     def configured_subject_label(subject)
       label = CurrentScope.config.subject_label
       return if label.nil?
+      return resolve_subject_label(label) { label.call(subject) } if label.respond_to?(:call)
 
-      if label.respond_to?(:call)
-        resolve_subject_label(label) { label.call(subject) }
-      elsif subject.respond_to?(label)
+      # Only a Symbol or String names a method. Checked BEFORE respond_to?,
+      # which raises TypeError on anything else ("false is not a symbol nor a
+      # string") — and that raise would land outside the rescue below and 500
+      # the page, which is the bug this method exists to prevent, reached
+      # through a different door.
+      unless label.is_a?(Symbol) || label.is_a?(String)
+        CurrentScope::ApplicationHelper.warn_unusable_subject_label_once(label)
+        return
+      end
+
+      if subject.respond_to?(label)
         resolve_subject_label(label) { subject.public_send(label) }
       else
         # Not a mistake we can render around: this config does nothing for EVERY
@@ -115,13 +124,31 @@ module CurrentScope
       # which defaults off because a nil record is often legitimate): a label the
       # subject can't answer, or one that raises, is unambiguously a mistake.
       # Mirrors Event.warn_missing_events_table_once.
+      # This subject didn't answer to the configured method. Says "this subject"
+      # rather than "subjects": under STI some subclasses may answer and others
+      # not, and warn-once means the first non-responder speaks for the rest.
       def warn_unknown_subject_label_once(label)
         return unless new_subject_label_warning?(:unknown, label)
 
         Rails.logger&.warn(
-          "[CurrentScope] config.subject_label is #{label.inspect}, but subjects do not respond to " \
-          "it — every subject is falling back to the default label, so this config currently does " \
-          "nothing. Set it to a method the subject responds to (e.g. :email), a Proc, or nil."
+          "[CurrentScope] config.subject_label is #{label.inspect}, but this subject does not " \
+          "respond to it — it is falling back to the default label. If no subject responds to it, " \
+          "this config does nothing. Set it to a method the subject responds to (e.g. :email), a " \
+          "Proc, or nil."
+        )
+      end
+
+      # Not a Symbol, String, Proc, or nil — so it can't name a method and can't
+      # be called. Reports the TYPE, not the value: this is the one warning whose
+      # subject is an arbitrary host object, and calling `inspect` on it could
+      # itself raise — inside the very path that exists to stop a raise.
+      def warn_unusable_subject_label_once(label)
+        return unless new_subject_label_warning?(:unusable, label.class)
+
+        Rails.logger&.warn(
+          "[CurrentScope] config.subject_label is a #{label.class} — it can't name a method and " \
+          "can't be called, so every subject is falling back to the default label. Set it to a " \
+          "Symbol (e.g. :email), a Proc taking the subject, or nil."
         )
       end
 
@@ -129,16 +156,31 @@ module CurrentScope
         return unless new_subject_label_warning?(:raised, label)
 
         Rails.logger&.warn(
-          "[CurrentScope] config.subject_label raised #{error.class}: #{error.message} — that " \
-          "subject fell back to the default label rather than erroring the page. A subject_label " \
-          "must be total: it runs for every subject, including ones with nil or blank attributes."
+          "[CurrentScope] config.subject_label raised #{error.class}: #{one_line(error.message)} " \
+          "— that subject fell back to the default label rather than erroring the page. A " \
+          "subject_label must be total: it runs for every subject, including ones with nil or " \
+          "blank attributes."
         )
       end
 
       private
 
+      # A host exception message is arbitrary text and may carry newlines, which
+      # would split one warning across several log records.
+      def one_line(message)
+        message.to_s.gsub(/\s+/, " ").strip.truncate(200)
+      end
+
+      # A plain Hash, not a Set: this runs inside the rescue that stops a bad
+      # label 500-ing the page, so it must not be the thing that raises. Set
+      # needs `require "set"` and is only autoloaded on newer Rubies — a
+      # NameError here would reintroduce the exact bug, from inside its own fix.
       def new_subject_label_warning?(reason, label)
-        (@subject_label_warnings ||= Set.new).add?([ reason, label ])
+        memo = (@subject_label_warnings ||= {})
+        key = [ reason, label ]
+        return false if memo.key?(key)
+
+        memo[key] = true
       end
     end
   end

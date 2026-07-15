@@ -168,5 +168,62 @@ module CurrentScope
 
       assert_empty logs
     end
+
+    # --- A label that is neither callable nor a method name ---
+    #
+    # respond_to? raises TypeError ("false is not a symbol nor a string") on
+    # anything that isn't a Symbol/String, and that raise lands OUTSIDE the
+    # rescue guarding the send — so a mistyped config still 500'd the page. The
+    # bug this helper exists to prevent, through a different door.
+
+    test "a label that is neither callable nor a method name falls back, never raises" do
+      [ false, 0, Object.new, [], {}, 3.14 ].each do |unusable|
+        reset_subject_label_warnings
+        CurrentScope.config.subject_label = unusable
+
+        # respond_to?(0) raises TypeError — must never reach the page.
+        assert_nothing_raised do
+          assert_equal "a@b.co", current_scope_subject_label(Person.new("a@b.co", "Ada")),
+            "subject_label = #{unusable.class} must fall back, not 500"
+        end
+      end
+    end
+
+    test "an unusable label warns once, naming the type rather than the value" do
+      CurrentScope.config.subject_label = 0
+
+      logs = capture_logs do
+        current_scope_subject_label(Person.new("a@b.co", "Ada"))
+        current_scope_subject_label(Person.new("c@d.co", "Grace"))
+      end
+
+      assert_equal 1, logs.scan(/config\.subject_label/).size
+      assert_match "Integer", logs
+    end
+
+    # The warning runs on the path that exists to stop a raise, so it must not
+    # raise either. Naming the label's TYPE rather than inspecting its value is
+    # what makes that true for an arbitrary host object.
+    test "an unusable label whose inspect raises still falls back" do
+      hostile = Class.new do
+        def inspect = raise("inspect exploded")
+      end.new
+      CurrentScope.config.subject_label = hostile
+
+      assert_nothing_raised do
+        assert_equal "a@b.co", current_scope_subject_label(Person.new("a@b.co", "Ada"))
+      end
+    end
+
+    # --- The warning is one log record, whatever the host's exception says ---
+
+    test "a multi-line exception message is flattened into one log line" do
+      CurrentScope.config.subject_label = ->(_) { raise "line one\nline two\rline three" }
+
+      logs = capture_logs { current_scope_subject_label(Person.new("a@b.co", "Ada")) }
+
+      assert_equal 1, logs.lines.size, "an exception message must not split the warning across records"
+      assert_match "line one line two line three", logs
+    end
   end
 end

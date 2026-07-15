@@ -112,6 +112,7 @@ module  CurrentScope
         # Guard enforces, so prefer it: the view must agree with the gate.
         return "#{controller_path}##{action}" if controller_path&.split("/")&.last == route_key
 
+        warn_on_cross_controller_derivation(action, route_key, controller_path)
         return "#{route_key}##{action}"
       end
       return "#{controller_path}##{action}" if controller_path
@@ -120,6 +121,7 @@ module  CurrentScope
             "cannot derive a permission key for #{action.inspect} — pass a record, " \
             "a full \"controller#action\" string, or call from a controller/view"
     end
+
 
     # Impersonation boundary events. The impersonated identity is an EXPLICIT
     # argument (not read from the ambient pair): at act-as START the ambient
@@ -156,6 +158,38 @@ module  CurrentScope
     end
 
     private
+
+    # The documented namespaced/custom-named controller foot-gun (#41): the
+    # short form derived a DIFFERENT key than the gate for this action enforces,
+    # so the view and the gate now disagree — a link that 403s, or a hidden one
+    # that would have worked. Silent, and the symptom appears nowhere near the
+    # cause.
+    #
+    # The catalog check is what separates the foot-gun from the ordinary case.
+    # A cross-resource check (`allowed_to?(:show, report)` from a projects view)
+    # SHOULD derive reports#show — that's correct and common, and warning about
+    # it would make this noise. It's only a divergence when the current
+    # controller genuinely gates this action itself, i.e. "{controller_path}#
+    # {action}" is a real catalog entry — then two different answers exist for
+    # one question and the caller is silently getting the one the gate doesn't use.
+    #
+    # ponytail: derivation is on a hot path (every view helper call), so the
+    # config flag is checked FIRST — with it off this costs one boolean, and the
+    # catalog is never touched.
+    def warn_on_cross_controller_derivation(action, route_key, controller_path)
+      return unless config.warn_on_cross_controller_derivation
+      return if controller_path.blank?
+
+      gate_key = "#{controller_path}##{action}"
+      return unless catalog.include?(gate_key)
+
+      Rails.logger&.warn(
+        "[CurrentScope] allowed_to?(#{action.to_sym.inspect}, <#{route_key.singularize.camelize}>) " \
+        "derived \"#{route_key}##{action}\", but the gate on #{controller_path} enforces " \
+        "\"#{gate_key}\" — they disagree, so this check can show a link that 403s (or hide one " \
+        "that works). Pass the explicit key: allowed_to?(\"#{gate_key}\")."
+      )
+    end
 
     # A2: the boundary events are the one place a host declares it is actually
     # impersonating. If actor_method is unset there, the entire act-as security

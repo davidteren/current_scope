@@ -105,7 +105,19 @@ module CurrentScope
         record: record, actor: CurrentScope::Current.actor
       )
       unless allowed
+        # The nudge runs BEFORE the report-mode branch, and that ordering is the
+        # whole point of it in a retrofit. Report mode downgrades a :no_grant to
+        # an observation and lets the request through — so a nudge placed after
+        # the early return would go silent for exactly the host report mode
+        # exists for. And a missing record hook is the one gap report mode CANNOT
+        # explain on its own: the would_deny row for that action never clears, no
+        # matter what you grant, because the gate has no record to match a scoped
+        # grant against. This is the line that says why. Log-only either way, so
+        # it cannot affect the branch below. (#37/#41 interaction)
+        nudge_on_inert_scoped_grant(permission, record, reason)
+
         return report_would_deny(permission, record) if report_only_denial?(reason, permission, record)
+
 
         raise CurrentScope::AccessDenied.new(permission, reason: reason)
       end
@@ -296,6 +308,45 @@ module CurrentScope
     # current_scope_record returned nil on a member action. Lives here (the gate
     # seam), not in the shared resolver, so it never fires on advisory
     # allowed_to?/scope_for calls. Prod behavior is unchanged either way.
+    # The denial-side mirror of nudge_on_nil_sod_record (#41): this controller
+    # declared NO current_scope_record hook, and the subject holds a scoped grant
+    # that would have applied if it had.
+    #
+    # That is a controller with member actions that forgot the hook. It fails
+    # closed — correctly — but the resulting 403 is byte-identical to "you were
+    # never granted this", so whoever debugs it goes and stares at the grants,
+    # which are fine, instead of the controller, which isn't.
+    #
+    # Keyed on NO_RECORD, NOT on nil, and the difference is the whole nudge:
+    #
+    #   - NO_RECORD  = "this controller never said whether there's a record here."
+    #     Silence. Scoped grants can't open the gate, so a genuinely-granted
+    #     subject is refused and nothing says why. THIS is the bug.
+    #   - nil        = "there is no record here", stated deliberately by the host.
+    #     Since #49 a scoped role ticking the key OPENS that gate, so a subject
+    #     with a matching grant isn't denied at all and there is nothing to nudge
+    #     about. Nudging here would fire on every legitimate collection request.
+    #
+    # (Plan 023 predates #49 and guards on `record.nil?` — which can no longer
+    # fire for the case it was written for, and excludes the case that can. Pinned
+    # by tests below rather than left to the next reader to rediscover.)
+    def nudge_on_inert_scoped_grant(permission, record, reason)
+      return unless CurrentScope.config.warn_on_inert_scoped_grant
+      return unless reason == :no_grant
+      return unless record.equal?(NO_RECORD)
+      return unless CurrentScope.resolver.scoped_grant_exists?(
+        subject: CurrentScope::Current.user, permission: permission
+      )
+
+      Rails.logger&.warn(
+        "[CurrentScope] denied \"#{permission}\" (no_grant), but this subject holds a scoped " \
+        "grant that would satisfy it — and #{controller_path} declares no current_scope_record, " \
+        "so the gate had no record to apply it to. If this is a member action, declare the hook " \
+        "(`def current_scope_record = set_thing`); if the controller is collection-only, " \
+        "`def current_scope_record = nil` says so and lets scoped grants through."
+      )
+    end
+
     def nudge_on_nil_sod_record(permission, record)
       return unless CurrentScope.config.warn_on_nil_sod_record
       # NO_RECORD counts: it IS the member-action-with-no-record case this nudge

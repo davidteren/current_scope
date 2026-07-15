@@ -49,6 +49,35 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   console, where grants are made, is never opened by it. `:enforce` remains the
   default and is unchanged. (#37)
 
+- **Three silent failure modes now tell on themselves in development.** Each of
+  these is silent *in the bad direction* — what went wrong looks exactly like what
+  going right looks like — and each one cost real debugging time in the scenario
+  apps:
+
+  - **`config.warn_on_nil_sod_record`** (existed, **now on by default in
+    dev/test**): the separation-of-duties veto was *skipped*, because an SoD member
+    action's `current_scope_record` returned nil. The request was allowed, and a
+    veto that never ran looks exactly like a veto that passed. This has worked
+    correctly since v0.1 but shipped **off**, so the teams who needed it never
+    learned it existed — which is the actual bug being fixed here.
+  - **`config.warn_on_inert_scoped_grant`** (new): denied `no_grant` while the
+    subject holds a scoped grant that *would* have satisfied it, on a controller
+    that declares no `current_scope_record`. That's a member action that forgot its
+    hook. It fails closed — correctly — but the 403 is byte-identical to "you were
+    never granted this", so you go and audit the grants, which are fine, instead of
+    the controller, which isn't.
+  - **`config.warn_on_cross_controller_derivation`** (new): short-form
+    `allowed_to?(:show, record)` derived a different key than the gate on the
+    current controller enforces — the documented namespaced-controller foot-gun. The
+    view and the gate silently disagree, and the symptom (a link that 403s, or one
+    that's hidden but would work) shows up nowhere near the cause.
+
+  All three are **log-only**: no decision, exception, header, or audit row changes
+  in any environment. All three default **on in development and test, off in
+  production** (and off entirely without Rails). The default is the point — these
+  catch mistakes you make while *writing* the app, which is exactly when dev/test is
+  where you are. Override any of them either way. (#41)
+
 ### Fixed
 - **The management UI's 403 now says why.** Opening the console without a
   full-access role returned a bare, bodyless `403` with no

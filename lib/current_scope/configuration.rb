@@ -125,13 +125,47 @@ module CurrentScope
     # Read as `== :strict`, never `== true` — don't flatten the tri-state.
     attr_accessor :audit
 
-    # A5 (opt-in, dev/test aid): when true, the gate logs a nudge if an SoD
-    # action is gated with a nil record and the request is allowed — i.e. the
-    # SoD veto was silently skipped because current_scope_record returned nil on
-    # a member action. Off by default; prod behavior never changes. Emitted from
-    # the Guard seam (not the shared resolver), so it doesn't fire on advisory
-    # allowed_to?/scope_for calls.
+    # --- Dev diagnostics (#41) ----------------------------------------------
+    #
+    # Three failure modes this engine has that are SILENT and silent in the bad
+    # direction: the thing that went wrong looks exactly like the thing going
+    # right. Each is a cheap log line in dev/test and costs nothing in prod.
+    #
+    # All three default ON in development and test, OFF in production — and off
+    # entirely when Rails isn't loaded. The default is the point: a diagnostic
+    # nobody knows about is a diagnostic nobody benefits from, and these
+    # protect against mistakes you make while WRITING the app, which is exactly
+    # when dev/test is where you are. A host can force any of them either way.
+    #
+    # Every one is LOG-ONLY. No decision, exception, header, or audit row
+    # changes because of them, in any environment.
+
+    # The gate logs a nudge when an SoD action is gated with no record and the
+    # request is ALLOWED — i.e. the veto was skipped because current_scope_record
+    # returned nil (or was never declared) on a member action. The gem's #1
+    # foot-gun: the veto silently not running looks identical to the veto passing.
+    #
+    # Emitted from the Guard seam (not the shared resolver), so it never fires on
+    # advisory allowed_to?/scope_for calls.
     attr_accessor :warn_on_nil_sod_record
+
+    # The gate logs a nudge when a request is DENIED :no_grant, the controller
+    # declared no current_scope_record hook at all, and the subject holds a
+    # scoped grant that WOULD have applied had the hook returned the record.
+    #
+    # That combination is a controller with member actions that forgot the hook.
+    # It fails closed — correctly — but the 403 is indistinguishable from "you
+    # were never granted this", so the person debugging it goes looking at their
+    # grants, which are fine, instead of at their controller, which isn't.
+    attr_accessor :warn_on_inert_scoped_grant
+
+    # CurrentScope.permission_key logs a nudge when short-form derivation
+    # (`allowed_to?(:show, report)`) resolves to a DIFFERENT key than the one the
+    # current controller's gate enforces — the documented namespaced/custom-named
+    # controller foot-gun. The view then shows a link that 403s, or hides one that
+    # would have worked: the gate and the view disagree, silently, and the symptom
+    # shows up nowhere near the cause.
+    attr_accessor :warn_on_cross_controller_derivation
 
     # How the role-editor grid folds RESTful actions into columns. An ordered
     # Hash of { column_label => [action names] }: ticking a group column grants
@@ -206,7 +240,9 @@ module CurrentScope
       @subject_class = "User"
       @audit = true
       @enforcement = :enforce
-      @warn_on_nil_sod_record = false
+      @warn_on_nil_sod_record = diagnostics_default_on?
+      @warn_on_inert_scoped_grant = diagnostics_default_on?
+      @warn_on_cross_controller_derivation = diagnostics_default_on?
       @permission_grid_groups = {
         "read"    => %w[index show],
         "create"  => %w[new create],
@@ -266,6 +302,17 @@ module CurrentScope
         # prevent.
         warn(message)
       end
+    end
+
+    # Diagnostics are on where you are while writing the app, off where they'd
+    # be noise on someone else's dime. `local?` is Rails' own name for
+    # "development or test", so a host with a staging env that reports itself as
+    # neither gets prod behaviour — the conservative side for a log line.
+    #
+    # Mirrors the production? guard below: a bare-Ruby Configuration.new with no
+    # Rails must not raise, and gets false (no logger to warn to anyway).
+    def diagnostics_default_on?
+      defined?(Rails) && Rails.respond_to?(:env) && Rails.env.local?
     end
 
     def production?

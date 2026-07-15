@@ -127,6 +127,29 @@ module CurrentScope
       sod_action?(permission) && !sod_veto_applies?(permission: permission, record: record)
     end
 
+    # Does this subject hold a scoped grant that satisfies `permission` on ANY
+    # record? Read-only, and deliberately unfiltered by resource — that absence
+    # IS the question: the grant exists, but the gate never got a record for it
+    # to apply to.
+    #
+    # DIAGNOSTICS ONLY (#41). It answers a COUNTERFACTUAL — "had the controller
+    # declared its record hook, would a scoped grant have allowed this?" — and
+    # must never decide anything. The record it would need in order to BE a
+    # decision is exactly what's missing; that's the bug it reports.
+    #
+    # Reads roles_granting (full_access ∪ ticking), and that is right BECAUSE
+    # the counterfactual binds to a record: with a real record, scoped_grant?
+    # honors a scoped full_access role, so an honest "would it have been
+    # allowed?" must honor it too. The same reuse in a branch that binds to NO
+    # record was #49's P0 escalation — one scoped grant passing every
+    # collection gate in the app. The binding is the entire difference, which is
+    # why this is a question and not a gate.
+    def scoped_grant_exists?(subject:, permission:)
+      return false if subject.nil?
+
+      ScopedRoleAssignment.where(subject: subject, role_id: roles_granting(permission)).exists?
+    end
+
     private
 
     # Role ids that satisfy `permission`: full_access (grants everything) or an

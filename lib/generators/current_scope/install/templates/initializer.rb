@@ -89,11 +89,35 @@ CurrentScope.configure do |config|
   #             audit-mandatory app never commits an unaudited change.
   # config.audit = true
 
-  # Dev/test aid: log a nudge when an SoD action is ALLOWED but was gated with a
-  # nil record — i.e. the SoD veto was silently skipped because
-  # current_scope_record returned nil on a member action. Off by default; never
-  # changes behavior.
-  # config.warn_on_nil_sod_record = false
+  # --- Dev diagnostics -----------------------------------------------------
+  # Three failure modes this engine has that are SILENT, and silent in the bad
+  # direction — the thing going wrong looks exactly like the thing going right.
+  # All three are LOG-ONLY (no decision, exception, header, or audit row changes)
+  # and all three default ON in development and test, OFF in production.
+  #
+  # They are listed here rather than left to the docs on purpose: a named flag in
+  # your initializer is how you learn the failure mode exists at all.
+
+  # The SoD veto was SKIPPED because the gate had no record — an SoD member
+  # action whose current_scope_record returned nil (or was never declared). The
+  # request was ALLOWED, and a skipped veto looks identical to a veto that
+  # passed. The gem's #1 foot-gun.
+  # config.warn_on_nil_sod_record = Rails.env.local?
+
+  # Denied "no_grant", but the subject holds a scoped grant that WOULD have
+  # applied — and the controller declares no current_scope_record, so the gate
+  # had no record to apply it to. A member action that forgot its hook: it fails
+  # closed (correctly), but the 403 is indistinguishable from "never granted", so
+  # you go and stare at the grants, which are fine.
+  # config.warn_on_inert_scoped_grant = Rails.env.local?
+
+  # Short-form allowed_to?(:show, record) derived a DIFFERENT key than the gate
+  # on the current controller enforces (the namespaced/custom-named controller
+  # foot-gun): a link that 403s, or a hidden one that would have worked. A hint,
+  # not an accusation — asking about another resource derives a different key too,
+  # and that's correct — so it warns once per site and names both readings.
+  # config.warn_on_cross_controller_derivation = Rails.env.local?
+  # ------------------------------------------------------------------------
 
   # Controller paths (regexps) excluded from the permission grid. Excluded
   # controllers can't be granted, so they must also skip the gate with

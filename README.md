@@ -377,9 +377,10 @@ to exempt a record type, or trim `config.sod_actions`.
 > on an SoD member action, the veto is *skipped* — an org-wide-granted subject
 > (including the initiator) passes. `nil` is legitimate for collection actions,
 > so the resolver can't tell the two apart and won't raise. Returning the record
-> on member actions is therefore the load-bearing control. As a dev/test aid,
-> set `config.warn_on_nil_sod_record = true` to log a nudge whenever an allowed
-> SoD action was gated with a nil record.
+> on member actions is therefore the load-bearing control. **In development and
+> test the gate logs a nudge** whenever an allowed SoD action was gated with no
+> record (`config.warn_on_nil_sod_record`, on by default there, off in
+> production) — see [Dev diagnostics](#dev-diagnostics).
 
 With `sod_actions` empty (the default), the veto step is a no-op and the
 resolver is simply `full_access → org-wide role → scoped role → deny`. No model
@@ -493,8 +494,40 @@ The **audit ledger** is controlled by `config.audit` — tri-state
 every authorization change and degrades gracefully (skip + warn once) if the
 events table isn't migrated; `:strict` **raises** on a missing events table so
 an audit-mandatory app never commits an unaudited change (the mutation rolls
-back). `config.warn_on_nil_sod_record` (default off) is a dev/test aid — see the
-[Separation of duties](#separation-of-duties-opt-in) note.
+back).
+
+### Dev diagnostics
+
+Three things this engine gets wrong **silently**, and silently in the bad
+direction: what went wrong looks exactly like what going right looks like. Each
+one now says so in the log.
+
+| Flag | Fires when | Why you'd never notice otherwise |
+|---|---|---|
+| `warn_on_nil_sod_record` | An SoD action was **allowed** while the gate had no record, so the veto was skipped | A veto that never ran looks identical to a veto that passed |
+| `warn_on_inert_scoped_grant` | Denied `no_grant`, the subject **holds a scoped grant** that would satisfy it, and the controller declares no `current_scope_record` | The 403 is byte-identical to "never granted", so you go audit the grants — which are fine — instead of the controller, which isn't |
+| `warn_on_cross_controller_derivation` | Short-form `allowed_to?(:show, record)` derived a **different key** than the gate on this controller enforces | If you meant this controller's gate, the view and the gate disagree — and the symptom (a link that 403s, or a hidden one that works) shows up nowhere near the cause |
+
+All three are **log-only** — no decision, exception, header, or audit row changes
+because of them, in any environment — and all three default **on in development
+and test, off in production**:
+
+```ruby
+config.warn_on_nil_sod_record = Rails.env.local?              # the defaults;
+config.warn_on_inert_scoped_grant = Rails.env.local?          # override either
+config.warn_on_cross_controller_derivation = Rails.env.local? # way
+```
+
+The last one is a **hint, not an accusation**, and says so: asking about a
+different resource than the current controller handles derives a different key
+too, and that is correct and common. Nothing at the call site distinguishes the
+two, so it warns **once per site** and names both readings. The first two are
+unambiguous.
+
+The default is the point. These catch mistakes you make while *writing* the app,
+which is exactly when dev/test is where you are — and a diagnostic that ships off
+is one the people who need it never find. `warn_on_nil_sod_record` has worked
+since v0.1 and defaulted off, which is how it helped nobody.
 
 Three loud-by-design behaviors. A controller excluded from the catalog can't be
 granted, so gating it is a misconfiguration — Guard raises and tells you to

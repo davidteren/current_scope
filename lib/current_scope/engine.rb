@@ -9,6 +9,9 @@ module CurrentScope
     config.to_prepare do
       CurrentScope.reset_catalog!
       CurrentScope.reset_scopeable_registry!
+      # The cross-controller nudge warns once per site; a reload can change what's
+      # routed, so a stale latch would hide a divergence the edit just created.
+      CurrentScope.reset_cross_controller_warnings!
     end
   end
 end

@@ -1,0 +1,30 @@
+<%# The engine's front-door 403. Deliberately NOT rendered in the console
+    layout: that layout is a sidebar of links to Roles / Subjects / Events, and
+    showing the console chrome to someone who cannot open any of it reads as
+    "you're in" while every link refuses. Standalone page, engine stylesheet, no
+    navigation offered that isn't there. %>
+<!DOCTYPE html>
+<html lang="en"<%= " data-cs-theme=\"#{cookies[:current_scope_theme]}\"".html_safe if %w[light dark].include?(cookies[:current_scope_theme]) %>>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Access denied — CurrentScope</title>
+  <%= csp_meta_tag %>
+  <%= stylesheet_link_tag "current_scope/application", media: "all" %>
+</head>
+<body>
+  <main class="cs-card cs-denied">
+    <h1>This area needs a full-access role</h1>
+    <p>
+      The authorization console is where roles and permissions are granted, so it
+      can't be gated by a permission you could be granted — it's open only to
+      subjects holding a role marked <strong>full access</strong>.
+    </p>
+    <p class="cs-hint">
+      If you should have it, ask someone who already does to grant you a
+      full-access role. If nobody has one yet, it's granted from the console or a
+      rake task — see the CurrentScope README's bootstrap section.
+    </p>
+  </main>
+</body>
+</html>

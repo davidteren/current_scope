@@ -46,9 +46,25 @@ module CurrentScope
 
     # Denials render forbidden and surface the machine-readable reason on the
     # response so refusals are diagnosable by clients and tests.
+    #
+    # The ONLY place the reason header is written. Every denial in the gem —
+    # the Guard's, this gate's, and the engine's own front door — raises
+    # AccessDenied and lands here, so a denial cannot exist that forgets the
+    # header. (The engine's front door used to render its own `head :forbidden`
+    # and was exactly that denial: no header, no body. #23.)
     def current_scope_denied(exception = nil)
       reason = exception.respond_to?(:reason) ? exception.reason : nil
       response.headers["X-Current-Scope-Reason"] = reason.to_s if reason
+      render_access_denied
+    end
+
+    # How a denial renders — the one part a controller may vary. Default: a
+    # bodyless 403, which is what a host app's denial has always been and must
+    # stay. This runs inside HOST controllers (Guard mixes it in), so rendering
+    # a body here would push an engine-shaped response into an app that never
+    # asked for one, with no layout or view to render it in. The engine's own
+    # controller overrides this to explain itself; nothing else should.
+    def render_access_denied
       head :forbidden
     end
   end

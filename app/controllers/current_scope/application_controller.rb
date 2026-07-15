@@ -21,8 +21,31 @@ module CurrentScope
 
     private
 
+    # Raises rather than rendering, so the engine's front door lands in the same
+    # current_scope_denied path as every other denial and gets the reason header
+    # for free. It used to `head :forbidden` here — the one denial in the gem
+    # that sat outside that machinery, and so the one with no reason and no body
+    # (#23). MutationGuard's rescue_from catches this from a before_action.
+    #
+    # Who is denied is unchanged: the full_access? check is byte-for-byte what
+    # it was. Only how the refusal is surfaced changed.
     def require_full_access!
-      head :forbidden unless CurrentScope.resolver.full_access?(CurrentScope::Current.user)
+      return if CurrentScope.resolver.full_access?(CurrentScope::Current.user)
+
+      raise CurrentScope::AccessDenied.new(
+        "#{controller_path}##{action_name}", reason: :not_full_access
+      )
+    end
+
+    # The engine's UI is the one place a rendered denial belongs: the admin is
+    # looking at a browser, and "blank page" is not an answer to "why can't I get
+    # in?". Overrides ONLY the body — the reason header is still written by
+    # current_scope_denied, which stays the single place that knows about it.
+    # layout: false — the console layout is a sidebar of links to areas this
+    # subject cannot open. Offering them reads as "you're in" and then refuses
+    # every click.
+    def render_access_denied
+      render "current_scope/shared/access_denied", status: :forbidden, layout: false
     end
 
     def subject_class

@@ -76,6 +76,46 @@ All three failures are silent *in the bad direction* and all three burned the sc
 
 ### U2. Guard: inert-scoped-grant nudge on the denial path
 
+> ## ⚠️ PRE-FLIGHT (2026-07-15): this unit's premise was fixed out of existence by PR #49. Do not implement the sketch below literally.
+>
+> Probed against the tree as it is now, not reasoned about:
+>
+> | scenario | this plan assumes | actual |
+> |---|---|---|
+> | declared nil + scoped role **ticking** the key | `403 :no_grant` (so the nudge has something to fire on) | **`allowed=true`** |
+> | **NO_RECORD** (no hook declared) | *didn't exist when this was written* | **`false, :no_grant`** |
+> | declared nil + scoped **full_access** grant | — | `false, :no_grant` |
+>
+> **What happened.** PR #49 added the record-less scoped branch: a *declared* `nil` is the
+> host stating "there is no record here", and a scoped role that ticks the key now opens the
+> gate. That is this unit's headline "Fires" scenario — it is a **200 now, not a 403**. The
+> same PR introduced `Guard::NO_RECORD` for "no hook declared", which is a *different value
+> from nil* and is the case that actually still denies.
+>
+> **So the sketch's guard — `reason == :no_grant && record.nil?` — is wrong twice over:**
+> it can never fire for the case it was written for (that case now allows), and it
+> explicitly **excludes** `NO_RECORD`, the one case that is genuinely inert. What it would
+> still catch is a declared nil + a scoped *full_access* grant — the deliberate,
+> documented asymmetry (CONCEPTS.md, "Flagged ambiguities"), i.e. pure noise.
+>
+> Implemented literally, this diagnostic would be **0% true positives and 100% false
+> positives**, and would fire on every collection request by a scoped-full_access subject
+> while staying silent for the missing hook it exists to catch.
+>
+> **Corrected target.** The real inert case is `NO_RECORD` — a controller with member
+> actions that never declared `current_scope_record` (the dummy's `HooklessMemberController`
+> is precisely this shape, and its comment already says the gate "fails CLOSED there"). The
+> nudge fires there and names the missing hook.
+>
+> **R5's `roles_granting` reuse survives check 2, and here is why it is safe HERE** — the
+> question this nudge asks is the counterfactual *"had the hook returned the record, would
+> this have been allowed?"*, which is exactly `scoped_grant?`'s question, and `scoped_grant?`
+> **binds to a record**. That binding is the property that makes `roles_granting`'s
+> full_access union safe, and the counterfactual preserves it. (Contrast plan 001 KTD-4,
+> where the same reuse was proposed for a branch that bound to **no** record — that one
+> turned one scoped grant into app-wide access. Same helper, opposite verdict, because the
+> binding differs.)
+
 - **Goal:** log a dev/test nudge when a `:no_grant` deny with a nil record coincides with the subject holding a matching scoped grant — the mirror of `nudge_on_nil_sod_record`, but on the deny side.
 - **Requirements:** R2, R4, R5, and KTD-2/KTD-4.
 - **Dependencies:** U1.

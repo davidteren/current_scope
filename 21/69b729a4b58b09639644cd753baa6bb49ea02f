@@ -1,0 +1,32 @@
+docs/plans/2026-07-15-006-docs-denial-behavior-plan.md
+  s_4d1327efb21c21::t_9cc6d4cd1248e2 17,19,23-37,60
+docs/plans/2026-07-15-015-docs-site-source-plan.md
+  s_4d1327efb21c21::t_d086324016a810 20,53
+docs/plans/2026-07-15-016-docs-readme-restructure-plan.md
+  s_4d1327efb21c21::t_30b8f22e52c65c 16,31,41,63
+docs/plans/2026-07-15-021-feat-denial-ergonomics-plan.md
+  s_4d1327efb21c21::t_107c2f073dcb28 116,146,170-171
+docs/plans/2026-07-15-027-feat-migration-tooling-plan.md
+  s_4d1327efb21c21::t_241c442714798f 70,259
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "2169b729a4b58b09639644cd753baa6bb49ea02f",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

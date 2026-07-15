@@ -357,6 +357,17 @@ re-checked live at decision time:
 2. the record's host hook `current_scope_sod_bypassed?` returns true, **and**
 3. the record's **initiator** holds the bypass permission (`bypass_sod`).
 
+**Where the cell is.** Break-glass is the one permission that isn't an action
+you can route, so the role grid gets it injected rather than derived: with
+`allow_sod_bypass` on, every controller that routes an action listed in
+`sod_actions` grows a `bypass_sod` column, blank elsewhere. Tick it on the row
+for that resource and the role can break the glass — the supported way to build
+a "trusted admin may self-approve" role **without** `full_access`, which would
+grant it implicitly along with everything else and defeat the point of a scoped
+trusted approver. Turn `allow_sod_bypass` off and the column disappears and the
+key stops being grantable: grantability follows the catalog, and the catalog
+follows the flag.
+
 Holding `bypass_sod` on a flagged, self-initiated record **is** the
 authorization for the SoD action — the bypass grants the action, it doesn't
 merely lift the veto and then re-check for a separate `approve` grant.

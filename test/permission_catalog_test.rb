@@ -32,6 +32,108 @@ class PermissionCatalogTest < ActiveSupport::TestCase
   end
 end
 
+# The break-glass permission is not a routed action, so a route-derived catalog
+# could never contain it — which made the documented "grantable, editable in the
+# role grid" claim false, and left break-glass reachable only via full_access
+# (defeating the point of a scoped trusted-approver role) or a console insert.
+# The catalog is the single definition of what is grantable, so injecting the
+# virtual key here fixes the grid render and the role save at once. (#21)
+class PermissionCatalogBypassTest < ActiveSupport::TestCase
+  setup do
+    @original_allow = CurrentScope.config.allow_sod_bypass
+    @original_actions = CurrentScope.config.sod_actions
+    @original_permission = CurrentScope.config.sod_bypass_permission
+  end
+
+  teardown do
+    CurrentScope.config.allow_sod_bypass = @original_allow
+    CurrentScope.config.sod_actions = @original_actions
+    CurrentScope.config.sod_bypass_permission = @original_permission
+  end
+
+  def catalog(allow:, actions: %w[approve], permission: "bypass_sod")
+    CurrentScope.config.allow_sod_bypass = allow
+    CurrentScope.config.sod_actions = actions
+    CurrentScope.config.sod_bypass_permission = permission
+    CurrentScope::PermissionCatalog.new
+  end
+
+  # R1: default-off is a true no-op — the catalog is what it always was.
+  test "no bypass key is injected when break-glass is off (the default)" do
+    keys = catalog(allow: false).keys
+
+    assert_empty keys.grep(/#bypass_sod\z/)
+  end
+
+  test "the off-catalog is byte-for-byte the route-derived set" do
+    off = catalog(allow: false).keys
+    routed = Rails.application.routes.routes.filter_map { |r|
+      c, a = r.defaults[:controller], r.defaults[:action]
+      next unless c && a
+      next if CurrentScope.config.excluded_controllers.any? { |re| c.match?(re) }
+
+      "#{c}##{a}"
+    }.uniq.sort
+
+    assert_equal routed, off
+  end
+
+  # R2: on + a controller that routes an SoD action → the cell exists.
+  test "a controller routing an SoD action gets a bypass key when break-glass is on" do
+    cat = catalog(allow: true)
+
+    assert_includes cat.keys, "reports#bypass_sod", "reports routes approve, so it can break glass"
+    assert cat.include?("reports#bypass_sod")
+    assert_includes cat.grouped["reports"], "bypass_sod", "and the grid must see it"
+  end
+
+  # R5: the permission only appears where it could ever mean something.
+  test "nothing is injected when SoD is off, even with break-glass on" do
+    keys = catalog(allow: true, actions: []).keys
+
+    assert_empty keys.grep(/#bypass_sod\z/), "no SoD actions means no veto to break"
+  end
+
+  test "a controller that routes no SoD action gets no bypass key" do
+    cat = catalog(allow: true)
+
+    # documents routes the RESTful 7 but no `approve`.
+    assert_includes cat.keys, "documents#index", "precondition: documents is in the catalog"
+    assert_not cat.include?("documents#bypass_sod")
+  end
+
+  test "the injected action follows config.sod_bypass_permission" do
+    cat = catalog(allow: true, permission: "override")
+
+    assert_includes cat.keys, "reports#override"
+    assert_not cat.include?("reports#bypass_sod")
+  end
+
+  test "a full-key config contributes only its action segment" do
+    cat = catalog(allow: true, permission: "reports#bypass_sod")
+
+    assert_includes cat.keys, "reports#bypass_sod"
+    assert_empty cat.keys.grep(/#.*#/), "no double-# key may be produced"
+  end
+
+  test "an excluded controller gets no bypass key" do
+    original = CurrentScope.config.excluded_controllers
+    CurrentScope.config.excluded_controllers = original + [ /\Areports\z/ ]
+    cat = catalog(allow: true)
+
+    assert_not cat.include?("reports#bypass_sod"), "exclusion is not a back door"
+    assert_not cat.include?("reports#approve"), "precondition: reports is excluded"
+  ensure
+    CurrentScope.config.excluded_controllers = original
+  end
+
+  test "keys stay sorted and unique" do
+    keys = catalog(allow: true).keys
+
+    assert_equal keys.uniq.sort, keys
+  end
+end
+
 class PermissionKeyTest < ActiveSupport::TestCase
   test "passes through a full key" do
     assert_equal "admin/reports#approve", CurrentScope.permission_key("admin/reports#approve")

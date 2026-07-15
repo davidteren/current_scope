@@ -91,4 +91,54 @@ class PermissionGridTest < ActiveSupport::TestCase
     # unknown group / junk token
     assert_empty grid.expand([ "reports:nope", "", "garbage" ])
   end
+
+  # --- Break-glass renders as an ordinary column (#21) ---
+  #
+  # The whole point of injecting the virtual key at the CATALOG rather than
+  # special-casing the grid: bypass_sod is outside permission_grid_groups, so
+  # the existing leftover-column machinery already renders it correctly. These
+  # pin that no bespoke UI is needed — if they ever fail, someone has started
+  # building one.
+
+  # The catalog after injection: reports (which routes approve) has bypass_sod;
+  # widgets does not.
+  def bypass_grid
+    catalog = Struct.new(:grouped).new({
+      "reports" => %w[index show new create edit update destroy approve bypass_sod],
+      "widgets" => %w[index]
+    })
+    CurrentScope::PermissionGrid.new(catalog: catalog, groups: CRUD)
+  end
+
+  test "the bypass permission gets its own leftover column, like approve" do
+    column = bypass_grid.columns.find { |c| c.label == "bypass_sod" }
+
+    assert column, "an injected bypass key must surface as a column"
+    assert_not column.group, "it is a single action, not a CRUD group"
+    assert_equal %w[bypass_sod], column.actions
+  end
+
+  test "the bypass cell is a real checkbox on a controller that can break glass" do
+    column = bypass_grid.columns.find { |c| c.label == "bypass_sod" }
+    cell = bypass_grid.cell("reports", column, Set.new)
+
+    assert_not cell.blank
+    assert_equal "reports#bypass_sod", cell.value
+    assert_equal "role[permission_keys][]", cell.name, "the raw key channel, not a group token"
+    assert_not cell.checked
+  end
+
+  test "the bypass cell reads as granted when the role holds the key" do
+    column = bypass_grid.columns.find { |c| c.label == "bypass_sod" }
+    cell = bypass_grid.cell("reports", column, Set["reports#bypass_sod"])
+
+    assert cell.checked
+  end
+
+  test "a controller that cannot break glass renders a blank bypass cell" do
+    column = bypass_grid.columns.find { |c| c.label == "bypass_sod" }
+    cell = bypass_grid.cell("widgets", column, Set.new)
+
+    assert cell.blank, "alignment holds — no shifted cells"
+  end
 end

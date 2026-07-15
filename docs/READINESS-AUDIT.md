@@ -1,11 +1,36 @@
 # CurrentScope — Readiness Audit &amp; Remediation
 
-> Point-in-time audit of the engine (v0.1.0) for real-world adoption, with a concrete
-> remediation worklist. **An agent working this doc should address every item, in
-> priority order (P0 → P4).** Each item states where it is, why it matters, a fix
-> direction, and an acceptance check. Keep the engine suite green + RuboCop omakase
-> clean per change, and **add a regression test for every fix** — especially the
-> silent-fail-open items (A2/A4/A5/A6). Update STATUS.md as items land.
+> ## ✅ Complete — historical record, not a worklist
+>
+> **Every item in this document (A1–A13) has landed.** Worked end to end in
+> [PR #5](https://github.com/davidteren/current_scope/pull/5) against
+> `docs/plans/2026-07-12-002-feat-engine-readiness-remediation-plan.md`; see
+> STATUS.md → "Readiness remediation — A1–A13" for the per-item record.
+>
+> **Do not work this document.** It is kept because the *reasoning* is still worth
+> reading — why each gap mattered, and which invariants must not regress. The
+> "Verified holding — DO NOT regress" section below is the part that stays live:
+> those are standing invariants, and the audit is where they are written down.
+>
+> The engine has moved on since v0.1.0 (it is a published gem now, and several
+> findings here were superseded by later work — the record-less scoped gate,
+> the silent key drop, break-glass grantability, and the denial-reason
+> vocabulary all changed shape in v0.2 and after). **Current work lives in the
+> [issue tracker](https://github.com/davidteren/current_scope/issues) and
+> `docs/plans/`**; `STATUS.md` is the live status.
+>
+> <details>
+> <summary>The original instruction to an agent working this doc (superseded)</summary>
+>
+> Point-in-time audit of the engine (v0.1.0) for real-world adoption, with a
+> concrete remediation worklist. **An agent working this doc should address every
+> item, in priority order (P0 → P4).** Each item states where it is, why it
+> matters, a fix direction, and an acceptance check. Keep the engine suite green +
+> RuboCop omakase clean per change, and **add a regression test for every fix** —
+> especially the silent-fail-open items (A2/A4/A5/A6). Update STATUS.md as items
+> land.
+>
+> </details>
 
 ## Verdict
 

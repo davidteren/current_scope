@@ -136,6 +136,15 @@ different roles on different records:
 Its permissions apply **only when the action targets that record.** Being
 "Editor of Project #7" grants nothing on Project #8.
 
+The one qualifier: a **record-less** check — a collection action like `#index`,
+which reaches the resolver with no record, or the class form
+`allowed_to?(:index, Project)` — names no record for the grant to be measured
+against. There, any scoped grant whose role ticks the key opens the gate, and
+`scope_for` narrows the resulting list to the granted records. This is what lets
+"Editor of Project #7" reach a project index at all without an org-wide grant
+(which would mean *see everything*). It never widens a decision on an actual
+record: Project #8 is still denied.
+
 **Assigning a scoped role NEVER changes the subject's org-wide role.** The two
 are independent axes: one org-wide role (broad, coarse) + N scoped roles
 (narrow, per-record).

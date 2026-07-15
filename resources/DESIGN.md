@@ -164,11 +164,21 @@ tied to no record:
   record-targeted by definition — there is no record for the veto to measure, so
   the veto cannot run (§3.6). Rather than hand out the action with the guarantee
   silently skipped, a record-less SoD check is denied.
-- **A record-less `nil` must be the host's honest "no record here."** The Guard
-  passes a sentinel instead when a *member* route (`/reports/:id`) has no
-  `current_scope_record` hook, or the hook returns nil: the route names a record
-  the gate couldn't get, which is the opposite claim. That fails closed, rather
-  than reading a misconfiguration as "no record needed" and opening up.
+- **A record-less `nil` must be a declaration, not an accident.** A
+  `current_scope_record` hook returning nil is the host stating *"this action
+  has no record"* (§3.4), and the gate trusts it. A controller that declares no
+  hook has stated nothing, so the gate assumes nothing and scoped grants cannot
+  open it — otherwise a controller that simply forgot the hook would hand a
+  scoped subject every record of its type. Silence costs nothing that was
+  available before: without a hook, scoped grants could never open a collection
+  gate anyway.
+
+  The gate reads the declaration rather than the route deliberately. Guessing
+  member-vs-collection from path parameters cannot be made correct — `:id`
+  misses `param: :slug`; "any key not suffixed `_id`" misses
+  `param: :external_id` and falsely accuses a nested parent with a custom param.
+  Every such rule fails on the next routing option, because the route does not
+  encode what the host means. The hook does.
 - **The gate admits; it does not filter.** Passing a collection gate is not a
   claim about what the action then renders. `scope_for` is the filter, and it is
   the host's to call — the engine cannot narrow a list built from `Model.all`.

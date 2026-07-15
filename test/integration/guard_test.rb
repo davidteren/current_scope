@@ -152,16 +152,23 @@ class GuardTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
-  # Keying member-detection on :id alone would read this as a collection action
-  # and hand Alice a report she holds no grant on.
-  test "a member route with a CUSTOM param also fails closed" do
+  # The gate reads the DECLARATION, not the route, so no routing DSL option can
+  # talk it into a scoped allow. Both of these killed a previous route-reading
+  # heuristic: `param: :slug` defeats keying on :id, and `param: :external_id`
+  # defeats "any key not suffixed _id".
+  test "a member route with a custom param fails closed, whatever the param is named" do
     other = Report.create!(title: "Q4", requested_by: @bob)
-    viewer = role("Viewer", "slug_reports#show")
-    CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: viewer, resource: @report)
+    CurrentScope::ScopedRoleAssignment.create!(
+      subject: @alice, role: role("Viewer", "slug_reports#show", "external_id_reports#show"),
+      resource: @report
+    )
 
     get slug_report_url(other.title), headers: sign_in(@alice)
-    assert_response :forbidden, "param: :slug is a member param, not a collection"
+    assert_response :forbidden, "param: :slug — no hook, so no scoped allow"
     assert_equal "no_grant", response.headers["X-Current-Scope-Reason"]
+
+    get external_id_report_url(other.title), headers: sign_in(@alice)
+    assert_response :forbidden, "param: :external_id — a member param that happens to end in _id"
   end
 
   # The non-regression on the above: a nested collection's only dynamic segment

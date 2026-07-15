@@ -3,9 +3,9 @@ module CurrentScope
   # its own permission: the current controller#action IS the permission key,
   # so new controllers are gated (fail-closed) the moment they exist.
   #
-  # Member actions that need record-level decisions (scoped roles, SoD)
-  # declare a private current_scope_record method returning the record. Three
-  # rules for the hook:
+  # Any controller whose actions take part in record-level decisions (scoped
+  # roles, SoD) declares a private current_scope_record method returning the
+  # record. Three rules for the hook:
   #   - it runs for EVERY gated action, collection actions included — return
   #     nil when there is no record
   #   - it runs BEFORE the controller's own before_actions, so it must load
@@ -17,6 +17,18 @@ module CurrentScope
   #         set_report if request.path_parameters[:id]
   #       end
   #
+  # The hook is a DECLARATION, and the gate reads it as one. Returning nil says
+  # "this action has no record" — that is what lets a subject holding only
+  # scoped grants through a collection gate, with scope_for narrowing the list
+  # (#19). Declaring no hook at all says nothing, so the gate assumes nothing
+  # and scoped grants cannot open it (NO_RECORD below) — otherwise a controller
+  # that simply forgot the hook would hand a scoped subject every record of its
+  # type. Nothing is lost by silence: without a hook, scoped grants could never
+  # open a collection gate anyway. A collection-only controller that wants them
+  # to says so in one line:
+  #
+  #       def current_scope_record = nil
+  #
   # Skip the gate for public endpoints with skip_before_action :current_scope_check!.
   # MutationGuard (included here) adds the read-only-while-impersonating gate as
   # its OWN before_action, so it runs first and survives that skip.
@@ -24,22 +36,24 @@ module CurrentScope
     extend ActiveSupport::Concern
     include MutationGuard
 
-    # "The route names a record, but the gate could not get one." Passed to the
-    # resolver instead of nil when a MEMBER route (path_parameters[:id]) has no
-    # current_scope_record hook, or the hook returns nil.
+    # "This controller never said whether there is a record here." Passed to the
+    # resolver instead of nil when the controller declares no
+    # current_scope_record hook at all.
     #
-    # A collection action's nil is the host saying "there is no record here",
-    # and the resolver honors a scoped grant on it (that is how a scoped-only
-    # subject reaches their index). A member route's nil says the opposite —
-    # there IS a record, we just failed to name it — and treating the two alike
-    # would let a controller that forgets the hook hand a scoped subject every
-    # record of that type, where it previously 403'd. Not nil and not a Class,
-    # so the resolver's record-less branch skips it and the decision falls to
-    # deny; org-wide and full_access are unaffected, since they never read the
-    # record. Fail-closed on a misconfiguration, exactly as before this path
-    # existed.
+    # The distinction matters because the resolver honors a scoped grant on a
+    # record-less target — that is how a scoped-only subject reaches their index
+    # (#19). A declared hook returning nil is the host stating "there is no
+    # record here", which is exactly what the contract above asks for, and the
+    # resolver can trust it. No hook is not that statement: it is silence, and
+    # reading silence as "collection action" lets a controller with member
+    # actions hand a scoped subject every record of its type — strictly worse
+    # than the 403 it gave before this path existed.
     #
-    # See member_route? for how the two are told apart, and its limits.
+    # Neither nil nor a Class, so the resolver's record-less branch skips it and
+    # the decision falls to deny. Org-wide and full_access are unaffected — they
+    # never read the record — so silence costs a host nothing it had before:
+    # scoped grants could never open a collection gate anyway. Declaring the
+    # hook is how you opt in.
     NO_RECORD = Object.new.freeze
 
     included do
@@ -78,42 +92,21 @@ module CurrentScope
       nudge_on_nil_sod_record(permission, record)
     end
 
-    # The record this gate decides against, or NO_RECORD when the route names one
-    # and we couldn't get it (see NO_RECORD). A collection action's honest nil
-    # passes through untouched.
+    # The record this gate decides against, or NO_RECORD when the controller
+    # never declared the hook (see NO_RECORD). A declared hook's answer — record
+    # or nil — is passed through exactly as given.
+    #
+    # Deliberately reads the DECLARATION, not the route. Guessing member-vs-
+    # collection from path parameters cannot be made correct: `:id` misses
+    # `param: :slug`; "any key not suffixed _id" misses `param: :external_id`
+    # and falsely accuses a nested parent with a custom param. Each rule fails
+    # on the next routing DSL option, because the route simply does not encode
+    # what the host means. The hook does, and the contract above already asks
+    # every gated controller to declare it.
     def resolve_current_scope_record
-      record = respond_to?(:current_scope_record, true) ? send(:current_scope_record) : nil
-      return record unless record.nil?
+      return NO_RECORD unless respond_to?(:current_scope_record, true)
 
-      member_route? ? NO_RECORD : nil
-    end
-
-    # Does this route name a record? Rails' own naming convention answers it: a
-    # resource's member param is :id (or whatever `param:` renames it to), while
-    # a nested PARENT's param is always suffixed `_id`. So a dynamic segment
-    # whose key is not `*_id` is this controller's own record.
-    #
-    #   /reports                        {}                        collection
-    #   /reports/1                      {id}                      member
-    #   /reports/1/approve              {id}                      member
-    #   /reports/slug-here              {slug}    (param: :slug)   member
-    #   /projects/7/reports             {project_id}              collection ← must stay
-    #   /projects/7/reports/1           {project_id, id}          member
-    #
-    # Keying on :id alone would read `resources :reports, param: :slug` as a
-    # collection and hand an ungranted record to anyone with a scoped grant
-    # ticking the action.
-    #
-    # Known false positive, and deliberately the safe direction: a nested parent
-    # with a custom param (`resources :projects, param: :slug` → nested routes
-    # get :project_slug) reads as a member route, so a scoped subject is denied
-    # its nested index. A visible 403, not silent over-permission. Both this and
-    # the heuristic itself go away once the host can declare the collection's
-    # model outright (#50).
-    def member_route?
-      request.path_parameters
-             .except(:controller, :action, :format)
-             .keys.any? { |key| !key.to_s.end_with?("_id") }
+      send(:current_scope_record)
     end
 
     # Break-glass audit (KTD-1): the resolver stays pure and only reports

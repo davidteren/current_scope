@@ -42,10 +42,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   opens a **separation-of-duties action** (a four-eyes action is
   record-targeted by definition, so a record-less one has no record for the veto
   to measure — it is denied rather than granted with the veto skipped); and it
-  never fires for a **member route whose `current_scope_record` is missing or
-  returns nil** (`/reports/:id` names a record — if the gate can't get it, that
-  is a misconfiguration, not a collection action, and it must not be read as
-  "no record needed"). Both keep the pre-0.2.x behavior for misconfigured hosts.
+  never fires on a controller that **declares no `current_scope_record` hook**.
+  A hook returning nil is the host saying "this action has no record", and the
+  gate trusts it; no hook says nothing, and reading silence as "collection
+  action" would let a controller that forgot the hook hand a scoped subject
+  every record of its type. Both keep the pre-0.2.x behavior for misconfigured
+  hosts.
+
+  **If a collection-only controller has no hook and you want its gate to honor
+  scoped grants, declare one:** `def current_scope_record = nil`. Nothing that
+  worked before stops working — without a hook, scoped grants could never open a
+  collection gate anyway — but this is the line that opts in.
 
 ## [0.2.0] - 2026-07-14
 

@@ -49,7 +49,12 @@ module CurrentScope
     # programmatic grants, the never-routed break-glass permission — is a
     # mistake, and a security-grant API must not swallow mistakes.
     def assign_permission_keys(keys, scrub: false)
-      @scrub_permission_keys = scrub
+      # Literal `true` only. Ruby truthiness would let the string "false" — or
+      # any params/config value that found its way here — silently disable the
+      # strict path, which is the exact hole this API exists to close. The
+      # escape hatch opens for a caller that means it, not for one that passed
+      # something along.
+      @scrub_permission_keys = scrub == true
       # Blank entries are the grid's hidden-field padding, not typos (R2).
       @pending_permission_keys = Array(keys).map(&:to_s).reject(&:blank?).uniq
     end

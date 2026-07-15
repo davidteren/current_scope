@@ -438,8 +438,13 @@ rather than assumed:
 
 ```ruby
 role.assign_permission_keys(keys, scrub: true)   # stale keys dropped, no error
+role.save!
 role.permission_keys_change[:rejected]           # => ["gone#index"] — log it if you want
 ```
+
+The diff is computed on save, so read it after. `scrub:` takes literal `true`
+and nothing else — a stray truthy value must not be able to turn the strict
+path off.
 
 `scrub:` is deliberately not reachable from `permission_keys=`, so form params
 and strong-params flows always take the strict path. The role editor is

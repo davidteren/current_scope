@@ -121,6 +121,27 @@ class RoleTest < ActiveSupport::TestCase
     assert_not role.update(permission_keys: %w[gone#index])
   end
 
+  # Ruby truthiness would let "false" — or any params/config value passed
+  # along — silently disable the strict path, which is the hole this whole API
+  # exists to close.
+  test "only literal true opens the scrub hatch" do
+    [ "false", "true", "0", 1, Object.new, :true ].each do |truthy|
+      role = CurrentScope::Role.new(name: "Editor #{truthy.class}#{truthy.object_id}")
+      role.assign_permission_keys(%w[gone#index], scrub: truthy)
+
+      assert_not role.save, "scrub: #{truthy.inspect} must not disable validation"
+    end
+  end
+
+  test "falsey scrub values stay strict" do
+    [ false, nil ].each do |falsey|
+      role = CurrentScope::Role.new(name: "Editor #{falsey.inspect}")
+      role.assign_permission_keys(%w[gone#index], scrub: falsey)
+
+      assert_not role.save
+    end
+  end
+
   # --- R5: what was rejected is observable ---
 
   test "the change diff reports rejected keys, and added/removed only what persisted" do

@@ -52,7 +52,8 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     assert_match "already has controllers", output
     assert_match "FAIL-CLOSED", output
     assert_match "config.enforcement = :report", output
-    assert_match "access.would_deny", output, "the warning has to say how to READ the gaps, not just enable the mode"
+    assert_match "current_scope:report", output,
+                 "the warning has to say how to READ the gaps, not just how to enable the mode"
   end
 
   test "the warning finds namespaced controllers too" do

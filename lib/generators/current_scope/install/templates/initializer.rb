@@ -11,11 +11,10 @@ CurrentScope.configure do |config|
   #   config.enforcement = :report
   #
   # The gate then LOGS what it would have denied and lets the request through.
-  # Exercise the app (or run your suite), then read the gaps back out of the
-  # ledger — each row names a subject and the permission they were missing:
+  # Exercise the app (or run your suite), then read the gaps back out — each row
+  # names a subject and the permission they were missing:
   #
-  #   CurrentScope::Event.where(event: "access.would_deny")
-  #                      .pluck(:subject, :details)
+  #   bin/rails current_scope:report
   #
   # That list IS your grant-seeding work. Seed the roles it names, watch the
   # would_deny rows stop appearing, then flip to :enforce. Reversible at every

@@ -20,12 +20,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the ledger as `access.would_deny` with the subject and the permission they were
   missing:
 
-  ```ruby
-  CurrentScope::Event.where(event: "access.would_deny").pluck(:subject, :details)
+  ```bash
+  bin/rails current_scope:report
+  ```
+  ```
+  Would-be denials — grant these to stop them (most-denied first):
+
+    Ada Lovelace — currently Member
+        412x  reports#index
+         38x  reports#export
+
+  Total: 450 would-be denials across 1 subject(s).
   ```
 
-  That list is the work: seed the roles it names, watch it empty out, then set
-  `config.enforcement = :enforce`. Every step is one line back, and you learn
+  That is the work, in the shape of the role grid you need to build: seed the
+  roles it names, watch it empty out, then set `config.enforcement = :enforce`. Every step is one line back, and you learn
   what to grant before anyone is refused rather than after. The install generator
   now says this up front when it detects an app that already has controllers,
   which is when it matters.

@@ -52,13 +52,12 @@ module CurrentScope
                 config.enforcement = :report   # config/initializers/current_scope.rb
 
             The gate then logs what it WOULD deny and lets it through. Run your
-            suite, then read the gaps back:
+            suite, then read the gaps back as a starter role grid:
 
-                CurrentScope::Event.where(event: "access.would_deny")
-                                   .pluck(:subject, :details)
+                bin/rails current_scope:report
 
-            Seed the roles that list names, watch it empty out, then flip to
-            :enforce. One line back at any point.
+            Seed the roles it names, watch it empty out, then flip to :enforce.
+            One line back at any point.
 
           RETROFIT
         end

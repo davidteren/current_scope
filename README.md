@@ -133,15 +133,34 @@ The gate now logs what it *would* have denied and lets the request through,
 recording each one to the ledger. Exercise the app, or just run your suite —
 then read the gaps back out:
 
+```bash
+bin/rails current_scope:report
+```
+
+```
+Would-be denials — grant these to stop them (most-denied first):
+
+  Ada Lovelace — currently Member
+      412x  reports#index
+       38x  reports#export
+  Grace Hopper
+        7x  reports#approve
+
+Total: 457 would-be denials across 2 subject(s).
+```
+
+That *is* your grant-seeding work, in the shape of the role grid you need to
+build: every subject who'd have been refused, what they were missing, and how
+badly. Seed the roles it names, watch the list empty out, then flip to
+`:enforce`. Each step is one line back, and nobody gets a 403 while you learn.
+
+The rows are ordinary ledger events, so query them directly if you want
+something the task doesn't show:
+
 ```ruby
 CurrentScope::Event.where(event: "access.would_deny").pluck(:subject, :details)
 # => [["gid://app/User/7", {"permission" => "reports#index", "reason" => "no_grant"}], ...]
 ```
-
-That list *is* your grant-seeding work: every subject who'd have been refused,
-and the permission they were missing. Seed the roles it names, watch the
-`would_deny` rows stop appearing, then flip to `:enforce`. Each step is one line
-back, and nobody gets a 403 while you learn.
 
 **Report mode is an adoption ramp, not an off switch — don't run production on
 it.** It relaxes exactly one denial: *nobody has granted this yet*. Everything

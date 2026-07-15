@@ -10,7 +10,10 @@ Gem::Specification.new do |spec|
   spec.description = "A mountable Rails engine for authorization: permissions auto-derived " \
                      "from controller actions, roles as editable data, per-record scoped roles, " \
                      "a separation-of-duties veto, and an ambient authorization context that " \
-                     "makes allowed_to? work identically in controllers, views, and components."
+                     "makes allowed_to? work identically in controllers, views, and components. " \
+                     "NOT PRODUCTION-READY: pre-1.0 with known issues under active work — good " \
+                     "for experimentation and spikes, not yet for real users. See the README and " \
+                     "the issue tracker."
   spec.license     = "MIT"
 
   # homepage_uri is derived from spec.homepage (the source repo). Setting

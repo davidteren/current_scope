@@ -1,0 +1,40 @@
+test/permission_catalog_test.rb
+  s_4d1327efb21c21::t_b8c0fd196adfb1 35-136
+lib/current_scope/permission_catalog.rb
+  s_4d1327efb21c21::t_b0417ec98ffa76 32,39-82
+test/integration/guard_sod_bypass_test.rb
+  s_4d1327efb21c21::t_cd48833c209d3f 85-202
+  s_4d1327efb21c21::t_49bf285bc71aa2 203-208
+lib/current_scope/configuration.rb
+  s_4d1327efb21c21::t_9d83cca1c3c276 96-101
+CHANGELOG.md
+  s_4d1327efb21c21::t_83b3f0f1d8e75c 9-36
+test/permission_grid_test.rb
+  s_4d1327efb21c21::t_c247cd50defb58 94-132,134-143
+  s_4d1327efb21c21::t_011a882ed4449b 133
+README.md
+  s_4d1327efb21c21::t_222c456d6fe383 360-370
+app/views/current_scope/roles/edit.html.erb
+  s_4d1327efb21c21::t_da22b6c0fe44cf 27-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "03e5eff2bff3c02bbbc979135492eee184613d42",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

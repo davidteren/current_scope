@@ -277,6 +277,12 @@ custom-named controllers foot-gun](../../README.md#checking-permissions--anywher
 allowed_to?("api/v1/items#show")
 ```
 
+In development and test, `config.warn_on_cross_controller_derivation` logs a
+nudge when a derived key diverges from the gate on the current controller. It
+warns once per site, and it names both readings — asking about a different
+resource than the controller handles derives a different key too, and that's
+correct. See [Dev diagnostics](../../README.md#dev-diagnostics).
+
 ---
 
 ## A rollout ladder
@@ -303,5 +309,6 @@ Roughly in order. Steps 1–3 change nothing for users.
 ## See also
 
 - [README — Retrofitting an app that already has users](../../README.md#retrofitting-an-app-that-already-has-users)
+- [README — Dev diagnostics](../../README.md#dev-diagnostics)
 - [#62](https://github.com/davidteren/current_scope/issues/62) — the skip-inheritance fail-open gap
 - [#45](https://github.com/davidteren/current_scope/issues/45) — assisted migration from Pundit / CanCanCan / Action Policy

@@ -33,6 +33,23 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     end
   end
 
+  # The guide is only useful if the person retrofitting finds it, and install is
+  # where they are. An unreferenced guide is a guide nobody reads. (#26)
+  test "the next-steps message points at the adoption guide" do
+    output = run_generator
+
+    assert_match "docs/guides/adopting-in-an-existing-app.md", output
+    assert_match(/already has auth/i, output, "say who it's for, or it reads as optional reading")
+  end
+
+  test "the adoption guide the generator names actually exists" do
+    guide = File.expand_path("../../docs/guides/adopting-in-an-existing-app.md", __dir__)
+
+    assert File.exist?(guide),
+           "the generator tells every installing host to read this path — if it moves or is " \
+           "renamed, that instruction becomes a 404 and nothing else would catch it"
+  end
+
   test "a fresh app gets the clean install message and no retrofit warning" do
     controller("application_controller.rb") # what `rails new` leaves behind
 

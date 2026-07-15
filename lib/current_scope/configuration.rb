@@ -144,6 +144,52 @@ module CurrentScope
     # actions shows a blank cell, never a shifted one.
     attr_accessor :permission_grid_groups
 
+    # :enforce (default) | :report — what the gate DOES with a denial. (#37)
+    #
+    # The adoption ramp. A host retrofitting this engine onto an existing app
+    # has a controller suite that goes red the moment the gate is mounted: it is
+    # fail-closed, and nothing is granted yet. Report mode lets them mount the
+    # gate, run their app, and read what WOULD have been denied out of the
+    # ledger — turning a big-bang cutover into a list of grants to seed.
+    #
+    #   :enforce — deny means 403. The only production posture.
+    #   :report  — a MISSING GRANT is logged and allowed through instead. Every
+    #              other denial still refuses.
+    #
+    # Report mode is NOT an off switch and never reaches the things that would
+    # make it one: the separation-of-duties veto still refuses, and the
+    # management console answers to its own full-access check rather than this
+    # gate, so no enforcement setting can hand out the UI where grants are made.
+    attr_reader :enforcement
+
+    ENFORCEMENT_MODES = %i[enforce report].freeze
+
+    # Validating writer: an unknown value here is the worst kind of config
+    # mistake — the host believes it is enforcing while it is not. Fail at boot,
+    # naming what's allowed. Accepts a String so ENV["..."] works; anything that
+    # can't be a mode (nil from an unset ENV var, a number, a collection) raises
+    # ConfigurationError rather than NoMethodError, and the previous mode stands.
+    def enforcement=(value)
+      mode = value.respond_to?(:to_sym) ? value.to_sym : value
+
+      unless ENFORCEMENT_MODES.include?(mode)
+        raise ConfigurationError,
+              "config.enforcement = #{value.inspect} is not a mode. " \
+              "Use :enforce (deny means 403 — the production posture) or " \
+              ":report (log what WOULD be denied and allow it through, to seed " \
+              "grants before cutting over). Report mode is for adoption only: " \
+              "it never lifts the separation-of-duties veto and never opens the " \
+              "management console."
+      end
+
+      warn_report_mode_in_production if mode == :report && production?
+      @enforcement = mode
+    end
+
+    # True only in report mode. A predicate, so callers can't express "not
+    # enforcing" — the modes are a closed set, not a boolean.
+    def report_only? = @enforcement == :report
+
     def initialize
       @user_method = :current_user
       @actor_method = nil
@@ -159,6 +205,7 @@ module CurrentScope
       @parent_controller = "::ApplicationController"
       @subject_class = "User"
       @audit = true
+      @enforcement = :enforce
       @warn_on_nil_sod_record = false
       @permission_grid_groups = {
         "read"    => %w[index show],
@@ -188,6 +235,38 @@ module CurrentScope
     end
 
     private
+
+    # Report mode in production is DELIBERATELY allowed — surveying real traffic
+    # is the most honest way to find out what to grant, and a staging run won't
+    # show you the flows your actual users take. Refusing it here would break the
+    # feature's best use case.
+    #
+    # But "we are not enforcing authorization" is not a state a production app
+    # should be in silently, or for long. The failure mode is quiet: nothing
+    # breaks, no one is refused, and the temporary survey becomes the permanent
+    # posture because nothing ever reminded anyone. So it says so at boot, once,
+    # where a deploy log will keep it.
+    #
+    # ponytail: a warn, not a raise. Unlike allow_mutations_while_impersonating
+    # (which has an env-gate refusal) this has a legitimate production use and a
+    # deliberate exit — the host is mid-migration, and the loud reminder is the
+    # right amount of friction.
+    def warn_report_mode_in_production
+      message = "[CurrentScope] config.enforcement = :report in PRODUCTION — " \
+                "authorization is NOT being enforced. Missing grants are logged " \
+                "as access.would_deny and the request is ALLOWED THROUGH. This is " \
+                "an adoption ramp, not a production posture: seed the grants the " \
+                "ledger names, then set config.enforcement = :enforce."
+
+      if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
+        Rails.logger.warn(message)
+      else
+        # Boot order: an initializer can run before the logger exists. Say it
+        # anyway — a warning nobody sees is the thing this method exists to
+        # prevent.
+        warn(message)
+      end
+    end
 
     def production?
       defined?(Rails) && Rails.respond_to?(:env) && Rails.env.production?

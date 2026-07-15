@@ -90,6 +90,43 @@ module CurrentScope
       )
     end
 
+    # Whether the separation-of-duties veto is in a position to decide about this
+    # pair at all: the action must be SoD-listed AND there must be an actual
+    # record instance to name an initiator from. The veto is defined in terms of
+    # who raised a record, so with no record it has nothing to measure and is
+    # skipped — that covers a collection action's nil, a class-form check like
+    # allowed_to?(:approve, Report), and equally a host hook that handed back
+    # something that isn't a record at all (`params[:id]`, a String).
+    #
+    # PUBLIC because "the veto did not run" and "the veto passed" are different
+    # facts, and a caller that acts on the difference must be able to ASK rather
+    # than infer it. It is not inferable from the decision: a skipped veto falls
+    # through to the ordinary grant check, so it surfaces as :no_grant or an
+    # ordinary allow — never as anything that says "SoD abstained". Report mode
+    # (#37) has to know, because :no_grant is the one reason it downgrades.
+    #
+    # This is the single definition of the condition, deliberately: sod_decision
+    # reads it too. Two copies of "did the veto run" is two copies that drift,
+    # and the copy that drifts is the one guarding the fraud control. (#59 review)
+    def sod_veto_applies?(permission:, record:)
+      sod_action?(permission) && record.respond_to?(:new_record?)
+    end
+
+    # The blind spot: an SoD-listed action whose veto could NOT run. The decision
+    # that comes back for one of these is :no_grant or an ordinary allow — the
+    # veto contributed nothing to it. Anyone treating that :no_grant as "SoD was
+    # fine with this" is reading a silence as an answer.
+    #
+    # The same hazard the record-less scoped branch already refuses (see
+    # sod_action? below) and that config.warn_on_nil_sod_record surfaces on the
+    # allow path: a host mis-gating a member SoD action. In :enforce this costs
+    # nothing — :no_grant is a 403 regardless, so the skipped veto never decides
+    # anything. Report mode is what makes it matter, because :no_grant is exactly
+    # what it downgrades. (#37, #59 review)
+    def sod_veto_skipped?(permission:, record:)
+      sod_action?(permission) && !sod_veto_applies?(permission: permission, record: record)
+    end
+
     private
 
     # Role ids that satisfy `permission`: full_access (grants everything) or an
@@ -130,11 +167,7 @@ module CurrentScope
     # the veto stands), or :bypass (a conflict exists but break-glass lifts it).
     # Pure — reads only; the audit write for a :bypass happens at the Guard.
     def sod_decision(subject:, actor:, permission:, record:)
-      action = permission.split("#").last
-      return :none unless CurrentScope.config.sod_actions.include?(action)
-      # No veto without an actual record instance (collection actions get nil,
-      # class-form checks like allowed_to?(:approve, Report) get the class).
-      return :none unless record.respond_to?(:new_record?)
+      return :none unless sod_veto_applies?(permission: permission, record: record)
 
       # SoD is a structural guarantee — "cannot determine the initiator" must
       # never mean "permit". A record type where SoD genuinely doesn't apply
@@ -144,7 +177,7 @@ module CurrentScope
               "#{record.class.name}##{INITIATOR_METHOD} is not defined, but " \
               "\"#{permission}\" is a separation-of-duties action (config.sod_actions). " \
               "Define #{INITIATOR_METHOD} on #{record.class.name} (return nil to exempt " \
-              "a record), or remove \"#{action}\" from config.sod_actions."
+              "a record), or remove \"#{permission.split('#').last}\" from config.sod_actions."
       end
 
       initiator = record.send(INITIATOR_METHOD)

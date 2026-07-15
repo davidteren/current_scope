@@ -112,6 +112,12 @@ module CurrentScope
           !message.match?(/\bcolumn\b/i) &&
           message.match?(/no such table|could not find table|does(?:n't| not) exist|unknown table|undefined table/i)
       end
+      # PUBLIC: report mode's ledger warning asks this too (#37). It is one
+      # question — "is this the un-migrated-table case?" — and one adapter-shaped
+      # answer, so it gets one definition. A second opinion elsewhere is a second
+      # opinion that drifts, and this one decides which fix an operator is sent
+      # after. (#59 review)
+      public :missing_events_table?
     end
   end
 end

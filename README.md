@@ -113,6 +113,70 @@ class SessionsController < ApplicationController
 end
 ```
 
+### Retrofitting an app that already has users
+
+The gate is fail-closed, so the line you just added denies **everything** until
+grants exist. On a greenfield app that's invisible — you seed the Owner role and
+move on. On an app that already has controllers and traffic, it means your suite
+goes red and your users get 403s the moment you deploy, and the only way to
+discover what you should have granted is to break it and read the wreckage.
+
+Don't cut over blind. Run in report mode first:
+
+```ruby
+CurrentScope.configure do |config|
+  config.enforcement = :report   # :enforce (default) | :report
+end
+```
+
+The gate now logs what it *would* have denied and lets the request through,
+recording each one to the ledger. Exercise the app, or just run your suite —
+then read the gaps back out:
+
+```bash
+bin/rails current_scope:report
+```
+
+```
+Would-be denials — grant these to stop them (most-denied first):
+
+  Ada Lovelace — currently Member
+      412x  reports#index
+       38x  reports#export
+  Grace Hopper
+        7x  reports#approve
+
+Total: 457 would-be denials across 2 subject(s).
+```
+
+That *is* your grant-seeding work, in the shape of the role grid you need to
+build: every subject who'd have been refused, what they were missing, and how
+badly. Seed the roles it names, watch the list empty out, then flip to
+`:enforce`. Each step is one line back, and nobody gets a 403 while you learn.
+
+The rows are ordinary ledger events, so query them directly if you want
+something the task doesn't show:
+
+```ruby
+CurrentScope::Event.where(event: "access.would_deny").pluck(:subject, :details)
+# => [["gid://app/User/7", {"permission" => "reports#index", "reason" => "no_grant"}], ...]
+```
+
+**Report mode is an adoption ramp, not an off switch — don't run production on
+it.** It relaxes exactly one denial: *nobody has granted this yet*. Everything
+else still refuses:
+
+| Still enforced in `:report` | Why it can't be relaxed |
+|---|---|
+| Separation-of-duties veto | Lifting it lets an initiator really approve their own record — a fraud action executed, not a role gap surfaced. |
+| SoD actions the veto *couldn't* run on | If an SoD action is gated without a record, the veto has no initiator to measure and is skipped — so the refusal that comes back says "not granted", not "SoD approved". Report mode won't speak for a rule nobody asked, and still refuses. (`config.warn_on_nil_sod_record` surfaces the misconfiguration behind it.) |
+| The management console | It's where grants are made. An observation flag that opened it would be a privilege escalation. |
+| Impersonation read-only gate | Runs before the permission check and answers to its own rule. |
+
+The response carries `X-Current-Scope-Reason: would_deny` on anything report mode
+let through, so you can spot them in an integration test or a proxy log without
+reading the ledger.
+
 **Assumption #1: every controller descends from a `Guard`'d base.** An action on
 a controller that never includes `Guard` (an API base, a hand-rolled
 `ActionController::Base`) is silently ungated. To catch that in dev/test, include
@@ -413,6 +477,16 @@ and `sod_identity` — are grouped in their own block and covered under
 [Impersonation](#impersonation-act-as); they layer in that order, so
 `sod_identity` is only observable once a mutation is allowed past the read-only
 gate.
+
+**`config.enforcement`** — `:enforce` (default) | `:report`. What the gate does
+with a denial. `:enforce` means a denial is a 403; it is the only production
+posture. `:report` logs a *missing grant* and lets the request through instead,
+recording it as `access.would_deny` — the adoption ramp for retrofitting an
+existing app, covered in [Retrofitting an app that already has
+users](#retrofitting-an-app-that-already-has-users). It relaxes nothing else: the
+SoD veto and the management console are untouched by it. An unknown value raises
+at boot rather than being silently treated as one of the two — believing you're
+enforcing when you aren't is the worst way to be wrong about this setting.
 
 The **audit ledger** is controlled by `config.audit` — tri-state
 `false | true | :strict`. `false` records nothing; `true` (the default) records

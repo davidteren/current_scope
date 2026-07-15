@@ -273,6 +273,31 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
                  "say the request still went through — otherwise this reads as a blocked request")
   end
 
+  # A PARTIAL migration — the table exists, a column doesn't — is not a missing
+  # table, and telling someone their table is missing when they're looking right
+  # at it wastes the exact minutes this warning exists to save.
+  #
+  # Event.missing_events_table? already excludes column errors for this reason
+  # (its own comment says "would point operators at the wrong fix"). This asks it
+  # rather than keeping a second, worse opinion. (#59 review, cubic)
+  test "a missing COLUMN is not reported as a missing table" do
+    CurrentScope.config.enforcement = :report
+    column_error = ActiveRecord::StatementInvalid.new(
+      "column current_scope_events.details does not exist"
+    )
+
+    warnings = capture_warnings do
+      with_broken_ledger(error: column_error) { get reports_url, headers: sign_in(@alice) }
+    end
+    warning = warnings.join
+
+    assert_response :success
+    assert_no_match(/table is missing/i, warning,
+                    "the table is right there — this is a partial migration, not an absent one")
+    assert_match "current_scope_events.details", warning,
+                 "the real error names the column; passing it through is what makes this diagnosable"
+  end
+
   test "a ledger failure that is NOT a missing table reports the real error" do
     CurrentScope.config.enforcement = :report
 

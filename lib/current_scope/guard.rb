@@ -240,8 +240,14 @@ module CurrentScope
                          "row is missing. This warns once per process.")
     end
 
+    # ASKS Event whether this is the un-migrated-table case rather than pattern-
+    # matching the message here. Event's signature already excludes missing-COLUMN
+    # errors — a partial migration is not an absent table, and its own comment
+    # says why: it "would point operators at the wrong fix". A looser test here
+    # reintroduced exactly that, telling someone their table was missing while
+    # they were looking right at it. (#59 review)
     def ledger_failure_hint(error)
-      if error.is_a?(ActiveRecord::StatementInvalid) && error.message.include?("current_scope_events")
+      if CurrentScope::Event.missing_events_table?(error)
         "the current_scope_events table is missing, so would-be denials are not being " \
         "recorded and `rails current_scope:report` will be empty. Run " \
         "`rails current_scope:install:migrations && rails db:migrate`, or set " \

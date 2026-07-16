@@ -239,13 +239,13 @@ runs Action Policy today and wants an incremental, reversible retrofit.
 - [x] **Refresh of the sketch-learning — PR #68.** Pruned to schema, fixed
       drifted counts, added the sibling seam.
 
-#### Open
+#### Plan 030 — shipped (see the 2026-07-16-continued session block below)
 
-- [ ] **PR #69 — plan 030 (#62), awaiting review.** Detect the ungated surface:
-      grid honesty + a non-raising tripwire posture + `current_scope:ungated`.
-      **Refs #62, does not close it** — the plan is the decision artifact; the
-      implementation is a separate PR. Closing on the plan would repeat the exact
-      "#37 closes an issue that never did the work" trail #62 was filed about.
+- [x] **PR #69 — plan 030 (#62).** The decision artifact. Reviewed and merged;
+      refs #62, did not close it (the implementation is the separate PR that did).
+- [x] **PR #79 — plan 030 implemented, closes #62.** GatingReflection, the
+      grid's "gate not run" badge, `config.gating_tripwire = :raise | :warn`,
+      `current_scope:ungated`. Detail in the continued-session block below.
 
 #### Filed / amended
 
@@ -347,6 +347,40 @@ threads fixed-or-answered first. (The config scaffolding was committed on
   tension notes favoring seam-locality — revisit if the files grow.
 
 ---
+
+### This session (2026-07-16, continued) — audit remediation shipped, plan 030 implemented
+
+**Suite: 485 runs, 1503 assertions + 21 system; RuboCop clean on `main`.**
+
+- [x] **The audit's remediation, all merged in order:** PR **#71** (the P1 —
+      PR #64's review fixes were never pushed; the dangling commit rescued),
+      **#72** (the three-caller `roles_granting` safety comment #65 cites),
+      **#77** (learning-docs refresh; code refs now name-anchored), **#78**
+      (plan 027 amendment: Action-Policy-first, harness-in-gem), **#70** (this
+      file's brief + corrections). Issue #50's body amended in place; follow-ups
+      filed: **#73** (report-mode SoD blind-spot 403 diagnosis), **#74** (nudge
+      re-derivation + String shape), **#75** (conditional-skip grid third
+      state), **#76** (declared-skip macro).
+- [x] **Plan 030 reviewed and merged (PR #69)**, its citations re-anchored
+      after five merges moved beneath it.
+- [x] **Plan 030 IMPLEMENTED — PR #79, closes #62.** GatingReflection
+      (proven-or-silent, KTD-1/2/3), the grid's "gate not run" badge with the
+      live break-glass cell exempted (KTD-9), `config.gating_tripwire =
+      :raise | :warn` (KTD-5/6; the CHANGELOG names the disclosure change),
+      `bin/rails current_scope:ungated`, dummy #62 shapes, docs. Executed via
+      ce-work, unit-per-commit, proof-first; all seven Verification Contract
+      mutations re-run red by the orchestrator. Review: nine-persona
+      ce-code-review (7 validated findings fixed; two maintainer gate
+      decisions — the view renders a broken controller as "could not inspect"
+      instead of 500ing the editor [named deviation from KTD-2, view only],
+      AGENTS.md re-codified to real conventions), then four PR review rounds
+      (42 threads: qodo's parse-drift → the catalog is now the ONE
+      bypass-permission parse with `routed?` separating injected from routed
+      keys; cubic's 17 collision/honesty findings; a parallel session's
+      duplicate 17; cubic's final 3). Two mid-flight `main` integrations.
+- [x] **Parallel ie-audit remediation (other session): PRs #81–#85** — audit
+      ledger 500, picker empty state, security-knob config writers, experience
+      P2s, scope_for doc honesty, STI-safe subjects page.
 
 ## Verification brief — for a fresh session
 
@@ -460,30 +494,32 @@ confident, well-argued, wrong.
 
 ## Next
 
-1. **PR #69 review → then implement plan 030** as its own PR closing #62.
-2. **#45 (parked by the maintainer)** — delivery split already settled: parity
+1. **0.3.0 — IN PROGRESS: #50 (plan 029) + #65 together.** Both change the
+   record-less resolver branch, so they ship as one minor release: a
+   `~> 0.2.0` pin must not pick up an authorization-semantics change on a
+   routine `bundle update`. Plan 029 is merged and reviewed; #65 has no plan
+   yet — it gets one (ce-plan) before any resolver edit, and its fix must
+   narrow to granted record **ids**, not a type (the refutation lives on the
+   issue and in `resolver.rb`'s three-caller safety comment).
+2. ~~**PR #69 review → implement plan 030**~~ — **done** (PR #79, #62 closed).
+3. **#45 (parked by the maintainer)** — delivery split already settled: parity
    harness ships in the gem, analyzer ships as a skill. First-PR scope answered
    by the audit (2026-07-16): **Action-Policy-first for the first adapter** —
    Pundit-first has no recorded rationale anywhere, while #45 calls AP the
    "closest cousin", RESEARCH.md modeled the API on it, and the run's lens was
    an AP host. Sequencing: after #50/#65 land as 0.3.0 (migration tooling must
    not certify hosts against semantics about to change). Note: the parking +
-   delivery split exist only in this file — record them on issue #45 and amend
-   plan 027 (its KTD-1 says skill-only) before the first #45 PR.
-3. **#50** — plan 029 is merged and unimplemented. Must release as **0.3.0**, not
-   0.2.1: a `~> 0.2.0` pin must not pick up an authorization-semantics change on a
-   routine `bundle update`.
-4. **#65** — bounded `full_access`. Any fix must narrow to granted record **ids**,
-   not a type.
-5. Then the docs cluster: **#30, #28, #27, #24** (plan 006 is "relocate and
+   delivery split exist only in this file — ~~record them on issue #45~~ (done,
+   2026-07-16 comment) and plan 027 is amended (PR #78).
+4. Then the docs cluster: **#30, #28, #27, #24** (plan 006 is "relocate and
    complete", not "write").
-6. ~~**Publish to RubyGems**~~ — **done.** `v0.2.0` is on RubyGems and the
+5. ~~**Publish to RubyGems**~~ — **done.** `v0.2.0` is on RubyGems and the
    showcase consumes it as a normal gem dependency. Releasing now means: bump
    `lib/current_scope/version.rb` + CHANGELOG, tag, `gem push`, then bump the
    showcase's `gem "current_scope"`.
-7. **README screenshots** — the UI is clean and verified; capture the dashboard,
+6. **README screenshots** — the UI is clean and verified; capture the dashboard,
    permission grid, subjects, members, events when convenient.
-8. Open design questions (DESIGN.md §9): resource hierarchy/cascade,
+7. Open design questions (DESIGN.md §9): resource hierarchy/cascade,
    multiple org-wide roles, scoped-role capability restriction.
 
 ## Still to be done (open design questions — DESIGN.md §9)

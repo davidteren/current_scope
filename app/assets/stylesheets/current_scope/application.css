@@ -509,6 +509,54 @@ a:hover { color: var(--cs-accent-strong); }
 .cs-grid td:has(input[data-cs-partial="true"]) { background: var(--cs-accent-wash); }
 .cs-grid input[data-cs-partial="true"] { outline: 2px dashed var(--cs-accent); outline-offset: 1px; }
 
+/* UNGATED (provable): the gate never runs on this controller, so its granted
+   routed actions are inert. The badge is advisory — marking is not disabling
+   (KTD-8/R5): nothing grayed, nothing disabled. It sits under the controller
+   name in the sticky header, wrapping normally inside the nowrap column. */
+.cs-ungated-badge {
+  display: block;
+  max-width: 19rem;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.4375rem;
+  border: 1px solid var(--cs-danger-line);
+  border-radius: var(--cs-radius-sm);
+  background: var(--cs-danger-wash);
+  color: var(--cs-ink);
+  font-family: var(--cs-font);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  line-height: 1.45;
+  white-space: normal;
+}
+.cs-ungated-badge strong {
+  color: var(--cs-danger);
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.cs-ungated-badge code { font-family: var(--cs-mono); }
+
+/* A checked (or partial) cell in a marked row must not read as a live grant:
+   swap the cobalt wash for a muted hatch. CSS-only, keyed on the badge — the
+   cell markup is untouched. The break-glass cell (.cs-cell-bypass) is excluded
+   on purpose (KTD-9): that grant IS live on a marked row, so it keeps the real
+   granted wash from the rule above. */
+.cs-grid tbody tr:has(.cs-ungated-badge) td:not(.cs-cell-bypass):has(input:checked),
+.cs-grid tbody tr:has(.cs-ungated-badge) td:not(.cs-cell-bypass):has(input[data-cs-partial="true"]) {
+  background: repeating-linear-gradient(-45deg,
+      var(--cs-surface-2) 0 4px, var(--cs-bg) 4px 8px);
+}
+
+/* The per-cell exemption note on a marked row's break-glass cell. */
+.cs-bypass-exempt {
+  display: block;
+  margin-top: 0.125rem;
+  font-size: 0.625rem;
+  line-height: 1.3;
+  color: var(--cs-muted);
+  white-space: nowrap;
+}
+
 /* Checkboxes / radios use the accent. */
 input[type="checkbox"], input[type="radio"] {
   accent-color: var(--cs-accent);

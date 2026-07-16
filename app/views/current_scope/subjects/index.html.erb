@@ -46,7 +46,11 @@
   </thead>
   <tbody>
     <% @subjects.each do |subject| %>
-      <% key = [ subject.class.name, subject.id ] %>
+      <%# Key by what the polymorphic association STORES (the base_class name),
+          not subject.class.name — an STI subject (AdminUser < User) is saved as
+          "User", and keying on the subclass name would show its roles as
+          "— none —" while the resolver happily enforces them. %>
+      <% key = [ subject.class.polymorphic_name, subject.id ] %>
       <% label = current_scope_subject_label(subject) %>
       <%# Filter against a precise text set — subject label, current org role, and
           scoped roles/records — NOT the row's textContent: every row embeds a

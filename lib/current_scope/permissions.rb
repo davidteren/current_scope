@@ -18,9 +18,14 @@ module CurrentScope
 
     # The list-side companion to allowed_to?: "which records of `model` may the
     # effective subject act on?". Same grants, keys, and fail-closed rules as
-    # the gate, so a list can't drift from the per-record decision. Returns a
-    # chainable relation (.where/.order/.page on it). `permission` defaults to
-    # the model's index context and accepts a bare action or a full key.
+    # the gate — but NOT the same vetoes: the separation-of-duties veto (and
+    # the impersonation mutation gate) act on record-targeted requests, not on
+    # list membership, so for an SoD-listed action the list CAN include records
+    # the per-record gate then refuses (the subject's own initiated records).
+    # Per-row affordances for such actions must still check
+    # allowed_to?(action, record). Returns a chainable relation
+    # (.where/.order/.page on it). `permission` defaults to the model's index
+    # context and accepts a bare action or a full key.
     #
     #   scope_for(Project)                 # projects#index — what a list shows
     #   scope_for(Report, permission: :approve)

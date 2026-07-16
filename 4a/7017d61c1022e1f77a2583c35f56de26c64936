@@ -1,0 +1,40 @@
+lib/current_scope/engine.rb
+  s_0daa8cae7814ef::t_b294fdad3955fd 18
+  s_0daa8cae7814ef::t_5a47a641679a27 15-17
+lib/current_scope/configuration.rb
+  s_0daa8cae7814ef::t_706b958621c0df 281
+  s_0daa8cae7814ef::t_11fa24154fde37 275-280
+  s_0daa8cae7814ef::t_3f7d634bd07c13 227-258
+test/dummy/config/routes.rb
+  s_0daa8cae7814ef::t_5efbe739ab4157 44-46
+lib/current_scope/gating_tripwire.rb
+  s_0daa8cae7814ef::t_4fc6d51bdbe5c2 24-26,30-46
+  s_0daa8cae7814ef::t_c0bee3512a53ec 67-74
+  s_0daa8cae7814ef::t_2a5e99f43d614f 75-76
+  s_0daa8cae7814ef::t_de64117fbf8862 47
+lib/generators/current_scope/install/templates/initializer.rb
+  s_0daa8cae7814ef::t_6f455e61a1ae8a 30-36
+test/dummy/app/controllers/conditional_skip_tripwire_controller.rb
+  s_0daa8cae7814ef::t_4a76ff6e297bfc 1-20
+test/configuration_test.rb
+  s_0daa8cae7814ef::t_0f67c294ed5dc7 66-108
+test/integration/gating_tripwire_test.rb
+  s_0daa8cae7814ef::t_726f39c346853c 31-90,92-94,102-141
+  s_0daa8cae7814ef::t_35c27541349ca1 91,95-101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "4a7017d61c1022e1f77a2583c35f56de26c64936",
+  "prompts": {},
+  "sessions": {
+    "s_0daa8cae7814ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "94a07cd1-56d2-40fe-b604-a56ea96c46af",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

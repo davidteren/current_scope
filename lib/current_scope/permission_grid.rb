@@ -13,13 +13,29 @@ module CurrentScope
     Column = Struct.new(:label, :actions, :group, keyword_init: true)
     Cell   = Struct.new(:blank, :group, :name, :value, :checked, :partial, :granted_keys, keyword_init: true)
 
-    def initialize(catalog: CurrentScope.catalog, groups: CurrentScope.config.permission_grid_groups)
+    # The gating default is evaluated at CALL time, so every bare
+    # PermissionGrid.new (the edit view AND role_params on every role save)
+    # constructs a GatingReflection. That is fine only because its constructor
+    # is inert by contract — all reflection work happens inside #ungated?, and
+    # nothing here calls it during initialize or #expand (KTD-8; pinned by the
+    # spy test).
+    def initialize(catalog: CurrentScope.catalog, groups: CurrentScope.config.permission_grid_groups,
+                   gating: GatingReflection.new)
       @grouped = catalog.grouped # { "controller" => ["action", ...] }
       @groups  = groups || {}
+      @gating  = gating
     end
 
     def controllers
       @grouped.keys.sort
+    end
+
+    # Is this row's controller provably never gated? Advisory only — a pure
+    # delegation the view reads to annotate the row; no other grid method
+    # consults the reflection, so the answer cannot affect a cell or an
+    # expansion (pinned byte-identical in the tests).
+    def ungated?(controller)
+      @gating.ungated?(controller)
     end
 
     # Ordered columns: config groups that apply to at least one controller (in

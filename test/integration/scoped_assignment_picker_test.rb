@@ -85,6 +85,16 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_select "select[name=resource_gid] option[value=?]", needle.to_gid.to_s
   end
 
+  test "a search with zero matches says so instead of claiming matches are shown" do
+    25.times { |i| Folder.create!(name: "Ledger #{i}") }
+
+    get current_scope.new_scoped_role_assignment_url(resource_type: "Folder", q: "zzz-no-such"), headers: as(@owner)
+    assert_response :success
+
+    assert_match "No records match", response.body
+    assert_no_match(/Showing up to \d+ matches/, response.body)
+  end
+
   test "record search honors the display limit" do
     60.times { |i| Folder.create!(name: "Match #{i}") }
 

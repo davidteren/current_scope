@@ -1,0 +1,26 @@
+docs/plans/2026-07-16-030-feat-ungated-action-detection-plan.md
+  s_0daa8cae7814ef::t_f33fbb4fade335 324
+  s_0daa8cae7814ef::t_d697a8e2151121 443
+  s_0daa8cae7814ef::t_cfc8ced42730ae 380
+  s_0daa8cae7814ef::t_2c8e924ad16a59 449
+  s_0daa8cae7814ef::t_88c4eddfe1111f 461
+  s_0daa8cae7814ef::t_d6ecc29dea2fa7 464
+  s_0daa8cae7814ef::t_8d25a29612fd2f 488
+  s_0daa8cae7814ef::t_781491c2bad5ee 462
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "800157b9445c1635788f5b3f25f5048d37bd95a8",
+  "prompts": {},
+  "sessions": {
+    "s_0daa8cae7814ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "94a07cd1-56d2-40fe-b604-a56ea96c46af",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -302,11 +302,13 @@ one it states. The earlier "prefer a positive closed set" lesson from PR #49 was
   historical-by-design. All six flags turned out intentional. I read the flag
   instead of the prose.
 
-### This session (2026-07-16) — intent-engineering audit + remediation (PRs #81–#85)
+### This session (2026-07-16) — intent-engineering audit + remediation (PRs #81, #82, #83, #85)
 
 Scaffolded the project's agent config, ran a five-lens `/ie-audit` over the
-full engine, then fixed everything actionable across four PRs (all
-squash-merged in order, review threads fixed-or-answered first).
+full engine, then fixed everything actionable across four PRs — #81, #82,
+#83, #85; there is no #84 in this set — all squash-merged in order, review
+threads fixed-or-answered first. (The config scaffolding was committed on
+`feat/ungated-detection` and reached `main` when that branch merged as #79.)
 
 - [x] **Config scaffolding**: `AGENTS.md` workflow contract (+ thin `CLAUDE.md`
       pointer), `.intense/` (ways-of-working, rails thresholds, pattern

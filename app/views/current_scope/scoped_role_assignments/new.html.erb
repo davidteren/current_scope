@@ -102,9 +102,15 @@
                 include_blank: "— choose a record —", form: "cs-cascade",
                 data: { current_scope_autosubmit: true } %>
           <% if @searchable && params[:q].present? %>
-            <span class="cs-hint">
-              Showing up to <%= CurrentScope::ScopedRoleAssignmentsController::DISPLAY_LIMIT %> matches — refine the search to narrow.
-            </span>
+            <% if record_options.empty? %>
+              <span class="cs-hint cs-picker-empty">
+                No records match “<%= params[:q] %>” — try a different search.
+              </span>
+            <% else %>
+              <span class="cs-hint">
+                Showing up to <%= CurrentScope::ScopedRoleAssignmentsController::DISPLAY_LIMIT %> matches — refine the search to narrow.
+              </span>
+            <% end %>
           <% end %>
         </p>
       <% end %>

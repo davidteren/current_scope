@@ -26,7 +26,30 @@ module CurrentScope
     #                        record.
     #   :subject           — veto only on the effective subject.
     # The two are identical when not impersonating (actor == subject).
-    attr_accessor :sod_identity
+    # See the validating writer below — an unknown value must not silently
+    # narrow the veto.
+    attr_reader :sod_identity
+
+    SOD_IDENTITY_MODES = %i[either subject].freeze
+
+    # Validating writer, same contract as enforcement=: the resolver compares
+    # `== :either`, so a typo (`:both`, `:actor`) would otherwise silently
+    # behave as :subject — narrowing the fraud control with no signal. Raise at
+    # assignment naming the closed set; the previous mode stands.
+    def sod_identity=(value)
+      mode = value.respond_to?(:to_sym) ? value.to_sym : value
+
+      unless SOD_IDENTITY_MODES.include?(mode)
+        raise ConfigurationError,
+              "config.sod_identity = #{value.inspect} is not a mode. " \
+              "Use :either (default — the veto binds the effective subject AND, " \
+              "while impersonating, the real actor, so impersonation can never " \
+              "approve the actor's own record) or :subject (weigh only the " \
+              "effective subject)."
+      end
+
+      @sod_identity = mode
+    end
 
     # When false (the default), an impersonated session is read-only: any
     # non-GET/HEAD request is denied while a real actor acts as a different
@@ -42,10 +65,11 @@ module CurrentScope
     # See the custom writer.
     attr_reader :allow_mutations_while_impersonating
 
-    # Env var that opts a PRODUCTION deploy into impersonated writes. Any value
-    # (even "false" or "0" — presence is what counts) lifts the production
-    # refusal; unset in production means allow_mutations_while_impersonating=true
-    # raises at boot. development/test/staging never consult it.
+    # Env var that opts a PRODUCTION deploy into impersonated writes. The VALUE
+    # is what counts: a truthy value ("1", "true", "yes"…) lifts the production
+    # refusal; unset, "", "false", "0", "off" all mean "not opted in" — an
+    # operator writing `…=false` in a deploy manifest gets what they said, not
+    # the opposite. development/test/staging never consult it.
     PROD_MUTATIONS_ENV = "CURRENT_SCOPE_ALLOW_PROD_IMPERSONATION_MUTATIONS"
 
     # Regexps matched against controller paths to keep infrastructure
@@ -123,7 +147,32 @@ module CurrentScope
     #             boundary events have no mutation to roll back — a raise there
     #             is a loud 500 on a mis-migrated host.)
     # Read as `== :strict`, never `== true` — don't flatten the tri-state.
-    attr_accessor :audit
+    # See the validating writer below — a misspelled :strict must not silently
+    # downgrade an audit-mandatory host to best-effort.
+    attr_reader :audit
+
+    AUDIT_MODES = [ false, true, :strict ].freeze
+
+    # Validating writer, same contract as enforcement=: because record! checks
+    # `== :strict`, a typo (`:strixt`) is truthy and would silently behave as
+    # plain true — the host believes unaudited mutations roll back while they
+    # commit. Raise at assignment naming the closed set; the previous mode
+    # stands.
+    def audit=(value)
+      mode = value.respond_to?(:to_sym) ? value.to_sym : value
+
+      unless AUDIT_MODES.include?(mode)
+        raise ConfigurationError,
+              "config.audit = #{value.inspect} is not a mode. " \
+              "Use false (record! is a silent no-op — no ledger), " \
+              "true (append a row per event, degrade gracefully if the events " \
+              "table is missing), or :strict (a missing events table RAISES so " \
+              "a mutation-wrapping transaction rolls back rather than " \
+              "committing an unaudited grant)."
+      end
+
+      @audit = mode
+    end
 
     # --- Dev diagnostics (#41) ----------------------------------------------
     #
@@ -296,7 +345,7 @@ module CurrentScope
     # silently letting a real actor mutate data as someone else. Assigning false
     # (or leaving the default) is always allowed.
     def allow_mutations_while_impersonating=(value)
-      if value && production? && !ENV.key?(PROD_MUTATIONS_ENV)
+      if value && production? && !prod_mutations_opt_in?
         raise ConfigurationError,
               "config.allow_mutations_while_impersonating = true is refused in " \
               "production: letting a real actor write as the subject they " \
@@ -304,12 +353,23 @@ module CurrentScope
               "Keep it false so impersonated sessions stay read-only in " \
               "production, or — only if writes under act-as are genuinely " \
               "required (e.g. a live public showcase) — set ENV[\"#{PROD_MUTATIONS_ENV}\"] " \
-              "to opt in explicitly. development, test, and staging are unaffected."
+              "to a truthy value (\"1\"/\"true\") to opt in explicitly; \"false\", " \
+              "\"0\", and empty mean not opted in. development, test, and staging " \
+              "are unaffected."
       end
       @allow_mutations_while_impersonating = value
     end
 
     private
+
+    # The env var's VALUE means what it says — presence alone is not consent.
+    # ActiveModel's boolean cast maps "false"/"0"/"f"/"off" to false and "" to
+    # nil; anything else present is truthy. Only reached when production? is
+    # already true, so Rails (and ActiveModel) are loaded — a bare-Ruby
+    # Configuration.new never gets here.
+    def prod_mutations_opt_in?
+      !!ActiveModel::Type::Boolean.new.cast(ENV[PROD_MUTATIONS_ENV])
+    end
 
     # Report mode in production is DELIBERATELY allowed — surveying real traffic
     # is the most honest way to find out what to grant, and a staging run won't

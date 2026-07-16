@@ -294,5 +294,31 @@ module CurrentScope
       assert_equal 1, logs.scan(/config\.subject_label/).size
       assert_match "could not be read", logs
     end
+
+    # --- GID labels: the ledger outlives the identities it names ---
+    #
+    # GlobalID::Locator.locate RAISES RecordNotFound for a deleted record and
+    # NameError for a renamed class — nil is only for unparseable strings. The
+    # events page must degrade to the raw GID, not 500.
+
+    test "a GID whose record was deleted falls back to the raw GID string" do
+      user = User.create!(name: "Ephemeral")
+      gid = user.to_gid.to_s
+      user.destroy!
+
+      assert_equal gid, current_scope_gid_label(gid)
+    end
+
+    test "a GID naming a class that no longer exists falls back to the raw GID string" do
+      gid = User.create!(name: "Anchor").to_gid.to_s.sub("User", "NoSuchClass")
+
+      assert_equal gid, current_scope_gid_label(gid)
+    end
+
+    test "a GID for a live record still renders its label" do
+      user = User.create!(name: "Alive")
+
+      assert_equal "Alive", current_scope_gid_label(user.to_gid.to_s)
+    end
   end
 end

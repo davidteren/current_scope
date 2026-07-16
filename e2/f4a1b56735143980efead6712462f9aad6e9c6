@@ -1,0 +1,43 @@
+lib/current_scope/permissions.rb
+  s_0daa8cae7814ef::t_20bc340cc286ff 20-36
+test/grant_test.rb
+  s_0daa8cae7814ef::t_20bc340cc286ff 34-48
+test/integration/management_ui_test.rb
+  s_0daa8cae7814ef::t_20bc340cc286ff 150-203
+app/views/current_scope/roles/new.html.erb
+  s_0daa8cae7814ef::t_20bc340cc286ff 5
+test/integration/scoped_assignment_picker_test.rb
+  s_0daa8cae7814ef::t_20bc340cc286ff 98-114
+app/assets/stylesheets/current_scope/application.css
+  s_0daa8cae7814ef::t_20bc340cc286ff 135-155
+app/views/current_scope/subjects/index.html.erb
+  s_0daa8cae7814ef::t_20bc340cc286ff 17-20,29-31,33,55-59,74-76
+app/views/layouts/current_scope/application.html.erb
+  s_0daa8cae7814ef::t_20bc340cc286ff 18-20,50
+app/views/current_scope/scoped_role_assignments/new.html.erb
+  s_0daa8cae7814ef::t_20bc340cc286ff 105-107
+app/views/current_scope/roles/edit.html.erb
+  s_0daa8cae7814ef::t_20bc340cc286ff 7
+test/configuration_test.rb
+  s_0daa8cae7814ef::t_20bc340cc286ff 109-114
+lib/current_scope/configuration.rb
+  s_0daa8cae7814ef::t_20bc340cc286ff 162-168
+lib/current_scope.rb
+  s_0daa8cae7814ef::t_20bc340cc286ff 163-166,168-171
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "e2f4a1b56735143980efead6712462f9aad6e9c6",
+  "prompts": {},
+  "sessions": {
+    "s_0daa8cae7814ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "94a07cd1-56d2-40fe-b604-a56ea96c46af",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

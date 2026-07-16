@@ -25,8 +25,8 @@ module CurrentScope
     # Public contract: boolean. `actor` is the REAL principal behind the
     # request (defaults to the subject — no impersonation); it only widens the
     # SoD veto under config.sod_identity == :either.
-    def allow?(subject:, permission:, record: nil, actor: nil)
-      decide(subject: subject, permission: permission, record: record, actor: actor).first
+    def allow?(subject:, permission:, record: nil, actor: nil, model: nil)
+      decide(subject: subject, permission: permission, record: record, actor: actor, model: model).first
     end
 
     # Internal decision: returns [allowed_bool, reason_or_nil]. The reason is a
@@ -34,7 +34,13 @@ module CurrentScope
     # denial, and :sod_bypassed on the one AUDITED allow (break-glass). Ordinary
     # allows carry nil. The resolver — shared across threads — holds no
     # per-decision state; the reason rides in the return tuple, not on self.
-    def decide(subject:, permission:, record: nil, actor: nil)
+    #
+    # `model:` (#50) is the type the controller's current_scope_model hook
+    # declared for its collection actions, or nil when unknown. Accepted and
+    # DELIBERATELY unread so far — threading (U1) and binding (U2) land
+    # separately so each is provable on its own; U2 binds the record-less
+    # branch by it. It stays a parameter, never state, per the purity rule above.
+    def decide(subject:, permission:, record: nil, actor: nil, model: nil) # rubocop:disable Lint/UnusedMethodArgument
       return [ false, :no_grant ] if subject.nil?
 
       case sod_decision(subject: subject, actor: actor, permission: permission, record: record)

@@ -26,6 +26,24 @@ class GuardTest < ActionDispatch::IntegrationTest
     r
   end
 
+  # Records [permission, model] for every resolver.decide the block's requests
+  # make, delegating to the real decide so outcomes stay honest. The resolver
+  # is process-global (CurrentScope.resolver memoizes), so the singleton
+  # override must always come off again.
+  def capturing_decided_models
+    captured = []
+    resolver = CurrentScope.resolver
+    original = resolver.method(:decide)
+    resolver.define_singleton_method(:decide) do |**kwargs|
+      captured << [ kwargs[:permission], kwargs[:model] ]
+      original.call(**kwargs)
+    end
+    yield
+    captured
+  ensure
+    resolver.singleton_class.remove_method(:decide) if resolver.singleton_methods.include?(:decide)
+  end
+
   test "anonymous requests are forbidden (fail closed)" do
     get reports_url
     assert_response :forbidden
@@ -242,5 +260,71 @@ class GuardTest < ActionDispatch::IntegrationTest
 
     get report_url(other), headers: sign_in(@alice)
     assert_response :forbidden
+  end
+
+  # --- current_scope_model (#50, U1): the Guard resolves the controller's
+  # optional type declaration and threads it to the resolver as model:. In
+  # this unit the resolver accepts and IGNORES it — no decision may change
+  # (R11); binding the record-less branch by it is U2's job.
+
+  test "the Guard threads a declared current_scope_model to the resolver" do
+    project = Project.create!(name: "Apollo")
+    viewer = role("Viewer", "nested_reports#index")
+    CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: viewer, resource: @report)
+
+    # The hook is PRIVATE, like current_scope_record — discovery must use
+    # respond_to?(..., true), so a public-only lookup would miss it.
+    assert_includes NestedReportsController.private_instance_methods, :current_scope_model
+
+    captured = capturing_decided_models do
+      get project_nested_reports_url(project), headers: sign_in(@alice)
+      assert_response :success
+    end
+
+    assert_includes captured, [ "nested_reports#index", Report ],
+                    "the resolver must receive the type the controller declared"
+  end
+
+  test "a controller declaring no current_scope_model threads nil (unknown type)" do
+    assign(@alice, role("Member", "reports#index"))
+
+    captured = capturing_decided_models do
+      get reports_url, headers: sign_in(@alice)
+      assert_response :success
+    end
+
+    assert_includes captured, [ "reports#index", nil ],
+                    "no declaration means the type is unknown — a plain nil, no sentinel"
+  end
+
+  test "a current_scope_model hook returning nil is unknown, same as absent" do
+    ReportsController.class_eval do
+      private def current_scope_model = nil
+    end
+    assign(@alice, role("Member", "reports#index"))
+
+    captured = capturing_decided_models do
+      get reports_url, headers: sign_in(@alice)
+      assert_response :success, "a nil type must not crash the gate"
+    end
+
+    assert_includes captured, [ "reports#index", nil ]
+  ensure
+    ReportsController.remove_method(:current_scope_model)
+  end
+
+  # R11: declaring the model changes NO gate outcome in this unit. The scoped
+  # allow on this controller is pinned by "a nested collection route still
+  # reaches its index on a scoped grant" above; this is the deny/org-wide pair
+  # (neither path reads the model).
+  test "declaring current_scope_model changes no gate outcome (R11)" do
+    project = Project.create!(name: "Apollo")
+
+    get project_nested_reports_url(project), headers: sign_in(@alice)
+    assert_response :forbidden, "ungranted stays denied with a model declared"
+
+    assign(@alice, role("Member", "nested_reports#index"))
+    get project_nested_reports_url(project), headers: sign_in(@alice)
+    assert_response :success, "an org-wide grant never reads the model"
   end
 end

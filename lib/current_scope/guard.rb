@@ -29,6 +29,23 @@ module CurrentScope
   #
   #       def current_scope_record = nil
   #
+  # A controller may ALSO declare a private current_scope_model naming the type
+  # its collection actions deal in:
+  #
+  #       def current_scope_model = Report
+  #
+  # Same discovery rules as current_scope_record (private, fixed name,
+  # optional). The Guard threads it to the resolver so the record-less scoped
+  # branch can bind to that type instead of matching a scoped grant on ANY
+  # type (#50); absent means the type is unknown. A plain method, so a host
+  # may branch on action_name for a per-action answer.
+  #
+  # The two hooks PAIR, they don't substitute: current_scope_model WITHOUT
+  # current_scope_record is inert, because declaring no record hook passes
+  # NO_RECORD (below) and the record-less branch never runs — the declared
+  # type is never consulted. A collection controller opting scoped grants in
+  # declares BOTH: `def current_scope_record = nil` plus the model.
+  #
   # Skip the gate for public endpoints with skip_before_action :current_scope_check!.
   # MutationGuard (included here) adds the read-only-while-impersonating gate as
   # its OWN before_action, so it runs first and survives that skip.
@@ -96,13 +113,14 @@ module CurrentScope
       end
 
       record = resolve_current_scope_record
+      model = resolve_current_scope_model
 
       # The real actor (Current.actor) enters here explicitly — the resolver
       # never reads Current itself (PDP purity). It only matters under SoD
       # :either while impersonating; otherwise actor == subject.
       allowed, reason = CurrentScope.resolver.decide(
         subject: CurrentScope::Current.user, permission: permission,
-        record: record, actor: CurrentScope::Current.actor
+        record: record, model: model, actor: CurrentScope::Current.actor
       )
       unless allowed
         # The nudge runs BEFORE the report-mode branch, and that ordering is the
@@ -284,6 +302,18 @@ module CurrentScope
       return NO_RECORD unless respond_to?(:current_scope_record, true)
 
       send(:current_scope_record)
+    end
+
+    # The type this controller's collection actions deal in, or nil when the
+    # host never declared current_scope_model. Mirrors
+    # resolve_current_scope_record, minus the sentinel: for the RECORD,
+    # "declared nil" and "declared nothing" are different statements and
+    # NO_RECORD keeps them apart; for the TYPE both collapse to the same fact —
+    # unknown — so a plain nil carries it.
+    def resolve_current_scope_model
+      return nil unless respond_to?(:current_scope_model, true)
+
+      send(:current_scope_model)
     end
 
     # Break-glass audit (KTD-1): the resolver stays pure and only reports

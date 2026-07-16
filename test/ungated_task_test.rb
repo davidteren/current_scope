@@ -76,6 +76,25 @@ class UngatedTaskTest < ActiveSupport::TestCase
     CurrentScope.reset_catalog!
   end
 
+  test "a malformed bypass permission raises the catalog's loud error, never a silent mis-parse" do
+    # sod_actions stays [] so the catalog's own derive never validates the
+    # permission — the exact corner where a loose split("#").last would turn
+    # "reports#" into a believable wrong action name. The task delegates to
+    # the catalog's parse, so the misconfiguration raises with the fix named.
+    original_bypass = CurrentScope.config.allow_sod_bypass
+    original_perm = CurrentScope.config.sod_bypass_permission
+    CurrentScope.config.allow_sod_bypass = true
+    CurrentScope.config.sod_bypass_permission = "reports#"
+    CurrentScope.reset_catalog!
+
+    error = assert_raises(CurrentScope::ConfigurationError) { run_task }
+    assert_match "no action segment", error.message
+  ensure
+    CurrentScope.config.allow_sod_bypass = original_bypass
+    CurrentScope.config.sod_bypass_permission = original_perm
+    CurrentScope.reset_catalog!
+  end
+
   test "an empty CATALOG names that nothing was inspected — never a vacuous all-clear" do
     singleton = CurrentScope.singleton_class
     original = CurrentScope.method(:catalog)

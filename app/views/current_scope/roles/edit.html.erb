@@ -21,9 +21,11 @@
 
   <h2>Permission grid</h2>
   <%# The injected break-glass action's bare name (nil when break-glass is
-      off) — derived once; the hint below and the per-row exemption check both
-      read it. %>
-  <% bypass_action = CurrentScope.config.allow_sod_bypass ? CurrentScope.config.sod_bypass_permission.to_s.split("#").last : nil %>
+      off) — the hint below and the per-row exemption check both read it. The
+      CATALOG owns the parse: its split("#", -1) + blank-raise catches a
+      malformed "reports#" that a loose split here would silently turn into a
+      believable wrong action name. (#79 review, qodo) %>
+  <% bypass_action = CurrentScope.config.allow_sod_bypass ? CurrentScope.catalog.bypass_action : nil %>
   <p class="cs-hint">
     One row per controller, one checkbox per action group — derived from the
     app's routes, so new controllers appear here automatically. Columns are

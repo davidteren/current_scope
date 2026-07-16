@@ -22,6 +22,29 @@ module CurrentScope
       key_set.include?(key)
     end
 
+    # The ONE parse of config.sod_bypass_permission's action segment — the grid
+    # view and the ungated task read it here rather than re-splitting the
+    # string themselves (a looser split("#").last silently turns a malformed
+    # "reports#" into "reports" and mislabels the break-glass cell; #79 review).
+    #
+    # `split("#", -1)` keeps the trailing empty field, so a malformed "reports#"
+    # yields "" and is caught here rather than silently becoming "reports" and
+    # injecting "reports#reports". Blank raises instead of skipping: the host
+    # turned break-glass ON, so a permission nobody can hold means the veto can
+    # never be lifted and the feature is inert — an undiagnosable deny, which is
+    # exactly what this engine promises not to do. (A boot-time check for this
+    # config belongs with #40.)
+    def bypass_action
+      action = CurrentScope.config.sod_bypass_permission.to_s.split("#", -1).last
+      return action if action.present?
+
+      raise ConfigurationError,
+            "config.allow_sod_bypass is on, but config.sod_bypass_permission " \
+            "(#{CurrentScope.config.sod_bypass_permission.inspect}) has no action segment. " \
+            "Name the permission the record's initiator must hold to break glass " \
+            "(the default is \"bypass_sod\"), or set config.allow_sod_bypass = false."
+    end
+
     private
 
     def key_set
@@ -97,22 +120,5 @@ module CurrentScope
     # The action segment of config.sod_bypass_permission — tolerating either a
     # bare action ("bypass_sod") or a full key ("reports#bypass_sod").
     #
-    # `split("#", -1)` keeps the trailing empty field, so a malformed "reports#"
-    # yields "" and is caught here rather than silently becoming "reports" and
-    # injecting "reports#reports". Blank raises instead of skipping: the host
-    # turned break-glass ON, so a permission nobody can hold means the veto can
-    # never be lifted and the feature is inert — an undiagnosable deny, which is
-    # exactly what this engine promises not to do. (A boot-time check for this
-    # config belongs with #40.)
-    def bypass_action
-      action = CurrentScope.config.sod_bypass_permission.to_s.split("#", -1).last
-      return action if action.present?
-
-      raise ConfigurationError,
-            "config.allow_sod_bypass is on, but config.sod_bypass_permission " \
-            "(#{CurrentScope.config.sod_bypass_permission.inspect}) has no action segment. " \
-            "Name the permission the record's initiator must hold to break glass " \
-            "(the default is \"bypass_sod\"), or set config.allow_sod_bypass = false."
-    end
   end
 end

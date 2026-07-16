@@ -99,8 +99,9 @@ namespace :current_scope do
     # KTD-9 exemption). Printing it under "grants nothing" would tell an
     # operator the most sensitive grant in the grid is inert. Strip it from
     # the listing and say so once.
-    bypass_action =
-      CurrentScope.config.allow_sod_bypass ? CurrentScope.config.sod_bypass_permission.to_s.split("#").last : nil
+    # The catalog owns the parse (split("#", -1) + blank-raise) — a loose split
+    # here would silently accept a malformed permission. (#79 review, qodo)
+    bypass_action = CurrentScope.config.allow_sod_bypass ? CurrentScope.catalog.bypass_action : nil
     stripped_bypass = false
 
     if grouped.empty?

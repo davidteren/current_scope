@@ -61,6 +61,19 @@ The decision order, fixed:
 5. otherwise       → default deny
 ```
 
+### Guiding principle: rules are data, not code
+
+You may notice there's no controller-level DSL — nothing like
+`let :admins, :all` declared inside a controller. That's deliberate, not
+missing. Grants written in code become a second source of truth next to the
+DB-backed roles: they don't show up in the permission grid, they only change
+with a deploy, and the day someone forgets a declaration the action fails
+*open* instead of closed. In CurrentScope every decision flows through one
+fail-closed resolver reading one data model, which is exactly what lets the
+gate, the views, and the management UI always agree. Convenience helpers that
+*write* that data (seeds, `CurrentScope.grant!`, rake tasks) are welcome;
+anything that *decides* outside the resolver is not.
+
 ## Screenshots
 
 The mounted management UI at `/current_scope` — self-contained (no web fonts, no

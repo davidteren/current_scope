@@ -26,11 +26,19 @@ RubyGems; not production-ready.
    keeps default-deny and the decision order SoD veto → full_access → org-wide
    role → scoped role → record-less target → deny (DESIGN.md §3.7). SoD stays
    non-configurable-in-UI and overrides full_access — that's its whole point.
-2. **Vanilla Rails first.** No Devise, no Pundit, no dry-effects; a new gem only
+2. **Rules live in data, never in controllers.** No controller-level
+   authorization DSL (`let :admins, :all` style, per-action allow lists,
+   class-level grant macros). Grants declared in code are a second source of
+   truth beside the DB-backed roles: invisible to the grid, deploy-gated, and
+   fail-open the day someone forgets a declaration. Every decision routes
+   through the one fail-closed resolver reading the one data model. Sugar that
+   *writes* the same DB rows (seed helpers, rake tasks) is fine; sugar that
+   *decides* is not.
+3. **Vanilla Rails first.** No Devise, no Pundit, no dry-effects; a new gem only
    when Rails genuinely can't do it (owner's explicit constraint).
-3. **Don't regress the READINESS-AUDIT invariants** ("Verified holding — DO NOT
+4. **Don't regress the READINESS-AUDIT invariants** ("Verified holding — DO NOT
    regress" section) or the prod impersonation boot-raise guardrail.
-4. **UI changes get driven in a real browser before merge.** Unit tests render
+5. **UI changes get driven in a real browser before merge.** Unit tests render
    views without layout and miss visual regressions — see Testing below.
 
 ## Git workflow

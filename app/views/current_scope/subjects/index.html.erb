@@ -14,7 +14,10 @@
 </div>
 <% if @query.present? %>
   <p class="cs-hint">Showing matches for “<%= @query %>” across all subjects. Narrow the list below per page; selection applies to the current page.</p>
-<% elsif @page > 1 || @has_next_page %>
+<% else %>
+  <%# Always shown (not just on multi-page lists): the one input drives TWO
+      mechanisms — typing live-filters this page, Search queries every subject —
+      and nothing but this line says so. %>
   <p class="cs-hint">Type to filter this page, or Search to find anyone by email or name across every subject.</p>
 <% end %>
 
@@ -23,8 +26,11 @@
   <span class="cs-spacer"></span>
   <%# Org-wide role for the selection. JS injects the checked subjects as
       subject_gids[] on submit; blank role clears it for all. %>
+  <%# Setting REPLACES each subject's current org-wide role (blank clears it) —
+      as consequential as Remove, which confirms, so this does too. %>
+  <% bulk_prompt = "Change the org-wide role for the selected subjects? This replaces their current role." %>
   <%= form_with url: role_assignment_path, method: :post, class: "cs-bulk-org",
-        data: { cs_bulk_org: true } do %>
+        data: { cs_bulk_org: true, cs_confirm: bulk_prompt, turbo_confirm: bulk_prompt } do %>
     <%= select_tag :role_id, options_from_collection_for_select(@roles, :id, :name),
           include_blank: "org role…", aria: { label: "Org-wide role for selected" } %>
     <%= submit_tag "Set for selected", name: nil, class: "cs-btn" %>
@@ -65,7 +71,9 @@
         </td>
         <td><%= label %></td>
         <td>
-          <%= form_with url: role_assignment_path, method: :post do %>
+          <% set_prompt = "Change the org-wide role for #{label}? This replaces their current role." %>
+          <%= form_with url: role_assignment_path, method: :post,
+                data: { cs_confirm: set_prompt, turbo_confirm: set_prompt } do %>
             <%= hidden_field_tag :subject_gid, subject.to_gid %>
             <%= select_tag :role_id,
                   options_from_collection_for_select(@roles, :id, :name, @assignments[key]&.role_id),

@@ -69,14 +69,15 @@ module CurrentScope
     end
 
     # Returns true when a role was actually cleared, false when there was nothing
-    # to clear (so the caller's count stays accurate).
+    # to clear (so the caller's count stays accurate). Atomicity comes from
+    # create's outer bulk transaction — only called from inside it. (No inner
+    # transaction: without requires_new it would be a bare yield, and it isn't
+    # wanted — a failure anywhere rolls back the whole batch by design.)
     def clear_org_role(subject, assignment, prior_role)
       return false unless assignment.persisted? # nothing to clear ⇒ no event
 
-      RoleAssignment.transaction do
-        assignment.destroy!
-        Event.record!(event: "org_role.removed", target: subject, details: { role: prior_role.name })
-      end
+      assignment.destroy!
+      Event.record!(event: "org_role.removed", target: subject, details: { role: prior_role.name })
       true
     end
 
@@ -88,16 +89,15 @@ module CurrentScope
       new_role = Role.find(params.expect(:role_id))
       changed = prior_role.nil? || prior_role.id != new_role.id
 
-      RoleAssignment.transaction do
-        assignment.update!(role: new_role)
-        if prior_role.nil?
-          Event.record!(event: "org_role.assigned", target: subject, details: { role: new_role.name })
-        elsif prior_role.id != new_role.id
-          Event.record!(event: "org_role.changed", target: subject,
-                        details: { from: prior_role.name, to: new_role.name })
-        end
-        # same role re-set ⇒ no change ⇒ no event
+      # Atomicity comes from create's outer bulk transaction (see clear_org_role).
+      assignment.update!(role: new_role)
+      if prior_role.nil?
+        Event.record!(event: "org_role.assigned", target: subject, details: { role: new_role.name })
+      elsif prior_role.id != new_role.id
+        Event.record!(event: "org_role.changed", target: subject,
+                      details: { from: prior_role.name, to: new_role.name })
       end
+      # same role re-set ⇒ no change ⇒ no event
       changed
     end
   end

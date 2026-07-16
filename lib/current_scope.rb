@@ -109,6 +109,24 @@ module  CurrentScope
       resolver.scope_for(subject: subject, model: model, permission: permission)
     end
 
+    # THE human-label fallback chain, shared by the UI helpers
+    # (ApplicationHelper#current_scope_label) and the audit ledger
+    # (Event.label_for) — one definition, so a record can never render as
+    # "Apollo" on screen while being frozen into the ledger as "Project #7".
+    # Chain: the record's own current_scope_label (Scopeable provides one) →
+    # human identifiers (name/email/title) → "Model #id" → to_s. Returns nil
+    # for nil; callers choose their own nil presentation ("(none)" in views).
+    def label_for(record)
+      return if record.nil?
+      return record.current_scope_label if record.respond_to?(:current_scope_label)
+
+      name = record.try(:name).presence || record.try(:email).presence || record.try(:title).presence
+      return name if name
+      return "#{record.model_name.human} ##{record.id}" if record.respond_to?(:model_name)
+
+      record.to_s
+    end
+
     def permission_key(action, record: nil, controller_path: nil)
       action = action.to_s
       return action if action.include?("#")

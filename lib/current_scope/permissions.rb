@@ -61,10 +61,10 @@ module CurrentScope
     end
 
     # True only while a distinct real actor stands behind the effective
-    # subject (act-as). Views use it as the read-only-state signal.
+    # subject (act-as). Views use it as the read-only-state signal. Delegates
+    # to the one definition on Current, shared with the mutation guard.
     def impersonating?
-      CurrentScope::Current.user.present? &&
-        CurrentScope::Current.actor != CurrentScope::Current.user
+      CurrentScope::Current.impersonating?
     end
   end
 end

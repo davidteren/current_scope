@@ -90,13 +90,11 @@ module CurrentScope
         )
       end
 
-      # Prefer a record's own view-agnostic label; then the AR default; then
-      # a plain to_s for anything else.
+      # The shared chain (CurrentScope.label_for) — the same label the UI
+      # renders is the one denormalized into target_label, so the ledger and
+      # the screen can't disagree about what a record was called.
       def label_for(record)
-        return record.current_scope_label if record.respond_to?(:current_scope_label)
-        return "#{record.model_name.human} ##{record.id}" if record.respond_to?(:model_name)
-
-        record.to_s
+        CurrentScope.label_for(record)
       end
 
       # Recognizes "table is missing" across adapters and Rails' own schema

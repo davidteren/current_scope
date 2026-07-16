@@ -155,7 +155,7 @@ Apply on **every** KTD carrying a code sketch, before writing the implementation
 - **High priority** — the sketch **constructs a key, path, or identifier** that a *different* component reads. Verify both ends derive it identically.
 - **High priority** — a **negative/duck-type test** stands where the prose describes a closed set. Prefer the positive test; a negation is a claim about everything that will ever exist.
 
-Do **not** skip the check because the sketch matches the existing idiom in the file — in 001 KTD-3 the sketch matched two neighbouring methods (`sod_veto_applies?`/`sod_decision` and `scoped_grant?`) and was still wrong, because those methods fell through to a deny and the new branch fell through to an allow.
+Do **not** skip the check because the sketch matches the existing idiom in the file — in 001 KTD-3 the sketch matched two neighbouring methods (`sod_veto_applies?` and `scoped_grant?`, the two that carry the `respond_to?(:new_record?)` idiom) and was still wrong, because those methods fell through to a deny and the new branch fell through to an allow.
 
 ## Examples
 

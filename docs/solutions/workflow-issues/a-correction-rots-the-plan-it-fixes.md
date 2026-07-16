@@ -70,8 +70,8 @@ step with the world; this is a document falling out of step with itself.
 The specimen is plan 029 (`docs/plans/2026-07-15-029-feat-thread-collection-model-plan.md`,
 PR #66, merged 2026-07-15). It plans a security fix to the one grant check in the engine
 bound to neither a record nor a type — `Resolver#record_less_scoped_grant?`
-(`lib/current_scope/resolver.rb:304-311`). Its first draft proposed that once the branch
-binds by type, it could safely read `roles_granting` (`resolver.rb:160-162`), which unions
+(`lib/current_scope/resolver.rb`). Its first draft proposed that once the branch
+binds by type, it could safely read `roles_granting` (same file), which unions
 `full_access` into every permission key. The argument was that binding by `resource_type:`
 satisfies the safety condition the helper's own comment stated, as it read at the time
 (the 2026-07-16 audit found that wording had itself gone stale — PR #61 had added a third,
@@ -172,8 +172,8 @@ unit advances. Both are in the table below. The withdrawal was 143 lines from th
 that contradicted it, which is precisely why "fix the places I can think of" does not reach. An implementer coding that unit literally re-ships
 the privilege escalation that PR #49 was written to fix — one scoped `full_access` grant on
 one record passing every `#index` and `#create` in the host app, which is reachable with stock
-data, and which `resolver.rb:285-294` and `roles_ticking`'s own comment
-(`resolver.rb:164-180`, the comment above the method) exist to prevent.
+data, and which `record_less_scoped_grant?`'s explicit-tick paragraph and `roles_ticking`'s
+own comment (both in `lib/current_scope/resolver.rb`) exist to prevent.
 
 **It was eight locations, not one, and they were not clustered.** The withdrawal reached the
 decision section, the requirement, the Mermaid diagram, the Verification Contract and the

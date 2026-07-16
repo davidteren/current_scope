@@ -1,0 +1,47 @@
+test/collection_scope_gate_test.rb
+  s_0daa8cae7814ef::t_1cd87889febbf7 346-411
+lib/current_scope.rb
+  s_0daa8cae7814ef::t_b33cf7f4b07310 23-25
+lib/current_scope/guard.rb
+  s_0daa8cae7814ef::t_519fde811b1d01 378,385-422
+  s_0daa8cae7814ef::t_5ecd7c5b099a3d 136
+lib/generators/current_scope/install/templates/initializer.rb
+  s_0daa8cae7814ef::t_185b1a50554800 127-133
+  s_0daa8cae7814ef::t_751f29333f00aa 100,102-103
+lib/current_scope/resolver.rb
+  s_0daa8cae7814ef::t_4bab46aa21e92d 359-373,376-379
+  s_0daa8cae7814ef::t_110a9bc4df40d1 374-375
+  s_0daa8cae7814ef::t_1e0e74d353269e 57-66
+test/integration/dev_diagnostics_test.rb
+  s_0daa8cae7814ef::t_c610868e66cd26 568
+  s_0daa8cae7814ef::t_ecfa451ea40e62 557-558
+  s_0daa8cae7814ef::t_8cec555b58361c 141-171
+  s_0daa8cae7814ef::t_3e9a17bfd7d297 247-371
+  s_0daa8cae7814ef::t_81e25a772f7bce 577
+test/dummy/config/routes.rb
+  s_0daa8cae7814ef::t_a98af902ad7f81 45-49
+test/dummy/app/controllers/inert_model_controller.rb
+  s_0daa8cae7814ef::t_b2061c675e762b 1-16
+lib/current_scope/configuration.rb
+  s_0daa8cae7814ef::t_bbf4359bf0d11e 185,189
+  s_0daa8cae7814ef::t_47bc79cfc5df6f 348
+  s_0daa8cae7814ef::t_6e47259866d7e7 225-232
+test/dummy/app/controllers/undeclared_model_controller.rb
+  s_0daa8cae7814ef::t_987ccd17eb6585 1-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "3bc2b9ef69d921c4b0964b29e6bc49fa98cf756b",
+  "prompts": {},
+  "sessions": {
+    "s_0daa8cae7814ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "94a07cd1-56d2-40fe-b604-a56ea96c46af",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

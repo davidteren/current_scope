@@ -1,0 +1,27 @@
+test/dummy/app/controllers/inherited_skip_base_controller.rb
+  s_0daa8cae7814ef::t_79cdc0039b94e9 1-15
+test/dummy/app/controllers/reasserted_gate_controller.rb
+  s_0daa8cae7814ef::t_ca382f8a0202a4 1-10
+test/dummy/app/controllers/conditional_skip_controller.rb
+  s_0daa8cae7814ef::t_91cb77e7252aac 1-17
+test/dummy/app/controllers/inherited_skip_child_controller.rb
+  s_0daa8cae7814ef::t_b3051cd0961241 1-8
+test/dummy/config/routes.rb
+  s_0daa8cae7814ef::t_c77549015eb5f5 36-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "790c24b8ca15f3199a1e96c60a85b1f245d81447",
+  "prompts": {},
+  "sessions": {
+    "s_0daa8cae7814ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "94a07cd1-56d2-40fe-b604-a56ea96c46af",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

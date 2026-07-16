@@ -20,6 +20,10 @@
   </p>
 
   <h2>Permission grid</h2>
+  <%# The injected break-glass action's bare name (nil when break-glass is
+      off) — derived once; the hint below and the per-row exemption check both
+      read it. %>
+  <% bypass_action = CurrentScope.config.allow_sod_bypass ? CurrentScope.config.sod_bypass_permission.to_s.split("#").last : nil %>
   <p class="cs-hint">
     One row per controller, one checkbox per action group — derived from the
     app's routes, so new controllers appear here automatically. Columns are
@@ -29,7 +33,7 @@
         otherwise make it look like a mistake. %>
     <% if CurrentScope.config.allow_sod_bypass %>
       Break-glass is on, so controllers with a separation-of-duties action also
-      show a <code><%= CurrentScope.config.sod_bypass_permission.to_s.split("#").last %></code>
+      show a <code><%= bypass_action %></code>
       column: granting it lets that role's holder override the four-eyes veto on
       their own record, where the record allows it. Every use is audited.
     <% end %>
@@ -58,7 +62,6 @@
         </tr>
       </thead>
       <tbody>
-        <% bypass_action = CurrentScope.config.allow_sod_bypass ? CurrentScope.config.sod_bypass_permission.to_s.split("#").last : nil %>
         <% grid.controllers.each do |controller| %>
           <% ungated = grid.ungated?(controller) %>
           <% badge_id = "cs_ungated_#{controller.parameterize(separator: '_')}" if ungated %>

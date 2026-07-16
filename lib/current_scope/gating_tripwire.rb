@@ -64,16 +64,21 @@ module CurrentScope
       # controller carrying only this mixin (no Guard) never sets it.
       return if instance_variable_defined?(:@current_scope_checked) && @current_scope_checked
 
-      message = "\"#{controller_path}##{action_name}\" completed without running current_scope_check! — " \
-                "this controller is not gated by CurrentScope::Guard. Include CurrentScope::Guard on its " \
-                "base controller, or mark this action public with " \
-                "`current_scope_skip_tripwire! only: :#{action_name}`."
+      raise CurrentScope::ConfigurationError, current_scope_tripwire_message if CurrentScope.config.gating_tripwire == :raise
 
-      raise CurrentScope::ConfigurationError, message if CurrentScope.config.gating_tripwire == :raise
+      # :warn — same remediation text, once per controller#action. The latch
+      # check comes first so an already-warned site (every request after the
+      # first, on a fail-open that keeps serving traffic) pays no string build.
+      return unless GatingTripwire.warning_unseen?("#{controller_path}##{action_name}")
 
-      # :warn — same remediation text, once per controller#action.
-      site = "#{controller_path}##{action_name}"
-      Rails.logger&.warn("[CurrentScope] #{message}") if GatingTripwire.warning_unseen?(site)
+      Rails.logger&.warn("[CurrentScope] #{current_scope_tripwire_message}")
+    end
+
+    def current_scope_tripwire_message
+      "\"#{controller_path}##{action_name}\" completed without running current_scope_check! — " \
+        "this controller is not gated by CurrentScope::Guard. Include CurrentScope::Guard on its " \
+        "base controller, or mark this action public with " \
+        "`current_scope_skip_tripwire! only: :#{action_name}`."
     end
   end
 end

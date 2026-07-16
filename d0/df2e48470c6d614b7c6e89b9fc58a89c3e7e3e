@@ -1,0 +1,23 @@
+docs/guides/adopting-in-an-existing-app.md
+  s_4d1327efb21c21::t_72e50e0a10bf73 114-116
+lib/generators/current_scope/install/install_generator.rb
+  s_4d1327efb21c21::t_ac44fbc87ce210 36-45,72-77
+test/generators/install_generator_test.rb
+  s_4d1327efb21c21::t_075fe8ec0c13a5 36-44,47-50,53-70,72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "d0df2e48470c6d614b7c6e89b9fc58a89c3e7e3e",
+  "prompts": {},
+  "sessions": {
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

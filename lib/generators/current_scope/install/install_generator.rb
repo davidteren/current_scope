@@ -26,14 +26,25 @@ module CurrentScope
                    subject: User.first, role: CurrentScope::Role.find_by!(name: "Owner"))
             4. Manage roles at /current_scope (full-access subjects only).
 
-          Adopting into an app that already has auth and users? Read
-          docs/guides/adopting-in-an-existing-app.md first — callback ordering,
-          Devise, the skip_before_action fail-open trap, and a rollout ladder.
-
         NEXT
 
         say_retrofit_warning if existing_app?
       end
+
+      # An ABSOLUTE URL, not a repo-relative path. This prints in the HOST's
+      # terminal, in the HOST's app directory: "docs/guides/..." would resolve
+      # against their app, where it does not exist — and the gemspec ships only
+      # {app,config,db,lib} + README, so it is not in the installed gem either.
+      # Shipping docs/ wouldn't fix it (nobody reads docs out of a gem's install
+      # dir); a URL is the only form that resolves from where the reader is
+      # standing, and terminals make it clickable. (#64 review, qodo)
+      #
+      # Points at blob/main deliberately: the guide does not exist at the last
+      # release tag (it landed after v0.2.0), so a version-pinned URL would 404
+      # today. Revisit pinning to "blob/v#{VERSION}" at the next release, when a
+      # tag containing the guide exists. (#71 review, qodo)
+      GUIDE_PATH = "docs/guides/adopting-in-an-existing-app.md".freeze
+      GUIDE_URL = "https://github.com/davidteren/current_scope/blob/main/#{GUIDE_PATH}".freeze
 
       private
 
@@ -62,6 +73,12 @@ module CurrentScope
 
             Seed the roles it names, watch it empty out, then flip to :enforce.
             One line back at any point.
+
+            The full retrofit guide — callback ordering vs. your authentication,
+            the Devise recipe, the skip_before_action fail-open trap, and a
+            rollout ladder:
+
+                #{GUIDE_URL}
 
           RETROFIT
         end

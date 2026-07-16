@@ -48,6 +48,7 @@ Rails.application.routes.draw do
   # model with NO record hook (the R9 inert-model clause).
   get "undeclared_model", to: "undeclared_model#index"
   get "inert_model", to: "inert_model#index"
+  get "inert_model_ambient", to: "inert_model#ambient" # #50 review: the stash-nil probe
   post "writes/guarded", to: "writes#guarded", as: :writes_guarded
   post "writes/unguarded", to: "writes#unguarded", as: :writes_unguarded
 

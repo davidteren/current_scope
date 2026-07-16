@@ -138,6 +138,43 @@ class PermissionsMixinTest < ActiveSupport::TestCase
     end
   end
 
+  test "a full controller#action key does NOT borrow the ambient type (cubic #7)" do
+    # A Project-scoped grant ticking reports#index. From a projects view, a
+    # full-key allowed_to?("reports#index") names a DIFFERENT controller than
+    # the projects ambient — it must not answer the reports question with the
+    # Project type, or the view shows a reports link the reports gate denies.
+    editor = CurrentScope::Role.create!(name: "Editor")
+    editor.role_permissions.create!(permission_key: "reports#index")
+    project = Project.create!(name: "P")
+    CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: editor, resource: project)
+
+    with_current_user(@alice) do
+      with_ambient_model(Project, "projects") do
+        assert_not ViewComponent.new("projects").allowed_to?("reports#index"),
+          "a projects request's Project type must not answer a full reports#index key"
+      end
+    end
+  end
+
+  test "an inert-model controller (no record hook) shows no link the gate denies (cubic #5)" do
+    # InertModelController declares current_scope_model but NO
+    # current_scope_record, so the gate passes NO_RECORD and DENIES a scoped
+    # subject (R9). The Guard must not stash the ambient model in that case, or
+    # the view's allowed_to?(:index) would say true while the gate 403s.
+    editor = CurrentScope::Role.create!(name: "Editor")
+    editor.role_permissions.create!(permission_key: "inert_model#index")
+    CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: editor, resource: @report)
+
+    with_current_user(@alice) do
+      # The inert case = a stashed nil model even though the path is set (what
+      # the Guard now does for NO_RECORD).
+      with_ambient_model(nil, "inert_model") do
+        assert_not ViewComponent.new("inert_model").allowed_to?(:index),
+          "no record hook ⇒ the gate denies ⇒ the view must not show the link"
+      end
+    end
+  end
+
   test "R11: an org-wide grant's bare allowed_to?(:index) is unchanged by the ambient" do
     CurrentScope::RoleAssignment.find_by(subject: @alice).role
                                 .role_permissions.create!(permission_key: "reports#index")

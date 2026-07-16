@@ -10,6 +10,14 @@ class InertModelController < ApplicationController
     render plain: "inert"
   end
 
+  # #50 review: proves the Guard does NOT stash the ambient model for the inert
+  # (NO_RECORD) case — if it did, a view's allowed_to?(:index) would show a link
+  # the gate denies. A full-access subject reaches it (full_access passes the
+  # gate before the record-less branch); the stashed model must be nil.
+  def ambient
+    render plain: CurrentScope::Current.collection_model.inspect
+  end
+
   private
 
   def current_scope_model = Report

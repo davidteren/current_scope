@@ -119,7 +119,13 @@ module CurrentScope
       # keyed to THIS controller so a cross-controller question can't borrow it
       # (#50, KTD-6). Additive — the gate decision below reads `model` directly,
       # not the ambient copy.
-      CurrentScope::Current.collection_model = model
+      #
+      # NOT when the record hook is absent (NO_RECORD): the gate skips the
+      # record-less branch for NO_RECORD (the R9 inert case), so it DENIES a
+      # scoped subject — and the advisory path must agree, not show a link the
+      # gate 403s. Stashing the model here without a declared record is the one
+      # place the view could diverge from the gate. (#50 review, cubic)
+      CurrentScope::Current.collection_model = record.equal?(NO_RECORD) ? nil : model
       CurrentScope::Current.collection_model_path = controller_path
 
       # The real actor (Current.actor) enters here explicitly — the resolver

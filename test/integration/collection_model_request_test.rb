@@ -90,6 +90,22 @@ class CollectionModelRequestTest < ActionDispatch::IntegrationTest
       "no projects#index tick ⇒ the advisory answer is false, matching the index gate"
   end
 
+  test "U6: an inert-model controller stashes no ambient type — the view can't diverge from the gate" do
+    # InertModelController declares current_scope_model but no
+    # current_scope_record. The gate passes NO_RECORD and denies a scoped
+    # subject; a full-access subject reaches #ambient, which renders the stashed
+    # type. It must be nil — stashing Report there would let a view show a link
+    # the gate 403s (#50 review, cubic).
+    owner = User.create!(name: "Owner")
+    CurrentScope::RoleAssignment.create!(
+      subject: owner, role: CurrentScope::Role.create!(name: "Owner", full_access: true))
+
+    get "/inert_model_ambient", headers: sign_in(owner)
+    assert_response :success
+    assert_equal "nil", response.body,
+      "the Guard must not stash the ambient model when the record hook is absent"
+  end
+
   test "nested_reports#index still reaches a Report-scoped subject, key drift and all" do
     project = Project.create!(name: "P")
     scope_grant(@alice, role("Viewer", "nested_reports#index"), @report)

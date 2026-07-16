@@ -19,6 +19,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ```ruby
   class ProjectsController < ApplicationController
     private
+    # A collection-only controller declares both: current_scope_record = nil
+    # says "no record here" (so a scoped grant can open the gate), and
+    # current_scope_model names the type it lists. Declaring the model without
+    # the record hook leaves it inert.
+    def current_scope_record = nil
     def current_scope_model = Project
   end
   ```
@@ -42,7 +47,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Not closed here, by design: a scoped `full_access` role still does not open
   its own type's collection gate (the type bind does not make that safe — see
   #65). And a scoped grant within one type still opens that type's `#create`,
-  exactly as an org-wide grant of the key does.
+  exactly as an org-wide grant of the key does — including **across STI
+  siblings of one base class**: a grant on an `Invoice` opens a
+  `CreditNote#create` gate, because both normalize to their `Document` base
+  class and this branch answers with a boolean, not records (the list side has
+  STI's own type predicate to narrow; `#create` has no list side). Cross-*base
+  class* is closed; within one base class the collapse is the accepted ceiling.
 - **The ungated surface is detectable — grid badge, a rake task, and a
   production tripwire posture (#62).** `skip_before_action :current_scope_check!`
   inherits into every subclass and fails open; it used to do so invisibly,

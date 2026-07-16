@@ -351,6 +351,15 @@ module CurrentScope
       type = record.is_a?(Class) ? record : model
       return false if type.nil?
 
+      # Shape guard, mirroring R3a's on the record: a type that is not an
+      # ActiveRecord class (a String from a mis-declared current_scope_model, a
+      # non-record-storing PORO passed to the class form — the gem's own
+      # Scopeable Gadget is one) has no base_class to normalize by. Deny
+      # (fail-closed) rather than raise NoMethodError: a garbage type is not a
+      # grant, and denying also preserves the pre-#50 boolean the class form
+      # returned for a non-AR argument. (#50 review — six reviewers)
+      return false unless type.respond_to?(:base_class)
+
       ScopedRoleAssignment
         .where(subject: subject, resource_type: type.base_class.name, role_id: roles_ticking(permission))
         .exists?

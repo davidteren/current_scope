@@ -149,6 +149,23 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
       "sibling collapse within a base_class is the accepted ceiling (Risks)"
   end
 
+  test "a non-ActiveRecord type fails CLOSED, never crashes — the record hook's guard, mirrored for model" do
+    scope_grant(@alice, role("Editor", "reports#index"), @report)
+
+    # A mis-declared current_scope_model (String/Symbol/instance) or a non-AR
+    # class passed to the class form has no base_class. Each must deny, not
+    # raise NoMethodError. (#50 review)
+    [ "Report", :Report, Object.new, 42 ].each do |bad|
+      assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: bad),
+        "a #{bad.class} model must fail closed, not crash"
+    end
+    # The class form with a non-AR class (the gem ships a Scopeable PORO,
+    # Gadget) previously returned a boolean; it must still deny, not crash.
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: Gadget),
+      "a non-ActiveRecord class form must fail closed, not crash"
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: Object)
+  end
+
   test "resolver purity: model: is a parameter, never state" do
     scope_grant(@alice, role("Editor", "reports#index"), @report)
 

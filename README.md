@@ -284,10 +284,14 @@ end
 
 private
 
-# Declare the type this controller's collection actions list, so a scoped
-# grant opens the record-less gate only for THAT type. Without it, the gate
-# fails closed for a scoped-only subject (and `allowed_to?(:index)` in the
-# view agrees, so no link is shown that would 403).
+# A collection-only controller declares BOTH hooks. current_scope_record = nil
+# is what tells the gate "this action has no record" (a scoped grant can then
+# open it); WITHOUT it the gate assumes nothing and current_scope_model is
+# inert — the grant never opens the gate. current_scope_model then names the
+# TYPE, so the grant opens the record-less gate only for Projects. (A
+# controller with member actions already has current_scope_record; it just
+# adds current_scope_model.)
+def current_scope_record = nil
 def current_scope_model = Project
 ```
 

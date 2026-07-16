@@ -25,8 +25,8 @@ module CurrentScope
     # Public contract: boolean. `actor` is the REAL principal behind the
     # request (defaults to the subject — no impersonation); it only widens the
     # SoD veto under config.sod_identity == :either.
-    def allow?(subject:, permission:, record: nil, actor: nil)
-      decide(subject: subject, permission: permission, record: record, actor: actor).first
+    def allow?(subject:, permission:, record: nil, actor: nil, model: nil)
+      decide(subject: subject, permission: permission, record: record, actor: actor, model: model).first
     end
 
     # Internal decision: returns [allowed_bool, reason_or_nil]. The reason is a
@@ -34,7 +34,13 @@ module CurrentScope
     # denial, and :sod_bypassed on the one AUDITED allow (break-glass). Ordinary
     # allows carry nil. The resolver — shared across threads — holds no
     # per-decision state; the reason rides in the return tuple, not on self.
-    def decide(subject:, permission:, record: nil, actor: nil)
+    #
+    # `model:` (#50) is the type the controller's current_scope_model hook
+    # declared for its collection actions, or nil when unknown. Only the
+    # record-less branch reads it, to bind that otherwise type-unbound grant
+    # check; every other branch ignores it. It stays a parameter, never state,
+    # per the purity rule above.
+    def decide(subject:, permission:, record: nil, actor: nil, model: nil)
       return [ false, :no_grant ] if subject.nil?
 
       case sod_decision(subject: subject, actor: actor, permission: permission, record: record)
@@ -46,7 +52,17 @@ module CurrentScope
       return [ true, nil ] if role&.full_access?
       return [ true, nil ] if role&.grants?(permission)
       return [ true, nil ] if scoped_grant?(subject: subject, permission: permission, record: record)
-      return [ true, nil ] if record_less_scoped_grant?(subject: subject, permission: permission, record: record)
+      return [ true, nil ] if record_less_scoped_grant?(subject: subject, permission: permission, record: record, model: model)
+
+      # A LABEL, not a decision (R7a): this deny would have been an ALLOW had
+      # the controller declared current_scope_model and the grant ticked the
+      # key of that type. Without the distinct reason it is indistinguishable
+      # from an ordinary :no_grant, and the dev nudge that explains it is
+      # dev/test-only — so the production host who most needs the cause
+      # (403s after an upgrade) would be the one who cannot see it.
+      if record_less_denied_for_unknown_type?(subject: subject, permission: permission, record: record, model: model)
+        return [ false, :model_undeclared ]
+      end
 
       [ false, :no_grant ]
     end
@@ -288,16 +304,31 @@ module CurrentScope
     # and it fails CLOSED (a 403 the host sees immediately), which is the safe
     # direction to be wrong in.
     #
+    # Binds by TYPE (#50). The target names no record, but the controller can
+    # name the type its collection lists via current_scope_model (record when
+    # it is a Class — the allowed_to?(:index, Report) form — else the model:
+    # kwarg the Guard threads). resource_type filters the grant to that type,
+    # normalized through base_class exactly as scope_for does, so "a Report
+    # grant" cannot open a Documents gate. UNKNOWN type ⇒ this branch does not
+    # fire (fail-closed): before #50 an unbound grant of any type opened every
+    # record-less gate, and for a key with no list side (#create) that let a
+    # Report-scoped subject create Documents — a live escalation, not a
+    # cosmetic empty list. A loud, documented deny is the safe direction.
+    #
     # Requires an EXPLICIT tick (roles_ticking, not roles_granting): this is the
     # only grant check that binds to no record, so a full_access role — which
     # satisfies every key — would turn one scoped grant on one record into a
-    # pass on every #index and #create in the host app. "Owner of Report #7"
-    # means full access to Report #7, not to every collection in the product.
-    # The cost of that strictness: a scoped full_access role does not open its
-    # own index either, so it keeps the pre-existing 403 that #19 fixes for
-    # explicitly-ticked roles. Reaching that needs the Guard to tell the
-    # resolver which model the collection is (see OQ-2) — until then, deny is
-    # the honest answer rather than an app-wide wildcard.
+    # pass on every #index and #create of its TYPE in the host app. "Owner of
+    # Report #7" means full access to Report #7, not to every Report collection
+    # in the product. The type bind narrows WHICH type; it does NOT make a
+    # full_access wildcard safe here, because this branch answers with a boolean
+    # EXISTS, not with records — strictly weaker than scope_for's id-returning
+    # query, which is the only reason roles_granting is safe there. (#65 records
+    # the refutation of the tempting "bind by type ⇒ full_access is now safe"
+    # argument in full; its fix must narrow to granted record ids.) The cost of
+    # that strictness: a scoped full_access role does not open its own index
+    # either, so it keeps the pre-existing 403 that #19 fixes for
+    # explicitly-ticked roles — the documented, fail-closed gap tracked in #65.
     #
     # Deliberately NOT memoized, unlike org_role. The memo there caches one
     # lookup keyed by subject, invalidated by RoleAssignment writes alone. This
@@ -307,13 +338,54 @@ module CurrentScope
     # scoped-only subjects reach this line (org and full_access short-circuit
     # above), so the cost is a query on a handful of nav-level checks per page,
     # not the per-row gate. Revisit if that ever shows up in a profile.
-    def record_less_scoped_grant?(subject:, permission:, record:)
+    def record_less_scoped_grant?(subject:, permission:, record:, model: nil)
+      # R3a: the record-less shape test stays FIRST — a declared model never
+      # rescues a non-record-less target. A host whose current_scope_record
+      # wrongly returns params[:id] (a String) must still fail closed here, not
+      # be allowed off a grant held over some other record.
       return false unless record.nil? || record.is_a?(Class)
       return false if sod_action?(permission)
 
+      # The class form (allowed_to?(:index, Report)) carries the type as the
+      # record; otherwise it comes from the model: hook. Unknown ⇒ deny (R3).
+      type = record.is_a?(Class) ? record : model
+      return false if type.nil?
+
+      # Shape guard, mirroring R3a's on the record: a type that is not an
+      # ActiveRecord model class (a String from a mis-declared
+      # current_scope_model, a non-record-storing PORO passed to the class form
+      # — the gem's own Scopeable Gadget is one) cannot name a base_class to
+      # normalize by. Require an actual AR subclass, not just anything answering
+      # base_class — a class whose base_class returns nil would still crash on
+      # .name. Deny (fail-closed) rather than raise NoMethodError: a garbage
+      # type is not a grant, and denying also preserves the pre-#50 boolean the
+      # class form returned for a non-AR argument. (#50 review)
+      return false unless type.is_a?(Class) && type < ActiveRecord::Base
+
       ScopedRoleAssignment
-        .where(subject: subject, role_id: roles_ticking(permission))
+        .where(subject: subject, resource_type: type.base_class.name, role_id: roles_ticking(permission))
         .exists?
+    end
+
+    # Would declaring current_scope_model have given this record-less deny a
+    # chance? True only for the exact cell the #50 fail-closed default created:
+    # a DECLARED collection action (record nil — the class form always carries
+    # its type, so it never lands here), no declared model, not an SoD action
+    # (those are refused whatever the type), and a scoped grant EXPLICITLY
+    # ticking the key exists. Pure — reads only; decide labels the deny
+    # :model_undeclared off this, changing no allow/deny.
+    #
+    # roles_ticking, NOT roles_granting — the #65 tripwire applies even to a
+    # label. A full_access-inclusive set would name a scoped full_access grant
+    # as "declare the model and this allows", which is false: the record-less
+    # branch bars full_access (see record_less_scoped_grant?), so the label
+    # would send the host to a fix that fixes nothing. Ticking keeps it honest:
+    # the deny WOULD have been an allow had the type been declared.
+    def record_less_denied_for_unknown_type?(subject:, permission:, record:, model:)
+      return false unless record.nil? && model.nil?
+      return false if sod_action?(permission)
+
+      ScopedRoleAssignment.where(subject: subject, role_id: roles_ticking(permission)).exists?
     end
 
     # An SoD action is record-targeted BY DEFINITION — "the subject who

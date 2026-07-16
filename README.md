@@ -281,6 +281,18 @@ query that drifts:
 def index
   @projects = scope_for(Project).order(created_at: :desc).page(params[:page])
 end
+
+private
+
+# A collection-only controller declares BOTH hooks. current_scope_record = nil
+# is what tells the gate "this action has no record" (a scoped grant can then
+# open it); WITHOUT it the gate assumes nothing and current_scope_model is
+# inert — the grant never opens the gate. current_scope_model then names the
+# TYPE, so the grant opens the record-less gate only for Projects. (A
+# controller with member actions already has current_scope_record; it just
+# adds current_scope_model.)
+def current_scope_record = nil
+def current_scope_model = Project
 ```
 
 - **full-access or an org-wide grant** of the key → every record (`Project.all`).
@@ -289,12 +301,18 @@ end
 
 The gate agrees. A collection action like `#index` has no record to name, so it
 asks a record-less question — and a scoped grant whose role ticks that key
-answers it: the subject reaches the list, and `scope_for` narrows it to the
-records they were actually granted. **No org-wide grant is needed to reach a
-scoped index** (and reaching for one would defeat the purpose — an org-wide
-grant means "see everything", so `scope_for` would return `Project.all`). The
-same holds for the class form, `allowed_to?(:index, Project)`, so a view helper
-and the gate never disagree.
+answers it **for the type the controller declares** (`current_scope_model`,
+above): the subject reaches the list, and `scope_for` narrows it to the
+records they were actually granted. A grant on a `Report` never opens a
+`Projects` gate — the type is what binds them. **No org-wide grant is needed to
+reach a scoped index** (and reaching for one would defeat the purpose — an
+org-wide grant means "see everything", so `scope_for` would return
+`Project.all`). The same holds for the class form,
+`allowed_to?(:index, Project)`, which carries the type as its argument, so a
+view helper and the gate never disagree. A controller that does **not** declare
+`current_scope_model` fails the record-less gate closed for scoped grants (the
+denial carries `X-Current-Scope-Reason: model_undeclared`, and a dev nudge
+names the one-line fix).
 
 > **The gate admits; `scope_for` narrows. Both halves are yours to wire.** The
 > gate only decides *whether* `#index` runs — it cannot filter a list you build

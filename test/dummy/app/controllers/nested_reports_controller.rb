@@ -12,6 +12,12 @@ class NestedReportsController < ApplicationController
   # gates into scoped grants.
   def current_scope_record = nil
 
+  # The type this collection deals in (#50), threaded to the resolver as
+  # model:. This controller is the shape the hook exists for — its route key
+  # (nested_reports) is not the model's (reports), so nothing but a
+  # declaration can name the type.
+  def current_scope_model = Report
+
   public
 
   def index

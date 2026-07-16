@@ -337,7 +337,15 @@ Roughly in order. Steps 1–3 change nothing for users.
 2. **Inventory the ungated surface.** Add `GatingTripwire` to your base in
    dev/test and run the suite. Fix what it finds — inherited skips first.
 3. **Inventory the ungranted surface.** Exercise the app, then
-   `bin/rails current_scope:report`. Seed the roles it names.
+   `bin/rails current_scope:report`. Seed the roles it names. If any of your
+   controllers use **scoped grants** for their list pages, declare
+   `def current_scope_model = TheType` on each — a scoped grant opens a
+   collection gate only for the type the controller names. Report mode does
+   **not** downgrade this one: a controller missing the declaration 403s a
+   scoped subject even under `:report` (the reason is `model_undeclared`, not
+   `no_grant`, and only `no_grant` is downgraded), and the dev nudge names it
+   in the log. So watch for a `403` carrying `X-Current-Scope-Reason:
+   model_undeclared` and the log line, not a `current_scope:report` row.
 4. **Flip one namespace to `:enforce`?** You can't — enforcement is global. What
    you *can* do is watch `current_scope:report` empty out and flip once. If you
    want a narrower blast radius, roll out `Guard` itself one base controller at a

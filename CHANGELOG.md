@@ -7,6 +7,52 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Scoped grants open a collection gate only for the type the controller
+  declares (#50).** A collection action (`#index`, `#create`, a bulk key) names
+  no record, so the gate could not tell which *type* it was deciding about — a
+  scoped grant of any type opened every record-less gate. On `#index` that read
+  as a cosmetic empty list, but on `#create` it was a live escalation: a subject
+  scoped on a `Report` could create `Document`s, holding no grant on them.
+
+  A controller now declares the type its collection actions list:
+
+  ```ruby
+  class ProjectsController < ApplicationController
+    private
+    # A collection-only controller declares both: current_scope_record = nil
+    # says "no record here" (so a scoped grant can open the gate), and
+    # current_scope_model names the type it lists. Declaring the model without
+    # the record hook leaves it inert.
+    def current_scope_record = nil
+    def current_scope_model = Project
+  end
+  ```
+
+  The record-less gate binds the scoped grant to that type (normalized through
+  `base_class`, matching `scope_for`), and **fails closed when no type is
+  declared**. `allowed_to?(:index)` in that controller's own views resolves the
+  same type, so the view never disagrees with the gate.
+
+  **Upgrade-visible — who this changes:** a **scoped-only** subject reaching a
+  collection action on a controller that has **not** declared
+  `current_scope_model` now gets a 403 where they previously reached the action
+  (and, for `#create`, previously created records off an unrelated grant). The
+  denial carries `X-Current-Scope-Reason: model_undeclared` and — in dev/test —
+  a log line naming the one-line fix (`config.warn_on_undeclared_collection_model`,
+  on by default in dev/test). Org-wide grants, `full_access`, and every
+  per-record decision are unchanged. This ships in the same release as the
+  record-less gate itself (#19), so there is no released version with the old
+  unbound behavior to regress from.
+
+  Not closed here, by design: a scoped `full_access` role still does not open
+  its own type's collection gate (the type bind does not make that safe — see
+  #65). And a scoped grant within one type still opens that type's `#create`,
+  exactly as an org-wide grant of the key does — including **across STI
+  siblings of one base class**: a grant on an `Invoice` opens a
+  `CreditNote#create` gate, because both normalize to their `Document` base
+  class and this branch answers with a boolean, not records (the list side has
+  STI's own type predicate to narrow; `#create` has no list side). Cross-*base
+  class* is closed; within one base class the collapse is the accepted ceiling.
 - **The ungated surface is detectable — grid badge, a rake task, and a
   production tripwire posture (#62).** `skip_before_action :current_scope_check!`
   inherits into every subclass and fails open; it used to do so invisibly,

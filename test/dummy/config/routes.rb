@@ -4,7 +4,16 @@ Rails.application.routes.draw do
   end
 
   # A full RESTful resource so the permission grid has every CRUD column.
+  # DocumentsController is an STI base (Document/Invoice) declaring
+  # current_scope_model, so the record-less type bind (#50) has a request-level
+  # STI reproduction.
   resources :documents
+
+  # A routed path with DELIBERATELY no controller class — the
+  # ActionDispatch::MissingController shape GatingReflection (#62) must treat as
+  # unprovable. Kept dedicated so #50's real DocumentsController and #62's
+  # classless case cannot collide (plan 030 U4's own coupling note).
+  resources :orphaned, only: :index
 
   # A NAMESPACED SoD controller: path "admin/reports", records are Reports.
   namespace :admin do
@@ -27,9 +36,19 @@ Rails.application.routes.draw do
   resources :external_id_reports, only: :show, param: :external_id
   # A nested COLLECTION — its only dynamic segment is the parent's :project_id,
   # so it must still read as a collection and stay reachable.
-  resources :projects, only: [] do
+  # projects routes its own collection actions (#50: the escalation repro —
+  # a Report-scoped subject probing projects#index/#create) AND nests
+  # nested_reports.
+  resources :projects, only: [ :index, :create ] do
     resources :nested_reports, only: :index
   end
+  get "projects_advisory", to: "projects#advisory" # #50 U6: view↔gate agreement
+  # #50 U3 diagnostics shapes: a declared-nil collection with NO
+  # current_scope_model (the :model_undeclared deny + nudge), and a declared
+  # model with NO record hook (the R9 inert-model clause).
+  get "undeclared_model", to: "undeclared_model#index"
+  get "inert_model", to: "inert_model#index"
+  get "inert_model_ambient", to: "inert_model#ambient" # #50 review: the stash-nil probe
   post "writes/guarded", to: "writes#guarded", as: :writes_guarded
   post "writes/unguarded", to: "writes#unguarded", as: :writes_unguarded
 

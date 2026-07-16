@@ -14,6 +14,16 @@ module CurrentScope
     # each event; nil when the host hasn't set it. Additive — no reader override.
     attribute :user, :actor, :request_id
 
+    # #50: the collection type the request's controller declared via
+    # current_scope_model, and the controller_path it was declared for. The
+    # Guard stashes both once per request so the advisory path (allowed_to? in
+    # a view) can bind the record-less gate the same way the controller gate
+    # did — but the PATH is stored so a cross-controller advisory question
+    # (allowed_to?(:index, controller: "reports") from a projects view) does
+    # NOT borrow the wrong controller's type (KTD-6). Request-scoped, reset
+    # with everything else, so it never leaks between requests.
+    attribute :collection_model, :collection_model_path
+
     # Per-request memo for the resolver's org-role lookup. A view with N
     # permission-gated elements calls the gate N times, each otherwise re-running
     # the same `RoleAssignment.find_by(subject:)`; caching it here collapses that

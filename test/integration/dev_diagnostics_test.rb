@@ -138,6 +138,37 @@ class DevDiagnosticsTest < ActionDispatch::IntegrationTest
     CurrentScope.resolver.singleton_class.remove_method(:scoped_grant_exists?)
   end
 
+  # --- R9 (#50): current_scope_model declared, current_scope_record NOT ---
+  #
+  # The trap cell of the two-hook matrix: the Guard passes NO_RECORD, the
+  # record-less branch never runs, and the declared type is never consulted —
+  # the model hook is silently inert. That trigger is byte-for-byte this
+  # nudge's existing one (NO_RECORD + :no_grant + a scoped grant), so it is ONE
+  # conditional clause on the existing message, never a second line.
+
+  test "R9: a model hook without a record hook gets ONE nudge naming the missing RECORD hook" do
+    scoped(@alice, role("Editor", "inert_model#index"), @report)
+
+    log = capture_log { get "/inert_model", headers: sign_in(@alice) }
+
+    assert_response :forbidden, "the declared model is inert — NO_RECORD skips the record-less branch"
+    assert_equal 1, nudges(log).size, "one line, not two — the R9 clause rides the existing nudge"
+    assert_match "current_scope_model", log, "name the declared-but-inert hook"
+    assert_match(/inert/i, log, "say what state the declaration is in")
+    assert_match "current_scope_record", log, "the record hook is what's actually missing"
+  end
+
+  test "R9: a controller declaring no model hook gets the message WITHOUT the model clause" do
+    scoped(@alice, role("Editor", "hookless_member#show"), @report)
+
+    log = capture_log { get "/hookless_member/#{@report.id}", headers: sign_in(@alice) }
+
+    assert_equal 1, nudges(log).size
+    assert_no_match(/current_scope_model/, log,
+                    "no model hook is declared here — a clause about one would be advice for " \
+                    "a problem this controller does not have")
+  end
+
   # --- The #37 interaction. Only reachable once both features exist ---
   #
   # A missing record hook is the one gap report mode CANNOT explain by itself:
@@ -210,6 +241,131 @@ class DevDiagnosticsTest < ActionDispatch::IntegrationTest
                  "advisory checks answer questions; they aren't a gate refusing anyone"
   ensure
     CurrentScope::Current.reset
+  end
+end
+
+# U3 (#50): the undeclared-collection-model deny. A declared-nil collection
+# action whose controller names no current_scope_model fails closed — and the
+# RESOLVER labels that deny :model_undeclared (R7a), so it rides
+# X-Current-Scope-Reason for the production host the dev-only nudge can't
+# reach. The flag gates ONLY the log line naming the one-line fix; the
+# predicate is just reason == :model_undeclared — the reason already proves
+# the record-less-unknown-type-with-ticking-grant condition (KTD-5: don't
+# re-derive what the resolver decided).
+class UndeclaredCollectionModelNudgeTest < ActionDispatch::IntegrationTest
+  include DiagnosticsLogCapture
+
+  setup do
+    @alice = User.create!(name: "Alice")
+    @report = Report.create!(title: "Q3", requested_by: User.create!(name: "B"))
+
+    @original = {
+      undeclared: CurrentScope.config.warn_on_undeclared_collection_model,
+      enforcement: CurrentScope.config.enforcement
+    }
+  end
+
+  teardown do
+    CurrentScope.config.warn_on_undeclared_collection_model = @original[:undeclared]
+    CurrentScope.config.enforcement = @original[:enforcement]
+  end
+
+  def sign_in(user) = { "X-User-Id" => user.id.to_s }
+
+  def role(name, *keys, full_access: false)
+    r = CurrentScope::Role.create!(name: name, full_access: full_access)
+    keys.each { |k| r.role_permissions.create!(permission_key: k) }
+    r
+  end
+
+  def scoped(user, role, record) = CurrentScope::ScopedRoleAssignment.create!(subject: user, role: role, resource: record)
+
+  test "a declared-nil collection with no model hook denies :model_undeclared and names the fix" do
+    scoped(@alice, role("Editor", "undeclared_model#index"), @report)
+
+    log = capture_log { get "/undeclared_model", headers: sign_in(@alice) }
+
+    assert_response :forbidden, "the nudge must not change the outcome — it still fails closed"
+    assert_equal "model_undeclared", response.headers["X-Current-Scope-Reason"],
+                 "the distinct reason is what a production host diagnoses by"
+    assert_equal 1, nudges(log).grep(/current_scope_model/).size, "exactly one nudge naming the hook"
+    assert_match "def current_scope_model", log, "name the one-line fix, not just the symptom"
+  end
+
+  test "an ungranted subject gets an ordinary :no_grant — nothing to declare, no nudge" do
+    log = capture_log { get "/undeclared_model", headers: sign_in(@alice) }
+
+    assert_response :forbidden
+    assert_equal "no_grant", response.headers["X-Current-Scope-Reason"],
+                 "with no scoped grant, declaring a model would change nothing — the label would lie"
+    assert_empty nudges(log)
+  end
+
+  test "a declared model hook allows — nothing to nudge about" do
+    project = Project.create!(name: "Apollo")
+    scoped(@alice, role("PM", "projects#index"), project)
+
+    log = capture_log { get "/projects", headers: sign_in(@alice) }
+
+    assert_response :success, "the declared type binds the grant — the gate opens"
+    assert_empty nudges(log)
+  end
+
+  test "flag off: no nudge, and :model_undeclared still rides the header" do
+    CurrentScope.config.warn_on_undeclared_collection_model = false
+    scoped(@alice, role("Editor", "undeclared_model#index"), @report)
+
+    log = capture_log { get "/undeclared_model", headers: sign_in(@alice) }
+
+    assert_response :forbidden
+    assert_empty nudges(log)
+    assert_equal "model_undeclared", response.headers["X-Current-Scope-Reason"],
+                 "the REASON is the resolver's, set regardless of the flag — " \
+                 "the flag gates only the log line"
+  end
+
+  test "log-only: the outcome is byte-for-byte identical with the flag on and off" do
+    scoped(@alice, role("Editor", "undeclared_model#index"), @report)
+
+    CurrentScope.config.warn_on_undeclared_collection_model = true
+    capture_log { get "/undeclared_model", headers: sign_in(@alice) }
+    on = [ response.status, response.headers["X-Current-Scope-Reason"], response.body ]
+
+    CurrentScope.config.warn_on_undeclared_collection_model = false
+    capture_log { get "/undeclared_model", headers: sign_in(@alice) }
+    off = [ response.status, response.headers["X-Current-Scope-Reason"], response.body ]
+
+    assert_equal off, on
+  end
+
+  test "advisory allowed_to? for the same denied subject never nudges" do
+    scoped(@alice, role("Editor", "undeclared_model#index"), @report)
+
+    log = capture_log do
+      CurrentScope::Current.user = @alice
+      CurrentScope.allowed?("undeclared_model#index", subject: @alice)
+    end
+
+    assert_empty nudges(log), "advisory checks answer questions; they aren't a gate refusing anyone"
+  ensure
+    CurrentScope::Current.reset
+  end
+
+  test "report mode: :model_undeclared is NOT downgraded — still 403, and the nudge fires" do
+    # report_only_denial? matches :no_grant POSITIVELY, so a new reason is a
+    # refusal by construction. This pins that: a misconfigured collection gate
+    # must not be waved through as an observation.
+    CurrentScope.config.enforcement = :report
+    scoped(@alice, role("Editor", "undeclared_model#index"), @report)
+
+    log = capture_log { get "/undeclared_model", headers: sign_in(@alice) }
+
+    assert_response :forbidden, "report mode relaxes exactly :no_grant — this is not that"
+    assert_equal "model_undeclared", response.headers["X-Current-Scope-Reason"]
+    assert_equal 1, nudges(log).grep(/current_scope_model/).size,
+                 "report mode is when a retrofitting host is LOOKING for gaps"
+  ensure
+    CurrentScope.config.enforcement = :enforce
   end
 end
 
@@ -398,7 +554,8 @@ end
 # knows about helps nobody, and the issue's premise is that these ship off and
 # the teams who need them never find them.
 class DiagnosticsDefaultsTest < ActiveSupport::TestCase
-  FLAGS = %i[warn_on_nil_sod_record warn_on_inert_scoped_grant warn_on_cross_controller_derivation].freeze
+  FLAGS = %i[warn_on_nil_sod_record warn_on_inert_scoped_grant warn_on_cross_controller_derivation
+             warn_on_undeclared_collection_model].freeze
 
   def with_env(name)
     original = Rails.env
@@ -408,7 +565,7 @@ class DiagnosticsDefaultsTest < ActiveSupport::TestCase
     Rails.env = original
   end
 
-  test "all three default ON in development and test" do
+  test "all four default ON in development and test" do
     %w[development test].each do |env|
       with_env(env) do
         config = CurrentScope::Configuration.new
@@ -417,7 +574,7 @@ class DiagnosticsDefaultsTest < ActiveSupport::TestCase
     end
   end
 
-  test "all three default OFF in production" do
+  test "all four default OFF in production" do
     with_env("production") do
       config = CurrentScope::Configuration.new
       FLAGS.each { |f| assert_not config.public_send(f), "#{f} must not log on a prod host's dime" }

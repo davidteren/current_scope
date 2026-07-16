@@ -29,6 +29,23 @@ module CurrentScope
   #
   #       def current_scope_record = nil
   #
+  # A controller may ALSO declare a private current_scope_model naming the type
+  # its collection actions deal in:
+  #
+  #       def current_scope_model = Report
+  #
+  # Same discovery rules as current_scope_record (private, fixed name,
+  # optional). The Guard threads it to the resolver so the record-less scoped
+  # branch can bind to that type instead of matching a scoped grant on ANY
+  # type (#50); absent means the type is unknown. A plain method, so a host
+  # may branch on action_name for a per-action answer.
+  #
+  # The two hooks PAIR, they don't substitute: current_scope_model WITHOUT
+  # current_scope_record is inert, because declaring no record hook passes
+  # NO_RECORD (below) and the record-less branch never runs — the declared
+  # type is never consulted. A collection controller opting scoped grants in
+  # declares BOTH: `def current_scope_record = nil` plus the model.
+  #
   # Skip the gate for public endpoints with skip_before_action :current_scope_check!.
   # MutationGuard (included here) adds the read-only-while-impersonating gate as
   # its OWN before_action, so it runs first and survives that skip.
@@ -96,13 +113,27 @@ module CurrentScope
       end
 
       record = resolve_current_scope_record
+      model = resolve_current_scope_model
+
+      # Stash the declared type for the advisory path (allowed_to? in a view),
+      # keyed to THIS controller so a cross-controller question can't borrow it
+      # (#50, KTD-6). Additive — the gate decision below reads `model` directly,
+      # not the ambient copy.
+      #
+      # NOT when the record hook is absent (NO_RECORD): the gate skips the
+      # record-less branch for NO_RECORD (the R9 inert case), so it DENIES a
+      # scoped subject — and the advisory path must agree, not show a link the
+      # gate 403s. Stashing the model here without a declared record is the one
+      # place the view could diverge from the gate. (#50 review, cubic)
+      CurrentScope::Current.collection_model = record.equal?(NO_RECORD) ? nil : model
+      CurrentScope::Current.collection_model_path = controller_path
 
       # The real actor (Current.actor) enters here explicitly — the resolver
       # never reads Current itself (PDP purity). It only matters under SoD
       # :either while impersonating; otherwise actor == subject.
       allowed, reason = CurrentScope.resolver.decide(
         subject: CurrentScope::Current.user, permission: permission,
-        record: record, actor: CurrentScope::Current.actor
+        record: record, model: model, actor: CurrentScope::Current.actor
       )
       unless allowed
         # The nudge runs BEFORE the report-mode branch, and that ordering is the
@@ -115,6 +146,7 @@ module CurrentScope
         # grant against. This is the line that says why. Log-only either way, so
         # it cannot affect the branch below. (#37/#41 interaction)
         nudge_on_inert_scoped_grant(permission, record, reason)
+        nudge_on_undeclared_collection_model(permission, record, reason)
 
         return report_would_deny(permission, record) if report_only_denial?(reason, permission, record)
 
@@ -286,6 +318,18 @@ module CurrentScope
       send(:current_scope_record)
     end
 
+    # The type this controller's collection actions deal in, or nil when the
+    # host never declared current_scope_model. Mirrors
+    # resolve_current_scope_record, minus the sentinel: for the RECORD,
+    # "declared nil" and "declared nothing" are different statements and
+    # NO_RECORD keeps them apart; for the TYPE both collapse to the same fact —
+    # unknown — so a plain nil carries it.
+    def resolve_current_scope_model
+      return nil unless respond_to?(:current_scope_model, true)
+
+      send(:current_scope_model)
+    end
+
     # Break-glass audit (KTD-1): the resolver stays pure and only reports
     # :sod_bypassed; the Guard — which runs once per REAL gated action, never on
     # advisory allowed_to?/scope_for — records the override exactly once and
@@ -344,13 +388,51 @@ module CurrentScope
       # it would have applied to whichever record this action meant. Claiming
       # "would satisfy it" overstates that, and a diagnostic that overstates is
       # how a diagnostic starts being ignored. (#61 review, qodo)
-      Rails.logger&.warn(
+      message =
         "[CurrentScope] denied \"#{permission}\" (no_grant) — this subject holds a scoped grant " \
         "for it on some record, and #{controller_path} declares no current_scope_record, so the " \
         "gate had no record to match it against. If this is a member action, declare the hook " \
         "(`def current_scope_record = set_thing`) — if the subject holds the grant on the record " \
         "in question, that fixes this. If the controller is collection-only, " \
         "`def current_scope_record = nil` says so and lets scoped grants through."
+
+      # R9 (#50): this controller declared current_scope_model WITHOUT
+      # current_scope_record — the model hook is INERT, because no record hook
+      # means NO_RECORD and the record-less branch (the only reader of the
+      # declared type) never runs. That trigger is byte-for-byte this nudge's
+      # own, so it is one clause on this line, not a second nudge: two log
+      # lines saying the same thing on the same request is the noise the
+      # diagnostics contract exists to avoid.
+      if respond_to?(:current_scope_model, true)
+        message += " NOTE: this controller declares current_scope_model, but that hook is inert " \
+                   "without current_scope_record — the record hook is what's missing here."
+      end
+
+      Rails.logger&.warn(message)
+    end
+
+    # #50's adoption gap, named at the moment it bites: the resolver denied
+    # :model_undeclared — a declared collection action (record nil) with no
+    # current_scope_model, while a scoped grant explicitly ticks the key. The
+    # reason ALREADY proves that whole condition (the resolver derived it), so
+    # the predicate here is the reason and nothing else — re-deriving it from
+    # record/grants would be the drifting second copy KTD-5 warns about.
+    # `record` is taken to mirror its sibling's call shape, not consulted.
+    # Log-only; the reason rides X-Current-Scope-Reason with or without this.
+    def nudge_on_undeclared_collection_model(permission, _record, reason)
+      return unless CurrentScope.config.warn_on_undeclared_collection_model
+      return unless reason == :model_undeclared
+
+      # The grant is known to tick the key on SOME record of SOME type — the
+      # missing declaration is exactly why the gate couldn't check which. So
+      # the fix is named conditionally, not promised. (#61 wording precedent)
+      Rails.logger&.warn(
+        "[CurrentScope] denied \"#{permission}\" (model_undeclared) — this is a declared " \
+        "collection action (current_scope_record returned nil) and the subject holds a scoped " \
+        "grant ticking the key, but #{controller_path} declares no current_scope_model, so the " \
+        "gate had no type to bind that grant to and failed closed. Declare the type this " \
+        "collection deals in (`def current_scope_model = TheType`) — if the grant is of that " \
+        "type, that fixes this."
       )
     end
 

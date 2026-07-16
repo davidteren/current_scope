@@ -35,7 +35,10 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
   test "a scoped grant whose role ticks the key opens a nil-record collection gate" do
     scope_grant(@alice, role("Editor", "reports#index"), @report)
 
-    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index", record: nil)
+    # Since #50 the nil-record gate binds by the declared type — the Guard
+    # threads model: from current_scope_model. The grant is on a Report, so a
+    # Report gate opens; scope_for then narrows the list.
+    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index", record: nil, model: Report)
     assert allowed, "a scoped-only subject must reach the list scope_for exists to narrow"
     assert_nil reason, "an ordinary grant carries no reason — it is not an audited exception"
   end
@@ -62,6 +65,118 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
       assert_not @resolver.allow?(subject: @alice, permission: key, record: Report),
         "nor the class form of #{key}"
     end
+  end
+
+  # --- #50: the record-less branch binds by the declared TYPE ---
+
+  test "consequence 1 CLOSED: a Report grant never opens a Documents record-less gate" do
+    # The escalation, inverted. Alice holds only a scoped grant on a Report,
+    # under a role ticking documents#create. Before #50 the unbound branch let
+    # her create Documents — a key with no list side to save it.
+    scope_grant(@alice, role("Editor", "documents#create", "documents#index"), @report)
+
+    assert_not @resolver.allow?(subject: @alice, permission: "documents#create", record: nil, model: Document),
+      "a grant on a Report must not open a Documents #create gate"
+    assert_not @resolver.allow?(subject: @alice, permission: "documents#index", record: nil, model: Document),
+      "nor a Documents #index gate"
+    # And the class form of the same cross-type question.
+    assert_not @resolver.allow?(subject: @alice, permission: "documents#create", record: Document)
+  end
+
+  test "#19 preserved for a declared controller: a same-type grant opens the gate" do
+    scope_grant(@alice, role("Editor", "reports#index"), @report)
+
+    assert @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Report),
+      "the grant is on a Report and the gate lists Reports — it opens"
+  end
+
+  test "R3 fail-closed: an unknown type never fires the record-less branch" do
+    scope_grant(@alice, role("Editor", "reports#index"), @report)
+
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: nil),
+      "no declared type ⇒ the branch does not fire; deny is the honest answer"
+  end
+
+  test "consequence 2 stays open (#65): scoped full_access does not open its own type's index" do
+    # R4 is WITHDRAWN — a scoped full_access role still does not open a
+    # record-less gate even for its own type, because this branch answers with
+    # a boolean and full_access there is a wildcard. Tracked in #65; the fix
+    # must narrow to granted record ids, not a type.
+    scope_grant(@alice, role("Owner", full_access: true), @report)
+
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Report),
+      "a scoped full_access role must not open its own record-less gate (that is #65's escalation)"
+  end
+
+  test "the P0 stays shut with a type in hand: full_access on Report never opens Documents" do
+    scope_grant(@alice, role("Owner", full_access: true), @report)
+
+    assert_not @resolver.allow?(subject: @alice, permission: "documents#index", record: nil, model: Document),
+      "one scoped full_access grant on a Report must not open another type's gate"
+  end
+
+  test "R5 class form binds from its argument, matching type only" do
+    scope_grant(@alice, role("Editor", "reports#index"), @report)
+
+    assert @resolver.allow?(subject: @alice, permission: "reports#index", record: Report),
+      "the class form carries the type — a Report-scoped grant opens the Report class form"
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: Document),
+      "and does not open the Document class form"
+  end
+
+  test "R6 STI: a grant on a subclass binds through base_class, not the subclass name" do
+    invoice = Invoice.create!(title: "INV-1")
+    scope_grant(@alice, role("Editor", "documents#index"), invoice)
+
+    # The grant stores resource_type "Document" (base_class). Both the subclass
+    # and the base as the declared model must open the gate — asserting
+    # model.name would fail on Invoice, which is exactly R6's point.
+    assert @resolver.allow?(subject: @alice, permission: "documents#index", record: nil, model: Invoice),
+      "model: Invoice normalizes to Document and matches the stored grant"
+    assert @resolver.allow?(subject: @alice, permission: "documents#index", record: nil, model: Document),
+      "model: Document matches the same stored grant"
+  end
+
+  test "R6a ceiling: within one base_class, STI siblings collapse (accepted)" do
+    # An Invoice-scoped grant opens a gate declared with model: Document
+    # because both normalize to Document. This is the deliberate within-base-
+    # class collapse (Risks) — the branch has no STI type predicate the way
+    # scope_for's model.where(...) does. Pinned as accepted, not a bug.
+    invoice = Invoice.create!(title: "INV-1")
+    scope_grant(@alice, role("Editor", "documents#index"), invoice)
+
+    assert @resolver.allow?(subject: @alice, permission: "documents#index", record: nil, model: Document),
+      "sibling collapse within a base_class is the accepted ceiling (Risks)"
+  end
+
+  test "a non-ActiveRecord type fails CLOSED, never crashes — the record hook's guard, mirrored for model" do
+    scope_grant(@alice, role("Editor", "reports#index"), @report)
+
+    # A mis-declared current_scope_model (String/Symbol/instance) or a non-AR
+    # class passed to the class form has no base_class. Each must deny, not
+    # raise NoMethodError. (#50 review)
+    [ "Report", :Report, Object.new, 42 ].each do |bad|
+      assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: bad),
+        "a #{bad.class} model must fail closed, not crash"
+    end
+    # The class form with a non-AR class (the gem ships a Scopeable PORO,
+    # Gadget) previously returned a boolean; it must still deny, not crash.
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: Gadget),
+      "a non-ActiveRecord class form must fail closed, not crash"
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: Object)
+  end
+
+  test "resolver purity: model: is a parameter, never state" do
+    scope_grant(@alice, role("Editor", "reports#index"), @report)
+
+    # Two decides with different models must not interfere — no per-decision
+    # state leaks between them.
+    a = @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Report)
+    b = @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Document)
+    assert a, "the Report model opens the Report grant"
+    assert_not b, "the Document model does not — and the prior call left no residue"
+    assert @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Report),
+      "repeating the first call still allows — order-independent"
   end
 
   # A role can be full_access AND carry explicit rows — tick grid cells, then
@@ -208,7 +323,7 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
     # on create regardless. Pinned so a change here is a deliberate decision.
     scope_grant(@alice, role("Editor", "reports#create"), @report)
 
-    assert @resolver.allow?(subject: @alice, permission: "reports#create", record: nil)
+    assert @resolver.allow?(subject: @alice, permission: "reports#create", record: nil, model: Report)
   end
 
   # An SoD action is record-targeted by definition, so a record-less SoD check is
@@ -240,9 +355,75 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
     scope_grant(@alice, role("Reviewer", "reports#approve"), @report)
 
     # approve is not an SoD action here, so it is an ordinary collection key.
-    assert @resolver.allow?(subject: @alice, permission: "reports#approve", record: nil)
+    assert @resolver.allow?(subject: @alice, permission: "reports#approve", record: nil, model: Report)
   ensure
     CurrentScope.config.sod_actions = original
+  end
+
+  # --- R7a (#50 U3): the :model_undeclared LABEL on the undeclared-type deny ---
+  #
+  # A record-less deny for want of a type was indistinguishable from an
+  # ordinary :no_grant — and the dev nudge is dev/test-only, so the production
+  # host who most needs the cause could never see it. The label rides
+  # X-Current-Scope-Reason. It changes no decision: every case below was
+  # already a deny, only the reason differs.
+
+  test "R7a: the undeclared-type deny with a ticking grant is labelled :model_undeclared" do
+    scope_grant(@alice, role("Editor", "reports#index"), @report)
+
+    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index", record: nil, model: nil)
+    assert_not allowed, "the label must not change the decision — still a deny"
+    assert_equal :model_undeclared, reason,
+      "the deny would have been an ALLOW had the type been declared — say so"
+  end
+
+  test "R7a: no ticking grant means an ordinary :no_grant, not :model_undeclared" do
+    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index", record: nil, model: nil)
+    assert_not allowed
+    assert_equal :no_grant, reason,
+      "with nothing granted, declaring a model would change nothing — the label would lie"
+  end
+
+  test "R7a: the label requires an EXPLICIT tick — a scoped full_access grant stays :no_grant" do
+    # The #65 tripwire, mirrored onto the label: roles_ticking, NOT
+    # roles_granting. A full_access grant would NOT have been allowed by a
+    # declared type (the branch bars full_access), so labelling it
+    # :model_undeclared would send the host to declare a hook that fixes
+    # nothing. A roles_granting swap in the predicate turns this red.
+    scope_grant(@alice, role("Owner", full_access: true), @report)
+
+    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index", record: nil, model: nil)
+    assert_not allowed
+    assert_equal :no_grant, reason
+  end
+
+  test "R7a: the class form always carries its type, so it is never :model_undeclared" do
+    scope_grant(@alice, role("Editor", "reports#index"), @report)
+
+    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index", record: Document, model: nil)
+    assert_not allowed, "the grant is on a Report; the Document class form stays shut"
+    assert_equal :no_grant, reason, "the type was known and simply did not match — nothing undeclared"
+  end
+
+  test "R7a: a record-less SoD deny is never :model_undeclared" do
+    original = CurrentScope.config.sod_actions
+    CurrentScope.config.sod_actions = %w[approve]
+    scope_grant(@alice, role("Reviewer", "reports#approve"), @report)
+
+    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#approve", record: nil, model: nil)
+    assert_not allowed
+    assert_equal :no_grant, reason,
+      "a record-less SoD target is refused whatever the type — a model hook would not fix it"
+  ensure
+    CurrentScope.config.sod_actions = original
+  end
+
+  test "R7a: a declared model keeps its denies as :no_grant — nothing is undeclared" do
+    scope_grant(@alice, role("Editor", "documents#index"), @report) # Report grant, Documents gate
+
+    allowed, reason = @resolver.decide(subject: @alice, permission: "documents#index", record: nil, model: Document)
+    assert_not allowed
+    assert_equal :no_grant, reason
   end
 
   # --- R6: the resolver stays a pure decision function ---

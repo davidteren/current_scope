@@ -80,10 +80,11 @@ class GatingReflectionTest < ActiveSupport::TestCase
                "predicate into a per-action guess, this failure is the reason not to."
   end
 
-  # The dummy routes `resources :documents` with no DocumentsController class.
+  # The dummy routes `resources :orphaned` with no OrphanedController class
+  # (documents now has a real controller — #50). A missing controller class.
   # A missing controller proves nothing about gating — false, silently.
   test "a routed path with no controller class is false, not an error" do
-    assert_not @reflection.ungated?("documents")
+    assert_not @reflection.ungated?("orphaned")
   end
 
   # BrokenConstantController's own body raises NameError at load. That is a

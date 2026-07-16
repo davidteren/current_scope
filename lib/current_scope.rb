@@ -20,6 +20,9 @@ module  CurrentScope
   #
   #   :sod_veto           — the record's initiator can't perform an SoD action on it
   #   :no_grant           — nothing granted the permission (the default deny)
+  #   :model_undeclared   — a record-less deny that a scoped grant would have
+  #                         opened, had the controller declared current_scope_model
+  #                         to bind it to a type (#50). Fail-closed, with the fix named.
   #   :impersonation_gate — a mutation while impersonating, which is read-only
   #   :not_full_access    — the engine's management UI, which only full_access enters
   #
@@ -93,12 +96,13 @@ module  CurrentScope
     # `action` is either a full permission key ("admin/reports#approve") or a
     # bare action name resolved against `record`'s route key, falling back to
     # `controller_path`.
-    def allowed?(action, subject:, record: nil, controller_path: nil, actor: nil)
+    def allowed?(action, subject:, record: nil, controller_path: nil, actor: nil, model: nil)
       resolver.allow?(
         subject: subject,
         permission: permission_key(action, record: record, controller_path: controller_path),
         record: record,
-        actor: actor
+        actor: actor,
+        model: model
       )
     end
 

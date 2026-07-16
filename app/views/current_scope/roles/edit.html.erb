@@ -81,11 +81,17 @@
                     GatingTripwire's message. The claim is scoped to ROUTED
                     actions because the injected break-glass cell is live even
                     on a marked row (KTD-9) and carries its own note below. %>
+                <%# Each remedy names its cause: re-including Guard on a subclass
+                    that inherited a skip is a NO-OP (the Concern short-circuits;
+                    the skip already removed the callback the include would add),
+                    so the inherited-skip host — the #62 shape this badge exists
+                    for — must be pointed at re-assertion, not at include. %>
                 <span class="cs-ungated-badge" id="<%= badge_id %>">
                   <strong>gate not run</strong> — this controller does not run the
                   gate; ticking its routed actions grants nothing until it does.
-                  Include CurrentScope::Guard on it, or re-assert
-                  <code>before_action :current_scope_check!</code>.
+                  If it inherited a skip, re-assert
+                  <code>before_action :current_scope_check!</code>; if it never had
+                  the gate, include CurrentScope::Guard.
                 </span>
               <% end %>
             </th>

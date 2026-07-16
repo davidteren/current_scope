@@ -52,6 +52,47 @@ class UngatedTaskTest < ActiveSupport::TestCase
     assert_match "config.gating_tripwire = :warn", output
   end
 
+  test "the injected break-glass key is stripped from the listing and named as live" do
+    # allow_sod_bypass + an SoD action routed on the ungated writes controller
+    # makes the catalog inject writes#bypass_sod. That grant is LIVE even on an
+    # ungated controller (the grid's KTD-9 exemption) — printing it under
+    # "grants nothing" would call the most sensitive grant in the grid inert.
+    original_bypass = CurrentScope.config.allow_sod_bypass
+    original_sod = CurrentScope.config.sod_actions
+    CurrentScope.config.allow_sod_bypass = true
+    CurrentScope.config.sod_actions = %w[guarded]
+    CurrentScope.reset_catalog!
+
+    output = run_task
+
+    assert_match(/^  writes \(guarded, unguarded\)$/, output,
+                 "the bypass key must not appear among writes' routed actions")
+    assert_no_match(/^  writes \(.*bypass_sod.*\)/, output)
+    assert_match(/bypass_sod omitted .* break-glass stays LIVE/i, output,
+                 "the omission is stated, not silent")
+  ensure
+    CurrentScope.config.allow_sod_bypass = original_bypass
+    CurrentScope.config.sod_actions = original_sod
+    CurrentScope.reset_catalog!
+  end
+
+  test "an empty CATALOG names that nothing was inspected — never a vacuous all-clear" do
+    singleton = CurrentScope.singleton_class
+    original = CurrentScope.method(:catalog)
+    stub = Object.new
+    def stub.grouped = {}
+    singleton.define_method(:catalog) { stub }
+
+    output = run_task
+
+    assert_match(/nothing was\s+inspected/i, output)
+    assert_match "config.excluded_controllers", output
+    assert_no_match(/every routed controller has/, output,
+                    "an empty set must not be described as all-inspected")
+  ensure
+    singleton.define_method(:catalog, original)
+  end
+
   test "an empty inventory names its cause instead of printing a bare all-clear" do
     # The dummy routes provably-ungated controllers on purpose, so empty is
     # produced by narrowing the catalog to a gated controller (the report-task

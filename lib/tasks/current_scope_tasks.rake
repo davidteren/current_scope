@@ -93,7 +93,23 @@ namespace :current_scope do
     grouped = CurrentScope.catalog.grouped
     ungated = grouped.keys.sort.select { |controller| gating.ungated?(controller) }
 
-    if ungated.empty?
+    # The catalog injects the break-glass key onto any row routing an SoD
+    # action, and that grant is LIVE even on an ungated controller — honored by
+    # whatever gated controller decides SoD on the record (the grid's own
+    # KTD-9 exemption). Printing it under "grants nothing" would tell an
+    # operator the most sensitive grant in the grid is inert. Strip it from
+    # the listing and say so once.
+    bypass_action =
+      CurrentScope.config.allow_sod_bypass ? CurrentScope.config.sod_bypass_permission.to_s.split("#").last : nil
+    stripped_bypass = false
+
+    if grouped.empty?
+      # A vacuous all-clear is worse than a blank: with nothing routed there
+      # was nothing to inspect, and "every routed controller has the callback"
+      # is technically true of an empty set and completely misleading.
+      puts "No routed controllers found in the permission catalog — nothing was " \
+           "inspected. Check your routes and config.excluded_controllers."
+    elsif ungated.empty?
       # An unexplained blank reads as "the task is broken" — and a bare blank
       # would also overclaim, because this task can only see what reflection
       # proves. Name the cause, then still state the limit below.
@@ -103,11 +119,23 @@ namespace :current_scope do
       puts "Provably ungated — current_scope_check! is absent from these controllers' " \
            "callback chains, so the gate never runs there:"
       puts
-      ungated.each { |controller| puts "  #{controller} (#{grouped[controller].sort.join(', ')})" }
+      ungated.each do |controller|
+        actions = grouped[controller].sort - [ bypass_action ].compact
+        stripped_bypass ||= actions.size < grouped[controller].size
+        next if actions.empty? # a synthetic bypass-only row proves nothing here
+
+        puts "  #{controller} (#{actions.join(', ')})"
+      end
       puts
       puts "Ticking these in the role grid grants nothing until the gate runs. " \
-           "Include CurrentScope::Guard on each controller, or re-assert " \
-           "before_action :current_scope_check!."
+           "If a controller inherited a skip, re-assert before_action " \
+           ":current_scope_check! on it; if it never had the gate, include " \
+           "CurrentScope::Guard."
+      if stripped_bypass
+        puts
+        puts "(#{bypass_action} omitted from the listing — break-glass stays LIVE " \
+             "even on an ungated controller; see the role grid's exempt note.)"
+      end
     end
 
     # The limit of the proof, stated even when nothing is listed (KTD-3): a

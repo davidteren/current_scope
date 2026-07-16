@@ -44,6 +44,8 @@ Rails.application.routes.draw do
   # The same conditional-skip shape with the tripwire included (U5).
   get "conditional_skip_tripwire", to: "conditional_skip_tripwire#index"
   get "conditional_skip_tripwire/show", to: "conditional_skip_tripwire#show"
+  # A NAMESPACED ungated controller — the badge id/aria path for "admin/…".
+  get "admin/unguarded", to: "admin/unguarded#index"
 
   mount CurrentScope::Engine => "/current_scope"
 end

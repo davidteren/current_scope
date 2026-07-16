@@ -155,8 +155,24 @@ class RoleGridTest < ActionDispatch::IntegrationTest
 
     assert_select ".cs-ungated-badge#cs_ungated_writes", text: /gate not run/
     assert_select ".cs-ungated-badge#cs_ungated_writes", text: /routed actions grants nothing/
-    assert_select ".cs-ungated-badge#cs_ungated_writes", text: /Include CurrentScope::Guard/
+    # Each remedy names its cause — re-including Guard is a NO-OP on an
+    # inherited-skip subclass (the #62 shape), so the badge must not offer it
+    # as the fix for that case. (#69 implementation review, adversarial)
+    assert_select ".cs-ungated-badge#cs_ungated_writes", text: /inherited a skip, re-assert/
+    assert_select ".cs-ungated-badge#cs_ungated_writes", text: /never had\s+the gate, include CurrentScope::Guard/
     assert_select ".cs-ungated-badge#cs_ungated_writes", text: /current_scope_check!/
+  end
+
+  test "a namespaced ungated controller gets a well-formed badge id and aria wiring" do
+    get current_scope.edit_role_url(@role), headers: as(@owner)
+
+    # admin/unguarded → cs_ungated_admin_unguarded: the parameterize separator
+    # is load-bearing for namespaced paths, and nothing else exercised it.
+    assert_select "th[scope=row] .cs-ungated-badge#cs_ungated_admin_unguarded", count: 1
+    assert_select "input[data-cs-row-all][aria-describedby=cs_ungated_admin_unguarded]", count: 1
+    # No id collisions across the whole page.
+    ids = css_select("[id]").map { |n| n["id"] }
+    assert_equal ids.size, ids.uniq.size, "duplicate DOM ids: #{ids.tally.select { |_, c| c > 1 }.keys}"
   end
 
   test "a marked row's checkboxes stay enabled and carry their name and value" do

@@ -256,4 +256,29 @@ class RoleGridTest < ActionDispatch::IntegrationTest
     assert_select ".cs-ungated-badge", { count: 0 }, "precondition: the stubbed grid marks nothing"
     assert_select "p.cs-ungated-hint", { count: 1, text: /not proof/ }
   end
+
+  test "one broken controller renders as uninspectable instead of 500ing the whole editor" do
+    # The reflection deliberately propagates a broken controller body's
+    # NameError (KTD-2). The VIEW absorbs it per row — one broken controller
+    # must not take down the role editor for every other row — while the rake
+    # task keeps propagating (its output makes proof claims). The row renders
+    # an explicit unknown state: not the danger badge, never silence.
+    raising = Class.new {
+      def ungated?(controller) = controller == "reports" ? raise(NameError, "boom") : false
+    }.new
+    grid = CurrentScope::PermissionGrid.new(gating: raising)
+    CurrentScope::PermissionGrid.define_singleton_method(:new) { |*, **| grid }
+    begin
+      get current_scope.edit_role_url(@role), headers: as(@owner)
+    ensure
+      CurrentScope::PermissionGrid.singleton_class.remove_method(:new)
+    end
+
+    assert_response :success
+    assert_select ".cs-uninspectable-note#cs_uninspectable_reports", { count: 1, text: /could not inspect/ }
+    assert_select "#cs_ungated_reports", { count: 0 }, "unknown must not wear the ungated badge"
+    assert_select ".cs-uninspectable-note", { count: 1 }, "only the raising row is affected"
+    assert_select "input#perm_reports_read[type=checkbox]", { count: 1 },
+                  "the broken row's cells still render and stay tickable"
+  end
 end

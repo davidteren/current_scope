@@ -73,10 +73,13 @@ reviewer/planner.
 - System tests (Capybara + cuprite, headless): `bin/rails test:system` — also
   CI-enforced. Regenerate README screenshots with
   `CAPTURE_SCREENSHOTS=1 RAILS_ENV=test bin/rails test test/system/screenshots_test.rb`.
-- **Stable DOM ids mandatory** in engine views: semantic kebab-case `id` on
-  every interactive/assertable element; repeated elements get `data-testid`
-  for the kind + unique `id` per instance. System-test selectors use ids/
-  test-ids only — never CSS structure or text. Renaming an id is a breaking
+- **Stable DOM ids mandatory** in engine views: semantic snake_case `id` on
+  every interactive/assertable element (the repo's established shape —
+  `perm_<controller>_<action>`, `cs_ungated_<controller>`; controller paths go
+  through `parameterize(separator: '_')`). Repeated elements are identified by
+  their per-instance ids plus a stable class for the kind — no `data-testid`
+  (never used in this codebase). System-test selectors use ids/classes chosen
+  for tests only — never CSS structure or text. Renaming an id is a breaking
   change: update specs in the same commit.
 - Non-trivial logic ships with its test in the same commit.
 - Integration-test gotcha: after requesting the mounted engine, SCRIPT_NAME

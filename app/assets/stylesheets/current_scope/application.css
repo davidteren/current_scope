@@ -547,6 +547,25 @@ a:hover { color: var(--cs-accent-strong); }
       var(--cs-surface-2) 0 4px, var(--cs-bg) 4px 8px);
 }
 
+/* UNINSPECTABLE: the controller raised while loading, so the gate state is
+   unknown — a distinct third voice, deliberately not the danger badge (no
+   claim about gating is being made) and not silence (unmarked reads as
+   "checked, and gated" under the hint's rules). */
+.cs-uninspectable-note {
+  display: block;
+  max-width: 19rem;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.4375rem;
+  border: 1px dashed var(--cs-line-strong);
+  border-radius: var(--cs-radius-sm);
+  background: var(--cs-surface-2);
+  color: var(--cs-muted);
+  font-family: var(--cs-font);
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  white-space: normal;
+}
+
 /* The per-cell exemption note on a marked row's break-glass cell. */
 .cs-bypass-exempt {
   display: block;

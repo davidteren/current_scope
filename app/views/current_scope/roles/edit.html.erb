@@ -63,7 +63,19 @@
       </thead>
       <tbody>
         <% grid.controllers.each do |controller| %>
-          <% ungated = grid.ungated?(controller) %>
+          <%# A broken controller body's NameError deliberately propagates out
+              of the reflection (KTD-2) — but ONE broken controller must not
+              take down the whole role editor for every other row. The view
+              renders that row as explicitly uninspectable (a visible state,
+              never silence, never "gated"); the rake task keeps propagating,
+              because its output makes proof claims a partial walk can't. %>
+          <% ungated = begin
+               grid.ungated?(controller)
+             rescue NameError
+               :uninspectable
+             end %>
+          <% uninspectable = ungated == :uninspectable
+             ungated = ungated == true %>
           <% badge_id = "cs_ungated_#{controller.parameterize(separator: '_')}" if ungated %>
           <tr>
             <th scope="row">
@@ -75,6 +87,15 @@
                        aria-describedby="<%= badge_id %>"<% end %>>
                 <span><%= controller %></span>
               </label>
+              <% if uninspectable %>
+                <%# Not a badge and not silence: the gate state is UNKNOWN here,
+                    and rendering nothing would read as "checked, and gated"
+                    under the hint's own rules. %>
+                <span class="cs-uninspectable-note" id="cs_uninspectable_<%= controller.parameterize(separator: '_') %>">
+                  could not inspect — this controller raised while loading, so its
+                  gate state is unknown. Fix the load error, then reload.
+                </span>
+              <% end %>
               <% if ungated %>
                 <%# Advisory only — marking is not disabling (KTD-8/R5): nothing
                     here is grayed or disabled. Same remediation vocabulary as

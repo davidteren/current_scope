@@ -13,7 +13,8 @@ module CurrentScope
     def allowed_to?(action, record = nil, controller: nil)
       controller ||= controller_path if respond_to?(:controller_path)
       CurrentScope.allowed?(action, subject: current_scope_user, record: record,
-        controller_path: controller, actor: current_scope_actor)
+        controller_path: controller, actor: current_scope_actor,
+        model: ambient_collection_model(controller))
     end
 
     # The list-side companion to allowed_to?: "which records of `model` may the
@@ -48,6 +49,21 @@ module CurrentScope
         model: model,
         permission: CurrentScope.permission_key(permission || :index, record: model, controller_path: controller)
       )
+    end
+
+    # The type the controller handling THIS request declared for its collection
+    # actions (#50), so a bare allowed_to?(:index) in its own view binds the
+    # record-less gate the same way the gate did — otherwise the fix would hide
+    # a link the gate allows. Only for the request's OWN controller: a
+    # cross-controller question (allowed_to?(:index, controller: "reports")
+    # from a projects view) resolves a different key than the ambient model
+    # answers, so it gets nil and falls to the fail-closed default — the class
+    # form allowed_to?(:index, Report) is how you ask about another controller,
+    # and it binds from its argument (R5). (KTD-6)
+    def ambient_collection_model(controller)
+      return nil unless controller && controller == CurrentScope::Current.collection_model_path
+
+      CurrentScope::Current.collection_model
     end
 
     def current_scope_user

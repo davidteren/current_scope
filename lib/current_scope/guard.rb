@@ -115,6 +115,13 @@ module CurrentScope
       record = resolve_current_scope_record
       model = resolve_current_scope_model
 
+      # Stash the declared type for the advisory path (allowed_to? in a view),
+      # keyed to THIS controller so a cross-controller question can't borrow it
+      # (#50, KTD-6). Additive — the gate decision below reads `model` directly,
+      # not the ambient copy.
+      CurrentScope::Current.collection_model = model
+      CurrentScope::Current.collection_model_path = controller_path
+
       # The real actor (Current.actor) enters here explicitly — the resolver
       # never reads Current itself (PDP purity). It only matters under SoD
       # :either while impersonating; otherwise actor == subject.

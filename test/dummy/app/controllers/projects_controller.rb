@@ -23,4 +23,11 @@ class ProjectsController < ApplicationController
   def create
     render plain: "created"
   end
+
+  # #50 U6: proves the advisory path agrees with the gate. If the gate let the
+  # request in, a bare allowed_to?(:index) rendered from the controller must be
+  # true too — the view can never disagree with the gate on its own controller.
+  def advisory
+    render plain: allowed_to?(:index).to_s
+  end
 end

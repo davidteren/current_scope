@@ -96,12 +96,13 @@ module  CurrentScope
     # `action` is either a full permission key ("admin/reports#approve") or a
     # bare action name resolved against `record`'s route key, falling back to
     # `controller_path`.
-    def allowed?(action, subject:, record: nil, controller_path: nil, actor: nil)
+    def allowed?(action, subject:, record: nil, controller_path: nil, actor: nil, model: nil)
       resolver.allow?(
         subject: subject,
         permission: permission_key(action, record: record, controller_path: controller_path),
         record: record,
-        actor: actor
+        actor: actor,
+        model: model
       )
     end
 

@@ -63,6 +63,33 @@ class CollectionModelRequestTest < ActionDispatch::IntegrationTest
     assert_equal "INV-1", response.body
   end
 
+  test "U6: the view agrees with the gate — allowed_to?(:index) is true where the gate would allow index" do
+    # The regression U6 exists for: after U2 a bare allowed_to?(:index) would
+    # return false on a DECLARED controller, hiding a link the gate allows. The
+    # advisory action (reached via a grant ticking projects#advisory) renders
+    # allowed_to?(:index); it must say true because the SAME scoped grant ticks
+    # projects#index, exactly what a real GET /projects would honor.
+    mine = Project.create!(name: "Mine")
+    scope_grant(@alice, role("Editor", "projects#index", "projects#advisory"), mine)
+
+    get "/projects_advisory", headers: sign_in(@alice)
+    assert_response :success, "the advisory grant opens the advisory gate"
+    assert_equal "true", response.body,
+      "allowed_to?(:index) binds the ambient Project type and agrees with the index gate"
+  end
+
+  test "U6: the view agrees with the gate in the deny direction too" do
+    # The grant ticks advisory (so the action is reachable) but NOT index —
+    # allowed_to?(:index) must therefore be false, not a stale true.
+    mine = Project.create!(name: "Mine")
+    scope_grant(@alice, role("AdvisoryOnly", "projects#advisory"), mine)
+
+    get "/projects_advisory", headers: sign_in(@alice)
+    assert_response :success
+    assert_equal "false", response.body,
+      "no projects#index tick ⇒ the advisory answer is false, matching the index gate"
+  end
+
   test "nested_reports#index still reaches a Report-scoped subject, key drift and all" do
     project = Project.create!(name: "P")
     scope_grant(@alice, role("Viewer", "nested_reports#index"), @report)

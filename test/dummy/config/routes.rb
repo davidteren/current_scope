@@ -42,6 +42,7 @@ Rails.application.routes.draw do
   resources :projects, only: [ :index, :create ] do
     resources :nested_reports, only: :index
   end
+  get "projects_advisory", to: "projects#advisory" # #50 U6: view↔gate agreement
   # #50 U3 diagnostics shapes: a declared-nil collection with NO
   # current_scope_model (the :model_undeclared deny + nudge), and a declared
   # model with NO record hook (the R9 inert-model clause).

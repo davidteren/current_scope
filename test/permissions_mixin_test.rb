@@ -62,4 +62,92 @@ class PermissionsMixinTest < ActiveSupport::TestCase
     with_current_user(@alice) { nil }
     assert_nil CurrentScope::Current.user
   end
+
+  # --- #50 U6: the advisory path binds the record-less gate by the ambient
+  # collection model, exactly like the gate, so a view never disagrees. ---
+
+  # A component that answers controller_path, standing in for a view rendered
+  # inside a controller. The Guard stashes the ambient model + its path; this
+  # simulates being rendered from that same controller (path matches).
+  class ViewComponent
+    include CurrentScope::Permissions
+    def initialize(path) = @path = path
+    def controller_path = @path
+  end
+
+  def with_ambient_model(type, path)
+    CurrentScope::Current.collection_model = type
+    CurrentScope::Current.collection_model_path = path
+    yield
+  ensure
+    CurrentScope::Current.collection_model = nil
+    CurrentScope::Current.collection_model_path = nil
+  end
+
+  test "a bare allowed_to?(:index) on the request's own controller uses the ambient type" do
+    editor = CurrentScope::Role.create!(name: "Editor")
+    editor.role_permissions.create!(permission_key: "reports#index")
+    CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: editor, resource: @report)
+
+    with_current_user(@alice) do
+      with_ambient_model(Report, "reports") do
+        assert ViewComponent.new("reports").allowed_to?(:index),
+          "the view binds by the ambient Report type and agrees with the gate"
+      end
+    end
+  end
+
+  test "a cross-controller allowed_to? does NOT borrow the ambient type (KTD-6)" do
+    editor = CurrentScope::Role.create!(name: "Editor")
+    editor.role_permissions.create!(permission_key: "reports#index")
+    CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: editor, resource: @report)
+
+    with_current_user(@alice) do
+      # Ambient is Project (a projects request), asked about reports.
+      with_ambient_model(Project, "projects") do
+        assert_not ViewComponent.new("projects").allowed_to?(:index, controller: "reports"),
+          "the projects request's Project type must not answer a reports question"
+      end
+    end
+  end
+
+  test "the class form binds from its argument, ignoring the ambient type (R5)" do
+    editor = CurrentScope::Role.create!(name: "Editor")
+    editor.role_permissions.create!(permission_key: "documents#index")
+    invoice = Invoice.create!(title: "INV-1")
+    CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: editor, resource: invoice)
+
+    with_current_user(@alice) do
+      # Report-ambient request, but the class form names Document.
+      with_ambient_model(Report, "reports") do
+        assert ViewComponent.new("reports").allowed_to?(:index, Document),
+          "allowed_to?(:index, Document) binds from Document, not the ambient Report"
+      end
+    end
+  end
+
+  test "outside a request the ambient is nil, so a bare collection form fails closed" do
+    editor = CurrentScope::Role.create!(name: "Editor")
+    editor.role_permissions.create!(permission_key: "reports#index")
+    CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: editor, resource: @report)
+
+    with_current_user(@alice) do
+      # A PORO with no controller_path and no ambient model set.
+      assert_not FakeComponent.new.allowed_to?(:index, controller: "reports"),
+        "no ambient type ⇒ the record-less branch does not fire"
+    end
+  end
+
+  test "R11: an org-wide grant's bare allowed_to?(:index) is unchanged by the ambient" do
+    CurrentScope::RoleAssignment.find_by(subject: @alice).role
+                                .role_permissions.create!(permission_key: "reports#index")
+
+    with_current_user(@alice) do
+      with_ambient_model(Report, "reports") do
+        assert ViewComponent.new("reports").allowed_to?(:index)
+      end
+      # Same answer with no ambient — org grants never read the model.
+      assert ViewComponent.new("reports").allowed_to?(:index)
+    end
+  end
 end

@@ -11,6 +11,30 @@ issue: https://github.com/davidteren/current_scope/issues/45
 
 # Assisted Migration Tooling (Pundit / CanCanCan / Action Policy) - Plan
 
+> **Amended 2026-07-16 — three decisions supersede parts of this plan; the units are NOT
+> yet reworked to match.** #45 is parked; re-plan against this block when it unparks.
+>
+> 1. **First adapter: Action Policy, not Pundit.** R14's "MVP scope is Pundit" carries no
+>    recorded rationale here or anywhere, while the record favors Action Policy: #45 calls
+>    it the closest cousin whose rules map most directly, `docs/RESEARCH.md` shows the
+>    engine's API was modeled on it, and the adoption run's lens (STATUS, 2026-07-15/16)
+>    was a real host running Action Policy today. U2's analyzer core stays the MVP shape —
+>    its first target changes. U3's parity old-answer path starts with Action Policy's
+>    `apply`, already spec'd in U7.
+> 2. **Delivery split: the parity harness ships in the gem; the analyzer ships as a
+>    skill.** This partially supersedes KTD-1 ("no new gem code"): the harness is the
+>    deterministic, load-bearing safety artifact and belongs where host CI can depend on
+>    it without Claude; the AI-driven analyzer/classifier stays a skill. KTD-1's reasoning
+>    survives for the analyzer half.
+> 3. **Sequencing: after #50 and #65 ship as 0.3.0.** Both change the record-less
+>    resolver branch — exactly the answers a parity harness diffs. Tooling shipped first
+>    would certify hosts against semantics 0.3.0 immediately changes.
+>
+> Recorded on issue #45 the same day. `artifact_readiness: implementation-ready` above is
+> provenance, not a warranty (see docs/solutions/workflow-issues/) — after this amendment
+> the plan is READY-WITH-REWORK: re-scope U2/U7 order and split U3's files before
+> implementing.
+
 ## Goal Capsule
 
 - **Objective:** ship an assisted-migration toolkit that moves an existing Pundit / CanCanCan / Action Policy app onto `current_scope` with three cooperating pieces — a **code analyzer** (old rules → roles + grid ticks, with a human decision report for what can't be proven), a **data backfill** (existing role columns/tables → `Role` / `RoleAssignment` / `ScopedRoleAssignment` rows), and a **parity harness** (replays subject × permission × record through both the old and new systems and diffs the answers until they agree). Report-only by default; every write is opt-in and reviewable.

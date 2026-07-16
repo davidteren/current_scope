@@ -1,0 +1,49 @@
+app/views/current_scope/subjects/index.html.erb
+  s_12efdc458c7a08::t_668be5299e8163 75
+  s_12efdc458c7a08::t_92fdc8ca7fa198 74
+  s_12efdc458c7a08::t_5beab08d0de98f 76
+app/assets/stylesheets/current_scope/application.css
+  s_12efdc458c7a08::t_e4dbc408cdbca8 135-155
+app/helpers/current_scope/application_helper.rb
+  s_12efdc458c7a08::t_cb3c8a3d0dcec4 103-106
+app/views/current_scope/roles/edit.html.erb
+  s_12efdc458c7a08::t_ee2287f5375ebf 7
+app/views/current_scope/roles/new.html.erb
+  s_12efdc458c7a08::t_5c6988ee5d1e4b 5
+app/views/current_scope/scoped_role_assignments/new.html.erb
+  s_12efdc458c7a08::t_79c5755130fba8 105-116
+app/views/layouts/current_scope/application.html.erb
+  s_12efdc458c7a08::t_4f8bfad97217aa 18-20,50
+lib/current_scope.rb
+  s_12efdc458c7a08::t_f6a262cff0367e 180-183,185-188
+lib/current_scope/configuration.rb
+  s_12efdc458c7a08::t_2eb56245f840ca 29-52,68-72,150-181,315,323-325,332-340
+lib/current_scope/permissions.rb
+  s_12efdc458c7a08::t_be26fbe6d95004 20-36
+test/configuration_test.rb
+  s_12efdc458c7a08::t_40f68211c930ea 66-141
+test/grant_test.rb
+  s_12efdc458c7a08::t_6d4d651f861818 34-48
+test/helpers/application_helper_test.rb
+  s_12efdc458c7a08::t_367fb925c2421e 297-322
+test/integration/management_ui_test.rb
+  s_12efdc458c7a08::t_a84f6cb5c52356 163-216
+test/integration/scoped_assignment_picker_test.rb
+  s_12efdc458c7a08::t_9e72fc2c7cb15d 88-114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "e43453b38c9abe574c92a5c4923509cc9ab95a1d",
+  "prompts": {},
+  "sessions": {
+    "s_12efdc458c7a08": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb07c64e-3502-4888-a0c5-05d88e5576bd",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

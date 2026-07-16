@@ -1,7 +1,8 @@
 require "test_helper"
 
 # A5: characterize the nil-record SoD asymmetry (prod behavior, unchanged) and
-# cover the opt-in dev nudge. A present record with a missing initiator hook
+# cover the dev nudge (on by default in dev/test since #41, off in production).
+# A present record with a missing initiator hook
 # raises loud; an ABSENT record on an SoD member action skips the veto silently.
 # The README member-action contract is the load-bearing control; the nudge is a
 # dev/test aid.
@@ -72,7 +73,7 @@ class SodNilRecordNudgeTest < ActionDispatch::IntegrationTest
     assert_match "separation-of-duties action but was gated with a nil record", logs
   end
 
-  test "nudge stays silent when the opt-in is off (default)" do
+  test "nudge stays silent when the flag is disabled" do
     CurrentScope.config.warn_on_nil_sod_record = false
     logs = capture_logs { post "/sod_nil/approve", headers: sign_in(@user) }
     assert_response :success

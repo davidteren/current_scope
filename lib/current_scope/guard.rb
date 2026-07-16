@@ -303,7 +303,7 @@ module CurrentScope
       response.set_header("X-Current-Scope-Reason", "sod_bypassed")
     end
 
-    # A5 dev/test aid (opt-in): the request was ALLOWED, but if it's an SoD
+    # A5 dev/test aid (on by default in dev/test, #41): the request was ALLOWED, but if it's an SoD
     # action gated with a nil record, the SoD veto was silently skipped — a sign
     # current_scope_record returned nil on a member action. Lives here (the gate
     # seam), not in the shared resolver, so it never fires on advisory

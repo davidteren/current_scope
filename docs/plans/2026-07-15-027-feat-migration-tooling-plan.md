@@ -11,6 +11,32 @@ issue: https://github.com/davidteren/current_scope/issues/45
 
 # Assisted Migration Tooling (Pundit / CanCanCan / Action Policy) - Plan
 
+> **Amended 2026-07-16 — three decisions supersede parts of this plan; the units are NOT
+> yet reworked to match.** #45 is parked; re-plan against this block when it unparks.
+>
+> 1. **First adapter: Action Policy, not Pundit.** R14's "MVP scope is Pundit" carries no
+>    recorded rationale here or anywhere, while the record favors Action Policy: this
+>    plan's own U7 and issue #45 call it *the closest cousin — its rules map most
+>    directly*; `docs/RESEARCH.md` names Action Policy palkan's reference implementation
+>    whose design patterns this engine deliberately steals (§"Action Policy"); and the
+>    adoption run targeted a real host running Action Policy today (recorded on #45,
+>    comment of 2026-07-16). U2's analyzer core stays the MVP shape — its first target
+>    changes. U3's parity old-answer path starts with Action Policy's `apply`, already
+>    spec'd in U7.
+> 2. **Delivery split: the parity harness ships in the gem; the analyzer ships as a
+>    skill.** This partially supersedes KTD-1 ("no new gem code"): the harness is the
+>    deterministic, load-bearing safety artifact and belongs where host CI can depend on
+>    it without Claude; the AI-driven analyzer/classifier stays a skill. KTD-1's reasoning
+>    survives for the analyzer half.
+> 3. **Sequencing: after #50 and #65 ship as 0.3.0.** Both change the record-less
+>    resolver branch — exactly the answers a parity harness diffs. Tooling shipped first
+>    would certify hosts against semantics that 0.3.0 immediately changes.
+>
+> Recorded on issue #45 the same day. `artifact_readiness: implementation-ready` above is
+> provenance, not a warranty (see docs/solutions/workflow-issues/) — after this amendment
+> the plan is READY-WITH-REWORK: re-scope U2/U7 order and split U3's files before
+> implementing.
+
 ## Goal Capsule
 
 - **Objective:** ship an assisted-migration toolkit that moves an existing Pundit / CanCanCan / Action Policy app onto `current_scope` with three cooperating pieces — a **code analyzer** (old rules → roles + grid ticks, with a human decision report for what can't be proven), a **data backfill** (existing role columns/tables → `Role` / `RoleAssignment` / `ScopedRoleAssignment` rows), and a **parity harness** (replays subject × permission × record through both the old and new systems and diffs the answers until they agree). Report-only by default; every write is opt-in and reviewable.
@@ -21,7 +47,7 @@ issue: https://github.com/davidteren/current_scope/issues/45
   - resolver **purity** — no writes, no per-decision state, shared across threads;
   - **ambient `CurrentAttributes` context** as the boundary-only actor store.
   The parity harness in particular MUST call the real `CurrentScope.allowed?` / `CurrentScope.scope_for` PDP, never a hand-rolled copy of the resolver (KTD-2).
-- **Delivery posture:** MVP ships as a Claude Code **skill** under `.claude/skills/`, not as new gem code and not as a new gem. The skill *generates self-contained files into the host app* (decision report, backfill migration, parity spec/rake task); generated output has zero runtime dependency on Claude or on any new package, so host CI never needs either. A `current_scope-migrate` dev-gem is explicitly deferred until the deterministic parts stabilize (KTD-1).
+- **Delivery posture:** ⚠️ **Superseded in part — see Amendment 2026-07-16, decision 2 (the parity harness ships in the gem; the rest of this bullet survives for the analyzer).** MVP ships as a Claude Code **skill** under `.claude/skills/`, not as new gem code and not as a new gem. The skill *generates self-contained files into the host app* (decision report, backfill migration, parity spec/rake task); generated output has zero runtime dependency on Claude or on any new package, so host CI never needs either. A `current_scope-migrate` dev-gem is explicitly deferred until the deterministic parts stabilize (KTD-1).
 - **Stop conditions — surface, do not guess:**
   - a source app is **genuinely multi-role per subject** with no derivable precedence — one-org-role-per-subject is a hard `current_scope` invariant; report it as a go/no-go finding at inventory time, before any backfill (KTD-4).
   - a policy is **metaprogrammed / DSL-generated / multi-clause** such that an AST can't prove its meaning — emit it to the decision report as `unparseable` with `file:line`, never approximate it into a grant (KTD-3).
@@ -57,13 +83,13 @@ Nobody rewrites working authorization by hand — per issue #45 it is *the singl
 - **R11.** Parity also compares scope: old `policy_scope(Model).pluck(:id)` / `accessible_by` / `relation_scope` vs `CurrentScope.scope_for(...).pluck(:id)`.
 - **R12.** Intentional differences are declared in an `accepted_diffs.yml`; CI fails only on **unexplained** divergence. Cells that can't be replayed in-process (policies needing request context) are excluded and flagged — never scored as passing (fail-honest).
 - **R13.** Safe call-site rewrites under `--write` are mechanical and enumerated: delete `authorize @x` (the Guard gate replaces it), `policy(@x).update?` / `can?(:update, @x)` → `allowed_to?(:update, @x)`, `policy_scope(X)` / `accessible_by` / `relation_scope` → `scope_for(X)`.
-- **R14.** MVP scope is **Pundit, report-only** (inventory + decision report + parity spec generator; no code rewriting, no data writes). CanCanCan and Action Policy follow in a later phase.
+- **R14.** ⚠️ **Superseded — see Amendment 2026-07-16, decision 1: the first adapter is Action Policy.** ~~MVP scope is **Pundit, report-only**~~ MVP scope is **Action Policy, report-only** (inventory + decision report + parity spec generator; no code rewriting, no data writes). Pundit and CanCanCan follow in a later phase.
 
 ---
 
 ## Key Technical Decisions
 
-- **KTD-1 — Skill-first, host-generated files; no new gem yet.** The AI layer (classifying arbitrary predicates, naming roles) is genuinely load-bearing; the deterministic layer is just the files it emits. Ship MVP as a `.claude/skills/current-scope-migrate/` skill that generates *self-contained* artifacts into the host app, so host CI depends on neither Claude nor a new package. A gem is a maintenance contract we should not sign to ship an experiment; extract `current_scope-migrate` (generators + rake task) only once the deterministic parts stabilize and non-Claude demand appears. **This is a deliberate `.claude/skills/` tree rather than `lib/` gem code — flagged as the central delivery decision.**
+- **KTD-1 — Skill-first, host-generated files; no new gem yet.** ⚠️ **Superseded in part — see Amendment 2026-07-16, decision 2: the parity harness ships in the gem. This KTD's reasoning survives for the analyzer half only.** The AI layer (classifying arbitrary predicates, naming roles) is genuinely load-bearing; the deterministic layer is just the files it emits. Ship MVP as a `.claude/skills/current-scope-migrate/` skill that generates *self-contained* artifacts into the host app, so host CI depends on neither Claude nor a new package. A gem is a maintenance contract we should not sign to ship an experiment; extract `current_scope-migrate` (generators + rake task) only once the deterministic parts stabilize and non-Claude demand appears. **This is a deliberate `.claude/skills/` tree rather than `lib/` gem code — flagged as the central delivery decision.**
 - **KTD-2 — The parity harness calls the real PDP, never a copy.** The generated parity spec computes the "new" answer through `CurrentScope.allowed?` / `CurrentScope.scope_for` — the exact entry points the Guard and host lists route through (`lib/current_scope.rb`). Reimplementing the resolver in the harness would let the harness pass while the gate disagrees, defeating the entire point. This mirrors the engine's own invariant that `scope_for` reads the same grants as the per-record gate so a list "can never drift from the per-record decision" (`resolver.rb#scope_for`). Risk to invariants: **none** — the harness is a pure reader of the shipped PDP.
 - **KTD-3 — Deterministic AST for the provable ~70%; report-only for the rest; never guess.** Parse with prism what an AST can *prove* — pure role predicates, hash conditions, single `record.x == user`. Everything metaprogrammed or multi-clause becomes a decision-report row, not a grant. This is the analyzer's fail-honest analogue of the engine's fail-closed posture: under-reporting a mapping (honest `unparseable`) is safe; over-confidently inventing a grant is a silent authorization change. `--write` applies only the safe, proven rewrites (R13).
 - **KTD-4 — Backfill emits a reviewable migration; one-org-role precedence is a human go/no-go at inventory, not a backfill-time guess.** `current_scope` enforces one org-wide role per subject (`index_current_scope_one_role_per_subject`). A multi-role source app has no mechanical "correct" collapse — picking one would silently narrow or widen access. The inventory step reports this as a blocker on day one; the operator declares a precedence (config in the generated migration) or a merged role before the backfill is generated. Preserves fail-closed: no silent role loss.
@@ -119,6 +145,8 @@ Generated-into-host paths are marked *(host)* — they land in the operator's ap
 - **Verification:** running the skill against a scenario host app produces a report skeleton and writes nothing without `--write`; the contract + invariants docs are self-contained.
 
 ### U2. Pundit policy inventory → decision report (MVP core)
+
+> ⚠️ **Superseded in part — Amendment 2026-07-16, decision 1:** the MVP analyzer core this unit describes survives, but its **first target is Action Policy, not Pundit** — swap this unit's order with U7's adapter when re-planning at unpark.
 
 - **Goal:** parse Pundit policies with prism, classify each predicate into clean / semantic-shift / unmappable, resolve model→controller keys via the route table, and emit a decision report with `file:line`.
 - **Requirements:** R2, R3, R4, R5, R6.
@@ -201,6 +229,8 @@ Generated-into-host paths are marked *(host)* — they land in the operator's ap
 - **Verification:** run against scenario app 03 (god/legacy controller) with a CanCanCan Ability; buckets + parity behave as U2/U3.
 
 ### U7. Action Policy support
+
+> ⚠️ **Re-ordered — Amendment 2026-07-16, decision 1:** this adapter moves first; see U2's marker.
 
 - **Goal:** extend the analyzer and parity harness to Action Policy (the closest cousin — see `docs/RESEARCH.md`).
 - **Requirements:** R2, R6, R10 (Action Policy variants).

@@ -111,7 +111,9 @@ the gate — and the gate denies them, because nobody can be granted
 
 ```ruby
 # config/initializers/current_scope.rb
-config.excluded_controllers += [%r{\Adevise/}, %r{\Ausers/}]
+CurrentScope.configure do |config|
+  config.excluded_controllers += [%r{\Adevise/}, %r{\Ausers/}]
+end
 ```
 
 ```ruby

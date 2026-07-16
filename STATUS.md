@@ -225,8 +225,14 @@ runs Action Policy today and wants an incremental, reversible retrofit.
 - [x] **#26 adoption guide — PR #64.** `docs/guides/adopting-in-an-existing-app.md`
       — report mode as the ramp, auth-callback ordering, Devise/engines, the
       `skip_before_action` fail-open, coexisting with Pundit/CanCanCan/Action
-      Policy, namespaced grant pairs, a rollout ladder. The install generator
-      points at it and a test asserts the path resolves.
+      Policy, namespaced grant pairs, a rollout ladder.
+      *(Corrected 2026-07-16: this entry originally claimed "the install
+      generator points at it and a test asserts the path resolves" — that was
+      the discredited `File.exist?` test, and #64's six review fixes — dead-end
+      pointer, `NameError` snippet, that test — were committed locally as
+      `c01a395` but **never pushed**; the threads were resolved citing a commit
+      no ref contained, and the PR merged pre-fix. Found by the audit, rescued
+      as **PR #71**.)*
 - [x] **Plan 029 (#50) — PR #66.** Thread the collection's model to the resolver
       via `current_scope_model`. Plan only; **#50 is still open, unimplemented.**
 - [x] **Learning: a correction is itself a rot event — PR #67.**
@@ -248,7 +254,9 @@ runs Action Policy today and wants an incremental, reversible retrofit.
 - **#65** — bounded `full_access`, carrying the refutation that killed plan 029's
   R4 so the next reader does not re-derive it.
 - **#50 amended** — two of its "Done when" bullets asked for the withdrawn
-  behaviour.
+  behaviour. *(Corrected 2026-07-16: the amendment had landed only as a
+  comment — the body's checklist still demanded the escalation until the audit
+  applied it to the body itself, the exact rot mode PR #67 documents.)*
 
 #### What this run actually taught, stated plainly
 
@@ -282,7 +290,9 @@ one it states. The earlier "prefer a positive closed set" lesson from PR #49 was
 - **PR #63 was killed by me** deleting its base branch on merge (GitHub
   auto-closes). Rebuilt as #64. Order is: merge → retarget → *then* delete.
 - **A "pass" check does not mean zero findings** — proved repeatedly this run.
-  cubic/qodo/devin routinely file P1s on a green PR.
+  cubic/qodo routinely file P1s on a green PR (cubic filed a conf-9 P1 on #59
+  and a conf-10 P0 on #66 seconds after its own check reported success; devin
+  filed no P1-severity findings this run — *corrected 2026-07-16*).
 - **cubic is one reviewer with three threads, not three reviewers.** A commit
   message this run said "six" and enumerated five.
 - **Everything is squash-merged**, so in-branch SHAs die. **Cite PRs, never bare
@@ -295,6 +305,26 @@ one it states. The earlier "prefer a positive closed set" lesson from PR #49 was
 ---
 
 ## Verification brief — for a fresh session
+
+> **Audit completed 2026-07-16** (Fable 5, max effort; 8 adversarially-verified
+> probes over these targets + 4 question agents). Outcome: **the code held —
+> every resolver/report-mode/nudge invariant survived hostile re-derivation and
+> is pinned by tests that fail on regression. The paper trail did not.** 60
+> brief claims → 34 confirmed, 20 nuanced, 6 refuted; 20 findings survived
+> verification. The one P1: **PR #64's review fixes were never pushed** — the
+> fix commit (`c01a395`) was dangling-local-only while the review threads were
+> resolved citing it; rescued as **PR #71**. Other corrections landed: issue
+> #50's body (the Done-when still demanded withdrawn R4 — comment-only
+> amendment had never reached it), the stale `roles_granting` safety comment +
+> issue #65's citation of it (**PR #72**), and follow-ups filed as **#73**
+> (report-mode SoD blind-spot 403 is undiagnosed), **#74**
+> (`nudge_on_nil_sod_record` re-derives the resolver's condition and misses the
+> String shape — the through-line defect, alive in the diagnostics path),
+> **#75** (grid third state for conditional skips), **#76** (skip-gate macro).
+> Claims below that the audit falsified are corrected in place and marked
+> *(corrected 2026-07-16)*. The guide's #62 mitigation (subclass re-assert) is
+> untested on `main`; plan 030's U4 already schedules exactly that test — not
+> duplicated.
 
 **Purpose:** a different model, at max effort, independently double-checks this
 run. Assume good faith and **verify anyway** — the failure mode throughout was
@@ -325,13 +355,22 @@ confident, well-argued, wrong.
 ### Highest-value targets, roughly in order
 
 1. **`lib/current_scope/resolver.rb` decision order and the record-less branch.**
-   Line 49 is the **only** unbound grant check. The safety comment at `:157-159`
-   is load-bearing: *"Safe to wildcard full_access here because BOTH callers bind
-   the grant to a record."* `roles_granting` = full_access ∪ `roles_ticking`;
+   *(Corrected 2026-07-16.)* Line 49 is the only unbound grant check **that
+   decides** — `scoped_grant_exists?` is a second unbound (and
+   full_access-inclusive) query, safe solely because it is diagnostics-only and
+   its one caller gates a log line. The safety comment the audit found here
+   ("BOTH callers bind the grant to a record") was **stale since PR #61 added
+   that third caller** — rewritten in PR #72 to name all three shapes; #65's
+   quote updated with it. `roles_granting` = full_access ∪ `roles_ticking`;
    `roles_ticking` excludes full_access and exists **solely** because the
    record-less branch binds to nothing.
-   **Tripwire for #65: if any PR ever contains `roles_granting` and `.exists?` in
-   the same query, that is the escalation.**
+   **Tripwire for #65** *(corrected — the original here misquoted #65's "a PR
+   for this issue" as "any PR ever", and the grep matches two safe queries
+   while missing respellings)*: the invariant is that no query that DECIDES may
+   match scoped assignments against a full_access-inclusive role set unless it
+   binds `resource:` to the exact record or answers in record ids. The durable
+   tripwires are the pins `test/collection_scope_gate_test.rb:56-65` and
+   `:70-81`.
 2. **PR #59's report mode.** The SoD blind spot (a `:no_grant` that means "nobody
    asked the veto", not "the veto passed") was a real, reproduced escalation —
    200 where 403 belonged. Verify `sod_veto_skipped?` is *asked of the resolver*
@@ -377,8 +416,14 @@ confident, well-argued, wrong.
 
 1. **PR #69 review → then implement plan 030** as its own PR closing #62.
 2. **#45 (parked by the maintainer)** — delivery split already settled: parity
-   harness ships in the gem, analyzer ships as a skill. Open: first-PR scope
-   (plan 027 is Pundit-first; the adoption brief says Action Policy).
+   harness ships in the gem, analyzer ships as a skill. First-PR scope answered
+   by the audit (2026-07-16): **Action-Policy-first for the first adapter** —
+   Pundit-first has no recorded rationale anywhere, while #45 calls AP the
+   "closest cousin", RESEARCH.md modeled the API on it, and the run's lens was
+   an AP host. Sequencing: after #50/#65 land as 0.3.0 (migration tooling must
+   not certify hosts against semantics about to change). Note: the parking +
+   delivery split exist only in this file — record them on issue #45 and amend
+   plan 027 (its KTD-1 says skill-only) before the first #45 PR.
 3. **#50** — plan 029 is merged and unimplemented. Must release as **0.3.0**, not
    0.2.1: a `~> 0.2.0` pin must not pick up an authorization-semantics change on a
    routine `bundle update`.
@@ -421,7 +466,9 @@ confident, well-argued, wrong.
   cite **PR numbers** and `file:line`, never bare SHAs.
 - **Branch protection on `main`:** lint + test + conversation resolution,
   `strict: true`, 0 approvals. A green check is not zero findings — the review
-  bots (cubic, qodo, devin) routinely file P1s on a passing PR. Wait for them.
+  bots (cubic and qodo especially; devin files lower-severity) routinely file
+  findings on a passing PR. Wait for them — and confirm claimed fixes actually
+  reached the remote before resolving threads (see PR #64/#71).
 - **Merge order:** merge → retarget dependent branches → *then* delete the base.
   Deleting first auto-closes the stacked PR (it killed PR #63 this run).
 - **`wip/` is gitignored.**

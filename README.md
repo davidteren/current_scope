@@ -186,12 +186,18 @@ reading the ledger.
 
 **Assumption #1: every controller descends from a `Guard`'d base.** An action on
 a controller that never includes `Guard` (an API base, a hand-rolled
-`ActionController::Base`) is silently ungated. To catch that in dev/test, include
-the optional `CurrentScope::GatingTripwire` on the base you want verified — it
-raises after any action that didn't run the gate, and carries its own
-`current_scope_skip_tripwire!` marker for genuinely-public actions (you can't use
-`skip_before_action :current_scope_check!` on a controller that never defined
-that callback — it raises at class load):
+`ActionController::Base`) is silently ungated — though no longer invisibly: the
+permission grid badges any controller **provably** ungated ("gate not run"),
+and `bin/rails current_scope:ungated` prints the same inventory as a command.
+To catch it at runtime, include the optional `CurrentScope::GatingTripwire` on
+the base you want verified — it fires after any action that didn't run the
+gate: **raising in dev/test, or logging once per `controller#action` under
+`config.gating_tripwire = :warn` (the default outside dev/test; once per
+process per site — a concurrent first hit can rarely emit a duplicate line)**, so a
+production host can inventory its ungated surface without 500ing. It carries
+its own `current_scope_skip_tripwire!` marker for genuinely-public actions (you
+can't use `skip_before_action :current_scope_check!` on a controller that never
+defined that callback — it raises at class load):
 
 ```ruby
 class ApiController < ActionController::Base
@@ -201,7 +207,10 @@ end
 ```
 
 It's an `after_action`, so it can't see an action that renders from a
-`before_action` (halted chain) — a strong aid, not total coverage.
+`before_action` (halted chain) — a strong aid, not total coverage. The grid
+badge and the `ungated` task mark only what the callback chain *proves*: a
+conditional skip (`only:`/`except:`) renders unmarked and is exactly what
+`:warn` exists to catch.
 
 Bootstrap the first admin (the management UI needs a full-access subject to
 enter, so the first grant can't happen in the UI). One command:
@@ -541,6 +550,18 @@ The default is the point. These catch mistakes you make while *writing* the app,
 which is exactly when dev/test is where you are — and a diagnostic that ships off
 is one the people who need it never find. `warn_on_nil_sod_record` has worked
 since v0.1 and defaulted off, which is how it helped nobody.
+
+A fourth setting is a **mode, not a flag** — the opt-in `GatingTripwire`
+already speaks; the question is how:
+
+```ruby
+config.gating_tripwire = Rails.env.local? ? :raise : :warn   # the default
+```
+
+`:raise` (dev/test) makes CI go red on an ungated action; `:warn` (elsewhere)
+logs each ungated `controller#action` once, so a production host that included
+the mixin gets an inventory instead of 500s. There is no `:off` — not including
+the mixin is off.
 
 Three loud-by-design behaviors. A controller excluded from the catalog can't be
 granted, so gating it is a misconfiguration — Guard raises and tells you to

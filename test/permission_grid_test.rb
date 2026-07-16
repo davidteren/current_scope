@@ -8,12 +8,37 @@ class PermissionGridTest < ActiveSupport::TestCase
 
   # A stand-in catalog: reports has the full RESTful set + approve; widgets is
   # read-only (index only).
-  def grid(groups: CRUD)
+  def grid(groups: CRUD, **kwargs)
     catalog = Struct.new(:grouped).new({
       "reports" => %w[index show new create edit update destroy approve],
       "widgets" => %w[index]
     })
-    CurrentScope::PermissionGrid.new(catalog: catalog, groups: groups)
+    CurrentScope::PermissionGrid.new(catalog: catalog, groups: groups, **kwargs)
+  end
+
+  # Stand-in reflections, mirroring the catalog stand-in above. Same duck as
+  # GatingReflection: one #ungated?(controller) predicate.
+  class MarkingReflection
+    def initialize(*marked)
+      @marked = marked
+    end
+
+    def ungated?(controller)
+      @marked.include?(controller)
+    end
+  end
+
+  class SpyReflection
+    attr_reader :calls
+
+    def initialize
+      @calls = 0
+    end
+
+    def ungated?(_controller)
+      @calls += 1
+      true
+    end
   end
 
   test "controllers are sorted" do
@@ -148,5 +173,61 @@ class PermissionGridTest < ActiveSupport::TestCase
     cell = bypass_grid.cell("widgets", column, Set.new)
 
     assert cell.blank, "alignment holds — no shifted cells"
+  end
+
+  # --- Gating reflection: the row question, provably advisory-only ---
+  #
+  # The grid answers "is this row's controller provably ungated?" by delegating
+  # to an injected GatingReflection. These pin that the reflection is read AND
+  # ignored everywhere else: it cannot change what a cell renders or what a
+  # group token expands to, and the grid never calls it during construction or
+  # expand (KTD-8: role_params builds a bare grid on every role save).
+
+  test "ungated? delegates to the injected reflection per controller" do
+    g = grid(gating: MarkingReflection.new("widgets"))
+
+    assert g.ungated?("widgets")
+    assert_not g.ungated?("reports")
+  end
+
+  test "cell output is byte-identical whether or not the reflection marks the controller" do
+    marked   = grid(gating: MarkingReflection.new("reports", "widgets"))
+    unmarked = grid(gating: MarkingReflection.new)
+    read_col    = unmarked.columns.find { |c| c.label == "read" }
+    approve_col = unmarked.columns.find { |c| c.label == "approve" }
+
+    [
+      [ "reports", read_col, Set["reports#index", "reports#show"] ], # checked group
+      [ "reports", read_col, Set.new ],                              # unchecked
+      [ "reports", read_col, Set["reports#index"] ],                 # partial group
+      [ "widgets", approve_col, Set.new ]                            # blank
+    ].each do |controller, column, granted|
+      assert_equal unmarked.cell(controller, column, granted).to_h,
+                   marked.cell(controller, column, granted).to_h,
+                   "#{controller}/#{column.label} cell drifted under a marking reflection"
+    end
+  end
+
+  test "expand output is identical under a marking reflection" do
+    marked = grid(gating: MarkingReflection.new("reports"))
+
+    assert_equal grid.expand([ "reports:read" ]), marked.expand([ "reports:read" ])
+    assert_equal %w[reports#index reports#show], marked.expand([ "reports:read" ]).sort
+  end
+
+  test "construction and expand never touch the reflection" do
+    spy = SpyReflection.new
+    g = grid(gating: spy)
+
+    assert_equal 0, spy.calls, "initialize must not reflect (KTD-8: every role save constructs a grid)"
+
+    g.expand([ "reports:read", "widgets:create" ])
+    assert_equal 0, spy.calls, "expand (the role_params path) must not reflect"
+  end
+
+  test "bare PermissionGrid.new (the view and role_params call shape) defaults to a real reflection" do
+    g = CurrentScope::PermissionGrid.new
+
+    assert_instance_of CurrentScope::GatingReflection, g.instance_variable_get(:@gating)
   end
 end

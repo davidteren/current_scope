@@ -20,6 +20,12 @@
   </p>
 
   <h2>Permission grid</h2>
+  <%# The injected break-glass action's bare name (nil when break-glass is
+      off) — the hint below and the per-row exemption check both read it. The
+      CATALOG owns the parse: its split("#", -1) + blank-raise catches a
+      malformed "reports#" that a loose split here would silently turn into a
+      believable wrong action name. (#79 review, qodo) %>
+  <% bypass_action = CurrentScope.config.allow_sod_bypass ? CurrentScope.catalog.bypass_action : nil %>
   <p class="cs-hint">
     One row per controller, one checkbox per action group — derived from the
     app's routes, so new controllers appear here automatically. Columns are
@@ -29,10 +35,18 @@
         otherwise make it look like a mistake. %>
     <% if CurrentScope.config.allow_sod_bypass %>
       Break-glass is on, so controllers with a separation-of-duties action also
-      show a <code><%= CurrentScope.config.sod_bypass_permission.to_s.split("#").last %></code>
+      show a <code><%= bypass_action %></code>
       column: granting it lets that role's holder override the four-eyes veto on
       their own record, where the record allows it. Every use is audited.
     <% end %>
+  </p>
+  <%# Unconditional on purpose (R9): the limit of the mark must be stated even
+      when nothing is marked — an unmarked row is a non-answer, not a proof. %>
+  <p class="cs-hint cs-ungated-hint">
+    Rows tagged "gate not run" are controllers provably never gated — the tag
+    appears only when the callback chain proves it. An unmarked row is not
+    proof the gate runs there (a conditional skip, for example, is unprovable
+    and renders unmarked).
   </p>
 
   <% grid = CurrentScope::PermissionGrid.new %>
@@ -51,15 +65,58 @@
       </thead>
       <tbody>
         <% grid.controllers.each do |controller| %>
+          <%# A broken controller body's NameError deliberately propagates out
+              of the reflection (KTD-2) — but ONE broken controller must not
+              take down the whole role editor for every other row. The view
+              renders that row as explicitly uninspectable (a visible state,
+              never silence, never "gated"); the rake task keeps propagating,
+              because its output makes proof claims a partial walk can't. %>
+          <% ungated = begin
+               grid.ungated?(controller)
+             rescue NameError
+               :uninspectable
+             end %>
+          <% uninspectable = ungated == :uninspectable
+             ungated = ungated == true %>
+          <% badge_id = "cs_ungated_#{controller.parameterize(separator: '_')}" if ungated %>
           <tr>
             <th scope="row">
               <%# Per-row master: enable/disable every action in this controller at once.
                   Progressive enhancement — with JS off, each cell checkbox still works. %>
               <label class="cs-row-all" title="Enable all <%= controller %> permissions">
                 <input type="checkbox" data-cs-row-all
-                       aria-label="Enable all <%= controller %> permissions">
+                       aria-label="Enable all <%= controller %> permissions"<% if ungated %>
+                       aria-describedby="<%= badge_id %>"<% end %>>
                 <span><%= controller %></span>
               </label>
+              <% if uninspectable %>
+                <%# Not a badge and not silence: the gate state is UNKNOWN here,
+                    and rendering nothing would read as "checked, and gated"
+                    under the hint's own rules. %>
+                <span class="cs-uninspectable-note" id="cs_uninspectable_<%= controller.parameterize(separator: '_') %>">
+                  could not inspect — this controller raised while loading, so its
+                  gate state is unknown. Fix the load error, then reload.
+                </span>
+              <% end %>
+              <% if ungated %>
+                <%# Advisory only — marking is not disabling (KTD-8/R5): nothing
+                    here is grayed or disabled. Same remediation vocabulary as
+                    GatingTripwire's message. The claim is scoped to ROUTED
+                    actions because the injected break-glass cell is live even
+                    on a marked row (KTD-9) and carries its own note below. %>
+                <%# Each remedy names its cause: re-including Guard on a subclass
+                    that inherited a skip is a NO-OP (the Concern short-circuits;
+                    the skip already removed the callback the include would add),
+                    so the inherited-skip host — the #62 shape this badge exists
+                    for — must be pointed at re-assertion, not at include. %>
+                <span class="cs-ungated-badge" id="<%= badge_id %>">
+                  <strong>gate not run</strong> — this controller does not run the
+                  gate; ticking its routed actions grants nothing until it does.
+                  If it inherited a skip, re-assert
+                  <code>before_action :current_scope_check!</code>; if it never had
+                  the gate, include CurrentScope::Guard.
+                </span>
+              <% end %>
             </th>
             <% grid.columns.each do |column| %>
               <% cell = grid.cell(controller, column, granted) %>
@@ -69,13 +126,35 @@
                     readers; the "·" marker is decorative CSS. %>
                 <td class="cs-cell-blank"></td>
               <% else %>
-                <td>
+                <%# column.actions covers both shapes — an ungrouped column is
+                    [action], and a permission_grid_groups entry containing the
+                    bypass action must not defeat the exemption. The two guards:
+                    the INJECTED key must actually sit on this controller (a
+                    grouped cell can be non-blank via its other actions), and
+                    routed? excludes the collision — a REAL routed action merely
+                    named like the bypass permission is ordinary and inert on a
+                    marked row; only the catalog-injected key stays live. (#79) %>
+                <% bypass_exempt = ungated && bypass_action &&
+                     column.actions.include?(bypass_action) &&
+                     CurrentScope.catalog.grouped[controller]&.include?(bypass_action) &&
+                     !CurrentScope.catalog.routed?("#{controller}##{bypass_action}") %>
+                <% note_id = "cs_bypass_exempt_#{controller.parameterize(separator: '_')}" if bypass_exempt %>
+                <td<% if bypass_exempt %> class="cs-cell-bypass"<% end %>>
                   <label>
                     <%= check_box_tag cell.name, cell.value, cell.checked,
                           id: "perm_#{cell.value.parameterize(separator: '_')}",
                           data: { cs_partial: cell.partial },
-                          "aria-label": "#{controller} #{column.label}" %>
+                          "aria-label": "#{controller} #{column.label}",
+                          "aria-describedby": (bypass_exempt ? "#{badge_id} #{note_id}" : badge_id) %>
                   </label>
+                  <% if bypass_exempt %>
+                    <%# KTD-9: break-glass is decided by GATED controllers acting
+                        on the record type, so this grant is live despite the
+                        row's badge — the one cell exempt from its claim. The
+                        class is also the CSS hook that keeps the real granted
+                        wash here while sibling cells are muted. %>
+                    <span class="cs-bypass-exempt" id="<%= note_id %>">exempt — stays live</span>
+                  <% end %>
                   <%# Partial group: preserve the exact granted actions so a no-op
                       save can't promote the group to a full grant. Interacting with
                       the checkbox disables these (JS) so the group control takes over. %>

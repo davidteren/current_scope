@@ -18,6 +18,15 @@ module Dummy
     # Common ones are `templates`, `generators`, or `middleware`, for example.
     config.autoload_lib(ignore: %w[assets tasks])
 
+    # The deliberately-broken fixture (its body raises NameError at load, for
+    # GatingReflection's re-raise test) must stay AUTOLOADABLE — the test needs
+    # constantize to trigger the load — but never EAGER-loaded: eager_load is
+    # on in CI, and loading it at boot would explode the whole suite instead of
+    # exactly one test. `ignore` would make it unreachable; this keeps it lazy.
+    Rails.autoloaders.main.do_not_eager_load(
+      "#{config.root}/app/controllers/broken_constant_controller.rb"
+    )
+
     # Configuration for the application, engines, and railties goes here.
     #
     # These settings can be overridden in specific environments using the files

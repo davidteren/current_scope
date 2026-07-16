@@ -41,6 +41,9 @@ Rails.application.routes.draw do
   get "reasserted_gate", to: "reasserted_gate#index"
   get "conditional_skip", to: "conditional_skip#index"
   get "conditional_skip/show", to: "conditional_skip#show"
+  # The same conditional-skip shape with the tripwire included (U5).
+  get "conditional_skip_tripwire", to: "conditional_skip_tripwire#index"
+  get "conditional_skip_tripwire/show", to: "conditional_skip_tripwire#show"
 
   mount CurrentScope::Engine => "/current_scope"
 end

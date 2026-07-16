@@ -1,0 +1,25 @@
+lib/current_scope/configuration.rb
+  s_12efdc458c7a08::t_7e7cf7054decfa 162-168
+test/configuration_test.rb
+  s_12efdc458c7a08::t_c86ed74406f614 109-114
+app/views/current_scope/scoped_role_assignments/new.html.erb
+  s_12efdc458c7a08::t_f99d2144b7fd67 105-108
+test/integration/scoped_assignment_picker_test.rb
+  s_12efdc458c7a08::t_b37116fbf8feb0 98-114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "663a7699f4459b9135acf5d43d1bf040791a0beb",
+  "prompts": {},
+  "sessions": {
+    "s_12efdc458c7a08": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb07c64e-3502-4888-a0c5-05d88e5576bd",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

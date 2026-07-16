@@ -1,0 +1,41 @@
+docs/solutions/workflow-issues/plan-code-sketches-are-intent-not-code.md
+  s_0daa8cae7814ef::t_a517c4fbe2d6d8 211
+  s_0daa8cae7814ef::t_19f88814632bd3 79-82
+  s_0daa8cae7814ef::t_39e076b046297c 314
+  s_0daa8cae7814ef::t_3e8e80973dcb5e 221,230
+  s_0daa8cae7814ef::t_ecf245fd552188 331
+  s_0daa8cae7814ef::t_4e1b8d053263ae 138
+  s_0daa8cae7814ef::t_7cb66ac6df48cf 253
+  s_0daa8cae7814ef::t_4502c83271b62b 219
+  s_0daa8cae7814ef::t_8db6c29ba806ad 48
+  s_0daa8cae7814ef::t_654b563421fcd7 175
+  s_0daa8cae7814ef::t_00b01fcc9b8eb7 280
+  s_0daa8cae7814ef::t_92e6651b076dab 123
+  s_0daa8cae7814ef::t_2fdb66cbaf5fe6 335
+  s_0daa8cae7814ef::t_dcea9098ee1470 158
+  s_0daa8cae7814ef::t_e825dd5ad946a7 316
+  s_0daa8cae7814ef::t_161642b94c9e81 241
+  s_0daa8cae7814ef::t_af4cba904abf20 325
+  s_0daa8cae7814ef::t_909a564b91f6d1 104
+  s_0daa8cae7814ef::t_4745db634e6916 336
+  s_0daa8cae7814ef::t_69b13ccef1c9cb 251
+docs/solutions/workflow-issues/a-correction-rots-the-plan-it-fixes.md
+  s_0daa8cae7814ef::t_c3266ba0f1044b 294
+  s_0daa8cae7814ef::t_9eb2d6e23f0b67 76-79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "55ea459374f4bfcaac348f432339eb5d76f2b210",
+  "prompts": {},
+  "sessions": {
+    "s_0daa8cae7814ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "94a07cd1-56d2-40fe-b604-a56ea96c46af",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -141,11 +141,11 @@ class ResolverTest < ActiveSupport::TestCase
     other = Report.create!(title: "Q4", requested_by: @bob)
     CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: editor, resource: @report)
 
-    assert @resolver.allow?(subject: @alice, permission: "reports#index"),
-      "the record-less gate opens — scope_for is what narrows the list"
+    assert @resolver.allow?(subject: @alice, permission: "reports#index", model: Report),
+      "the record-less gate opens for the declared type — scope_for narrows the list"
     assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: other),
       "but the grant on @report must confer nothing on a sibling record"
-    assert_not @resolver.allow?(subject: @alice, permission: "reports#destroy"),
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#destroy", model: Report),
       "and nothing on a key the role does not tick"
   end
 

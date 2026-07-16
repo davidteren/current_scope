@@ -286,22 +286,32 @@ class GuardTest < ActionDispatch::IntegrationTest
   end
 
   test "a controller declaring no current_scope_model threads nil (unknown type)" do
-    assign(@alice, role("Member", "reports#index"))
+    # SlugReportsController declares neither current_scope_record nor
+    # current_scope_model — the genuinely-undeclared shape. A full-access
+    # subject reaches it so the request 200s and we can read the threaded type.
+    assign(@alice, role("Owner", full_access: true))
+    Report.create!(title: "sluggable", requested_by: @bob)
 
     captured = capturing_decided_models do
-      get reports_url, headers: sign_in(@alice)
+      get slug_report_url("sluggable"), headers: sign_in(@alice)
       assert_response :success
     end
 
-    assert_includes captured, [ "reports#index", nil ],
+    assert_includes captured, [ "slug_reports#show", nil ],
                     "no declaration means the type is unknown — a plain nil, no sentinel"
   end
 
   test "a current_scope_model hook returning nil is unknown, same as absent" do
+    # ReportsController really declares `current_scope_model = Report` (#50), so
+    # override it to return nil for this one test and RESTORE the real hook
+    # after — removing it would leave the controller model-less and fail-close
+    # every later reports#index test in the run.
     ReportsController.class_eval do
       private def current_scope_model = nil
     end
-    assign(@alice, role("Member", "reports#index"))
+    # A full-access subject reaches the index so the request 200s even though
+    # the type is now unknown (the record-less branch never fires for them).
+    assign(@alice, role("Owner", full_access: true))
 
     captured = capturing_decided_models do
       get reports_url, headers: sign_in(@alice)
@@ -310,7 +320,9 @@ class GuardTest < ActionDispatch::IntegrationTest
 
     assert_includes captured, [ "reports#index", nil ]
   ensure
-    ReportsController.remove_method(:current_scope_model)
+    ReportsController.class_eval do
+      private def current_scope_model = Report
+    end
   end
 
   # R11: declaring the model changes NO gate outcome in this unit. The scoped

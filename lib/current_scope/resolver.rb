@@ -36,11 +36,11 @@ module CurrentScope
     # per-decision state; the reason rides in the return tuple, not on self.
     #
     # `model:` (#50) is the type the controller's current_scope_model hook
-    # declared for its collection actions, or nil when unknown. Accepted and
-    # DELIBERATELY unread so far — threading (U1) and binding (U2) land
-    # separately so each is provable on its own; U2 binds the record-less
-    # branch by it. It stays a parameter, never state, per the purity rule above.
-    def decide(subject:, permission:, record: nil, actor: nil, model: nil) # rubocop:disable Lint/UnusedMethodArgument
+    # declared for its collection actions, or nil when unknown. Only the
+    # record-less branch reads it, to bind that otherwise type-unbound grant
+    # check; every other branch ignores it. It stays a parameter, never state,
+    # per the purity rule above.
+    def decide(subject:, permission:, record: nil, actor: nil, model: nil)
       return [ false, :no_grant ] if subject.nil?
 
       case sod_decision(subject: subject, actor: actor, permission: permission, record: record)
@@ -52,7 +52,7 @@ module CurrentScope
       return [ true, nil ] if role&.full_access?
       return [ true, nil ] if role&.grants?(permission)
       return [ true, nil ] if scoped_grant?(subject: subject, permission: permission, record: record)
-      return [ true, nil ] if record_less_scoped_grant?(subject: subject, permission: permission, record: record)
+      return [ true, nil ] if record_less_scoped_grant?(subject: subject, permission: permission, record: record, model: model)
 
       [ false, :no_grant ]
     end
@@ -294,16 +294,31 @@ module CurrentScope
     # and it fails CLOSED (a 403 the host sees immediately), which is the safe
     # direction to be wrong in.
     #
+    # Binds by TYPE (#50). The target names no record, but the controller can
+    # name the type its collection lists via current_scope_model (record when
+    # it is a Class — the allowed_to?(:index, Report) form — else the model:
+    # kwarg the Guard threads). resource_type filters the grant to that type,
+    # normalized through base_class exactly as scope_for does, so "a Report
+    # grant" cannot open a Documents gate. UNKNOWN type ⇒ this branch does not
+    # fire (fail-closed): before #50 an unbound grant of any type opened every
+    # record-less gate, and for a key with no list side (#create) that let a
+    # Report-scoped subject create Documents — a live escalation, not a
+    # cosmetic empty list. A loud, documented deny is the safe direction.
+    #
     # Requires an EXPLICIT tick (roles_ticking, not roles_granting): this is the
     # only grant check that binds to no record, so a full_access role — which
     # satisfies every key — would turn one scoped grant on one record into a
-    # pass on every #index and #create in the host app. "Owner of Report #7"
-    # means full access to Report #7, not to every collection in the product.
-    # The cost of that strictness: a scoped full_access role does not open its
-    # own index either, so it keeps the pre-existing 403 that #19 fixes for
-    # explicitly-ticked roles. Reaching that needs the Guard to tell the
-    # resolver which model the collection is (see OQ-2) — until then, deny is
-    # the honest answer rather than an app-wide wildcard.
+    # pass on every #index and #create of its TYPE in the host app. "Owner of
+    # Report #7" means full access to Report #7, not to every Report collection
+    # in the product. The type bind narrows WHICH type; it does NOT make a
+    # full_access wildcard safe here, because this branch answers with a boolean
+    # EXISTS, not with records — strictly weaker than scope_for's id-returning
+    # query, which is the only reason roles_granting is safe there. (#65 records
+    # the refutation of the tempting "bind by type ⇒ full_access is now safe"
+    # argument in full; its fix must narrow to granted record ids.) The cost of
+    # that strictness: a scoped full_access role does not open its own index
+    # either, so it keeps the pre-existing 403 that #19 fixes for
+    # explicitly-ticked roles — the documented, fail-closed gap tracked in #65.
     #
     # Deliberately NOT memoized, unlike org_role. The memo there caches one
     # lookup keyed by subject, invalidated by RoleAssignment writes alone. This
@@ -313,12 +328,21 @@ module CurrentScope
     # scoped-only subjects reach this line (org and full_access short-circuit
     # above), so the cost is a query on a handful of nav-level checks per page,
     # not the per-row gate. Revisit if that ever shows up in a profile.
-    def record_less_scoped_grant?(subject:, permission:, record:)
+    def record_less_scoped_grant?(subject:, permission:, record:, model: nil)
+      # R3a: the record-less shape test stays FIRST — a declared model never
+      # rescues a non-record-less target. A host whose current_scope_record
+      # wrongly returns params[:id] (a String) must still fail closed here, not
+      # be allowed off a grant held over some other record.
       return false unless record.nil? || record.is_a?(Class)
       return false if sod_action?(permission)
 
+      # The class form (allowed_to?(:index, Report)) carries the type as the
+      # record; otherwise it comes from the model: hook. Unknown ⇒ deny (R3).
+      type = record.is_a?(Class) ? record : model
+      return false if type.nil?
+
       ScopedRoleAssignment
-        .where(subject: subject, role_id: roles_ticking(permission))
+        .where(subject: subject, resource_type: type.base_class.name, role_id: roles_ticking(permission))
         .exists?
     end
 

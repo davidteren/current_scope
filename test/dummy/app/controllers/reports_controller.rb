@@ -31,4 +31,9 @@ class ReportsController < ApplicationController
   def current_scope_record
     report if request.path_parameters[:id]
   end
+
+  # #50: the type this controller's collection actions list, so the record-less
+  # gate can bind a scoped grant to it. Without this, a scoped-only subject's
+  # #index would fail closed.
+  def current_scope_model = Report
 end

@@ -239,13 +239,31 @@ runs Action Policy today and wants an incremental, reversible retrofit.
 - [x] **Refresh of the sketch-learning — PR #68.** Pruned to schema, fixed
       drifted counts, added the sibling seam.
 
-#### Open
+#### Audit round + plan 030 lands (2026-07-16, later)
 
-- [ ] **PR #69 — plan 030 (#62), awaiting review.** Detect the ungated surface:
-      grid honesty + a non-raising tripwire posture + `current_scope:ungated`.
-      **Refs #62, does not close it** — the plan is the decision artifact; the
-      implementation is a separate PR. Closing on the plan would repeat the exact
-      "#37 closes an issue that never did the work" trail #62 was filed about.
+- [x] **Plan 030 (#62) merged — PR #69.** The decision artifact. Refs #62, did
+      not close it; the implementation is a separate PR (below).
+- [x] **STATUS brief merged — PR #70.**
+- [x] **Adoption-guide review-fix rescue — PR #71.** #64's six review fixes were
+      committed locally as `c01a395` and never pushed; the guide merged with a
+      dead-end pointer, a `NameError` snippet, and the discredited `File.exist?`
+      test still in it. The audit found it and pushed the fix.
+- [x] **Solutions audit refresh — PR #77.** Fixed what rotted in the learning
+      docs since #68; anchored code refs on **names, not line numbers**.
+- [x] **Plan 027 amended — PR #78.** First #45 adapter is **Action-Policy-first**
+      (not Pundit); harness-in-gem / analyzer-as-skill split; sequenced behind
+      0.3.0. This is the amendment "Next" item 2 asked for — now done.
+
+#### In flight
+
+- [ ] **Plan 030 implementation — branch `feat/ungated-detection`, not yet a PR.**
+      U1 `GatingReflection` (proven-ungated or silent), U2 grid threading, U3 the
+      badge, U4 the dummy shapes — all committed, plus a review-fix pass
+      (`fix(review):` commits) and an AGENTS.md conventions codification. Closes
+      #62 when it lands. Verify against plan 030's corrected KTDs — the plan's own
+      claims were falsified three times in review; do not trust the implementation
+      matched them without re-probing (especially KTD-9 break-glass, KTD-8 inert
+      constructor, KTD-6 disclosure).
 
 #### Filed / amended
 
@@ -416,16 +434,19 @@ confident, well-argued, wrong.
 
 ## Next
 
-1. **PR #69 review → then implement plan 030** as its own PR closing #62.
-2. **#45 (parked by the maintainer)** — delivery split already settled: parity
-   harness ships in the gem, analyzer ships as a skill. First-PR scope answered
-   by the audit (2026-07-16): **Action-Policy-first for the first adapter** —
-   Pundit-first has no recorded rationale anywhere, while #45 calls AP the
-   "closest cousin", RESEARCH.md modeled the API on it, and the run's lens was
-   an AP host. Sequencing: after #50/#65 land as 0.3.0 (migration tooling must
-   not certify hosts against semantics about to change). Note: the parking +
-   delivery split exist only in this file — record them on issue #45 and amend
-   plan 027 (its KTD-1 says skill-only) before the first #45 PR.
+1. **Finish plan 030 → PR closing #62.** #69 (the plan) is merged; the
+   implementation is on `feat/ungated-detection` (U1–U4 + review fixes committed,
+   no PR yet). Open it, run the plan's mutation-tests, close #62. **Re-probe the
+   three claims review falsified** (KTD-6 disclosure, KTD-8 inert constructor,
+   KTD-9 break-glass) against the code that actually landed.
+2. **#45 (parked by the maintainer)** — delivery split settled: parity harness
+   in the gem, analyzer as a skill. First adapter is **Action-Policy-first**
+   (#45 calls AP the "closest cousin", RESEARCH.md modeled the API on it, the
+   run's lens was an AP host; Pundit-first had no recorded rationale). **Plan 027
+   already amended to match — PR #78.** Still to record on issue #45 itself: the
+   parking + delivery split (they live only in this file). Sequence after #50/#65
+   land as 0.3.0 — migration tooling must not certify hosts against semantics
+   about to change.
 3. **#50** — plan 029 is merged and unimplemented. Must release as **0.3.0**, not
    0.2.1: a `~> 0.2.0` pin must not pick up an authorization-semantics change on a
    routine `bundle update`.

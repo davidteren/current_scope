@@ -81,4 +81,44 @@ namespace :current_scope do
 
     puts "Total: #{rows.count} would-be denials across #{grouped.size} subject(s)."
   end
+
+  desc "Inventory the routed controllers that provably never run the gate — the static " \
+       "half of the ungated-surface audit (config.gating_tripwire = :warn is the runtime half). " \
+       "Usage: bin/rails current_scope:ungated"
+  task ungated: :environment do
+    # One reflection for the whole walk — its request object memoizes (KTD-8).
+    # A broken controller body's NameError propagates on purpose (KTD-2): a
+    # rescue here would report a broken controller as gated.
+    gating = CurrentScope::GatingReflection.new
+    grouped = CurrentScope.catalog.grouped
+    ungated = grouped.keys.sort.select { |controller| gating.ungated?(controller) }
+
+    if ungated.empty?
+      # An unexplained blank reads as "the task is broken" — and a bare blank
+      # would also overclaim, because this task can only see what reflection
+      # proves. Name the cause, then still state the limit below.
+      puts "No provably-ungated controllers: every routed controller has " \
+           "current_scope_check! in its callback chain."
+    else
+      puts "Provably ungated — current_scope_check! is absent from these controllers' " \
+           "callback chains, so the gate never runs there:"
+      puts
+      ungated.each { |controller| puts "  #{controller} (#{grouped[controller].sort.join(', ')})" }
+      puts
+      puts "Ticking these in the role grid grants nothing until the gate runs. " \
+           "Include CurrentScope::Guard on each controller, or re-assert " \
+           "before_action :current_scope_check!."
+    end
+
+    # The limit of the proof, stated even when nothing is listed (KTD-3): a
+    # conditional skip (skip_before_action only:/except:) leaves the callback
+    # PRESENT wearing a condition — unprovable by reflection, so never shown
+    # here even though some of its actions really run open. The runtime half
+    # catches those.
+    puts
+    puts "Limit: this lists only what the callback chain PROVES. A conditional skip " \
+         "(skip_before_action only:/except:) does not appear here — set " \
+         "config.gating_tripwire = :warn and include CurrentScope::GatingTripwire " \
+         "to inventory those at runtime."
+  end
 end

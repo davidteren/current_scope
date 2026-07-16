@@ -160,9 +160,15 @@ module  CurrentScope
     # same subject's org role to `role` rather than creating a duplicate (which
     # the one-role-per-subject uniqueness would reject anyway). Backs the
     # `current_scope:grant` rake task, so a fresh install doesn't need a console.
+    #
+    # Seeds the default Owner/Member roles ONLY on the default path — the name
+    # promises "assign a role", so a caller granting an explicit role must not
+    # get a full-access Owner row created in their roles table as a side effect.
     def grant!(subject, role: nil)
-      seed_defaults!
-      role ||= Role.find_by!(name: "Owner")
+      role ||= begin
+        seed_defaults!
+        Role.find_by!(name: "Owner")
+      end
       RoleAssignment.find_or_initialize_by(subject: subject).tap { |a| a.update!(role: role) }
     end
 

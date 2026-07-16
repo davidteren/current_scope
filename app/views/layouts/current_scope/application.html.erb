@@ -15,6 +15,9 @@
   <%= javascript_include_tag "current_scope/application", defer: true %>
 </head>
 <body>
+  <%# WCAG 2.4.1: every page repeats the sidebar + topbar before its content —
+      keyboard users get a bypass. Visually hidden until focused. %>
+  <a class="cs-skip-link" href="#cs-main-content">Skip to content</a>
   <div class="cs-shell">
     <aside class="cs-sidebar">
       <div class="cs-brand"><span class="cs-brand-mark" aria-hidden="true"></span> CurrentScope</div>
@@ -44,7 +47,7 @@
       <% if notice.present? %><p class="cs-flash cs-flash--notice" role="status"><%= notice %></p><% end %>
       <% if alert.present? %><p class="cs-flash cs-flash--alert" role="alert"><%= alert %></p><% end %>
 
-      <main class="cs-content">
+      <main class="cs-content" id="cs-main-content" tabindex="-1">
         <%= yield %>
       </main>
     </div>

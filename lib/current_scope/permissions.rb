@@ -17,10 +17,23 @@ module CurrentScope
     end
 
     # The list-side companion to allowed_to?: "which records of `model` may the
-    # effective subject act on?". Same grants, keys, and fail-closed rules as
-    # the gate, so a list can't drift from the per-record decision. Returns a
-    # chainable relation (.where/.order/.page on it). `permission` defaults to
-    # the model's index context and accepts a bare action or a full key.
+    # effective subject act on?". Same grants and keys as the gate, resolved
+    # fail-closed (nil subject / no grant → none) — but scope_for answers ROW
+    # MEMBERSHIP only, never action reachability. Gate checks that sit on top
+    # of the grant do not filter this list:
+    #   - the separation-of-duties veto — for an SoD-listed action the list CAN
+    #     include the subject's own initiated records, which the per-record
+    #     gate then refuses;
+    #   - the impersonation mutation gate — a REQUEST-level guard, not a
+    #     per-record one: it blocks any non-GET/HEAD request while
+    #     impersonating, collection actions included;
+    #   - record-less gate paths (a hookless controller's NO_RECORD decision).
+    # So a listed row can still 403 when acted on. Per-row affordances for
+    # SoD-listed actions must check allowed_to?(action, record); mutation
+    # affordances while impersonating should key off impersonating?.
+    # Returns a chainable relation (.where/.order/.page on it). `permission`
+    # defaults to the model's index context and accepts a bare action or a
+    # full key.
     #
     #   scope_for(Project)                 # projects#index — what a list shows
     #   scope_for(Report, permission: :approve)

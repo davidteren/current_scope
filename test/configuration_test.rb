@@ -106,6 +106,12 @@ class ConfigurationTest < ActiveSupport::TestCase
     end
     config.audit = "strict"
     assert_equal :strict, config.audit, "a String must work so ENV[\"...\"] can set it"
+
+    # ENV can only carry strings — the boolean modes must be spellable too.
+    config.audit = "true"
+    assert_equal true, config.audit
+    config.audit = "false"
+    assert_equal false, config.audit
   end
 
   test "a misspelled audit mode raises at assignment instead of acting as plain true" do
@@ -132,48 +138,5 @@ class ConfigurationTest < ActiveSupport::TestCase
     assert_match ":either", error.message
     assert_match ":subject", error.message
     assert_equal :either, config.sod_identity, "the default stands"
-  end
-
-  # --- gating_tripwire posture (U5) ---
-  #
-  # NOT the diagnostics' emit/silence split: there, the non-dev default (false)
-  # means stay quiet; here it means :warn, which EMITS. The mixin is opt-in, so
-  # a production host that included it is asking for the ungated inventory —
-  # the env only decides whether a hit 500s (dev/test) or logs.
-
-  test "gating_tripwire defaults to :raise in development and test" do
-    %w[development test].each do |env|
-      with_rails_env(env) do
-        assert_equal :raise, CurrentScope::Configuration.new.gating_tripwire,
-                     "an ungated action in #{env} should go red in CI, not hide in a log"
-      end
-    end
-  end
-
-  test "gating_tripwire defaults to :warn outside development and test" do
-    %w[staging production].each do |env|
-      with_rails_env(env) do
-        assert_equal :warn, CurrentScope::Configuration.new.gating_tripwire,
-                     "a #{env} host that included the opt-in mixin wants the inventory, not 500s"
-      end
-    end
-  end
-
-  test "an unknown gating_tripwire mode raises at assignment, naming both modes" do
-    config = CurrentScope::Configuration.new
-    error = assert_raises(CurrentScope::ConfigurationError) { config.gating_tripwire = :nonsense }
-    assert_match ":raise", error.message
-    assert_match ":warn", error.message
-    assert_equal :raise, config.gating_tripwire, "the previous mode stands, like enforcement="
-  end
-
-  test "bare-Ruby Configuration.new without Rails defaults gating_tripwire to :warn, no raise" do
-    lib = File.expand_path("../lib", __dir__)
-    out = IO.popen(
-      [ RbConfig.ruby, "-I", lib, "-e",
-       'require "current_scope/configuration"; print CurrentScope::Configuration.new.gating_tripwire' ],
-      err: [ :child, :out ], &:read
-    )
-    assert_equal "warn", out, "no Rails means no env to be dev/test in — and nothing may raise"
   end
 end

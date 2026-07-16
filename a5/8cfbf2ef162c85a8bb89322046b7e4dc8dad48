@@ -1,0 +1,23 @@
+.intense/patterns.yaml
+  s_12efdc458c7a08::t_faa4535fbd7a69 1-41
+.intense/thresholds.yaml
+  s_12efdc458c7a08::t_517f006cdc3dac 1-31
+.intense/ways-of-working.yaml
+  s_12efdc458c7a08::t_517f006cdc3dac 1-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "a58cfbf2ef162c85a8bb89322046b7e4dc8dad48",
+  "prompts": {},
+  "sessions": {
+    "s_12efdc458c7a08": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb07c64e-3502-4888-a0c5-05d88e5576bd",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

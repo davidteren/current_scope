@@ -1,0 +1,21 @@
+AGENTS.md
+  s_9ee8fa3151545b::t_e1ab1b4b9a057e 29-37,39,41
+README.md
+  s_9ee8fa3151545b::t_6b58491e374bab 64-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "930ff6e3661110b930a707203a9e4927a17387b4",
+  "prompts": {},
+  "sessions": {
+    "s_9ee8fa3151545b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d14c45fb-58ea-4f0c-a44d-8ea8411d5487",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

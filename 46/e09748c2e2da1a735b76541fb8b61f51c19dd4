@@ -1,0 +1,21 @@
+.compound-engineering/config.local.example.yaml
+  s_12efdc458c7a08::t_f52ad11949e266 1-91
+.gitignore
+  s_12efdc458c7a08::t_853a994ae77989 14-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "46e09748c2e2da1a735b76541fb8b61f51c19dd4",
+  "prompts": {},
+  "sessions": {
+    "s_12efdc458c7a08": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb07c64e-3502-4888-a0c5-05d88e5576bd",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

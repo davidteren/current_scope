@@ -106,6 +106,12 @@ class ConfigurationTest < ActiveSupport::TestCase
     end
     config.audit = "strict"
     assert_equal :strict, config.audit, "a String must work so ENV[\"...\"] can set it"
+
+    # ENV can only carry strings — the boolean modes must be spellable too.
+    config.audit = "true"
+    assert_equal true, config.audit
+    config.audit = "false"
+    assert_equal false, config.audit
   end
 
   test "a misspelled audit mode raises at assignment instead of acting as plain true" do

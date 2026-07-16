@@ -159,7 +159,13 @@ module CurrentScope
     # commit. Raise at assignment naming the closed set; the previous mode
     # stands.
     def audit=(value)
-      mode = value.respond_to?(:to_sym) ? value.to_sym : value
+      # ENV can only carry strings, and two of the three modes are booleans —
+      # normalize the boolean spellings before symbolizing ("strict" → :strict).
+      mode = case value
+      when "true" then true
+      when "false" then false
+      else value.respond_to?(:to_sym) ? value.to_sym : value
+      end
 
       unless AUDIT_MODES.include?(mode)
         raise ConfigurationError,

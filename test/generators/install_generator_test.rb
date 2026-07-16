@@ -33,21 +33,43 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     end
   end
 
-  # The guide is only useful if the person retrofitting finds it, and install is
-  # where they are. An unreferenced guide is a guide nobody reads. (#26)
-  test "the next-steps message points at the adoption guide" do
+  # The guide is only useful if the person retrofitting can actually reach it.
+  # These tests are about REACHABILITY, not existence — the first version checked
+  # that the file was in this repo, which is the one place the reader isn't.
+  # (#64 review, qodo/devin)
+
+  test "the guide is pointed at by an absolute URL, not a path the reader cannot resolve" do
+    controller("application_controller.rb")
+    controller("reports_controller.rb")
+
     output = run_generator
 
-    assert_match "docs/guides/adopting-in-an-existing-app.md", output
-    assert_match(/already has auth/i, output, "say who it's for, or it reads as optional reading")
+    assert_match %r{https://github\.com/\S+/adopting-in-an-existing-app\.md}, output
+    assert_no_match(/(?<!blob\/main\/)docs\/guides\/adopting-in-an-existing-app\.md\s*$/, output,
+                    "a bare repo-relative path resolves against the HOST's app, where it does not " \
+                    "exist — and the gemspec ships no docs/, so it is not in the installed gem either")
   end
 
-  test "the adoption guide the generator names actually exists" do
-    guide = File.expand_path("../../docs/guides/adopting-in-an-existing-app.md", __dir__)
+  # The URL is a promise about a file in THIS repo. If the guide is renamed and
+  # the constant isn't, the generator sends every installing host to a 404 and
+  # nothing else in the suite would notice.
+  test "the URL the generator prints names a file that exists here" do
+    path = CurrentScope::Generators::InstallGenerator::GUIDE_PATH
+    guide = File.expand_path("../../#{path}", __dir__)
 
-    assert File.exist?(guide),
-           "the generator tells every installing host to read this path — if it moves or is " \
-           "renamed, that instruction becomes a 404 and nothing else would catch it"
+    assert File.exist?(guide), "GUIDE_PATH points at #{path}, which does not exist"
+    assert_includes CurrentScope::Generators::InstallGenerator::GUIDE_URL, path,
+                    "the URL must be built from GUIDE_PATH, or the two drift and only the URL lies"
+  end
+
+  # It is retrofit advice, and existing_app? already tells us who is retrofitting.
+  # A fresh `rails new` has nothing to retrofit and shouldn't be handed reading.
+  test "a fresh app is not pointed at the retrofit guide" do
+    controller("application_controller.rb")
+
+    output = run_generator
+
+    assert_no_match(/adopting-in-an-existing-app/, output)
   end
 
   test "a fresh app gets the clean install message and no retrofit warning" do

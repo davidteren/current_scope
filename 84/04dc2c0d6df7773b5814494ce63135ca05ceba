@@ -1,0 +1,21 @@
+lib/current_scope/permission_catalog.rb
+  s_0daa8cae7814ef::t_2e2536a6d9fe3c 1-5
+CHANGELOG.md
+  s_0daa8cae7814ef::t_2e2536a6d9fe3c 25-27,39-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "8404dc2c0d6df7773b5814494ce63135ca05ceba",
+  "prompts": {},
+  "sessions": {
+    "s_0daa8cae7814ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "94a07cd1-56d2-40fe-b604-a56ea96c46af",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+app/assets/stylesheets/current_scope/application.css
+  s_0daa8cae7814ef::t_414891d82553f4 550-568
+test/integration/role_grid_test.rb
+  s_0daa8cae7814ef::t_6d52899d95cfc8 259-280,282-283
+  s_0daa8cae7814ef::t_27fcf63d30b8a2 281
+AGENTS.md
+  s_0daa8cae7814ef::t_513ce3266d4db2 76-82
+app/views/current_scope/roles/edit.html.erb
+  s_0daa8cae7814ef::t_2a7229d8688fc1 77-78,90-98
+  s_0daa8cae7814ef::t_f4d8d386f7ed4e 66-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "b6744cd5425b9f65227d8708c236fe3fff66b2db",
+  "prompts": {},
+  "sessions": {
+    "s_0daa8cae7814ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "94a07cd1-56d2-40fe-b604-a56ea96c46af",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

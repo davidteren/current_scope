@@ -1,0 +1,21 @@
+CLAUDE.md
+  s_12efdc458c7a08::t_154420a99f6677 1-6
+AGENTS.md
+  s_12efdc458c7a08::t_0e1c36a4200032 1-95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "c7b024abb4cc903a446887fec178888ee1e54d37",
+  "prompts": {},
+  "sessions": {
+    "s_12efdc458c7a08": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb07c64e-3502-4888-a0c5-05d88e5576bd",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

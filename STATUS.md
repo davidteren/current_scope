@@ -346,7 +346,9 @@ confident, well-argued, wrong.
   question — `mcp__auggie__codebase-retrieval`. Grep only for exhaustive matching.
 - **`/ce-review`** over the merged diffs (PRs #59, #61, #64, #66, #67, #68) and
   **`/ie-review`** for the intent lenses (predictability, simplicity, convention).
-- **`/ie-validate-plan`** on `docs/plans/2026-07-16-030-*` and `2026-07-15-029-*`.
+- **`/ie-validate-plan`** on `docs/plans/2026-07-15-029-*` (on `main`) and on plan 030 —
+  `docs/plans/2026-07-16-030-*` lives in **PR #69's branch**
+  (`feat/plan-030-ungated-detection`), not on `main` until #69 merges.
 - **`/ce-doc-review`** on the two learning docs in `docs/solutions/workflow-issues/`.
 - **`mempalace_search`** before assuming anything about prior sessions.
 - **cubic MCP** (`mcp__cubic__get_pr_issues`) to re-read what the bots actually
@@ -435,9 +437,9 @@ confident, well-argued, wrong.
    showcase consumes it as a normal gem dependency. Releasing now means: bump
    `lib/current_scope/version.rb` + CHANGELOG, tag, `gem push`, then bump the
    showcase's `gem "current_scope"`.
-2. **README screenshots** — the UI is clean and verified; capture the dashboard,
+7. **README screenshots** — the UI is clean and verified; capture the dashboard,
    permission grid, subjects, members, events when convenient.
-3. Open design questions (DESIGN.md §9): resource hierarchy/cascade,
+8. Open design questions (DESIGN.md §9): resource hierarchy/cascade,
    multiple org-wide roles, scoped-role capability restriction.
 
 ## Still to be done (open design questions — DESIGN.md §9)

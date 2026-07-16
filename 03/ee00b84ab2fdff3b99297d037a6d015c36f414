@@ -1,0 +1,35 @@
+test/dummy/app/controllers/reports_controller.rb
+  s_0daa8cae7814ef::t_3455c89029d98c 34-38
+lib/current_scope/resolver.rb
+  s_0daa8cae7814ef::t_f968f2bd7c9f47 55
+  s_0daa8cae7814ef::t_58410383d2bda7 297-307,311-321
+  s_0daa8cae7814ef::t_55d5a7f4d8cecf 39-43
+  s_0daa8cae7814ef::t_6681d33884b1d5 331-335,339-343,345
+test/resolver_test.rb
+  s_0daa8cae7814ef::t_d88c6f3d8a6c43 144-145,148
+test/collection_scope_gate_test.rb
+  s_0daa8cae7814ef::t_110bcf8bec9874 70-127,129-144,146-164
+  s_0daa8cae7814ef::t_54e4deb07e63e7 128,145
+  s_0daa8cae7814ef::t_351fadf7755127 38-41
+  s_0daa8cae7814ef::t_700be83ec3543f 309
+  s_0daa8cae7814ef::t_3be9fb5793944d 341
+test/integration/guard_test.rb
+  s_0daa8cae7814ef::t_c03d11bf1cf4c6 305-308,312-314,323-325
+  s_0daa8cae7814ef::t_09576263de13d1 289-293,296,300
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "03ee00b84ab2fdff3b99297d037a6d015c36f414",
+  "prompts": {},
+  "sessions": {
+    "s_0daa8cae7814ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "94a07cd1-56d2-40fe-b604-a56ea96c46af",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

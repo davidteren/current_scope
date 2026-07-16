@@ -1,0 +1,44 @@
+test/integration/scoped_assignment_picker_test.rb
+  s_12efdc458c7a08::t_e55f1265a4fd48 88-97
+test/configuration_test.rb
+  s_12efdc458c7a08::t_4de6460abb940a 135
+  s_12efdc458c7a08::t_1dafc31f0e692a 67-134
+app/views/current_scope/scoped_role_assignments/new.html.erb
+  s_12efdc458c7a08::t_cba9c758503a99 105-113
+test/helpers/application_helper_test.rb
+  s_12efdc458c7a08::t_3a7eb9d8e66ea9 297-322
+app/helpers/current_scope/application_helper.rb
+  s_12efdc458c7a08::t_9980c5b373b6d4 105-108
+lib/current_scope/configuration.rb
+  s_12efdc458c7a08::t_cf17592e330fa0 29-52
+  s_12efdc458c7a08::t_943120b70957c7 150-175
+  s_12efdc458c7a08::t_bd2179ac9de2ce 309
+  s_12efdc458c7a08::t_81bbaf4e1e583e 326-333
+  s_12efdc458c7a08::t_b1dda99c2dc82b 68-72
+  s_12efdc458c7a08::t_9aa7eb9d5d2adb 317-319
+  s_4d1327efb21c21::t_2e0e74454ff89d 334
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "6de0a75f9006ce51567742576a4e639086a7a954",
+  "prompts": {},
+  "sessions": {
+    "s_12efdc458c7a08": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb07c64e-3502-4888-a0c5-05d88e5576bd",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    },
+    "s_4d1327efb21c21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02a2863d-db7e-4c05-803d-935e71c12886",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

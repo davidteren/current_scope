@@ -140,7 +140,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
   test "role_assignments#create set (no prior) emits org_role.assigned targeting the grantee" do
     other = User.create!(name: "Other")
 
-    post current_scope.role_assignment_url, headers: as(@owner),
+    post current_scope.role_assignments_url, headers: as(@owner),
          params: { subject_gid: other.to_gid.to_s, role_id: @member_role.id }
     event = only_event
 
@@ -153,7 +153,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     other = User.create!(name: "Other")
     CurrentScope::RoleAssignment.create!(subject: other, role: @member_role)
 
-    post current_scope.role_assignment_url, headers: as(@owner),
+    post current_scope.role_assignments_url, headers: as(@owner),
          params: { subject_gid: other.to_gid.to_s, role_id: @owner_role.id }
     event = only_event
 
@@ -167,7 +167,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     other = User.create!(name: "Other")
     CurrentScope::RoleAssignment.create!(subject: other, role: @member_role)
 
-    post current_scope.role_assignment_url, headers: as(@owner),
+    post current_scope.role_assignments_url, headers: as(@owner),
          params: { subject_gid: other.to_gid.to_s, role_id: "" }
     event = only_event
 
@@ -181,7 +181,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     CurrentScope::RoleAssignment.create!(subject: other, role: @member_role)
 
     assert_no_difference -> { CurrentScope::Event.count } do
-      post current_scope.role_assignment_url, headers: as(@owner),
+      post current_scope.role_assignments_url, headers: as(@owner),
            params: { subject_gid: other.to_gid.to_s, role_id: @member_role.id }
     end
   end
@@ -190,7 +190,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     other = User.create!(name: "Other")
 
     assert_no_difference -> { CurrentScope::Event.count } do
-      post current_scope.role_assignment_url, headers: as(@owner),
+      post current_scope.role_assignments_url, headers: as(@owner),
            params: { subject_gid: other.to_gid.to_s, role_id: "" }
     end
   end
@@ -242,7 +242,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
 
     assert_raises(RuntimeError) do
       with_failing_event_record do
-        post current_scope.role_assignment_url, headers: as(@owner),
+        post current_scope.role_assignments_url, headers: as(@owner),
              params: { subject_gid: other.to_gid.to_s, role_id: @member_role.id }
       end
     end

@@ -29,7 +29,7 @@
   <%# Setting REPLACES each subject's current org-wide role (blank clears it) —
       as consequential as Remove, which confirms, so this does too. %>
   <% bulk_prompt = "Change the org-wide role for the selected subjects? This replaces their current role." %>
-  <%= form_with url: role_assignment_path, method: :post, class: "cs-bulk-org",
+  <%= form_with url: role_assignments_path, method: :post, class: "cs-bulk-org",
         data: { cs_bulk_org: true, cs_confirm: bulk_prompt, turbo_confirm: bulk_prompt } do %>
     <%= select_tag :role_id, options_from_collection_for_select(@roles, :id, :name),
           include_blank: "org role…", aria: { label: "Org-wide role for selected" } %>
@@ -72,7 +72,7 @@
         <td><%= label %></td>
         <td>
           <% set_prompt = "Change the org-wide role for #{label}? This replaces their current role." %>
-          <%= form_with url: role_assignment_path, method: :post,
+          <%= form_with url: role_assignments_path, method: :post,
                 data: { cs_confirm: set_prompt, turbo_confirm: set_prompt } do %>
             <%= hidden_field_tag :subject_gid, subject.to_gid %>
             <%= select_tag :role_id,

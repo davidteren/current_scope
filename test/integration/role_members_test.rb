@@ -42,7 +42,7 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
 
   test "adding org-wide members from the role side sets the role and returns to members" do
     carol = User.create!(name: "Carol")
-    post current_scope.role_assignment_url,
+    post current_scope.role_assignments_url,
          headers: as(@owner).merge("HTTP_REFERER" => current_scope.members_role_url(@role)),
          params: { role_id: @role.id, subject_gids: [ carol.to_gid.to_s ] }
     assert_redirected_to current_scope.members_role_path(@role)
@@ -56,10 +56,10 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
 
     get current_scope.members_role_url(@role), headers: as(@owner)
     assert_response :success
-    assert_select "form[action=?]", current_scope.remove_role_assignment_path(assignment)
+    assert_select "form[action=?]", current_scope.role_assignment_path(assignment)
 
     assert_difference -> { CurrentScope::RoleAssignment.count }, -1 do
-      delete current_scope.remove_role_assignment_url(assignment), headers: as(@owner)
+      delete current_scope.role_assignment_url(assignment), headers: as(@owner)
     end
     assert_not CurrentScope::RoleAssignment.exists?(assignment.id)
   end
@@ -67,7 +67,7 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
   test "removing an org-wide holder clears their role" do
     dave = User.create!(name: "Dave")
     CurrentScope::RoleAssignment.create!(subject: dave, role: @role)
-    post current_scope.role_assignment_url, headers: as(@owner),
+    post current_scope.role_assignments_url, headers: as(@owner),
          params: { subject_gid: dave.to_gid.to_s, role_id: "" }
     assert_nil CurrentScope::RoleAssignment.find_by(subject: dave)
   end

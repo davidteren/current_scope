@@ -81,14 +81,24 @@ module CurrentScope
     end
 
     # Expand submitted "controller:group" tokens into routed permission keys.
-    # Unknown groups/controllers and unrouted actions drop out.
+    #
+    # A token the grid could not have produced (unknown group, unknown
+    # controller, nothing routed) passes through RAW so the model's catalog
+    # validation rejects it BY NAME — the same loud contract a hand-crafted
+    # permission_keys[] entry gets. One save, one error story: the grid's two
+    # submission channels must not differ on whether a crafted request is
+    # reported or silently swallowed. (The form's blank hidden padding is the
+    # one legitimate non-grid value; it alone drops out.)
     def expand(tokens)
       Array(tokens).flat_map do |token|
+        next [] if token.blank?
+
         controller, label = token.to_s.split(":", 2)
         actions = @groups[label]
-        next [] if actions.nil?
+        routed = actions ? (actions & actions_for(controller)) : []
+        next [ token.to_s ] if routed.empty?
 
-        (actions & actions_for(controller)).map { |action| "#{controller}##{action}" }
+        routed.map { |action| "#{controller}##{action}" }
       end
     end
 

@@ -6,9 +6,8 @@ CurrentScope::Engine.routes.draw do
   end
   resources :subjects, only: :index
   resources :events, only: :index
-  resource :role_assignment, only: :create
-  # Remove one org-wide assignment by id (members page: clean up an orphan whose
-  # subject was deleted, which the subject-keyed clear on create can't target).
-  delete "role_assignments/:id" => "role_assignments#destroy", as: :remove_role_assignment
+  # create is subject-keyed (no id); destroy removes one assignment by id (the
+  # members page's cleanup path for an orphan whose subject was deleted).
+  resources :role_assignments, only: [ :create, :destroy ]
   resources :scoped_role_assignments, only: [ :new, :create, :destroy ]
 end

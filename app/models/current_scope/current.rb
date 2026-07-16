@@ -24,8 +24,22 @@ module CurrentScope
 
     # Falls back to the effective subject, so actor is never nil when user is
     # set — callers attribute to `actor` without a nil branch.
+    #
+    # ROUND-TRIP HAZARD: the reader answers with the fallback, not stored
+    # state. Snapshot/restore code (Current.set, Object#with, anything that
+    # reads #actor to write it back) would pin the fallback as an explicit
+    # actor and restore a stale identity once user changes — read the raw
+    # `attributes` hash instead, as TestHelpers#with_current_user does.
     def actor
       super || user
+    end
+
+    # True only while a distinct real actor stands behind the effective
+    # subject (act-as). THE definition of "impersonating" — the Permissions
+    # mixin and the mutation guard both delegate here, so the view-level
+    # read-only signal and the write gate can never drift apart.
+    def impersonating?
+      user.present? && actor != user
     end
 
     # Memoize the org-role lookup for `subject` for the rest of this request/job.

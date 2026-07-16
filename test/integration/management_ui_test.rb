@@ -148,6 +148,28 @@ class ManagementUiTest < ActionDispatch::IntegrationTest
     assert_match "Owner", response.body
   end
 
+  # The page keys its role lookups by what the polymorphic association STORES —
+  # the base_class name. An STI subject (Invoice < Document) is saved as
+  # "Document"; keying rows on subject.class.name would miss the lookup and
+  # show "— none —" for a subject the resolver happily authorizes.
+  test "an STI subject's org-wide and scoped roles render, not '— none —'" do
+    original = CurrentScope.config.subject_class
+    CurrentScope.config.subject_class = "Document"
+
+    invoice = Invoice.create!(title: "INV-1")
+    folder = Folder.create!(name: "Q3")
+    CurrentScope::RoleAssignment.create!(subject: invoice, role: @member_role)
+    CurrentScope::ScopedRoleAssignment.create!(subject: invoice, role: @member_role, resource: folder)
+
+    get current_scope.subjects_url, headers: as(@owner)
+    assert_response :success
+    assert_select "select[name=role_id] option[selected]", text: "Member",
+                  count: 1
+    assert_select "span.cs-chip-label", text: /Member of/, count: 1
+  ensure
+    CurrentScope.config.subject_class = original
+  end
+
   # --- ie-audit UI P2s: announced errors, bypass link, confirmed overwrites ---
 
   test "an invalid role save announces its error banner to assistive tech" do

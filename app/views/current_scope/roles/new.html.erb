@@ -2,7 +2,7 @@
 
 <%= form_with model: @role do |f| %>
   <% if @role.errors.any? %>
-    <p class="cs-alert"><%= @role.errors.full_messages.to_sentence %></p>
+    <p class="cs-alert" role="alert"><%= @role.errors.full_messages.to_sentence %></p>
   <% end %>
 
   <p><%= f.label :name %> <%= f.text_field :name %></p>

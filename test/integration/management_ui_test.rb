@@ -160,4 +160,58 @@ class ManagementUiTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_match "Owner", response.body
   end
+
+  # The page keys its role lookups by what the polymorphic association STORES —
+  # the base_class name. An STI subject (Invoice < Document) is saved as
+  # "Document"; keying rows on subject.class.name would miss the lookup and
+  # show "— none —" for a subject the resolver happily authorizes.
+  test "an STI subject's org-wide and scoped roles render, not '— none —'" do
+    original = CurrentScope.config.subject_class
+    CurrentScope.config.subject_class = "Document"
+
+    invoice = Invoice.create!(title: "INV-1")
+    folder = Folder.create!(name: "Q3")
+    CurrentScope::RoleAssignment.create!(subject: invoice, role: @member_role)
+    CurrentScope::ScopedRoleAssignment.create!(subject: invoice, role: @member_role, resource: folder)
+
+    get current_scope.subjects_url, headers: as(@owner)
+    assert_response :success
+    assert_select "select[name=role_id] option[selected]", text: "Member",
+                  count: 1
+    assert_select "span.cs-chip-label", text: /Member of/, count: 1
+  ensure
+    CurrentScope.config.subject_class = original
+  end
+
+  # --- ie-audit UI P2s: announced errors, bypass link, confirmed overwrites ---
+
+  test "an invalid role save announces its error banner to assistive tech" do
+    post current_scope.roles_url, headers: as(@owner), params: { role: { name: "" } }
+    assert_response :unprocessable_entity
+    assert_select "p.cs-alert[role=alert]", 1, "new: the banner must carry role=alert, like the layout flash"
+
+    patch current_scope.role_url(@member_role), headers: as(@owner), params: { role: { name: "" } }
+    assert_response :unprocessable_entity
+    assert_select "p.cs-alert[role=alert]", 1, "edit: same banner, same announcement"
+  end
+
+  test "every console page offers a skip-to-content bypass targeting main" do
+    get current_scope.roles_url, headers: as(@owner)
+    assert_select "a.cs-skip-link[href='#cs-main-content']", 1
+    assert_select "main#cs-main-content[tabindex='-1']", 1
+  end
+
+  test "setting an org-wide role asks for confirmation, like removing one" do
+    get current_scope.subjects_url, headers: as(@owner)
+    # Set REPLACES the subject's current role — the same conceptual mutation
+    # Remove confirms, so both the per-row and bulk Set forms must confirm too.
+    assert_select "td form[data-cs-confirm][data-turbo-confirm]", minimum: 1
+    assert_select "form.cs-bulk-org[data-cs-confirm][data-turbo-confirm]", 1
+  end
+
+  test "the subjects page explains its filter-vs-search box even on a single page" do
+    get current_scope.subjects_url, headers: as(@owner)
+    assert_match "Type to filter this page", response.body,
+                 "the dual filter/search behavior must be explained on the common single-page case too"
+  end
 end

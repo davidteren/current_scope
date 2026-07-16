@@ -100,6 +100,10 @@ module CurrentScope
     def current_scope_gid_label(gid)
       record = GlobalID::Locator.locate(gid)
       record ? current_scope_label(record) : gid
+    rescue ActiveRecord::RecordNotFound, NameError
+      # locate RAISES for a deleted record or renamed class (nil is only for
+      # unparseable strings) — same contract the holder helpers rescue above.
+      gid
     end
 
     private

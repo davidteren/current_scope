@@ -31,4 +31,19 @@ class GrantTest < ActiveSupport::TestCase
 
     assert_equal "Owner", CurrentScope::RoleAssignment.find_by(subject: @user).role.name
   end
+
+  # grant! promises "assign a role" — passing an explicit role must not ALSO
+  # create a full-access Owner (and a Member) in the roles table as a side
+  # effect. Seeding belongs to the default path only.
+  test "granting an explicit role seeds no default roles" do
+    custom = CurrentScope::Role.create!(name: "Custom")
+
+    assert_no_difference -> { CurrentScope::Role.count } do
+      CurrentScope.grant!(@user, role: custom)
+    end
+
+    assert_equal custom, CurrentScope::RoleAssignment.find_by(subject: @user).role
+    assert_not CurrentScope::Role.exists?(name: "Owner"),
+               "no full-access Owner may appear as a side effect of an explicit grant"
+  end
 end

@@ -45,7 +45,7 @@ related_issues:
 
 `docs/plans/` holds 32 plans, all carrying `artifact_contract: ce-unified-plan/v1`; 28 of them (`2026-07-15-001` … `-028`) were drafted in a single pass and landed together in PR #47 (`80180da`, merged 2026-07-15 07:38 UTC). Each plan states its reasoning as prose in a **Key Technical Decisions** section, and most also carry a Ruby **code sketch** in an Implementation Unit — explicitly labelled directional ("Directionally:" in `2026-07-15-003-fix-bypass-sod-ungrantable-plan.md:78`).
 
-Five have since been implemented and merged: plan 001 → issue #19 → PR #49, plan 002 → #20 → PR #52, plan 003 → #21 → PR #53, plan 004 → #22 → PR #54, plan 005 → #23 → PR #55. The rest of the batch (issues #24-#46) was open when this was written.
+Eight have since been implemented and merged (as of 2026-07-16): plan 001 → issue #19 → PR #49, plan 002 → #20 → PR #52, plan 003 → #21 → PR #53, plan 004 → #22 → PR #54, plan 005 → #23 → PR #55, plan 019 → #37 → PR #59, plan 023 → #41 → PR #61, plan 008 → #26 → PR #64. Most of the rest of the batch was open when this was written.
 
 > **Counts here are a snapshot, and they were already wrong once.** The first draft of this document said "25 of the 28 remain" and listed `#22-#46` as open. Both were false *at the moment it was committed* — #22 had merged 57 minutes earlier and #23 twenty-three minutes earlier. The document about plans going stale went stale inside its own drafting window, and shipped that way into the PR that introduced it. That is not an embarrassing aside; it is the second half of the learning, and it has its own section below. Trust the issue tracker over any number written here.
 
@@ -76,8 +76,10 @@ b6a97ec5 fix(resolver,guard): close three more record-less holes found in review
 > on a fresh clone. They are cited as historical evidence and are readable in
 > the PR's own commit list on GitHub (#49). The same applies to `aa82d16` below:
 > it is the pre-review draft of the plans branch, squash-merged as #47. The
-> durable references in this doc are the **PR numbers** and the **file:line**
-> citations against the current tree.
+> durable references in this doc are the **PR numbers** and the **method and
+> test names** — bare line numbers drift with every merge (this doc shipped ten
+> stale ones inside its own drafting day, fixed in the 2026-07-16 audit pass),
+> so where a line number appears it is a convenience, not the anchor.
 
 ## Guidance
 
@@ -99,7 +101,7 @@ The question to ask is not "does this helper do what I want?" but **"what makes 
 
 **3. Check any key the instruction constructs against what the *reader* of that key computes.** A key written by one component and read by another must be derived the same way at both ends, and the two ends are usually in different files by different reasoning.
 
-The shipped resolver now encodes all three corrections, with the reasoning inlined so it survives the next reader (`lib/current_scope/resolver.rb:248-255`):
+The shipped resolver now encodes all three corrections, with the reasoning inlined so it survives the next reader (`lib/current_scope/resolver.rb`, `record_less_scoped_grant?`):
 
 ```ruby
 def record_less_scoped_grant?(subject:, permission:, record:)
@@ -118,7 +120,7 @@ All three defects share one shape, and it holds up under a direct reading of the
 
 | KTD | The question that needed answering | The question the instruction answered | What was "in hand" | Was the right question stated in the plan? |
 |---|---|---|---|---|
-| 001 KTD-3 | "is this `nil` or a `Class`?" | "is this not an AR instance?" | `respond_to?(:new_record?)` — already the idiom at `resolver.rb:137` (`sod_decision`) and `resolver.rb:194` (`scoped_grant?`) | **Yes** — its own premise, one sentence earlier: *"Both mean 'no specific instance.'"* |
+| 001 KTD-3 | "is this `nil` or a `Class`?" | "is this not an AR instance?" | `respond_to?(:new_record?)` — already the idiom in `resolver.rb`'s `sod_veto_applies?` and `scoped_grant?` | **Yes** — its own premise, one sentence earlier: *"Both mean 'no specific instance.'"* |
 | 001 KTD-4 | "did someone explicitly tick this key?" | "does this role satisfy this key?" | `roles_granting` — an existing helper backing two callers | **No.** Nowhere. KTD-6 and R8, which say this, were *written during review* — after the escalation shipped |
 | 003 KTD-2 | "what record is this about?" (`route_key`) | "where did the request go?" (controller path) | `controller` — already the loop variable from `key.split("#")` | **Yes** — its own opening sentence names `model_name.route_key` |
 
@@ -133,7 +135,7 @@ Each wrong answer is *cheaper to write* and *usually agrees* with the right one.
 **Two of the three were privilege escalations, in an engine whose stated posture is fail-closed.**
 
 - *001 KTD-3:* a host whose `current_scope_record` returns `params[:id]` (a `String`) hands the gate a non-record. Under the negation, that lands in the record-less branch and is **allowed** on the strength of a scoped grant held over a *different* record — inverting the branch's own invariant, that a grant on X must not act on Y.
-- *001 KTD-4:* `roles_granting` unions `Role.where(full_access: true)` into every key (`resolver.rb:100-102`). Reused in a branch that binds to no record, one scoped `full_access` grant on one record passes **every** `#index` and `#create` in the host app — including keys that don't exist. Reachable with stock data: `seed_defaults!` ships a full_access `Owner` role.
+- *001 KTD-4:* `roles_granting` unions `Role.where(full_access: true)` into every key (`resolver.rb`, `roles_granting`). Reused in a branch that binds to no record, one scoped `full_access` grant on one record passes **every** `#index` and `#create` in the host app — including keys that don't exist. Reachable with stock data: `seed_defaults!` ships a full_access `Owner` role.
 
 **"Directional" does not protect the sketch — it advertises it.** Marking a sketch directional reads as *close enough*, which is precisely the register in which it gets pasted. The label describes the author's intent, not the reader's behaviour.
 
@@ -153,7 +155,7 @@ Apply on **every** KTD carrying a code sketch, before writing the implementation
 - **High priority** — the sketch **constructs a key, path, or identifier** that a *different* component reads. Verify both ends derive it identically.
 - **High priority** — a **negative/duck-type test** stands where the prose describes a closed set. Prefer the positive test; a negation is a claim about everything that will ever exist.
 
-Do **not** skip the check because the sketch matches the existing idiom in the file — in 001 KTD-3 the sketch matched two neighbouring methods (`resolver.rb:137`, `:194`) and was still wrong, because those methods fell through to a deny and the new branch fell through to an allow.
+Do **not** skip the check because the sketch matches the existing idiom in the file — in 001 KTD-3 the sketch matched two neighbouring methods (`sod_veto_applies?`/`sod_decision` and `scoped_grant?`) and was still wrong, because those methods fell through to a deny and the new branch fell through to an allow.
 
 ## Examples
 
@@ -170,7 +172,7 @@ def collection_scoped_grant?(subject:, permission:, record:)
 end
 ```
 
-*After (shipped, `lib/current_scope/resolver.rb:248-255`):*
+*After (shipped, `lib/current_scope/resolver.rb`, `record_less_scoped_grant?`):*
 
 ```ruby
 def record_less_scoped_grant?(subject:, permission:, record:)
@@ -206,7 +208,7 @@ The plan doc on `main` now carries the correction folded back into KTD-3 (`docs/
 
 > It reuses the existing `roles_granting(permission)` helper that already backs both `scope_for` and `scoped_grant?`, so "does a role grant this key?" stays expressed in exactly one place.
 
-*The defining source (`lib/current_scope/resolver.rb:100-102`):*
+*The defining source (`lib/current_scope/resolver.rb`, `roles_granting`):*
 
 ```ruby
 def roles_granting(permission)
@@ -214,9 +216,9 @@ def roles_granting(permission)
 end
 ```
 
-Safe for `scoped_grant?` (binds by `resource: record`, `resolver.rb:197`) and `scope_for` (binds by `resource_type:`, `resolver.rb:88`). The record-less branch binds to neither. The fix extracted `roles_ticking` and expressed `roles_granting` in terms of it — the corrected plan doc now says so at KTD-6 (`:55`).
+Safe for `scoped_grant?` (binds by `resource: record`) and `scope_for` (binds by `resource_type:` — and, more precisely, because its answer is record ids, not a permit). The record-less branch binds to neither. The fix extracted `roles_ticking` and expressed `roles_granting` in terms of it — the corrected plan doc now says so at KTD-6 (`:55`).
 
-**The sharpest instance of the lesson is here.** Even the *corrected* sketch is still not what shipped. Plan 001 lines 109-112:
+**The sharpest instance of the lesson is here.** Even the *corrected* sketch was still not what shipped. Plan 001's sketch as it stood after the in-review correction and **before PR #56's sweep fixed it** (historical — the plan on `main` now carries the full version):
 
 ```ruby
 # Explicit ticks only; full_access deliberately not unioned in (KTD-6).
@@ -225,7 +227,7 @@ def roles_ticking(permission)
 end
 ```
 
-Shipped, `lib/current_scope/resolver.rb:121-126`:
+Shipped, `lib/current_scope/resolver.rb` (`roles_ticking`):
 
 ```ruby
 def roles_ticking(permission)
@@ -236,7 +238,7 @@ def roles_ticking(permission)
 end
 ```
 
-The `where.not` is missing from the sketch, and the shipped comment (`resolver.rb:112-115`) explains why it cannot be: *"The `where.not` is load-bearing, not belt-and-braces: a role can be full_access AND retain explicit rows (tick grid cells, then flip the full-access toggle), and matching on the leftover row alone would walk it straight back through the branch full_access is barred from."* That case has its own test — `test/collection_scope_gate_test.rb:70`, *"a scoped full_access role with explicit permission rows is still barred"*.
+The `where.not` is missing from the sketch, and the shipped comment (on `roles_ticking`) explains why it cannot be: *"The `where.not` is load-bearing, not belt-and-braces: a role can be full_access AND retain explicit rows (tick grid cells, then flip the full-access toggle), and matching on the leftover row alone would walk it straight back through the branch full_access is barred from."* That case has its own test — `test/collection_scope_gate_test.rb:70`, *"a scoped full_access role with explicit permission rows is still barred"*.
 
 So: a sketch corrected in review, by the person who found the bug, still under-specified the fix by one clause. **Re-derive from the prose and the source every time — including from a sketch that has already been through review.**
 
@@ -246,9 +248,9 @@ Plan 003's KTD-2 prose is right, and is unchanged from `aa82d16` to `main` (`doc
 
 > The resolver resolves the bypass key against the record's `model_name.route_key`, which for a conventional resource controller equals the controller name.
 
-Verify that against the source. `sod_bypassed?` calls `CurrentScope.allowed?(CurrentScope.config.sod_bypass_permission, subject: initiator, record: record)` (`resolver.rb:188`) with **no `controller_path:`**. `allowed?` builds the key via `permission_key(action, record: record, controller_path: nil)` (`lib/current_scope.rb:77-84`), and `permission_key` with no `controller_path` returns `"#{route_key}##{action}"` (`lib/current_scope.rb:99-105`). So for the default bare-action form the key the resolver reads is derived from the **record**. (A host that configures the full-key form instead gets it used verbatim — that path is not record-derived, and the catalog tolerates it.)
+Verify that against the source. `sod_bypassed?` calls `CurrentScope.allowed?(CurrentScope.config.sod_bypass_permission, subject: initiator, record: record)` (`resolver.rb`, `sod_bypassed?`) with **no `controller_path:`**. `allowed?` builds the key via `permission_key(action, record: record, controller_path: nil)` (`lib/current_scope.rb`, `allowed?`), and `permission_key` with no `controller_path` returns `"#{route_key}##{action}"` (`lib/current_scope.rb`, `permission_key`). So for the default bare-action form the key the resolver reads is derived from the **record**. (A host that configures the full-key form instead gets it used verbatim — that path is not record-derived, and the catalog tolerates it.)
 
-The sketch in U1 said — and, for eleven days after PR #53 corrected the code, still said:
+The sketch in U1 said — and, for some four hours after PR #53 corrected the code (until PR #56's sweep), still said:
 
 > for each, add `"#{controller}##{bypass_action}"`.
 
@@ -275,7 +277,7 @@ Pinned by `test/permission_catalog_test.rb:163-168`, *"a namespaced SoD controll
 
 **Actionable for whoever picks up the rest.** Plan 003's U1 sketch contradicted both its own KTD-2 prose and the code that shipped in PR #53, and nothing folded the correction back — the plan kept handing out the wrong answer while the repo held the right one. PR #56 (the one that introduced this document) fixed it, along with plan 001's under-specified `roles_ticking` and plan 024's wrong issue link.
 
-Do not read that as "the plans are clean now." Those three were found because this learning went looking for them. Assume the rest are in the same state — drafted in one pass, reviewed as prose, instructions unverified against a tree that has since moved under them by five merged PRs.
+Do not read that as "the plans are clean now." Those three were found because this learning went looking for them. Assume the rest are in the same state — drafted in one pass, reviewed as prose, instructions unverified against a tree that keeps moving under them with every merge.
 
 > **This paragraph is a specimen too.** Its first draft said plan 003's sketch was *"still on `main` today, uncorrected"* — in the same PR that corrected it. Review caught that the claim would be false the moment it merged, sending readers after a landmine that no longer existed. A document about work going stale, going stale against its own diff. The lesson is not "be more careful": it is that **a claim about the present tense of a repository is a claim with an expiry date**, including the ones written by someone who has just spent a day learning exactly that.
 
@@ -309,9 +311,9 @@ The plan saw it coming and could not act. Its own Open Questions flag the reason
 ### Four ways a plan rots
 
 1. **Superseded premise** — it defers to an issue that has since merged, and merged differently than assumed. *(Plan 006 → #23.)*
-2. **Drifted citation** — `file:line` references and counts, true at drafting. *(Plan 016 says "`docs/plans/` (16 plan files)" and cites a "580-line README". Both were already wrong when plan 016 was written, and both have drifted further with every plan and every README section landed since. This entry carried the live counts once — and they went stale inside this document too. Twice, in the same sentence: one was fixed in a refresh, and a reviewer caught the other still sitting beside it. That is the mode demonstrating itself, in the entry that names it. **Check the tree, not this sentence.**)*
+2. **Drifted citation** — `file:line` references and counts, true at drafting. *(Plan 016 said "`docs/plans/` (16 plan files)" and cited a "580-line README". Both were already wrong when plan 016 was written; a refresh (PR #58) later fixed the file count while the README figure still sits beside it in the same plan, drifting further with every section landed since. This entry carried the live counts once — and they went stale inside this document too, more than once: one fixed in a refresh, one caught by a reviewer still sitting beside it, and the entry's own present-tense quote of plan 016 outlived the fix it describes (caught by the 2026-07-16 audit). That is the mode demonstrating itself, repeatedly, in the entry that names it. **Check the tree, not this sentence.**)*
 3. **Unreconciled correction** — the code was fixed in review and the plan that produced the defect still says the old thing. *(Plan 003's sketch, until PR #56.)* The mirror case — where the plan's **own reasoning** is corrected and its **own instructions** are left saying the old thing, with no external referent and no time passing — is its own mode, and its own document: [a correction is itself a rot event](a-correction-rots-the-plan-it-fixes.md).
-4. **Orphaned deferral** — it defers work to another plan that never scoped it. *(Plan 015 defers a README fix to "#25, which owns README edits"; plan 007 is #25's plan, edits the README extensively, and never mentions it.)*
+4. **Orphaned deferral** — it defers work to another plan that never scoped it. *(Plan 015 deferred a README fix to "#25, which owns README edits"; plan 007 is #25's plan, edits the README extensively, and never mentioned it. Resolved by PR #58, which moved the work into plan 015's own U3a — the historical case remains the illustration.)*
 
 Mode 4 needs **no tree movement at all** — it was wrong on the day it was written, and no amount of waiting reveals it.
 
@@ -320,15 +322,17 @@ Mode 4 needs **no tree movement at all** — it was wrong on the day it was writ
 Before implementing, diff the world against the plan's stated assumptions. Minutes of work, and it is what caught plan 006 before a word of it was written:
 
 - **Is every issue it defers to still open?** `gh issue view <n> --json state`. A closed one means the premise resolved — and may have resolved differently than assumed.
-- **If the target issue is open, does the target plan actually scope the work?** Grep it. *This is the one the obvious check misses:* plan 015 defers to #25, #25 is open, so "is it still open?" returns a **false green**. The question is not whether the issue exists, it is whether anyone is doing the thing.
+- **If the target issue is open, does the target plan actually scope the work?** Grep it. *This is the one the obvious check misses:* plan 015 deferred to #25 while #25 sat open, so "is it still open?" returned a **false green** (until PR #58 re-homed the work). The question is not whether the issue exists, it is whether anyone is doing the thing.
 - **Do its citations still resolve?** Line numbers and counts drift silently and are cheap to spot-check.
 - **Has anything it calls "unchanged" changed?** That phrase is a claim about code the plan does not own.
 
 ### Why this is not an argument for planning less
 
-28 plans drafted at once is 28 snapshots of a single moment. The first merge invalidates premises in the other 27 — **that is arithmetic, not sloppiness**, and it gets worse the more of them are in flight at a time. Fifteen of the plans that remained after five merges referenced issues that had since closed.
+28 plans drafted at once is 28 snapshots of a single moment. The first merge invalidates premises in the other 27 — **that is arithmetic, not sloppiness**, and it gets worse the more of them are in flight at a time. After the first five merges, most of the surviving batch referenced at least one issue that had since closed.
 
 The fix is not fewer plans. It is to read a plan's assumptions as **claims with expiry dates** rather than as settled fact, and to check them at implementation time — the same way this document says to re-derive its instructions rather than paste them. Same moment, same reader, same reflex.
+
+*(An exact count — "fifteen" — stood in the paragraph above until the 2026-07-16 audit found it unreproducible: PR #58, run the same day, counted five rotted plans plus eleven more citing closed issues. The verifiable statement is PR #58's own table; read it there, not here.)*
 
 **Two corollaries worth keeping:**
 

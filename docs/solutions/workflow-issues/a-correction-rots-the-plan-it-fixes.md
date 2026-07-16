@@ -73,7 +73,10 @@ bound to neither a record nor a type — `Resolver#record_less_scoped_grant?`
 (`lib/current_scope/resolver.rb:304-311`). Its first draft proposed that once the branch
 binds by type, it could safely read `roles_granting` (`resolver.rb:160-162`), which unions
 `full_access` into every permission key. The argument was that binding by `resource_type:`
-satisfies the safety condition the helper's own comment states (`resolver.rb:157-159`):
+satisfies the safety condition the helper's own comment stated, as it read at the time
+(the 2026-07-16 audit found that wording had itself gone stale — PR #61 had added a third,
+non-binding caller — and PR #72 rewrites it to name all three callers and the condition
+directly):
 
 > Safe to wildcard full_access here because BOTH callers bind the grant to a record:
 > `scoped_grant?` by `resource:`, `scope_for` by `resource_type:`.
@@ -288,7 +291,7 @@ It now reads: *mirror its **filter clause only**, not its `roles_granting`.*
 ### Example 3 — the mechanical correction, verified by absence (PR #58)
 
 Earlier the same day, a scripted pass replaced stale `file:line` citations across the plan
-corpus (PR #58 — its own title, its review comment, and its diff give three different counts,
+corpus (PR #58 — its own title says 5 plans while its diff touched 8 plan files,
 which is its own small instance of this document's subject).
 One target string sat inside an existing backtick span listing seven ranges:
 

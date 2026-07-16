@@ -42,6 +42,11 @@ Rails.application.routes.draw do
   resources :projects, only: [ :index, :create ] do
     resources :nested_reports, only: :index
   end
+  # #50 U3 diagnostics shapes: a declared-nil collection with NO
+  # current_scope_model (the :model_undeclared deny + nudge), and a declared
+  # model with NO record hook (the R9 inert-model clause).
+  get "undeclared_model", to: "undeclared_model#index"
+  get "inert_model", to: "inert_model#index"
   post "writes/guarded", to: "writes#guarded", as: :writes_guarded
   post "writes/unguarded", to: "writes#unguarded", as: :writes_unguarded
 

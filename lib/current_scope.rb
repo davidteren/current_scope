@@ -20,6 +20,9 @@ module  CurrentScope
   #
   #   :sod_veto           — the record's initiator can't perform an SoD action on it
   #   :no_grant           — nothing granted the permission (the default deny)
+  #   :model_undeclared   — a record-less deny that a scoped grant would have
+  #                         opened, had the controller declared current_scope_model
+  #                         to bind it to a type (#50). Fail-closed, with the fix named.
   #   :impersonation_gate — a mutation while impersonating, which is read-only
   #   :not_full_access    — the engine's management UI, which only full_access enters
   #

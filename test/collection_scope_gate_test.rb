@@ -343,6 +343,72 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
     CurrentScope.config.sod_actions = original
   end
 
+  # --- R7a (#50 U3): the :model_undeclared LABEL on the undeclared-type deny ---
+  #
+  # A record-less deny for want of a type was indistinguishable from an
+  # ordinary :no_grant — and the dev nudge is dev/test-only, so the production
+  # host who most needs the cause could never see it. The label rides
+  # X-Current-Scope-Reason. It changes no decision: every case below was
+  # already a deny, only the reason differs.
+
+  test "R7a: the undeclared-type deny with a ticking grant is labelled :model_undeclared" do
+    scope_grant(@alice, role("Editor", "reports#index"), @report)
+
+    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index", record: nil, model: nil)
+    assert_not allowed, "the label must not change the decision — still a deny"
+    assert_equal :model_undeclared, reason,
+      "the deny would have been an ALLOW had the type been declared — say so"
+  end
+
+  test "R7a: no ticking grant means an ordinary :no_grant, not :model_undeclared" do
+    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index", record: nil, model: nil)
+    assert_not allowed
+    assert_equal :no_grant, reason,
+      "with nothing granted, declaring a model would change nothing — the label would lie"
+  end
+
+  test "R7a: the label requires an EXPLICIT tick — a scoped full_access grant stays :no_grant" do
+    # The #65 tripwire, mirrored onto the label: roles_ticking, NOT
+    # roles_granting. A full_access grant would NOT have been allowed by a
+    # declared type (the branch bars full_access), so labelling it
+    # :model_undeclared would send the host to declare a hook that fixes
+    # nothing. A roles_granting swap in the predicate turns this red.
+    scope_grant(@alice, role("Owner", full_access: true), @report)
+
+    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index", record: nil, model: nil)
+    assert_not allowed
+    assert_equal :no_grant, reason
+  end
+
+  test "R7a: the class form always carries its type, so it is never :model_undeclared" do
+    scope_grant(@alice, role("Editor", "reports#index"), @report)
+
+    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index", record: Document, model: nil)
+    assert_not allowed, "the grant is on a Report; the Document class form stays shut"
+    assert_equal :no_grant, reason, "the type was known and simply did not match — nothing undeclared"
+  end
+
+  test "R7a: a record-less SoD deny is never :model_undeclared" do
+    original = CurrentScope.config.sod_actions
+    CurrentScope.config.sod_actions = %w[approve]
+    scope_grant(@alice, role("Reviewer", "reports#approve"), @report)
+
+    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#approve", record: nil, model: nil)
+    assert_not allowed
+    assert_equal :no_grant, reason,
+      "a record-less SoD target is refused whatever the type — a model hook would not fix it"
+  ensure
+    CurrentScope.config.sod_actions = original
+  end
+
+  test "R7a: a declared model keeps its denies as :no_grant — nothing is undeclared" do
+    scope_grant(@alice, role("Editor", "documents#index"), @report) # Report grant, Documents gate
+
+    allowed, reason = @resolver.decide(subject: @alice, permission: "documents#index", record: nil, model: Document)
+    assert_not allowed
+    assert_equal :no_grant, reason
+  end
+
   # --- R6: the resolver stays a pure decision function ---
 
   test "R6: the new branch only reads — no rows are written" do

@@ -182,11 +182,11 @@ module CurrentScope
 
     # --- Dev diagnostics (#41) ----------------------------------------------
     #
-    # Three failure modes this engine has that are SILENT and silent in the bad
+    # Four failure modes this engine has that are SILENT and silent in the bad
     # direction: the thing that went wrong looks exactly like the thing going
     # right. Each is a cheap log line in dev/test and costs nothing in prod.
     #
-    # All three default ON in development and test, OFF in production — and off
+    # All four default ON in development and test, OFF in production — and off
     # entirely when Rails isn't loaded. The default is the point: a diagnostic
     # nobody knows about is a diagnostic nobody benefits from, and these
     # protect against mistakes you make while WRITING the app, which is exactly
@@ -221,6 +221,14 @@ module CurrentScope
     # would have worked: the gate and the view disagree, silently, and the symptom
     # shows up nowhere near the cause.
     attr_accessor :warn_on_cross_controller_derivation
+
+    # The gate logs a nudge when a request is DENIED :model_undeclared — a
+    # declared collection action (current_scope_record returned nil) whose
+    # controller names no current_scope_model, while the subject holds a scoped
+    # grant ticking the key. The record-less branch had no type to bind that
+    # grant to, so it failed closed (#50) — correctly, but the 403 looks like
+    # "never granted" while the fix is one line in the controller.
+    attr_accessor :warn_on_undeclared_collection_model
 
     # How the role-editor grid folds RESTful actions into columns. An ordered
     # Hash of { column_label => [action names] }: ticking a group column grants
@@ -337,6 +345,7 @@ module CurrentScope
       @warn_on_nil_sod_record = diagnostics_default_on?
       @warn_on_inert_scoped_grant = diagnostics_default_on?
       @warn_on_cross_controller_derivation = diagnostics_default_on?
+      @warn_on_undeclared_collection_model = diagnostics_default_on?
       @permission_grid_groups = {
         "read"    => %w[index show],
         "create"  => %w[new create],

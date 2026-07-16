@@ -97,10 +97,10 @@ CurrentScope.configure do |config|
   # config.audit = true
 
   # --- Dev diagnostics -----------------------------------------------------
-  # Three failure modes this engine has that are SILENT, and silent in the bad
+  # Four failure modes this engine has that are SILENT, and silent in the bad
   # direction — the thing going wrong looks exactly like the thing going right.
-  # All three are LOG-ONLY (no decision, exception, header, or audit row changes)
-  # and all three default ON in development and test, OFF in production.
+  # All four are LOG-ONLY (no decision, exception, header, or audit row changes)
+  # and all four default ON in development and test, OFF in production.
   #
   # They are listed here rather than left to the docs on purpose: a named flag in
   # your initializer is how you learn the failure mode exists at all.
@@ -124,6 +124,13 @@ CurrentScope.configure do |config|
   # not an accusation — asking about another resource derives a different key too,
   # and that's correct — so it warns once per site and names both readings.
   # config.warn_on_cross_controller_derivation = Rails.env.local?
+
+  # Denied "model_undeclared": a collection action declared with
+  # `current_scope_record = nil` on a controller that names no
+  # current_scope_model, while the subject holds a scoped grant ticking the
+  # key. The gate had no type to bind that grant to, so it failed closed —
+  # correctly, but the fix is one line: `def current_scope_model = TheType`.
+  # config.warn_on_undeclared_collection_model = Rails.env.local?
   # ------------------------------------------------------------------------
 
   # Controller paths (regexps) excluded from the permission grid. Excluded

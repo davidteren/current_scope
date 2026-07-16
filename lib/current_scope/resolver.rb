@@ -54,6 +54,16 @@ module CurrentScope
       return [ true, nil ] if scoped_grant?(subject: subject, permission: permission, record: record)
       return [ true, nil ] if record_less_scoped_grant?(subject: subject, permission: permission, record: record, model: model)
 
+      # A LABEL, not a decision (R7a): this deny would have been an ALLOW had
+      # the controller declared current_scope_model and the grant ticked the
+      # key of that type. Without the distinct reason it is indistinguishable
+      # from an ordinary :no_grant, and the dev nudge that explains it is
+      # dev/test-only — so the production host who most needs the cause
+      # (403s after an upgrade) would be the one who cannot see it.
+      if record_less_denied_for_unknown_type?(subject: subject, permission: permission, record: record, model: model)
+        return [ false, :model_undeclared ]
+      end
+
       [ false, :no_grant ]
     end
 
@@ -344,6 +354,27 @@ module CurrentScope
       ScopedRoleAssignment
         .where(subject: subject, resource_type: type.base_class.name, role_id: roles_ticking(permission))
         .exists?
+    end
+
+    # Would declaring current_scope_model have given this record-less deny a
+    # chance? True only for the exact cell the #50 fail-closed default created:
+    # a DECLARED collection action (record nil — the class form always carries
+    # its type, so it never lands here), no declared model, not an SoD action
+    # (those are refused whatever the type), and a scoped grant EXPLICITLY
+    # ticking the key exists. Pure — reads only; decide labels the deny
+    # :model_undeclared off this, changing no allow/deny.
+    #
+    # roles_ticking, NOT roles_granting — the #65 tripwire applies even to a
+    # label. A full_access-inclusive set would name a scoped full_access grant
+    # as "declare the model and this allows", which is false: the record-less
+    # branch bars full_access (see record_less_scoped_grant?), so the label
+    # would send the host to a fix that fixes nothing. Ticking keeps it honest:
+    # the deny WOULD have been an allow had the type been declared.
+    def record_less_denied_for_unknown_type?(subject:, permission:, record:, model:)
+      return false unless record.nil? && model.nil?
+      return false if sod_action?(permission)
+
+      ScopedRoleAssignment.where(subject: subject, role_id: roles_ticking(permission)).exists?
     end
 
     # An SoD action is record-targeted BY DEFINITION — "the subject who

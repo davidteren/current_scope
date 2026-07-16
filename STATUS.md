@@ -302,6 +302,50 @@ one it states. The earlier "prefer a positive closed set" lesson from PR #49 was
   historical-by-design. All six flags turned out intentional. I read the flag
   instead of the prose.
 
+### This session (2026-07-16) — intent-engineering audit + remediation (PRs #81, #82, #83, #85)
+
+Scaffolded the project's agent config, ran a five-lens `/ie-audit` over the
+full engine, then fixed everything actionable across four PRs — #81, #82,
+#83, #85; there is no #84 in this set — all squash-merged in order, review
+threads fixed-or-answered first. (The config scaffolding was committed on
+`feat/ungated-detection` and reached `main` when that branch merged as #79.)
+
+- [x] **Config scaffolding**: `AGENTS.md` workflow contract (+ thin `CLAUDE.md`
+      pointer), `.intense/` (ways-of-working, rails thresholds, pattern
+      policy), `.compound-engineering/` example config + gitignore entry.
+- [x] **Audit** (5 lenses, all 46 engine source files, run artifacts at
+      `wip/intent-engineering/20260716-121400-bc73637d/` — gitignored, report +
+      per-lens JSON): posture strong (architecture 8–9, simplicity 8–10,
+      dependency restraint 10) with the gaps clustered in experience
+      (interaction states 6/10, accessibility 6/10). Kept 2 P1 / 10 P2 / 10 P3.
+- [x] **PR #81** — P1s + security-knob P2s: `current_scope_gid_label` rescues
+      deleted-record GIDs (events page no longer 500s); picker zero-match
+      empty state (keyed off raw search results, not the composite options);
+      validating writers for `config.audit` / `config.sod_identity` (a typo
+      raises instead of silently weakening; ENV boolean spellings normalized);
+      the prod-impersonation env var parses its VALUE — **behavior change:**
+      `...=false` no longer enables the opt-in.
+- [x] **PR #82** — experience P2s: `role="alert"` on form error banners;
+      skip-to-content link (WCAG 2.4.1); confirm on org-role Set (per-row +
+      bulk, matching Remove); filter-vs-search hint always renders.
+- [x] **PR #83** — predictability P2s: subjects page keys role lookups on
+      `polymorphic_name` (STI subjects no longer render "— none —"); `grant!`
+      seeds defaults only on the no-role path; `scope_for` doc states the
+      row-membership-vs-action-reachability boundary.
+- [x] **PR #85** — convention P2 + P3s: resourceful `role_assignments` routes;
+      one `Current#impersonating?` (Permissions + MutationGuard delegate); one
+      `CurrentScope.label_for` chain — **the ledger now freezes the human
+      label** (was "Project #7" in the ledger while the UI said "Apollo");
+      no-op nested transactions removed; `PermissionGrid#expand` passes
+      unproducible tokens through raw so catalog validation rejects them by
+      name (both grid channels share one loud error contract); warn-once
+      Hash→`Set`; README documents `Event.record!`'s default-mode no-raise;
+      `Current#actor` documents its snapshot round-trip hazard.
+- **Deferred with reasons**: finding 16 (eager `GatingReflection` default)
+  targets plan-030 code not yet on `main` — apply after it merges; findings
+  21/22 (helper/Guard diagnostic-subsystem extractions) carry the audit's own
+  tension notes favoring seam-locality — revisit if the files grow.
+
 ---
 
 ## Verification brief — for a fresh session

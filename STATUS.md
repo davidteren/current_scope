@@ -239,13 +239,13 @@ runs Action Policy today and wants an incremental, reversible retrofit.
 - [x] **Refresh of the sketch-learning — PR #68.** Pruned to schema, fixed
       drifted counts, added the sibling seam.
 
-#### Open
+#### Plan 030 — shipped (see the 2026-07-16-continued session block below)
 
-- [ ] **PR #69 — plan 030 (#62), awaiting review.** Detect the ungated surface:
-      grid honesty + a non-raising tripwire posture + `current_scope:ungated`.
-      **Refs #62, does not close it** — the plan is the decision artifact; the
-      implementation is a separate PR. Closing on the plan would repeat the exact
-      "#37 closes an issue that never did the work" trail #62 was filed about.
+- [x] **PR #69 — plan 030 (#62).** The decision artifact. Reviewed and merged;
+      refs #62, did not close it (the implementation is the separate PR that did).
+- [x] **PR #79 — plan 030 implemented, closes #62.** GatingReflection, the
+      grid's "gate not run" badge, `config.gating_tripwire = :raise | :warn`,
+      `current_scope:ungated`. Detail in the continued-session block below.
 
 #### Filed / amended
 

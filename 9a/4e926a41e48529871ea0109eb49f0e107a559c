@@ -1,0 +1,22 @@
+docs/solutions/workflow-issues/a-correction-rots-the-plan-it-fixes.md
+  s_0daa8cae7814ef::t_a73a13707f8e7d 73-74
+  s_0daa8cae7814ef::t_266aed9de919d9 175-176
+docs/solutions/workflow-issues/plan-code-sketches-are-intent-not-code.md
+  s_0daa8cae7814ef::t_3a434986c83789 158
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "9a4e926a41e48529871ea0109eb49f0e107a559c",
+  "prompts": {},
+  "sessions": {
+    "s_0daa8cae7814ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "94a07cd1-56d2-40fe-b604-a56ea96c46af",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

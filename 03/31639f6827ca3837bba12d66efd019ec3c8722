@@ -1,0 +1,25 @@
+STATUS.md
+  s_0daa8cae7814ef::t_ae238cd4a5a900 358-364,367-373
+  s_0daa8cae7814ef::t_255be8e5fd8518 228-235
+  s_0daa8cae7814ef::t_a6029b9af0f242 293-295
+  s_0daa8cae7814ef::t_141a4d235524ed 257-259
+  s_0daa8cae7814ef::t_dba6f8d4470b28 309-328
+  s_0daa8cae7814ef::t_ea3a4bedc3e7a4 419-426
+  s_0daa8cae7814ef::t_38da7ccff0fd15 469-471
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "0331639f6827ca3837bba12d66efd019ec3c8722",
+  "prompts": {},
+  "sessions": {
+    "s_0daa8cae7814ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "94a07cd1-56d2-40fe-b604-a56ea96c46af",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

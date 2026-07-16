@@ -86,10 +86,18 @@ class PermissionGridTest < ActiveSupport::TestCase
   test "expand turns group tokens into the routed permission keys" do
     assert_equal %w[reports#index reports#show], grid.expand([ "reports:read" ]).sort
     assert_equal %w[reports#create reports#new], grid.expand([ "reports:create" ]).sort
-    # widgets routes only index → create group expands to nothing there
-    assert_empty grid.expand([ "widgets:create" ])
-    # unknown group / junk token
-    assert_empty grid.expand([ "reports:nope", "", "garbage" ])
+  end
+
+  # A token the grid could not have produced must surface, not vanish: it
+  # passes through raw so the catalog validation rejects it by name — the same
+  # loud contract a hand-crafted permission_keys[] entry gets. One save, one
+  # error story across both submission channels.
+  test "expand passes unproducible tokens through raw instead of dropping them" do
+    # widgets routes only index → the grid renders create as a BLANK cell, so
+    # this token can only come from a crafted request
+    assert_equal [ "widgets:create" ], grid.expand([ "widgets:create" ])
+    # unknown group / junk token — surfaced; the form's blank padding — dropped
+    assert_equal [ "reports:nope", "garbage" ], grid.expand([ "reports:nope", "", "garbage" ])
   end
 
   # --- Break-glass renders as an ordinary column (#21) ---

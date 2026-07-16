@@ -73,7 +73,7 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
   test "a bulk org-wide assignment rejects non-subject GIDs instead of reporting a silent success" do
     not_a_subject = Folder.create!(name: "Not a subject")
     assert_no_difference -> { CurrentScope::RoleAssignment.count } do
-      post current_scope.role_assignment_url, headers: as(@owner), params: {
+      post current_scope.role_assignments_url, headers: as(@owner), params: {
         role_id: @role.id, subject_gids: [ not_a_subject.to_gid.to_s ]
       }
     end
@@ -83,7 +83,7 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
   test "duplicate subject_gids in a bulk org assignment are counted and audited once" do
     alice = User.create!(name: "Alice")
     assert_difference -> { CurrentScope::RoleAssignment.count }, 1 do
-      post current_scope.role_assignment_url, headers: as(@owner), params: {
+      post current_scope.role_assignments_url, headers: as(@owner), params: {
         role_id: @role.id, subject_gids: [ alice.to_gid.to_s, alice.to_gid.to_s ]
       }
     end
@@ -102,7 +102,7 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
     bob = User.create!(name: "Bob")
     CurrentScope::RoleAssignment.create!(subject: alice, role: @role) # already holds @role
 
-    post current_scope.role_assignment_url, headers: as(@owner), params: {
+    post current_scope.role_assignments_url, headers: as(@owner), params: {
       role_id: @role.id, subject_gids: [ alice.to_gid.to_s, bob.to_gid.to_s ]
     }
     # only bob changed ⇒ singular notice, not "for 2 subjects"
@@ -111,7 +111,7 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
 
   test "a bulk clear that changes nothing reports no changes, not a false success" do
     alice = User.create!(name: "Alice") # holds no org-wide role
-    post current_scope.role_assignment_url, headers: as(@owner), params: {
+    post current_scope.role_assignments_url, headers: as(@owner), params: {
       role_id: "", subject_gids: [ alice.to_gid.to_s ]
     }
     assert_equal "No org-wide role changes.", flash[:notice]
@@ -127,7 +127,7 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
     alice = User.create!(name: "Alice")
     bob = User.create!(name: "Bob")
 
-    post current_scope.role_assignment_url, headers: as(@owner), params: {
+    post current_scope.role_assignments_url, headers: as(@owner), params: {
       role_id: @role.id, subject_gids: [ alice.to_gid.to_s, bob.to_gid.to_s ]
     }
     assert_redirected_to current_scope.subjects_path
@@ -142,7 +142,7 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
     CurrentScope::RoleAssignment.create!(subject: alice, role: @role)
     CurrentScope::RoleAssignment.create!(subject: bob, role: @role)
 
-    post current_scope.role_assignment_url, headers: as(@owner), params: {
+    post current_scope.role_assignments_url, headers: as(@owner), params: {
       role_id: "", subject_gids: [ alice.to_gid.to_s, bob.to_gid.to_s ]
     }
     assert_nil CurrentScope::RoleAssignment.find_by(subject: alice)

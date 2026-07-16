@@ -1,15 +1,13 @@
 module CurrentScope
   module ApplicationHelper
-    # Best-effort human label for any host subject/resource. Prefers a record's
-    # own current_scope_label (the Scopeable mixin gives every pickable model
-    # one) so the label a model declares is the label shown everywhere — the
-    # picker, the chips, and the ledger (see Event.label_for) all agree.
+    # Best-effort human label for any host subject/resource. Delegates to the
+    # one shared chain (CurrentScope.label_for) — the same definition the audit
+    # ledger denormalizes (see Event.label_for), so the picker, the chips, and
+    # the ledger agree by construction, not by parallel maintenance.
     def current_scope_label(record)
       return "(none)" if record.nil?
-      return record.current_scope_label if record.respond_to?(:current_scope_label)
 
-      name = record.try(:name) || record.try(:email) || record.try(:title)
-      name || "#{record.class.name} ##{record.id}"
+      CurrentScope.label_for(record)
     end
 
     # Human label for a subject (user/account), honouring config.subject_label
@@ -214,16 +212,12 @@ module CurrentScope
         "an exception"
       end
 
-      # A plain Hash, not a Set: this runs inside the rescue that stops a bad
-      # label 500-ing the page, so it must not be the thing that raises. Set
-      # needs `require "set"` and is only autoloaded on newer Rubies — a
-      # NameError here would reintroduce the exact bug, from inside its own fix.
+      # Set is a core built-in on this gem's Ruby floor (>= 3.2, no require
+      # needed — the codebase already uses bare Set elsewhere), so nothing here
+      # can raise inside the rescue this runs under.
       def new_subject_label_warning?(reason, label)
-        memo = (@subject_label_warnings ||= {})
-        key = [ reason, label ]
-        return false if memo.key?(key)
-
-        memo[key] = true
+        @subject_label_warnings ||= Set.new
+        !!@subject_label_warnings.add?([ reason, label ])
       end
     end
   end

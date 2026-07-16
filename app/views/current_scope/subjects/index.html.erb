@@ -23,7 +23,7 @@
   <span class="cs-spacer"></span>
   <%# Org-wide role for the selection. JS injects the checked subjects as
       subject_gids[] on submit; blank role clears it for all. %>
-  <%= form_with url: role_assignment_path, method: :post, class: "cs-bulk-org",
+  <%= form_with url: role_assignments_path, method: :post, class: "cs-bulk-org",
         data: { cs_bulk_org: true } do %>
     <%= select_tag :role_id, options_from_collection_for_select(@roles, :id, :name),
           include_blank: "org role…", aria: { label: "Org-wide role for selected" } %>
@@ -61,7 +61,7 @@
         </td>
         <td><%= label %></td>
         <td>
-          <%= form_with url: role_assignment_path, method: :post do %>
+          <%= form_with url: role_assignments_path, method: :post do %>
             <%= hidden_field_tag :subject_gid, subject.to_gid %>
             <%= select_tag :role_id,
                   options_from_collection_for_select(@roles, :id, :name, @assignments[key]&.role_id),

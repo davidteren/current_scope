@@ -106,14 +106,27 @@ class ManagementUiTest < ActionDispatch::IntegrationTest
     assert_empty @member_role.reload.permission_keys, "a rejected save must persist nothing"
   end
 
+  # The sibling channel to the crafted-permission_keys case above: a crafted
+  # group token must fail the same way, not be silently dropped by expansion.
+  test "a group token outside the grid is rejected loudly, not dropped" do
+    patch current_scope.role_url(@member_role), headers: as(@owner), params: {
+      role: { name: "Member", full_access: "0",
+              permission_keys: [ "" ], permission_groups: [ "", "bogus:read" ] }
+    }
+    assert_response :unprocessable_entity
+    assert_match "bogus:read", response.body
+
+    assert_empty @member_role.reload.permission_keys, "a rejected save must persist nothing"
+  end
+
   test "setting and clearing a subject's org-wide role" do
     other = User.create!(name: "Other")
 
-    post current_scope.role_assignment_url, headers: as(@owner),
+    post current_scope.role_assignments_url, headers: as(@owner),
          params: { subject_gid: other.to_gid.to_s, role_id: @member_role.id }
     assert_equal @member_role, CurrentScope::RoleAssignment.find_by(subject: other).role
 
-    post current_scope.role_assignment_url, headers: as(@owner),
+    post current_scope.role_assignments_url, headers: as(@owner),
          params: { subject_gid: other.to_gid.to_s, role_id: "" }
     assert_nil CurrentScope::RoleAssignment.find_by(subject: other)
   end

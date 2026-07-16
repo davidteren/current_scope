@@ -36,12 +36,12 @@ module CurrentScope
       )
     end
 
-    # A real actor stands behind a distinct effective subject (act-as). Read
-    # from the ambient context directly, so the gate holds even where the
-    # Permissions helpers are not mixed in.
+    # A real actor stands behind a distinct effective subject (act-as).
+    # Delegates to the one definition on Current (not the Permissions mixin,
+    # which isn't mixed in everywhere this gate runs) so the gate and the
+    # view-level read-only signal share a single authoritative predicate.
     def current_scope_impersonating?
-      user = CurrentScope::Current.user
-      user.present? && CurrentScope::Current.actor != user
+      CurrentScope::Current.impersonating?
     end
 
     # Denials render forbidden and surface the machine-readable reason on the

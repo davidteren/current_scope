@@ -503,6 +503,12 @@ events table isn't migrated; `:strict` **raises** on a missing events table so
 an audit-mandatory app never commits an unaudited change (the mutation rolls
 back).
 
+> **Note on the `!`:** despite the bang, `Event.record!` only guarantees
+> raise-on-failure under `:strict` (and for a missing actor). In the default
+> `true` mode a missing events table is a warn-once no-op, and under `false`
+> every call silently returns `nil` — so a mutation-wrapping transaction does
+> **not** roll back on a failed audit write unless you opt into `:strict`.
+
 ### Dev diagnostics
 
 Three things this engine gets wrong **silently**, and silently in the bad

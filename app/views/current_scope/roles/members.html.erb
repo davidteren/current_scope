@@ -11,7 +11,7 @@
 
 <h2>Add org-wide members</h2>
 <% if @candidates.any? %>
-  <%= form_with url: role_assignment_path, method: :post do %>
+  <%= form_with url: role_assignments_path, method: :post do %>
     <%= hidden_field_tag :role_id, @role.id %>
     <p>
       <%= label_tag "subject_gids", "Subjects" %>
@@ -46,7 +46,7 @@
             <td>
               <% if subject_gid %>
                 <%# Removing = clearing this subject's org-wide role (blank role_id). %>
-                <%= form_with url: role_assignment_path, method: :post,
+                <%= form_with url: role_assignments_path, method: :post,
                       data: { cs_confirm: "Remove #{who} from #{@role.name}?" } do %>
                   <%= hidden_field_tag :subject_gid, subject_gid %>
                   <%= hidden_field_tag :role_id, "" %>
@@ -54,7 +54,7 @@
                 <% end %>
               <% else %>
                 <%# Orphaned assignment (subject deleted): remove it by id. %>
-                <%= button_to "Remove", remove_role_assignment_path(assignment), method: :delete,
+                <%= button_to "Remove", role_assignment_path(assignment), method: :delete,
                       class: "cs-btn", form: { data: { cs_confirm: "Remove this orphaned org-wide assignment?" } } %>
                 <span class="cs-subtle">subject unavailable</span>
               <% end %>

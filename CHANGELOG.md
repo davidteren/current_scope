@@ -7,6 +7,40 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **The ungated surface is detectable — grid badge, a rake task, and a
+  production tripwire posture (#62).** `skip_before_action :current_scope_check!`
+  inherits into every subclass and fails open; it used to do so invisibly,
+  with the permission grid still rendering those actions as grantable. Now:
+  - the role editor badges any controller **provably** ungated ("gate not
+    run") — bare skip, inherited skip, or `Guard` never included. The badge is
+    proof-only: a conditional skip (`only:`/`except:`) is unprovable statically
+    and renders unmarked (the grid's hint says so; #75 tracks a static third
+    state). A marked row's cells stay tickable — marking is not disabling —
+    and on a marked row carrying an injected `bypass_sod` cell the badge's
+    claim visibly excludes it: break-glass is honored by whatever gated
+    controller decides SoD on the record, so that one cell is live anyway.
+  - `bin/rails current_scope:ungated` prints the same inventory as a command —
+    no mixin, no deploy, no traffic — and states its own limit, routing
+    conditional skips to the tripwire.
+  - `config.gating_tripwire = :raise | :warn` gives `GatingTripwire` a
+    posture: `:raise` (the dev/test default) keeps today's behavior; `:warn`
+    (the default outside dev/test) logs each ungated `controller#action` once
+    per process instead of raising, so a real app can inventory its ungated
+    surface from production traffic.
+
+  The fail-open itself stays open, deliberately — this is detection, not
+  prevention; a host that skips on purpose changes nothing and adopts no new
+  API. The declared-skip macro is #76.
+
+### Changed
+- **`GatingTripwire` in production now defaults to `:warn` — and that is a
+  disclosure change, named plainly:** the old unconditional raise meant an
+  ungated action's response was withheld by the 500 (its side effects already
+  ran; only the body was discarded). Under `:warn`, **ungated responses that
+  were previously withheld are now served to the caller, with a log line.**
+  Dev/test behavior is unchanged (`:raise`). A host that included the mixin in
+  production and relies on that 500 as a backstop must pin
+  `config.gating_tripwire = :raise`.
 - **Report-only enforcement — retrofit an existing app without breaking it.**
   Adding a fail-closed gate to an app that already has users and controllers has
   been all-or-nothing: the moment you mount it, everything is denied, because no

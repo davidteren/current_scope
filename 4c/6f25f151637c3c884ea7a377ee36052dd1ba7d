@@ -1,0 +1,55 @@
+lib/tasks/current_scope_tasks.rake
+  s_0daa8cae7814ef::t_77ebdd471df2be 93-94,101-106,109-125,132,134-139,144
+lib/current_scope/gating_reflection.rb
+  s_0daa8cae7814ef::t_be18ecc8afb8ca 25-32
+test/ungated_task_test.rb
+  s_0daa8cae7814ef::t_d90a27b9297bad 116
+  s_0daa8cae7814ef::t_1970774cf9dea2 79-103
+  s_0daa8cae7814ef::t_568f0d22888f49 152-154
+lib/current_scope/permission_catalog.rb
+  s_0daa8cae7814ef::t_4b0e3334835a58 43
+  s_0daa8cae7814ef::t_20ce305cb65783 38-42,44-49,51-61
+  s_0daa8cae7814ef::t_76984aeb4f4c72 80
+test/permission_catalog_test.rb
+  s_0daa8cae7814ef::t_2b457aa9218c00 61-81
+.intense/ways-of-working.yaml
+  s_0daa8cae7814ef::t_23647ab569d367 13-17
+CHANGELOG.md
+  s_0daa8cae7814ef::t_ffbcac941c6ef4 36-42
+  s_0daa8cae7814ef::t_c5d09043e04ac0 22-28
+docs/guides/adopting-in-an-existing-app.md
+  s_0daa8cae7814ef::t_15cccdc3f802bd 237-242
+  s_0daa8cae7814ef::t_d66f62c5ac17c3 131
+lib/current_scope/permission_grid.rb
+  s_0daa8cae7814ef::t_92e529823c0c83 1-4
+app/views/current_scope/scoped_role_assignments/new.html.erb
+  s_0daa8cae7814ef::t_883ba8bae30309 105-109
+test/gating_reflection_test.rb
+  s_0daa8cae7814ef::t_4dfab09684dcdd 101-112
+AGENTS.md
+  s_0daa8cae7814ef::t_e22bd017c0ac92 71-73
+  s_0daa8cae7814ef::t_80cdcb5bdf9e35 97-98
+app/views/current_scope/roles/edit.html.erb
+  s_0daa8cae7814ef::t_c13a87d3820412 131-136,139
+  s_0daa8cae7814ef::t_ec7ccff7ece3c0 129-130,137-138,140
+app/assets/javascripts/current_scope/application.js
+  s_0daa8cae7814ef::t_9ed97902d8d81b 82-85
+README.md
+  s_0daa8cae7814ef::t_380d5764e5210e 195-196
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "4c6f25f151637c3c884ea7a377ee36052dd1ba7d",
+  "prompts": {},
+  "sessions": {
+    "s_0daa8cae7814ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "94a07cd1-56d2-40fe-b604-a56ea96c46af",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

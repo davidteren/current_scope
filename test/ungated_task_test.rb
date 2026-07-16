@@ -76,6 +76,31 @@ class UngatedTaskTest < ActiveSupport::TestCase
     CurrentScope.reset_catalog!
   end
 
+  test "a real routed action sharing the bypass name is audited, not stripped" do
+    # sod_bypass_permission is set to "unguarded" — a REAL routed action on the
+    # ungated writes controller. Only the catalog-INJECTED key may be stripped
+    # from the listing; omitting a real fail-open route because of a name
+    # collision would hide exactly what the audit exists to find. (#79 review)
+    original_bypass = CurrentScope.config.allow_sod_bypass
+    original_sod = CurrentScope.config.sod_actions
+    original_perm = CurrentScope.config.sod_bypass_permission
+    CurrentScope.config.allow_sod_bypass = true
+    CurrentScope.config.sod_actions = %w[guarded]
+    CurrentScope.config.sod_bypass_permission = "unguarded"
+    CurrentScope.reset_catalog!
+
+    output = run_task
+
+    assert_match(/^  writes \(guarded, unguarded\)$/, output,
+                 "the routed action stays in the audit despite sharing the bypass name")
+    assert_no_match(/omitted from the listing/, output)
+  ensure
+    CurrentScope.config.allow_sod_bypass = original_bypass
+    CurrentScope.config.sod_actions = original_sod
+    CurrentScope.config.sod_bypass_permission = original_perm
+    CurrentScope.reset_catalog!
+  end
+
   test "a malformed bypass permission raises the catalog's loud error, never a silent mis-parse" do
     # sod_actions stays [] so the catalog's own derive never validates the
     # permission — the exact corner where a loose split("#").last would turn
@@ -88,7 +113,7 @@ class UngatedTaskTest < ActiveSupport::TestCase
     CurrentScope.reset_catalog!
 
     error = assert_raises(CurrentScope::ConfigurationError) { run_task }
-    assert_match "no action segment", error.message
+    assert_match "not a bare action or a single controller#action", error.message
   ensure
     CurrentScope.config.allow_sod_bypass = original_bypass
     CurrentScope.config.sod_bypass_permission = original_perm
@@ -124,9 +149,9 @@ class UngatedTaskTest < ActiveSupport::TestCase
 
     output = run_task
 
-    assert_match(/no provably-ungated controllers/i, output)
-    assert_match "current_scope_check!", output,
-                 "empty means every routed controller's gate callback was found — say so"
+    assert_match(/no controller was proven ungated/i, output)
+    assert_match "unclassified", output,
+                 "an unresolvable controller was not inspected — the blank must not vouch for it"
     assert_match "config.gating_tripwire = :warn", output,
                  "an empty list is still not an all-clear: the conditional-skip caveat stays"
   ensure

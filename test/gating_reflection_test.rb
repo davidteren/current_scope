@@ -98,4 +98,16 @@ class GatingReflectionTest < ActiveSupport::TestCase
     assert_not_kind_of ActionDispatch::MissingController, error
     assert_equal :NOPE_NOT_DEFINED, error.name
   end
+
+  # A bare ActionController::Metal (no AbstractController::Callbacks) has no
+  # callbacks API at all — the gate PROVABLY cannot run there, and asking must
+  # answer true rather than NoMethodError. (#79 review)
+  test "a controller without the callbacks API is provably ungated, not an error" do
+    metal = Class.new(ActionController::Metal)
+    reflection = Class.new(CurrentScope::GatingReflection) {
+      define_method(:controller_class_for) { |_| metal }
+    }.new
+
+    assert reflection.ungated?("metal_thing")
+  end
 end

@@ -19,9 +19,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     and on a marked row carrying an injected `bypass_sod` cell the badge's
     claim visibly excludes it: break-glass is honored by whatever gated
     controller decides SoD on the record, so that one cell is live anyway.
-  - `bin/rails current_scope:ungated` prints the same inventory as a command —
-    no mixin, no deploy, no traffic — and states its own limit, routing
-    conditional skips to the tripwire.
+  - `bin/rails current_scope:ungated` prints the same static inventory as a
+    command — no mixin, no deploy, no traffic — and states its own limit,
+    routing conditional skips to the tripwire. One asymmetry with the grid: a
+    controller that raises while loading renders as an explicit "could not
+    inspect" row in the grid, while the task aborts with that error — its
+    output makes proof claims a partial walk can't honor, so fix the broken
+    controller and re-run.
   - `config.gating_tripwire = :raise | :warn` gives `GatingTripwire` a
     posture: `:raise` (the dev/test default) keeps today's behavior; `:warn`
     (the default outside dev/test) logs each ungated `controller#action` once
@@ -29,8 +33,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     surface from production traffic.
 
   The fail-open itself stays open, deliberately — this is detection, not
-  prevention; a host that skips on purpose changes nothing and adopts no new
-  API. The declared-skip macro is #76.
+  prevention. A host that skips on purpose keeps its authorization behavior
+  unchanged and adopts no new API; what a deliberate skip DOES pick up is the
+  detection surface itself — its grid rows are badged, the task lists it, and
+  a host that also opted into the tripwire marks intentional public actions
+  with the existing `current_scope_skip_tripwire!` so `:warn` doesn't
+  inventory them. The declared-skip macro that renders intent instead of a
+  warning is #76.
 
 ### Changed
 - **`GatingTripwire` in production now defaults to `:warn` — and that is a

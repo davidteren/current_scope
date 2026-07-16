@@ -10,9 +10,11 @@ version: 1
 # Turn a lens (agent) off entirely here — e.g. `architecture: off` if your team relies
 # solely on its own static-analysis pipeline.
 lenses:
-  predictability: on
-  convention: on
-  simplicity: on
+  # Quoted on purpose: bare `on` is YAML 1.1's boolean true under common
+  # loaders, and this contract's values are the STRINGS "on"/"off"/"auto".
+  predictability: "on"
+  convention: "on"
+  simplicity: "on"
   experience: auto      # auto = on only when a user-facing surface is detected
   architecture: auto    # auto = on only when a supported framework (e.g. Rails) is detected
 

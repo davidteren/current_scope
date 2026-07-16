@@ -1,3 +1,7 @@
+# The gating: default below constructs one at call time — a caller requiring
+# this file directly (not via the current_scope entrypoint) must not NameError.
+require "current_scope/gating_reflection"
+
 module CurrentScope
   # Presents the route-derived permission catalog as an ALIGNED matrix for the
   # role editor: fixed columns, one row per controller, blank cells where a

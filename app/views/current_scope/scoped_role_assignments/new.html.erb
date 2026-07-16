@@ -102,7 +102,11 @@
                 include_blank: "— choose a record —", form: "cs-cascade",
                 data: { current_scope_autosubmit: true } %>
           <% if @searchable && params[:q].present? %>
-            <% if record_options.empty? %>
+            <%# Branch on the actual SEARCH results, not record_options — the
+                deep-linked @resource is unshifted into the options above even
+                when it isn't a match, and it must not turn a zero-match search
+                into "Showing up to N matches". (#79 review) %>
+            <% if @records.blank? %>
               <span class="cs-hint cs-picker-empty">
                 No records match “<%= params[:q] %>” — try a different search.
               </span>

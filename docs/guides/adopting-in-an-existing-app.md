@@ -128,7 +128,7 @@ end
 | You did | What happens |
 |---|---|
 | Excluded only | Guard **raises**. An excluded controller can't be granted, so gating it is a misconfiguration and the engine says so loudly rather than 403ing forever. |
-| Skipped only | Works, but the controller stays in the catalog: dead rows in the permission grid whose ticks mean nothing — the grid badges them "gate not run" (an unconditional skip is provable), but they're still clutter that excluding removes. |
+| Skipped only | Works, but the controller stays in the catalog: dead rows in the permission grid whose routed-action ticks mean nothing — the grid badges them "gate not run" (an unconditional skip is provable), but they're still clutter that excluding removes. (One exception: with break-glass on, an injected `bypass_sod` cell on such a row is **live** — the grid marks it exempt.) |
 | Both | Correct. Not gated, not offered. |
 
 This generalises to any mounted engine whose controllers inherit from
@@ -234,9 +234,12 @@ purpose:
   because its answer is unprovable statically — that shape is caught at runtime
   by `:warn` (this PR) and gets a static third state in
   [#75](https://github.com/davidteren/current_scope/issues/75).
-- **"Undetectable at runtime" — closed.** `config.gating_tripwire = :warn`
-  makes the tripwire a production inventory instead of a 500, and
-  `bin/rails current_scope:ungated` answers statically with no deploy at all.
+- **"Undetectable at runtime" — closed for any action that completes.**
+  `config.gating_tripwire = :warn` makes the tripwire a production inventory
+  instead of a 500, and `bin/rails current_scope:ungated` answers statically
+  with no deploy at all. The tripwire's `after_action` blind spot (below)
+  still applies: a request halted by an earlier `before_action` never reaches
+  it, so that shape stays a named residual, not a closed one.
 - **"Ungated in production" — still true, deliberately.** This is detection,
   not prevention: the skip still inherits and still fails open. What changed
   is that it can no longer be invisible. The declared-skip macro that would

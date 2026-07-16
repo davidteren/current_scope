@@ -126,7 +126,18 @@
                     readers; the "·" marker is decorative CSS. %>
                 <td class="cs-cell-blank"></td>
               <% else %>
-                <% bypass_exempt = ungated && !column.group && column.label == bypass_action %>
+                <%# column.actions covers both shapes — an ungrouped column is
+                    [action], and a permission_grid_groups entry containing the
+                    bypass action must not defeat the exemption. The two guards:
+                    the INJECTED key must actually sit on this controller (a
+                    grouped cell can be non-blank via its other actions), and
+                    routed? excludes the collision — a REAL routed action merely
+                    named like the bypass permission is ordinary and inert on a
+                    marked row; only the catalog-injected key stays live. (#79) %>
+                <% bypass_exempt = ungated && bypass_action &&
+                     column.actions.include?(bypass_action) &&
+                     CurrentScope.catalog.grouped[controller]&.include?(bypass_action) &&
+                     !CurrentScope.catalog.routed?("#{controller}##{bypass_action}") %>
                 <% note_id = "cs_bypass_exempt_#{controller.parameterize(separator: '_')}" if bypass_exempt %>
                 <td<% if bypass_exempt %> class="cs-cell-bypass"<% end %>>
                   <label>

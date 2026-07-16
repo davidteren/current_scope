@@ -22,7 +22,14 @@ module CurrentScope
   # action gated?), the tripwire at request time, this one by reflection.
   class GatingReflection
     def ungated?(controller_path)
-      controller_class_for(controller_path)
+      klass = controller_class_for(controller_path)
+      # A controller without the callbacks API at all (a bare ActionController::
+      # Metal without AbstractController::Callbacks) cannot run a before_action
+      # — the gate PROVABLY never runs there. Without this check the reflection
+      # would raise NoMethodError instead of answering. (#79 review)
+      return true unless klass.respond_to?(:_process_action_callbacks)
+
+      klass
         ._process_action_callbacks
         .none? { |callback| callback.kind == :before && callback.filter == :current_scope_check! }
     rescue ActionDispatch::MissingController

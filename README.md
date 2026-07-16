@@ -192,7 +192,8 @@ and `bin/rails current_scope:ungated` prints the same inventory as a command.
 To catch it at runtime, include the optional `CurrentScope::GatingTripwire` on
 the base you want verified — it fires after any action that didn't run the
 gate: **raising in dev/test, or logging once per `controller#action` under
-`config.gating_tripwire = :warn` (the default outside dev/test)**, so a
+`config.gating_tripwire = :warn` (the default outside dev/test; once per
+process per site — a concurrent first hit can rarely emit a duplicate line)**, so a
 production host can inventory its ungated surface without 500ing. It carries
 its own `current_scope_skip_tripwire!` marker for genuinely-public actions (you
 can't use `skip_before_action :current_scope_check!` on a controller that never

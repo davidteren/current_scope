@@ -58,6 +58,27 @@ class PermissionCatalogBypassTest < ActiveSupport::TestCase
     CurrentScope::PermissionCatalog.new
   end
 
+  # The catalog's parse is the ONE parse (#79 review): a multi-hash value
+  # would pass a last-segment check while the resolver reads the original
+  # full string — an ungrantable key, a veto nobody can lift.
+  test "a multi-segment bypass permission raises loudly" do
+    error = assert_raises(CurrentScope::ConfigurationError) do
+      catalog(allow: true, permission: "reports#bypass_sod#extra").keys
+    end
+    assert_match "not a bare action or a single controller#action", error.message
+  end
+
+  # routed? separates the injected break-glass key from a real routed action
+  # that merely shares its name — the inertness claims (grid exempt note, task
+  # strip) key on exactly this distinction. (#79 review)
+  test "routed? is true for route-derived keys and false for the injected bypass key" do
+    cat = catalog(allow: true, actions: %w[approve])
+
+    assert cat.routed?("reports#approve"), "a real routed key"
+    assert_includes cat.keys, "reports#bypass_sod", "precondition: bypass injected"
+    assert_not cat.routed?("reports#bypass_sod"), "the injected key is not routed"
+  end
+
   # R1: default-off is a true no-op — the catalog is what it always was.
   test "no bypass key is injected when break-glass is off (the default)" do
     keys = catalog(allow: false).keys

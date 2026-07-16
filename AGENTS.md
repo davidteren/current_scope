@@ -68,8 +68,9 @@ reviewer/planner.
 ## Testing
 
 - Minitest. Engine test DB from repo root:
-  `RAILS_ENV=test bundle exec rake db:create db:migrate` (engine `bin/rails`
-  lacks db commands).
+  `RAILS_ENV=test bundle exec rake db:create db:migrate` (the engine's
+  `bin/rails` runs ONE command per invocation — `db:test:prepare test` in one
+  call fails; split them, as CI does).
 - System tests (Capybara + cuprite, headless): `bin/rails test:system` — also
   CI-enforced. Regenerate README screenshots with
   `CAPTURE_SCREENSHOTS=1 RAILS_ENV=test bin/rails test test/system/screenshots_test.rb`.
@@ -93,6 +94,7 @@ reviewer/planner.
   changes need a server restart (`kill -USR2 <puma_pid>`) — `app/` hot-reloads,
   `lib/` does not; a stale `lib/` PORO can 500 on correct code.
 - `current_scope_record` host hooks run before host `before_action`s and for
-  every action — hooks must lazy-load and nil-guard.
+  every GATED action (an action that skips `current_scope_check!` never runs
+  the hook) — hooks must lazy-load and nil-guard.
 - SoD opt-out is config, not a fork: `config.sod_actions = []` makes the veto
   a no-op.

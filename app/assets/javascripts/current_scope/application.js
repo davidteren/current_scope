@@ -79,6 +79,10 @@ document.addEventListener("DOMContentLoaded", function () {
   // hint and disable the preserve inputs so they don't force the old subset back.
   function releasePartial(box) {
     box.indeterminate = false;
+    // The attribute is what CSS keys on (dashed outline; the marked-row hatch)
+    // — leaving it set keeps partial styling on a cell the user just cleared,
+    // even though no keys will be submitted. (#79 review)
+    box.removeAttribute("data-cs-partial");
     var cell = box.closest("td");
     if (!cell) return;
     cell.querySelectorAll("[data-cs-preserve]").forEach(function (h) { h.disabled = true; });

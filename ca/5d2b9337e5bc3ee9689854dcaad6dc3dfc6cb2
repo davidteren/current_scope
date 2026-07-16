@@ -1,0 +1,29 @@
+docs/guides/adopting-in-an-existing-app.md
+  s_0daa8cae7814ef::t_b75e96ad8e1692 259-260,265-266
+  s_0daa8cae7814ef::t_21a10d079d1251 353
+  s_0daa8cae7814ef::t_46297c30c82698 131
+  s_0daa8cae7814ef::t_4de554174143b0 155-163
+  s_0daa8cae7814ef::t_52f092523fd6fb 185-197,203,209-215
+  s_0daa8cae7814ef::t_15abfb58771705 228-249
+CHANGELOG.md
+  s_0daa8cae7814ef::t_222df8ea8723f1 10-43
+README.md
+  s_0daa8cae7814ef::t_e9773800d300ff 189-199,209-212
+  s_0daa8cae7814ef::t_82266c9486ee97 547-558
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "ca5d2b9337e5bc3ee9689854dcaad6dc3dfc6cb2",
+  "prompts": {},
+  "sessions": {
+    "s_0daa8cae7814ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "94a07cd1-56d2-40fe-b604-a56ea96c46af",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

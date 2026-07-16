@@ -1,0 +1,55 @@
+test/permission_grid_test.rb
+  s_12efdc458c7a08::t_85863e5de3ef39 89-100
+test/integration/management_ui_test.rb
+  s_12efdc458c7a08::t_bed10f0364cc35 109-121
+  s_12efdc458c7a08::t_67eaa99ea51039 125,129
+app/models/current_scope/current.rb
+  s_12efdc458c7a08::t_5dada04bfc4945 27-32,37-42
+  s_12efdc458c7a08::t_4f37c50eca0788 43-44
+lib/current_scope/mutation_guard.rb
+  s_12efdc458c7a08::t_c0f83e27875788 39-42,44
+config/routes.rb
+  s_12efdc458c7a08::t_5c52d74873d23f 9-11
+app/controllers/current_scope/role_assignments_controller.rb
+  s_12efdc458c7a08::t_b1cd21d3c74b7f 72-75,79-80
+  s_12efdc458c7a08::t_258eeecbc009e6 92-98,100
+lib/current_scope.rb
+  s_12efdc458c7a08::t_30e269115f14ea 112-129
+README.md
+  s_12efdc458c7a08::t_cfc0ad055cd62a 506-511
+app/helpers/current_scope/application_helper.rb
+  s_12efdc458c7a08::t_03311f31186e73 3-6,10
+  s_12efdc458c7a08::t_509aa820f79d9c 215-217,219-220
+lib/current_scope/permission_grid.rb
+  s_12efdc458c7a08::t_db6a6f98ecc672 64-71,74-75,78-79,81
+lib/current_scope/permissions.rb
+  s_12efdc458c7a08::t_f47e3d3cfe7b70 51-52,54
+app/models/current_scope/event.rb
+  s_12efdc458c7a08::t_5d1493371dc6ae 93-95,97
+app/views/current_scope/roles/members.html.erb
+  s_12efdc458c7a08::t_289e59bc8e98d3 14,49,57
+app/views/current_scope/subjects/index.html.erb
+  s_12efdc458c7a08::t_d8e7066cc16db3 26,64
+test/integration/audit_events_test.rb
+  s_12efdc458c7a08::t_6e2b57aa68a79f 143,156,170,184,193,245
+test/integration/role_members_test.rb
+  s_12efdc458c7a08::t_4f69dee4142e56 45,59,62,70
+test/integration/subjects_bulk_test.rb
+  s_12efdc458c7a08::t_7a4e7bbaac771c 76,86,105,114,130,145
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "f006fb414df15f9ca8d05cef0728ee61c0fdcf45",
+  "prompts": {},
+  "sessions": {
+    "s_12efdc458c7a08": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb07c64e-3502-4888-a0c5-05d88e5576bd",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

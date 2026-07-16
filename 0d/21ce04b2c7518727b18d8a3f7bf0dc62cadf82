@@ -1,0 +1,40 @@
+lib/current_scope/resolver.rb
+  s_0daa8cae7814ef::t_8ebf7dc9e18faf 355-363
+test/dummy/config/routes.rb
+  s_0daa8cae7814ef::t_22ae36d071ed24 51
+test/dummy/app/controllers/inert_model_controller.rb
+  s_0daa8cae7814ef::t_db43b19525c194 15-16
+  s_0daa8cae7814ef::t_afe208c4c2de41 13-14,17-20
+test/permissions_mixin_test.rb
+  s_0daa8cae7814ef::t_fe9dcc94f64094 141-177
+lib/current_scope/permissions.rb
+  s_0daa8cae7814ef::t_d911d95711f736 17
+  s_0daa8cae7814ef::t_918c5631161e55 58-69
+test/integration/collection_model_request_test.rb
+  s_0daa8cae7814ef::t_2da674ac6667bb 93-108
+docs/guides/adopting-in-an-existing-app.md
+  s_0daa8cae7814ef::t_1c7f2987a610cd 343-348
+lib/current_scope/guard.rb
+  s_0daa8cae7814ef::t_520af93de03b75 122-128
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "0d21ce04b2c7518727b18d8a3f7bf0dc62cadf82",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_0daa8cae7814ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "94a07cd1-56d2-40fe-b604-a56ea96c46af",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

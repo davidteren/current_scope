@@ -1,3 +1,8 @@
+# Enumerable#to_set (key_set, the routed-key cache) is stdlib `set`, which a
+# full Rails boot happens to load — a host on active_support.bare would
+# NoMethodError at catalog construction without the explicit require.
+require "set"
+
 module CurrentScope
   # Derives the permission set from the host's routes: one permission per
   # controller#action pair. There is no table to maintain — add a controller

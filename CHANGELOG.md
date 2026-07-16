@@ -22,8 +22,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `bin/rails current_scope:ungated` prints the same static inventory as a
     command — no mixin, no deploy, no traffic — and states its own limit,
     routing conditional skips to the tripwire. One asymmetry with the grid: a
-    controller that raises while loading renders as an explicit "could not
-    inspect" row in the grid, while the task aborts with that error — its
+    controller whose body raises `NameError` while loading renders as an
+    explicit "could not inspect" row in the grid (other load errors still
+    surface as errors), while the task aborts with that error — its
     output makes proof claims a partial walk can't honor, so fix the broken
     controller and re-run.
   - `config.gating_tripwire = :raise | :warn` gives `GatingTripwire` a
@@ -35,7 +36,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   The fail-open itself stays open, deliberately — this is detection, not
   prevention. A host that skips on purpose keeps its authorization behavior
   unchanged and adopts no new API; what a deliberate skip DOES pick up is the
-  detection surface itself — its grid rows are badged, the task lists it, and
+  detection surface itself — a bare or inherited skip's grid rows are badged
+  and the task lists them (a conditional skip stays unmarked: unprovable
+  statically, caught by `:warn`), and
   a host that also opted into the tripwire marks intentional public actions
   with the existing `current_scope_skip_tripwire!` so `:warn` doesn't
   inventory them. The declared-skip macro that renders intent instead of a

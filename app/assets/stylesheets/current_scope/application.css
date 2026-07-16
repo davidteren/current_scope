@@ -132,6 +132,27 @@ a:hover { color: var(--cs-accent-strong); }
 
 :focus-visible { outline: 2px solid var(--cs-accent); outline-offset: 2px; border-radius: 3px; }
 
+/* Bypass block (WCAG 2.4.1): off-canvas until keyboard focus lands on it,
+ * then a small accent pill in the top-left, above the sticky sidebar. */
+.cs-skip-link {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 10;
+  padding: 0.5rem 0.875rem;
+  background: var(--cs-accent);
+  color: var(--cs-on-accent);
+  border-radius: 6px;
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(calc(-100% - 1rem));
+}
+.cs-skip-link:focus { transform: none; }
+
+/* The skip-link target: focusable for the jump, but never shows a ring of
+ * its own — the content it reveals is the feedback. */
+#cs-main-content:focus-visible { outline: none; }
+
 /* ---- Shell ------------------------------------------------------------ *
  * A left sidebar (wordmark + section nav) and a scrollable main column with
  * a sticky topbar. The dense grid lives inside main.

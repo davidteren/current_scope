@@ -33,5 +33,19 @@ Rails.application.routes.draw do
   post "writes/guarded", to: "writes#guarded", as: :writes_guarded
   post "writes/unguarded", to: "writes#unguarded", as: :writes_unguarded
 
+  # The #62 fail-open shapes: a routed base with a bare skip, the child that
+  # inherits it silently, the child that re-asserts the gate, and a
+  # conditional skip (index ungated, show still gated).
+  get "inherited_skip_base", to: "inherited_skip_base#index"
+  get "inherited_skip_child", to: "inherited_skip_child#index"
+  get "reasserted_gate", to: "reasserted_gate#index"
+  get "conditional_skip", to: "conditional_skip#index"
+  get "conditional_skip/show", to: "conditional_skip#show"
+  # The same conditional-skip shape with the tripwire included (U5).
+  get "conditional_skip_tripwire", to: "conditional_skip_tripwire#index"
+  get "conditional_skip_tripwire/show", to: "conditional_skip_tripwire#show"
+  # A NAMESPACED ungated controller — the badge id/aria path for "admin/…".
+  get "admin/unguarded", to: "admin/unguarded#index"
+
   mount CurrentScope::Engine => "/current_scope"
 end

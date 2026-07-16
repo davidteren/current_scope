@@ -1,3 +1,8 @@
+# Enumerable#to_set (key_set, the routed-key cache) is stdlib `set`, which a
+# full Rails boot happens to load — a host on active_support.bare would
+# NoMethodError at catalog construction without the explicit require.
+require "set"
+
 module CurrentScope
   # Derives the permission set from the host's routes: one permission per
   # controller#action pair. There is no table to maintain — add a controller
@@ -22,6 +27,45 @@ module CurrentScope
       key_set.include?(key)
     end
 
+    # The ONE parse of config.sod_bypass_permission's action segment — the grid
+    # view and the ungated task read it here rather than re-splitting the
+    # string themselves (a looser split("#").last silently turns a malformed
+    # "reports#" into "reports" and mislabels the break-glass cell; #79 review).
+    #
+    # `split("#", -1)` keeps the trailing empty field, so a malformed "reports#"
+    # yields "" and is caught here rather than silently becoming "reports" and
+    # injecting "reports#reports". Blank raises instead of skipping: the host
+    # turned break-glass ON, so a permission nobody can hold means the veto can
+    # never be lifted and the feature is inert — an undiagnosable deny, which is
+    # exactly what this engine promises not to do. (A boot-time check for this
+    # config belongs with #40.)
+    def bypass_action
+      segments = CurrentScope.config.sod_bypass_permission.to_s.split("#", -1)
+      # Exactly a bare action or one controller#action. More hashes would pass
+      # a last-segment check while the resolver reads the ORIGINAL full string —
+      # the catalog would inject a key nobody can be granted under, and the
+      # veto could never be lifted. (#79 review)
+      if segments.empty? || segments.size > 2 || segments.any?(&:blank?)
+        raise ConfigurationError,
+              "config.allow_sod_bypass is on, but config.sod_bypass_permission " \
+              "(#{CurrentScope.config.sod_bypass_permission.inspect}) is not a bare action or a " \
+              "single controller#action. Name the permission the record's initiator must hold " \
+              "to break glass (the default is \"bypass_sod\"), or set config.allow_sod_bypass = false."
+      end
+
+      segments.last
+    end
+
+    # Is this key derived from a real route (as opposed to the injected
+    # break-glass key)? The distinction matters to anything making an
+    # inertness claim: a ROUTED action named like the bypass permission is an
+    # ordinary action and gets no exemption, while the injected key is live on
+    # any row. (#79 review)
+    def routed?(key)
+      keys # derive memoizes @routed_key_set as a side effect
+      @routed_key_set.include?(key)
+    end
+
     private
 
     def key_set
@@ -38,6 +82,7 @@ module CurrentScope
         "#{controller}##{action}"
       }.uniq
 
+      @routed_key_set = routed.to_set
       (routed + bypass_keys(routed)).uniq.sort
     end
 
@@ -97,22 +142,5 @@ module CurrentScope
     # The action segment of config.sod_bypass_permission — tolerating either a
     # bare action ("bypass_sod") or a full key ("reports#bypass_sod").
     #
-    # `split("#", -1)` keeps the trailing empty field, so a malformed "reports#"
-    # yields "" and is caught here rather than silently becoming "reports" and
-    # injecting "reports#reports". Blank raises instead of skipping: the host
-    # turned break-glass ON, so a permission nobody can hold means the veto can
-    # never be lifted and the feature is inert — an undiagnosable deny, which is
-    # exactly what this engine promises not to do. (A boot-time check for this
-    # config belongs with #40.)
-    def bypass_action
-      action = CurrentScope.config.sod_bypass_permission.to_s.split("#", -1).last
-      return action if action.present?
-
-      raise ConfigurationError,
-            "config.allow_sod_bypass is on, but config.sod_bypass_permission " \
-            "(#{CurrentScope.config.sod_bypass_permission.inspect}) has no action segment. " \
-            "Name the permission the record's initiator must hold to break glass " \
-            "(the default is \"bypass_sod\"), or set config.allow_sod_bypass = false."
-    end
   end
 end

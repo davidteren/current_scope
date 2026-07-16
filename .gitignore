@@ -11,3 +11,5 @@ test/dummy/tmp/
 demo/tmp/
 test/tmp/
 wip/
+
+.compound-engineering/*.local.yaml

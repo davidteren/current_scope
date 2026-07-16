@@ -27,6 +27,13 @@ CurrentScope.configure do |config|
   # config.enforcement = :enforce   # :enforce (default) | :report
   # ------------------------------------------------------------------------
 
+  # What the opt-in GatingTripwire mixin does when it catches an action that
+  # completed WITHOUT running the gate. :raise fails loudly (CI goes red);
+  # :warn logs once per controller#action and lets the response through, so a
+  # real app can inventory its ungated surface without 500ing. There is no
+  # :off — not including CurrentScope::GatingTripwire is off.
+  # config.gating_tripwire = Rails.env.local? ? :raise : :warn
+
   # Controller method that returns the authenticated subject.
   # config.user_method = :current_user
 

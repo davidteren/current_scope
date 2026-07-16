@@ -279,6 +279,38 @@ module CurrentScope
     # enforcing" — the modes are a closed set, not a boolean.
     def report_only? = @enforcement == :report
 
+    # :raise | :warn — what the opt-in GatingTripwire mixin (A4) does when it
+    # catches an action that completed without running the gate.
+    #
+    #   :raise — fail loudly. Default in development/test: an ungated action is
+    #            a hole you want CI to go red on, not one to discover in an audit.
+    #   :warn  — log once per controller#action and let the response through, so
+    #            a real app can inventory its ungated surface without 500ing.
+    #
+    # A closed two-mode set, like enforcement — not a boolean, and no :off:
+    # not including the mixin is off.
+    attr_reader :gating_tripwire
+
+    GATING_TRIPWIRE_MODES = %i[raise warn].freeze
+
+    # Validating writer, same contract as enforcement=: an unknown value raises
+    # at assignment naming both modes, and the previous mode stands. Accepts a
+    # String so ENV["..."] works.
+    def gating_tripwire=(value)
+      mode = value.respond_to?(:to_sym) ? value.to_sym : value
+
+      unless GATING_TRIPWIRE_MODES.include?(mode)
+        raise ConfigurationError,
+              "config.gating_tripwire = #{value.inspect} is not a mode. " \
+              "Use :raise (an ungated action fails loudly — the dev/test posture) " \
+              "or :warn (log it once per controller#action and let the response " \
+              "through, to inventory an app's ungated surface). There is no :off — " \
+              "not including CurrentScope::GatingTripwire is off."
+      end
+
+      @gating_tripwire = mode
+    end
+
     def initialize
       @user_method = :current_user
       @actor_method = nil
@@ -295,6 +327,13 @@ module CurrentScope
       @subject_class = "User"
       @audit = true
       @enforcement = :enforce
+      # Reuses diagnostics_default_on? for its env split and bare-Ruby safety
+      # ONLY — do NOT carry over the diagnostics flags' emit/silence reading.
+      # There, false means stay quiet; here, false means :warn, which EMITS.
+      # The inversion is deliberate: the tripwire mixin is opt-in, so a
+      # production host that included it is asking for the ungated inventory —
+      # the env decides only whether a hit 500s (dev/test) or logs (elsewhere).
+      @gating_tripwire = diagnostics_default_on? ? :raise : :warn
       @warn_on_nil_sod_record = diagnostics_default_on?
       @warn_on_inert_scoped_grant = diagnostics_default_on?
       @warn_on_cross_controller_derivation = diagnostics_default_on?

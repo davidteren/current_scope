@@ -1,0 +1,57 @@
+# Intent Engineering — ways of working (GLOBAL DEFAULTS)
+#
+# This file ships with the plugin. To customize for a project, run `/ie-init` (or copy
+# this file) to `.intense/ways-of-working.yaml` at your repo root. Project values
+# SUPERSEDE these defaults. See references/config-resolution.md for merge rules.
+version: 1
+
+# --- Lens toggles -----------------------------------------------------------------
+# on   = always run.  off = never run.  auto = run only when relevant (see notes).
+# Turn a lens (agent) off entirely here — e.g. `architecture: off` if your team relies
+# solely on its own static-analysis pipeline.
+lenses:
+  # Quoted on purpose: bare `on` is YAML 1.1's boolean true under common
+  # loaders, and this contract's values are the STRINGS "on"/"off"/"auto".
+  predictability: "on"
+  convention: "on"
+  simplicity: "on"
+  experience: auto      # auto = on only when a user-facing surface is detected
+  architecture: auto    # auto = on only when a supported framework (e.g. Rails) is detected
+
+# --- External tool preference -----------------------------------------------------
+# How a lens treats external static-analysis tools when they're installed. Only the
+# architecture lens uses external tools today (reek/flog/brakeman, ruff/radon, phpstan,
+# eslint/madge, credo). If your team already runs one of these, you don't want the plugin
+# duplicating it — set `prefer` or `report`. See references/config-resolution.md.
+tools:
+  architecture: enrich
+  # enrich = run the plugin's heuristics PLUS the tool as corroboration (default).
+  # prefer = run the tool, fold its findings (mapped to our findings schema), and SUPPRESS
+  #          the plugin's overlapping heuristic findings — no duplication.
+  # report = run the tool and report ITS findings (mapped to our schema) only; skip the
+  #          plugin's own structural heuristics entirely.
+  # off    = ignore external tools; plugin heuristics only.
+
+# --- Severity overrides -----------------------------------------------------------
+# Raise or lower the severity a lens assigns to a given principle/smell. Optional.
+# Key = principle or smell id (see findings-schema.json principle enum / rails-architecture.md).
+severity_overrides: {}
+  # silent-failure: P1
+  # fat-model: P1
+
+# --- Local conventions ------------------------------------------------------------
+# Highest-authority conventions for THIS repo, honored by the convention lens
+# alongside CLAUDE.md / AGENTS.md. Lists REPLACE the global list unless extends: true.
+conventions:
+  extends: false
+  notes: []
+  # - "Use interactors, not service objects, for multi-step domain operations."
+  # - "All money is a Money value object, never a raw integer/float."
+
+# --- Confidence gate --------------------------------------------------------------
+# Findings below this anchor are suppressed (P0 survives at 50+). Lower to surface more.
+confidence_gate: 75
+
+# --- Report output ----------------------------------------------------------------
+# Default run-artifact dir (relative to repo root). Override per run with `out:<path>`.
+report_dir: wip/intent-engineering

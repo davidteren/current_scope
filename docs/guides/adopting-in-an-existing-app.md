@@ -128,7 +128,7 @@ end
 | You did | What happens |
 |---|---|
 | Excluded only | Guard **raises**. An excluded controller can't be granted, so gating it is a misconfiguration and the engine says so loudly rather than 403ing forever. |
-| Skipped only | Works, but the controller stays in the catalog: dead rows in the permission grid that look grantable and mean nothing. |
+| Skipped only | Works, but the controller stays in the catalog: dead rows in the permission grid whose routed-action ticks mean nothing — the grid badges them "gate not run" (an unconditional skip is provable), but they're still clutter that excluding removes. (One exception: with break-glass on, an injected `bypass_sod` cell on such a row is **live** — the grid marks it exempt.) |
 | Both | Correct. Not gated, not offered. |
 
 This generalises to any mounted engine whose controllers inherit from
@@ -152,9 +152,15 @@ class Api::OrdersController < ApiController
 end
 ```
 
-The skip is inherited by every subclass, forever. Worse: the permission grid
-**still shows those actions as grantable**, so the UI actively tells you they're
-protected. Someone ticking that box is ticking nothing.
+The skip is inherited by every subclass, forever. The permission grid used to
+**show those actions as grantable with nothing saying otherwise** — the UI
+actively told you they were protected while ticking that box ticked nothing.
+The grid now badges a row **"gate not run"** when the callback chain *proves*
+the gate never runs there (a bare or inherited skip, or a controller that never
+included `Guard`). The badge is proof-only: a *conditional* skip
+(`only:`/`except:`) is unprovable statically and renders unmarked — the grid's
+own hint says an unmarked row is not proof, and `config.gating_tripwire = :warn`
+catches that shape at runtime (below).
 
 ### Safe patterns
 
@@ -176,20 +182,37 @@ end
 
 ### How to detect it
 
-Include `GatingTripwire` on the base you want verified, and **run your suite**:
+Three tools, from cheapest to deepest:
+
+**1. The grid badge — automatic.** Open the role editor: any controller
+provably ungated is marked "gate not run". No setup. It only marks what the
+callback chain proves — conditional skips render unmarked.
+
+**2. `bin/rails current_scope:ungated` — the same inventory as a command.**
+No mixin, no deploy, no traffic; run it against your real app and read the
+list. Its output states its own limit and routes conditional skips to the
+tripwire.
+
+**3. `GatingTripwire` — the runtime net.** Include it on the base you want
+verified, and **run your suite**:
 
 ```ruby
 class ApplicationController < ActionController::Base
   include CurrentScope::Context
   include CurrentScope::Guard
-  include CurrentScope::GatingTripwire   # dev/test aid
+  include CurrentScope::GatingTripwire   # raises in dev/test; :warn elsewhere
 end
 ```
 
 It's a separate `after_action`, so `skip_before_action :current_scope_check!`
 doesn't skip it — it fires on the inherited-skip action, finds the gate never
-ran, and raises. That's the concrete detection step, and it's why running the
-suite with the tripwire on is worth doing once per rollout.
+ran, and **raises (the dev/test default) or logs once per `controller#action`
+(`config.gating_tripwire = :warn`, the default outside dev/test)**. Because it
+keys on whether the gate actually ran, it catches the shapes the static tools
+can't prove — a conditional skip's skipped action warns; its gated actions stay
+silent. That's the concrete detection step, and it's why running the suite with
+the tripwire on is worth doing once per rollout — and why `:warn` in production
+turns it into an inventory instead of a 500.
 
 Mark genuinely-public actions so it doesn't cry wolf:
 
@@ -202,14 +225,31 @@ end
 
 ### The residual, stated honestly
 
-The tripwire is **a dev/test aid, not a production net**, and being an
-`after_action` it can't see an action that renders from a halted `before_action`.
-So a controller that skips the gate and stays in the catalog is: ungated in
-production, undetectable at runtime, and rendered as grantable in the UI.
+#62 named three symptoms with one cause. Two are closed; one is open on
+purpose:
 
-That gap is real and currently open — tracked in
-[#62](https://github.com/davidteren/current_scope/issues/62). Until it closes,
-the mitigations above are mitigations, not a fix. Prefer leaf skips.
+- **"Rendered as grantable in the UI" — closed for everything provable.** The
+  grid badges bare skips, inherited skips, and never-included-`Guard`
+  controllers. The one grid residual: a *conditional* skip renders unmarked,
+  because its answer is unprovable statically — that shape is caught at runtime
+  by `:warn` (this PR) and gets a static third state in
+  [#75](https://github.com/davidteren/current_scope/issues/75).
+- **"Undetectable at runtime" — closed for any action that completes.**
+  `config.gating_tripwire = :warn` makes the tripwire a production inventory
+  instead of a 500, and `bin/rails current_scope:ungated` answers statically
+  with no deploy at all. The tripwire's `after_action` blind spot (below)
+  still applies: a request halted by an earlier `before_action` never reaches
+  it, so that shape stays a named residual, not a closed one.
+- **"Ungated in production" — still true, deliberately.** This is detection,
+  not prevention: the skip still inherits and still fails open. What changed
+  is that it can no longer be invisible. The declared-skip macro that would
+  make intent explicit is
+  [#76](https://github.com/davidteren/current_scope/issues/76).
+
+Two honest limits survive: the tripwire is an `after_action`, so it can't see
+an action that renders from a halted `before_action` (unchanged); and every
+static tool here marks only what it can prove. The mitigations above — leaf
+skips, re-asserting the gate — are still the right habits.
 
 ---
 
@@ -219,13 +259,14 @@ These get confused, so: they are complementary, not alternatives.
 
 | | Answers | Where |
 |---|---|---|
-| **`GatingTripwire`** | "Which actions run **ungated**?" — no gate at all | dev/test, raises |
+| **`bin/rails current_scope:ungated`** | "Which controllers **provably never run the gate**?" — static, from the callback chain | anywhere, no traffic, no mixin |
+| **`GatingTripwire`** | "Which actions run **ungated**?" — no gate at all, including shapes the static tools can't prove | raises in dev/test; `config.gating_tripwire = :warn` logs once per action elsewhere |
 | **`config.enforcement = :report`** | "Which actions are gated but **ungranted**?" — the gate ran and would have refused | anywhere, logs |
 
 Report mode is silent about an ungated controller, because the gate never runs to
 report anything. The tripwire is silent about a missing grant, because the gate
-ran fine. A retrofit wants both: the tripwire to find what you forgot to gate,
-report mode to find what you forgot to grant.
+ran fine. A retrofit wants both: the tripwire (or the `ungated` task) to find
+what you forgot to gate, report mode to find what you forgot to grant.
 
 ---
 
@@ -312,5 +353,5 @@ Roughly in order. Steps 1–3 change nothing for users.
 
 - [README — Retrofitting an app that already has users](../../README.md#retrofitting-an-app-that-already-has-users)
 - [README — Dev diagnostics](../../README.md#dev-diagnostics)
-- [#62](https://github.com/davidteren/current_scope/issues/62) — the skip-inheritance fail-open gap
+- [#62](https://github.com/davidteren/current_scope/issues/62) — the skip-inheritance fail-open; its detection half shipped (grid badge, `current_scope:ungated`, `:warn` posture), the fail-open itself remains by design ([#76](https://github.com/davidteren/current_scope/issues/76) is the declared-skip macro)
 - [#45](https://github.com/davidteren/current_scope/issues/45) — assisted migration from Pundit / CanCanCan / Action Policy

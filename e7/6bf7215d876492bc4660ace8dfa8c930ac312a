@@ -1,0 +1,28 @@
+lib/current_scope/version.rb
+  s_0daa8cae7814ef::t_10ba47fcfd9aa9 2
+README.md
+  s_0daa8cae7814ef::t_8fe9b277fc3bb5 300-311
+  s_0daa8cae7814ef::t_51eddfc7677109 284-291
+CONCEPTS.md
+  s_0daa8cae7814ef::t_5b490ea1b59f42 57
+docs/guides/adopting-in-an-existing-app.md
+  s_0daa8cae7814ef::t_27368d58ddf29c 340-345
+CHANGELOG.md
+  s_0daa8cae7814ef::t_581607e1c70c7d 10-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "e76bf7215d876492bc4660ace8dfa8c930ac312a",
+  "prompts": {},
+  "sessions": {
+    "s_0daa8cae7814ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "94a07cd1-56d2-40fe-b604-a56ea96c46af",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

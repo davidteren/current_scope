@@ -1,0 +1,32 @@
+app/views/layouts/current_scope/application.html.erb
+  s_12efdc458c7a08::t_d1ba4700a83b21 18-20
+  s_12efdc458c7a08::t_ef6e4c77e1ec2c 50
+app/views/current_scope/roles/new.html.erb
+  s_12efdc458c7a08::t_866f80fa222bad 5
+app/views/current_scope/subjects/index.html.erb
+  s_12efdc458c7a08::t_e02012aabca88e 70-72
+  s_12efdc458c7a08::t_c5c17cbbd8191d 17-20
+  s_12efdc458c7a08::t_f25453763a9e5b 29-31,33
+app/views/current_scope/roles/edit.html.erb
+  s_12efdc458c7a08::t_9865f2338ffc48 7
+app/assets/stylesheets/current_scope/application.css
+  s_12efdc458c7a08::t_83bf6c9d5c0170 135-155
+test/integration/management_ui_test.rb
+  s_12efdc458c7a08::t_3f09facf80a00c 150-181
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "8a4454e19c5c97f73bd308616f73aefe108704ab",
+  "prompts": {},
+  "sessions": {
+    "s_12efdc458c7a08": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb07c64e-3502-4888-a0c5-05d88e5576bd",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

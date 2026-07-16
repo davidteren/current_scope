@@ -85,6 +85,33 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_select "select[name=resource_gid] option[value=?]", needle.to_gid.to_s
   end
 
+  test "a search with zero matches says so instead of claiming matches are shown" do
+    25.times { |i| Folder.create!(name: "Ledger #{i}") }
+
+    get current_scope.new_scoped_role_assignment_url(resource_type: "Folder", q: "zzz-no-such"), headers: as(@owner)
+    assert_response :success
+
+    assert_match "No records match", response.body
+    assert_no_match(/Showing up to \d+ matches/, response.body)
+  end
+
+  # The deep-linked record is prepended to the options so it stays selectable —
+  # but it is not a search MATCH, and must not flip the hint back to
+  # "Showing up to N matches" when the query itself found nothing.
+  test "a zero-match search with a deep-linked record still says no match" do
+    25.times { |i| Folder.create!(name: "Ledger #{i}") }
+    pinned = Folder.create!(name: "Pinned Vault")
+
+    get current_scope.new_scoped_role_assignment_url(
+      resource_type: "Folder", q: "zzz-no-such", resource_gid: pinned.to_gid.to_s
+    ), headers: as(@owner)
+    assert_response :success
+
+    assert_select "select[name=resource_gid] option[value=?]", pinned.to_gid.to_s # still selectable
+    assert_match "No records match", response.body
+    assert_no_match(/Showing up to \d+ matches/, response.body)
+  end
+
   test "record search honors the display limit" do
     60.times { |i| Folder.create!(name: "Match #{i}") }
 

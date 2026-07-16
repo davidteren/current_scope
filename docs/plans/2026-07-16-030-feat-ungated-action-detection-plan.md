@@ -321,7 +321,7 @@ Grounded against the dummy as it is now (probed) — not assumed.
 - **Requirements:** R1, R5, R9.
 - **Dependencies:** U2.
 - **Files:** `app/views/current_scope/roles/edit.html.erb`, `app/assets/stylesheets/current_scope/application.css`, `test/integration/role_grid_test.rb`.
-- **Approach:** a badge in the row header (`app/views/current_scope/roles/edit.html.erb:55-63`), beside the existing row-all control. It names the fact, the consequence, and **the next step** — *this controller does not run the gate; ticking these grants nothing until it does; include `CurrentScope::Guard` on it, or re-assert `before_action :current_scope_check!`* — carrying the same remediation vocabulary the tripwire's own message already uses (`gating_tripwire.rb:46-50`), so the two diagnostics agree. Not a checkbox, not a `title`-only tooltip, does not gray the row (KTD-8).
+- **Approach:** a badge in the row header (`app/views/current_scope/roles/edit.html.erb:55-63`), beside the existing row-all control. It names the fact, the consequence, and **the next step** — *this controller does not run the gate; ticking its **routed** actions grants nothing until it does; include `CurrentScope::Guard` on it, or re-assert `before_action :current_scope_check!`* — the claim already scoped to routed actions because constraint 1 below makes the unscoped copy false on a break-glass row. Carries the same remediation vocabulary the tripwire's own message already uses (`gating_tripwire.rb:46-50`), so the two diagnostics agree. Not a checkbox, not a `title`-only tooltip, does not gray the row (KTD-8).
 - **Four design constraints the plan's first draft got wrong or left open:**
   1. **The badge's claim must exclude the break-glass column** (KTD-9). On a marked row carrying an injected `bypass_sod` cell, *"ticking these grants nothing"* is false — that cell is live via any gate deciding SoD on the record's type. Scope the claim to the row's **routed** actions and mark the break-glass cell as exempt from it.
   2. **A checked cell on a marked row must not render like a real grant.** The grid's strongest signal is the `:has(input:checked)` granted wash (`application.css`), which fires regardless of the mark — so ticking a marked row lights the cell up exactly as an enforced grant would, contradicting the badge at the moment of interaction. Add a **CSS-only** rule keyed on the row's badge markup (e.g. `.cs-grid tr:has(.cs-ungated-badge) td:has(input:checked)`) — CSS-only keeps `#cell`'s HTML byte-identical, so R4's contract is untouched.
@@ -377,7 +377,7 @@ Grounded against the dummy as it is now (probed) — not assumed.
   - **`:warn` — the latch is cleared by `to_prepare`**, so the same action re-warns after a reload. *Pins the false-all-clear fix; without the reset this test is the only thing that fails.*
   - **`:warn` — a controller skipping `only: :index` warns on `#index` and stays silent on its gated actions.** *KTD-3's residual, closed at runtime by this unit. This is the test that makes "the blind spot is grid-only" a fact rather than a claim, and it is why U5 is not independent of U1-U4 in the way an earlier draft said.*
   - `:warn` — `current_scope_skip_tripwire!` still exempts (the skip API is unchanged).
-  - `:report` enforcement + `:warn` — a report-mode request does **not** trip the tripwire (Guard sets `@current_scope_checked` at `guard.rb:84`, before the report branch). *The two diagnostics must not double-report.*
+  - `:report` enforcement + `:warn` — a report-mode request does **not** trip the tripwire (Guard sets `@current_scope_checked` at `guard.rb:86`, before the report branch). *The two diagnostics must not double-report.*
   - Bare-Ruby `Configuration.new` with no Rails does not raise and gets `:warn`.
 - **Verification:** a production host includes the mixin, runs traffic, and reads its ungated surface out of the log. Nothing 500s, and no gated app changes behavior. Together with U7 the host has both a static inventory (no traffic needed) and a runtime one (catches what static cannot prove).
 
@@ -440,13 +440,13 @@ Grounded against the dummy as it is now (probed) — not assumed.
 - [ ] `config.gating_tripwire = :warn` inventories an ungated action without raising, once per `controller#action`, and `:raise` is the default in dev/test with every existing tripwire test passing unmodified.
 - [ ] An unknown `config.gating_tripwire` value raises at boot naming both modes.
 - [ ] The adoption guide states which of #62's three symptoms closed and which did not, and every "#62 is open" claim in the guide and README has been swept by name.
-- [ ] CHANGELOG names the production raise→warn default flip.
+- [ ] CHANGELOG names the production raise→warn default flip **in Risk 3's own words: it is a disclosure change (ungated responses that were withheld by the 500 are now served), and `config.gating_tripwire = :raise` is named as the pin** (KTD-6 — the flip alone under-states it).
 - [ ] Suite green, RuboCop clean, every mutation above turns something red.
 - [ ] `bin/rails current_scope:ungated` lists the ungated surface with no mixin, no deploy, and no traffic, and names its own limit in its output.
 - [ ] The badge's claim visibly excludes the break-glass column, and a checked cell on a marked row does not render like a real grant.
 - [ ] `GatingReflection.new` performs no reflection — pinned by a test, because the role-save path constructs it.
 - [ ] The guide routes the conditional-skip shape to `config.gating_tripwire = :warn` rather than calling it undetectable.
-- [ ] #62 closed by the PR; **a follow-up issue is filed for the grid's conditional-skip blind spot** (Scope Boundaries already concludes it is worth one — this is not conditional).
+- [ ] #62 closed by the PR; **the follow-up issue for the grid's conditional-skip blind spot is filed — pre-satisfied by #75** (with #76 carrying the direction-3 macro; see Open Questions).
 
 ---
 
@@ -458,10 +458,10 @@ Grounded against the dummy as it is now (probed) — not assumed.
 
 ### Deferred to follow-up work
 
-- **The conditional-skip blind spot in the GRID (KTD-3).** `skip_before_action :current_scope_check!, only: :index` is not marked, so an unmarked row reads as "gated" and for this shape that is wrong — new residual this PR introduces, since before it the grid lied uniformly and nothing distinguished the case. **Bounded by what else ships here:** U5's `:warn` detects it at runtime and U7 names the limit in its output, so the gap is grid-only and disclosed, not silent. Closing it in the grid needs per-action evaluation (`ActionFilter#match?` against a controller instance) with its own `ActionNotFound` failure mode — or, more likely, the direction-3 macro, which needs no inference at all. **Worth an issue; not worth this PR.**
-- **`current_scope_skip_gate!` (#62 direction 3).** Explicitly out per the decided direction (KTD-4). Its own issue if wanted.
+- **The conditional-skip blind spot in the GRID (KTD-3).** `skip_before_action :current_scope_check!, only: :index` is not marked, so an unmarked row reads as "gated" and for this shape that is wrong — new residual this PR introduces, since before it the grid lied uniformly and nothing distinguished the case. **Bounded by what else ships here:** U5's `:warn` detects it at runtime and U7 names the limit in its output, so the gap is grid-only and disclosed, not silent. Closing it in the grid needs per-action evaluation (`ActionFilter#match?` against a controller instance) with its own `ActionNotFound` failure mode — or, more likely, the direction-3 macro, which needs no inference at all. **Worth an issue; not worth this PR — filed as #75.**
+- **`current_scope_skip_gate!` (#62 direction 3).** Explicitly out per the decided direction (KTD-4). Filed as #76.
 - **Anything that closes the fail-open itself.** After this PR the skip still inherits and still fails open. Only its silence is fixed.
-- **Badging a stale route (#43).** `GatingReflection`'s `MissingController` branch is #43's detector, and this PR builds it but stays silent on that shape — "stale route" is a different claim than "the gate does not run here" (KTD-3 case 3). #43 owns the badge; this PR hands it the mechanism.
+- **Badging a stale route (#43).** `GatingReflection`'s `MissingController` branch is #43's detector, and this PR builds it but stays silent on that shape — "stale route" is a different claim than "the gate does not run here" (KTD-3 case 3). #43 owns the badge; this PR hands it the mechanism. **The handoff supersedes plan 025's mechanism** (`docs/plans/2026-07-15-025-feat-phantom-permissions-plan.md`): 025 builds its own detector in the catalog behind a blanket `rescue NameError`, which is exactly what KTD-2's probe refutes — it swallows a real controller whose body raises `NameError` and mislabels it a phantom, violating 025's own KTD-3 invariant. #43's implementer starts from `GatingReflection`, not from 025's U1; a note to that effect is on the issue. The "hands it the mechanism" is a pattern handoff, not an API handoff — `ungated?`'s boolean collapses and discards the very fact #43 needs, and U1's `rescue MissingController → false` site is where the follow-up widens the API.
 
 ### Out of scope — not this engine's problem
 
@@ -485,7 +485,7 @@ Grounded against the dummy as it is now (probed) — not assumed.
 
 ## Open Questions
 
-- **Is the grid's conditional-skip follow-up its own issue, or is it the direction-3 macro issue?** The macro answers it without inference (the host declares the skip and its scope), so the two may collapse into one. Scope Boundaries settles **that** it is worth an issue; this is only about which issue. Does not change a line of this PR.
+- ~~**Is the grid's conditional-skip follow-up its own issue, or is it the direction-3 macro issue?**~~ **Resolved 2026-07-16: two issues, cross-linked — #75 (conditional third state: detect condition *presence* statically) and #76 (the macro).** They kept separate adoption costs (zero vs rewrite-the-skip-site), and #75 adds a design this plan did not consider: presence of `@if`/`@unless` is provable even when the condition is opaque, satisfying R2. DoD's "follow-up issue is filed" item is pre-satisfied by #75. Does not change a line of this PR.
   *(The badge-link question that sat here is resolved in U3: no external link — the guide is not gem-shipped, and the remediation text travels with the gem instead.)*
 
 ## Sources & Research

@@ -154,9 +154,15 @@ module CurrentScope
 
     # Role ids that satisfy `permission`: full_access (grants everything) or an
     # explicit grant of the key. The one place "does this role grant it?" is
-    # expressed for scoped grants — shared by the gate and scope_for. Safe to
-    # wildcard full_access here because BOTH callers bind the grant to a record:
-    # scoped_grant? by `resource:`, scope_for by `resource_type:`.
+    # expressed for scoped grants. Including full_access is only safe while no
+    # caller turns an unbound match into a PERMIT. Three callers, each safe for
+    # its own reason: scoped_grant? binds `resource:` to the exact record;
+    # scope_for binds `resource_type:` and answers in record ids
+    # (.select(:resource_id)) for the caller to narrow, never a boolean permit;
+    # scoped_grant_exists? binds nothing and is therefore diagnostics-only —
+    # its own comment says why it must never decide. A new caller must fit one
+    # of those three shapes or use roles_ticking. (#65 cites this comment as
+    # the safety condition; it is load-bearing, keep it true.)
     def roles_granting(permission)
       Role.where(full_access: true).or(Role.where(id: roles_ticking(permission)))
     end

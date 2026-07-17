@@ -1,0 +1,37 @@
+CHANGELOG.md
+  s_225007e5bfcf11::t_d5c5f06fea1d1c 73-76
+  s_225007e5bfcf11::t_9f582c2ec6b7a7 10-35
+STATUS.md
+  s_225007e5bfcf11::t_e8bf53e0de7946 452-458
+  s_225007e5bfcf11::t_dfa6b84fd232ca 505-513
+README.md
+  s_225007e5bfcf11::t_0a8b50f61a75b0 328-345
+  s_225007e5bfcf11::t_839127a055044f 303-310
+  s_225007e5bfcf11::t_985dbb59ad34a1 537-546
+CONCEPTS.md
+  s_225007e5bfcf11::t_01c5b544e64638 37
+  s_225007e5bfcf11::t_21165a3b1a1f07 48
+  s_225007e5bfcf11::t_3509a284b0d71c 51
+  s_225007e5bfcf11::t_a0f106028cb9b4 9
+  s_225007e5bfcf11::t_6e34070636d6c9 57
+resources/DESIGN.md
+  s_225007e5bfcf11::t_8e0246d39645f6 242-250
+  s_225007e5bfcf11::t_4cea40000ff00d 142-157
+  s_225007e5bfcf11::t_5795652a546e94 162-170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "57a2f5fac98f80a550b29eb601e73f6e00231942",
+  "prompts": {},
+  "sessions": {
+    "s_225007e5bfcf11": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2026d084-bb97-4268-a0fa-01a1f574ddfe",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

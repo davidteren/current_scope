@@ -139,4 +139,79 @@ class ConfigurationTest < ActiveSupport::TestCase
     assert_match ":subject", error.message
     assert_equal :either, config.sod_identity, "the default stands"
   end
+
+  # --- collection_read_actions (#65) ---
+  #
+  # The list is matched as STRINGS against the key's action segment, so the
+  # writer normalizes. A host writing the natural [:index] must not silently
+  # fall back to the ticking-only branch — that would un-fix #65 with no
+  # signal, which is exactly the footgun sod_actions' plain accessor has and
+  # a new key need not inherit.
+
+  test "collection reads are on by default — collection_read_actions is [index]" do
+    assert_equal [ "index" ], CurrentScope::Configuration.new.collection_read_actions
+  end
+
+  test "collection_read_actions normalizes symbols so [:index] cannot silently disable the fix" do
+    config = CurrentScope::Configuration.new
+    config.collection_read_actions = [ :index, :export ]
+    assert_equal [ "index", "export" ], config.collection_read_actions
+  end
+
+  test "a bare string wraps to a one-element list" do
+    config = CurrentScope::Configuration.new
+    config.collection_read_actions = "index"
+    assert_equal [ "index" ], config.collection_read_actions
+  end
+
+  test "nil and [] both opt out, restoring the pre-#65 record-less semantics" do
+    config = CurrentScope::Configuration.new
+    config.collection_read_actions = nil
+    assert_equal [], config.collection_read_actions
+    config.collection_read_actions = []
+    assert_equal [], config.collection_read_actions
+  end
+
+  test "a full permission key raises — the list is action-segment matched, app-wide" do
+    # "reports#index" can never match the action-segment comparison, and
+    # stripping it to "index" would silently widen controller-scoped intent to
+    # every controller. Neither reading is honest; say so at assignment.
+    config = CurrentScope::Configuration.new
+    error = assert_raises(CurrentScope::ConfigurationError) do
+      config.collection_read_actions = %w[reports#index export]
+    end
+    assert_match "reports#index", error.message
+    assert_match "every controller", error.message
+    assert_equal [ "index" ], config.collection_read_actions,
+      "the previous list stands, like the other validating writers"
+  end
+
+  test "the stored list is frozen — in-place mutation cannot bypass the writer" do
+    # config.collection_read_actions << :export would dodge normalization, the
+    # keyed-member raise, and the mutating-name warning. Frozen is loud.
+    config = CurrentScope::Configuration.new
+    assert_raises(FrozenError) { config.collection_read_actions << "export" }
+    assert_equal [ "index" ], config.collection_read_actions
+  end
+
+  test "a canonical mutating action warns loudly but is accepted" do
+    config = CurrentScope::Configuration.new
+    out = capture_rails_log { config.collection_read_actions = %w[index destroy] }
+    assert_equal [ "index", "destroy" ], config.collection_read_actions,
+      "warn, not raise — the custom-action space keeps any blocklist partial"
+    assert_match "#49", out, "the warning names the escalation shape"
+    assert_match '"destroy"', out
+  end
+
+  private
+
+  def capture_rails_log
+    io = StringIO.new
+    original = Rails.logger
+    Rails.logger = Logger.new(io)
+    yield
+    io.string
+  ensure
+    Rails.logger = original
+  end
 end

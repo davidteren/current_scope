@@ -134,6 +134,73 @@ module CurrentScope
     # rejected if assigned. (#21)
     attr_accessor :sod_bypass_permission
 
+    # Action names whose RECORD-LESS gate derives its answer from the scoped
+    # list (#65): for these, the check asks scope_for — the same id-narrowed
+    # query the list renders from — so a scoped full_access grant opens
+    # exactly the collections that would show it records, and gate and list
+    # agree by construction. Matched like sod_actions, on the action segment
+    # of the key ("index" in "reports#index").
+    #
+    # DEFAULT ["index"] — the #65 fix is on out of the box. Set [] to restore
+    # the pre-#65 record-less semantics (never a released posture on their
+    # own — #19/#50/#65 ship together): explicit ticks still open type-bound
+    # record-less gates, a scoped full_access role opens none, and the
+    # gate/list disagreement #65 describes comes back with it.
+    #
+    # LIST-NARROWING READS ONLY. The full_access safety argument is that the
+    # answer is derived from record ids — WHICH records the subject holds —
+    # so it is only sound for actions with a list side. Naming a mutating or
+    # non-idempotent action here ("create", "destroy_all") hands scoped
+    # full_access holders that action on the whole TYPE off a grant on one
+    # record: the #49 escalation, reintroduced by config. Custom read-shaped
+    # actions (export, search) are the intended additions.
+    #
+    # The declared current_scope_model is trusted here the way
+    # current_scope_record already is — a wrong declaration plus a scoped
+    # full_access grant of the declared type opens that controller's listed
+    # reads, so review the declaration like the record hook.
+    attr_reader :collection_read_actions
+
+    # Normalizing writer, unlike sod_actions' plain accessor (that footgun is
+    # grandfathered, not precedent): the list is matched as STRINGS, so
+    # [:index] matching nothing would silently un-fix #65. Normalize rather
+    # than raise for shape (nil ⇒ [], symbols ⇒ strings — unambiguous), but
+    # two inputs get a voice, because a silently-inert or silently-widened
+    # security knob is the failure this writer exists to prevent:
+    #
+    #   - a full KEY ("reports#index") RAISES — the list is matched on the
+    #     action segment and applies to every controller, so a keyed member
+    #     can never match (silently inert) and stripping it to "index" would
+    #     silently widen a deliberately controller-scoped intent. Neither
+    #     reading is honest; say so at assignment.
+    #   - a canonical mutating action name (create/update/destroy) WARNS —
+    #     the #49 escalation shape, reintroduced by config. A warning, not a
+    #     raise: custom action names make any blocklist partial, and the
+    #     report-mode precedent (warn_report_mode_in_production) is the
+    #     house style for "legal but almost certainly not what you meant".
+    def collection_read_actions=(value)
+      actions = Array(value).map(&:to_s)
+
+      if (keyed = actions.grep(/#/)).any?
+        raise ConfigurationError,
+              "config.collection_read_actions is matched on the ACTION segment of a key and " \
+              "applies to every controller that routes it — #{keyed.map(&:inspect).join(', ')} " \
+              "can never match. Write \"index\", not \"reports#index\"; there is no " \
+              "per-controller form of this list."
+      end
+
+      warn_on_mutating_collection_reads(actions)
+      # Frozen so in-place mutation (config.collection_read_actions << :export)
+      # cannot bypass the writer — a symbol appended in place would silently
+      # never match, a "#" key would dodge the raise, and a mutating name would
+      # dodge the warning. FrozenError is loud; assign a new list instead.
+      @collection_read_actions = actions.freeze
+    end
+
+    # The three canonical Rails write actions — the unambiguous slice of the
+    # mutating-action space the writer above warns about.
+    MUTATING_ACTION_NAMES = %w[create update destroy].freeze
+
     # Tri-state: false | true (default) | :strict — controls
     # CurrentScope::Event.record!.
     #   false   — record! is a silent no-op; hosts that don't want the ledger
@@ -326,6 +393,7 @@ module CurrentScope
       @sod_identity = :either
       @allow_sod_bypass = false
       @sod_bypass_permission = "bypass_sod"
+      @collection_read_actions = [ "index" ].freeze
       @allow_mutations_while_impersonating = false
       @excluded_controllers = [
         %r{\Arails/}, %r{\Aactive_storage/}, %r{\Aaction_mailbox/},
@@ -414,6 +482,27 @@ module CurrentScope
         # Boot order: an initializer can run before the logger exists. Say it
         # anyway — a warning nobody sees is the thing this method exists to
         # prevent.
+        warn(message)
+      end
+    end
+
+    # Mirrors warn_report_mode_in_production: a legal posture that is almost
+    # never what the host meant says so once, loudly, where a boot log keeps
+    # it. Warn in every env — unlike report mode this misconfiguration is as
+    # wrong in development as in production.
+    def warn_on_mutating_collection_reads(actions)
+      mutating = actions & MUTATING_ACTION_NAMES
+      return if mutating.empty?
+
+      message = "[CurrentScope] config.collection_read_actions includes " \
+                "#{mutating.map(&:inspect).join(', ')} — this list is for LIST-NARROWING READS. " \
+                "A mutating action here hands scoped full_access holders that action on every " \
+                "record of its type off a grant on ONE record (the #49 escalation shape). " \
+                "Remove it unless that is genuinely intended."
+
+      if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
+        Rails.logger.warn(message)
+      else
         warn(message)
       end
     end

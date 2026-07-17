@@ -12,8 +12,12 @@ module CurrentScope
   #   4. scoped role   — a role held on THIS record grants the permission.
   #   5. scoped role,  — the target is record-less (nil for a collection action,
   #      record-less     a Class for a class-form check), so no specific record
-  #                      can be named: ANY scoped grant ticking the key opens it.
-  #                      scope_for then narrows the list to those records.
+  #                      can be named. An action in config.collection_read_actions
+  #                      asks scope_for — the id-narrowed list query — so the gate
+  #                      opens exactly when the list would show records
+  #                      (full_access included, #65); any other action needs a
+  #                      scoped grant EXPLICITLY ticking the key. scope_for then
+  #                      narrows the list to those records.
   #   6. default-deny  — nothing granted means denied.
   class Resolver
     INITIATOR_METHOD = :current_scope_initiator
@@ -86,6 +90,10 @@ module CurrentScope
     # host list can never drift from the per-record decision. Fail-closed (nil
     # subject / no grant → none) and flat — no parent/child cascade. SoD does
     # NOT apply: it vetoes record-targeted actions, not list membership.
+    #
+    # Since #65 the record-less gate asks this same query (.exists?) for
+    # actions in config.collection_read_actions, so gate and list cannot
+    # drift for listed reads — they are one query.
     def scope_for(subject:, model:, permission:)
       return model.none if subject.nil?
 
@@ -171,14 +179,19 @@ module CurrentScope
     # Role ids that satisfy `permission`: full_access (grants everything) or an
     # explicit grant of the key. The one place "does this role grant it?" is
     # expressed for scoped grants. Including full_access is only safe while no
-    # caller turns an unbound match into a PERMIT. Three callers, each safe for
+    # caller turns an unbound match into a PERMIT. Four callers, each safe for
     # its own reason: scoped_grant? binds `resource:` to the exact record;
     # scope_for binds `resource_type:` and answers in record ids
-    # (.select(:resource_id)) for the caller to narrow, never a boolean permit;
-    # scoped_grant_exists? binds nothing and is therefore diagnostics-only —
-    # its own comment says why it must never decide. A new caller must fit one
-    # of those three shapes or use roles_ticking. (#65 cites this comment as
-    # the safety condition; it is load-bearing, keep it true.)
+    # (.select(:resource_id)) for the caller to narrow, never a boolean permit
+    # — which is also why the record-less read gate (#65) is safe: it asks
+    # scope_for and takes .exists? of the id-narrowed relation, so its answer
+    # is still derived from the records the subject holds, not from the grant
+    # row alone; scoped_grant_exists? binds nothing and is therefore
+    # diagnostics-only — its own comment says why it must never decide;
+    # record_less_denied_for_unknown_type?'s listed-read arm (#65) is the same
+    # diagnostics-only shape — it labels a deny, it never decides. A new
+    # caller must fit one of those shapes or use roles_ticking. (#65 cites
+    # this comment as the safety condition; it is load-bearing, keep it true.)
     def roles_granting(permission)
       Role.where(full_access: true).or(Role.where(id: roles_ticking(permission)))
     end
@@ -276,12 +289,20 @@ module CurrentScope
         .exists?
     end
 
-    # A record-less target is allowed when the subject holds ANY scoped grant
-    # whose role ticks the key — the list-side complement to scope_for, which
-    # then narrows the collection to the granted records. Without this, the two
-    # halves of the per-record feature contradict each other: the gate turns a
-    # scoped-only subject away from their index, and the org-wide grant that gets
-    # them past it makes scope_for return every record.
+    # A record-less target is allowed in one of two ways (#19, #65):
+    #
+    #   - an action in config.collection_read_actions asks scope_for — the
+    #     id-narrowed query the list renders from — so the gate opens exactly
+    #     when the subject's list would show records, full_access included.
+    #     Gate and list agree by construction; an empty list (no grant, or a
+    #     grant whose record was destroyed) is a deny, fail-closed.
+    #   - any other action needs a scoped grant whose role EXPLICITLY ticks
+    #     the key. scope_for then narrows the collection to the granted records.
+    #
+    # Without this, the two halves of the per-record feature contradict each
+    # other: the gate turns a scoped-only subject away from their index, and
+    # the org-wide grant that gets them past it makes scope_for return every
+    # record.
     #
     # "Record-less" is a CLOSED set of exactly two shapes, tested positively:
     #
@@ -315,29 +336,34 @@ module CurrentScope
     # Report-scoped subject create Documents — a live escalation, not a
     # cosmetic empty list. A loud, documented deny is the safe direction.
     #
-    # Requires an EXPLICIT tick (roles_ticking, not roles_granting): this is the
-    # only grant check that binds to no record, so a full_access role — which
-    # satisfies every key — would turn one scoped grant on one record into a
-    # pass on every #index and #create of its TYPE in the host app. "Owner of
-    # Report #7" means full access to Report #7, not to every Report collection
-    # in the product. The type bind narrows WHICH type; it does NOT make a
-    # full_access wildcard safe here, because this branch answers with a boolean
-    # EXISTS, not with records — strictly weaker than scope_for's id-returning
-    # query, which is the only reason roles_granting is safe there. (#65 records
-    # the refutation of the tempting "bind by type ⇒ full_access is now safe"
-    # argument in full; its fix must narrow to granted record ids.) The cost of
-    # that strictness: a scoped full_access role does not open its own index
-    # either, so it keeps the pre-existing 403 that #19 fixes for
-    # explicitly-ticked roles — the documented, fail-closed gap tracked in #65.
+    # full_access and the two arms (#65): the read arm honors a scoped
+    # full_access grant because scope_for's answer is DERIVED FROM RECORD IDS —
+    # which records the subject holds, joined against the live table — the one
+    # shape roles_granting's safety condition names as safe. The non-read arm
+    # answers with a boolean off a type-bound match, strictly weaker (the id is
+    # discarded), so full_access stays barred there: one scoped grant on one
+    # Report must not create Reports. "Owner of Report #7" means full access to
+    # Report #7 — and, since #65, to the lists that would show it. (#65 records
+    # in full why a type-bound boolean over roles_granting is never the answer;
+    # 029's R4 was withdrawn over exactly that.)
+    #
+    # TRUST NOTE: the declared type is trusted the way current_scope_record is.
+    # A wrong current_scope_model plus a scoped full_access grant of the
+    # declared type opens that controller's listed reads — review the
+    # declaration like the record hook. Before #65 that misconfiguration
+    # failed closed; the trade is deliberate and documented (README, #65 plan
+    # KTD-5).
     #
     # Deliberately NOT memoized, unlike org_role. The memo there caches one
     # lookup keyed by subject, invalidated by RoleAssignment writes alone. This
     # predicate's answer derives from three tables (scoped assignments, roles,
-    # role permissions), so a memo would need invalidation hooks on all three —
+    # role permissions) — four on the read arm, whose scope_for joins the model
+    # table itself — so a memo would need invalidation hooks on all of them,
     # and a stale entry here is a stale ALLOW. Only record-less checks by
     # scoped-only subjects reach this line (org and full_access short-circuit
-    # above), so the cost is a query on a handful of nav-level checks per page,
-    # not the per-row gate. Revisit if that ever shows up in a profile.
+    # above), so the cost is one query — on the read arm an id-subquery EXISTS
+    # against the model table — on a handful of nav-level checks per page, not
+    # the per-row gate. Revisit if that ever shows up in a profile.
     def record_less_scoped_grant?(subject:, permission:, record:, model: nil)
       # R3a: the record-less shape test stays FIRST — a declared model never
       # rescues a non-record-less target. A host whose current_scope_record
@@ -359,12 +385,24 @@ module CurrentScope
       # base_class — a class whose base_class returns nil would still crash on
       # .name. Deny (fail-closed) rather than raise NoMethodError: a garbage
       # type is not a grant, and denying also preserves the pre-#50 boolean the
-      # class form returned for a non-AR argument. (#50 review)
-      return false unless type.is_a?(Class) && type < ActiveRecord::Base
+      # class form returned for a non-AR argument. This guard must stay ABOVE
+      # the read arm — scope_for calls type.base_class and type.where, so a
+      # non-AR type would 500 instead of denying. (#50 review, #65)
+      #
+      # ABSTRACT classes are excluded too (#65 review): ApplicationRecord
+      # passes `< ActiveRecord::Base` but has no table, so the read arm's
+      # scope_for would raise TableNotSpecified where the ticking arm's
+      # resource_type match simply found nothing. An abstract class stores no
+      # rows, so no scoped grant can name it — deny, don't 500.
+      return false unless type.is_a?(Class) && type < ActiveRecord::Base && !type.abstract_class?
 
-      ScopedRoleAssignment
-        .where(subject: subject, resource_type: type.base_class.name, role_id: roles_ticking(permission))
-        .exists?
+      if collection_read_action?(permission)
+        scope_for(subject: subject, model: type, permission: permission).exists?
+      else
+        ScopedRoleAssignment
+          .where(subject: subject, resource_type: type.base_class.name, role_id: roles_ticking(permission))
+          .exists?
+      end
     end
 
     # Would declaring current_scope_model have given this record-less deny a
@@ -375,17 +413,23 @@ module CurrentScope
     # ticking the key exists. Pure — reads only; decide labels the deny
     # :model_undeclared off this, changing no allow/deny.
     #
-    # roles_ticking, NOT roles_granting — the #65 tripwire applies even to a
-    # label. A full_access-inclusive set would name a scoped full_access grant
-    # as "declare the model and this allows", which is false: the record-less
-    # branch bars full_access (see record_less_scoped_grant?), so the label
-    # would send the host to a fix that fixes nothing. Ticking keeps it honest:
-    # the deny WOULD have been an allow had the type been declared.
+    # The role set follows the arm the deny came from (#65): a listed read
+    # matches a full_access-INCLUSIVE set, because a declared type would honor
+    # full_access there through scope_for — the label stays honest by saying
+    # so. Off the read list the set stays roles_ticking: naming a full_access
+    # grant :model_undeclared on #create would send the host to a fix that
+    # fixes nothing. Diagnostics-only either way — this labels a deny, it
+    # never decides (the scoped_grant_exists? shape, named in roles_granting's
+    # safety comment) — and it runs without a model, so it cannot check record
+    # liveness: a grant on a destroyed record makes "declare the model and
+    # this allows" false, which is why the nudge says "may fix", never
+    # promises.
     def record_less_denied_for_unknown_type?(subject:, permission:, record:, model:)
       return false unless record.nil? && model.nil?
       return false if sod_action?(permission)
 
-      ScopedRoleAssignment.where(subject: subject, role_id: roles_ticking(permission)).exists?
+      roles = collection_read_action?(permission) ? roles_granting(permission) : roles_ticking(permission)
+      ScopedRoleAssignment.where(subject: subject, role_id: roles).exists?
     end
 
     # An SoD action is record-targeted BY DEFINITION — "the subject who
@@ -404,6 +448,13 @@ module CurrentScope
     # branch from widening that hole to scoped grants too.
     def sod_action?(permission)
       CurrentScope.config.sod_actions.include?(permission.split("#").last)
+    end
+
+    # An action whose record-less gate derives from the scoped list (#65).
+    # Matched like sod_action?: the action segment of the key against a config
+    # list (config.collection_read_actions normalizes to strings on write).
+    def collection_read_action?(permission)
+      CurrentScope.config.collection_read_actions.include?(permission.split("#").last)
     end
   end
 end

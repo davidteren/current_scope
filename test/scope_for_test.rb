@@ -56,6 +56,21 @@ class ScopeForTest < ActiveSupport::TestCase
       @resolver.scope_for(subject: @alice, model: Project, permission: KEY).ids.sort
   end
 
+  # #65: for a listed read the record-less gate asks THIS query, so the two
+  # halves cannot disagree — one claim, asked twice. Pinned from the list side.
+  test "#65 agreement: the record-less gate opens iff this list is non-empty, full_access included" do
+    scope_grant(@alice, role("Owner", full_access: true), @p1)
+
+    assert_equal [ @p1.id ], @resolver.scope_for(subject: @alice, model: Project, permission: KEY).ids
+    assert @resolver.allow?(subject: @alice, permission: KEY, record: nil, model: Project),
+      "non-empty list ⇒ the gate agrees"
+
+    @p1.destroy!
+    assert_empty @resolver.scope_for(subject: @alice, model: Project, permission: KEY)
+    assert_not @resolver.allow?(subject: @alice, permission: KEY, record: nil, model: Project),
+      "empty list ⇒ the gate agrees with that too"
+  end
+
   test "a scoped role that does NOT grant the key excludes that record" do
     viewer = role("Viewer", "projects#show") # scoped, but no projects#index
     scope_grant(@alice, viewer, @p1)

@@ -7,6 +7,41 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **A scoped `full_access` role opens its type's collection reads, derived
+  from the scoped list (#65).** "Owner of Report #7" no longer gets a 403 on
+  the very index that would show Report #7. For actions in the new
+  `config.collection_read_actions` (default `["index"]`; `[]` opts out and
+  restores the previous semantics) the record-less gate asks `scope_for` —
+  the same id-narrowed query the list renders from — so the gate opens
+  exactly when the subject's list is non-empty and the two halves agree by
+  construction. Every other record-less action is unchanged: an explicit tick
+  opens it, `full_access` stays barred (a boolean, record-unbound check can
+  never honor a wildcard safely — the #49 lesson, re-refuted on plan 029 and
+  recorded on #65). SoD's record-less refusal still runs first. The list is
+  **for list-narrowing reads only** — naming a mutating action in it hands
+  scoped full_access holders that action type-wide, which is the escalation
+  this design exists to prevent. Report-mode hosts will see fewer
+  `access.would_deny` rows for scoped-full_access subjects: those checks are
+  genuine allows now.
+
+  **Upgrade-visible — who this changes:** two populations, one per direction.
+  *Widened:* every subject holding a scoped `full_access` grant gains a
+  working `#index` for their record's type on upgrade (this is the fix; set
+  `config.collection_read_actions = []` to keep the old refusal). *Tightened:*
+  a subject whose scoped grant — ticked or full_access — points at a record
+  that is **absent from the model's default scope** now gets a 403 where they
+  previously saw an empty page, because listed reads answer strictly from the
+  live list. "Absent" means destroyed, but equally soft-deleted, archived, or
+  filtered out by a multi-tenant `default_scope` — the list would not show
+  the record, so the gate agrees. A new post-upgrade 403 on an index almost
+  always means the granted record is gone from the subject's list; the grant
+  row still shows in the console. One more widened-label consequence: in
+  report mode (`enforcement = :report`), a scoped full_access holder hitting
+  a listed read on a controller with `current_scope_record = nil` but no
+  `current_scope_model` is now denied `:model_undeclared` — a hard 403 even
+  in report mode (which downgrades only `:no_grant`), where pre-upgrade the
+  same request passed through. Declaring the model is the one-line fix, and
+  the dev/test nudge names it.
 - **Scoped grants open a collection gate only for the type the controller
   declares (#50).** A collection action (`#index`, `#create`, a bulk key) names
   no record, so the gate could not tell which *type* it was deciding about — a
@@ -44,9 +79,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   record-less gate itself (#19), so there is no released version with the old
   unbound behavior to regress from.
 
-  Not closed here, by design: a scoped `full_access` role still does not open
-  its own type's collection gate (the type bind does not make that safe — see
-  #65). And a scoped grant within one type still opens that type's `#create`,
+  Not closed by the type bind itself, by design: a type-bound boolean cannot
+  make `full_access` safe. The #65 entry above closes the read side in this
+  same release by deriving those gates from the scoped list instead. And a
+  scoped grant within one type still opens that type's `#create`,
   exactly as an org-wide grant of the key does — including **across STI
   siblings of one base class**: a grant on an `Invoice` opens a
   `CreditNote#create` gate, because both normalize to their `Document` base

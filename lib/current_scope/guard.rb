@@ -40,6 +40,12 @@ module CurrentScope
   # type (#50); absent means the type is unknown. A plain method, so a host
   # may branch on action_name for a per-action answer.
   #
+  # The declaration is TRUSTED, like current_scope_record: since #65 a listed
+  # collection-read gate derives its answer from the declared type's scoped
+  # list — full_access included — so declaring the WRONG type opens this
+  # controller's reads to subjects holding scoped full_access grants of that
+  # type. Review the declaration the way you review the record hook.
+  #
   # The two hooks PAIR, they don't substitute: current_scope_model WITHOUT
   # current_scope_record is inert, because declaring no record hook passes
   # NO_RECORD (below) and the record-less branch never runs — the declared
@@ -423,16 +429,20 @@ module CurrentScope
       return unless CurrentScope.config.warn_on_undeclared_collection_model
       return unless reason == :model_undeclared
 
-      # The grant is known to tick the key on SOME record of SOME type — the
-      # missing declaration is exactly why the gate couldn't check which. So
-      # the fix is named conditionally, not promised. (#61 wording precedent)
+      # The grant is known to satisfy the key on SOME record of SOME type — a
+      # tick, or (on a listed read, #65) a full_access role, which ticks
+      # nothing. The missing declaration is exactly why the gate couldn't
+      # check which, and it also can't check record liveness — so the fix is
+      # named as "may fix", never promised. (#61 wording precedent; the
+      # resolver's label-predicate comment relies on this hedge.)
       Rails.logger&.warn(
         "[CurrentScope] denied \"#{permission}\" (model_undeclared) — this is a declared " \
         "collection action (current_scope_record returned nil) and the subject holds a scoped " \
-        "grant ticking the key, but #{controller_path} declares no current_scope_model, so the " \
-        "gate had no type to bind that grant to and failed closed. Declare the type this " \
-        "collection deals in (`def current_scope_model = TheType`) — if the grant is of that " \
-        "type, that fixes this."
+        "grant that satisfies the key, but #{controller_path} declares no current_scope_model, " \
+        "so the gate had no type to bind it to and failed closed. Declaring the type this " \
+        "collection deals in (`def current_scope_model = TheType`) may fix this — the grant " \
+        "must be of that type, and for a listed read its record must still be in the model's " \
+        "default scope."
       )
     end
 

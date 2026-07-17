@@ -449,8 +449,13 @@ confident, well-argued, wrong.
    while missing respellings)*: the invariant is that no query that DECIDES may
    match scoped assignments against a full_access-inclusive role set unless it
    binds `resource:` to the exact record or answers in record ids. The durable
-   tripwires are the pins `test/collection_scope_gate_test.rb:56-65` and
-   `:70-81`.
+   tripwires are named pins in `test/collection_scope_gate_test.rb` (line
+   numbers drift; the names don't): the two that discriminate a respell to a
+   type-bound boolean are the AE4 destroyed-record test ("a grant on a
+   destroyed record opens nothing") and the #65 STI-tightening test — an
+   assignment-level EXISTS goes green on neither. The AE2 read/write-split and
+   cross-type pins guard the adjacent regressions (listing a write action;
+   dropping the type bind).
 2. **PR #59's report mode.** The SoD blind spot (a `:no_grant` that means "nobody
    asked the veto", not "the veto passed") was a real, reproduced escalation —
    200 where 403 belonged. Verify `sod_veto_skipped?` is *asked of the resolver*
@@ -497,10 +502,15 @@ confident, well-argued, wrong.
 1. **0.3.0 — IN PROGRESS: #50 (plan 029) + #65 together.** Both change the
    record-less resolver branch, so they ship as one minor release: a
    `~> 0.2.0` pin must not pick up an authorization-semantics change on a
-   routine `bundle update`. Plan 029 is merged and reviewed; #65 has no plan
-   yet — it gets one (ce-plan) before any resolver edit, and its fix must
-   narrow to granted record **ids**, not a type (the refutation lives on the
-   issue and in `resolver.rb`'s three-caller safety comment).
+   routine `bundle update`. Plan 029 is merged and reviewed. #65 is planned
+   (plan `docs/plans/2026-07-17-001-feat-bounded-full-access-collection-reads-plan.md`)
+   and implemented on its PR branch: the fix narrows to granted record **ids**
+   by asking `scope_for(...).exists?` for actions in the new
+   `config.collection_read_actions` (default `["index"]`, on by default,
+   `[]` opts out) — the one shape `resolver.rb`'s roles_granting safety
+   comment (now four callers) names as safe. Remaining for 0.3.0: merge the
+   #65 PR, then the release gate (dte-deep-reviewer + dte-test-auditor +
+   /security-review) before tagging.
 2. ~~**PR #69 review → implement plan 030**~~ — **done** (PR #79, #62 closed).
 3. **#45 (parked by the maintainer)** — delivery split already settled: parity
    harness ships in the gem, analyzer ships as a skill. First-PR scope answered

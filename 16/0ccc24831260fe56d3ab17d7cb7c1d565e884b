@@ -1,0 +1,19 @@
+test/integration/collection_read_gate_test.rb
+  s_225007e5bfcf11::t_f9d688401d5442 1-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "160ccc24831260fe56d3ab17d7cb7c1d565e884b",
+  "prompts": {},
+  "sessions": {
+    "s_225007e5bfcf11": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2026d084-bb97-4268-a0fa-01a1f574ddfe",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

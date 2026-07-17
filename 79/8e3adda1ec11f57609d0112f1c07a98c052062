@@ -1,0 +1,31 @@
+docs/plans/2026-07-17-001-feat-bounded-full-access-collection-reads-plan.md
+  s_225007e5bfcf11::t_657cf5128f875f 90
+  s_225007e5bfcf11::t_4bbd3a45b20f01 1
+  s_225007e5bfcf11::t_427ce8036e3fcb 56
+  s_225007e5bfcf11::t_1ed0f4f06f4b67 125-134
+  s_225007e5bfcf11::t_b82869fadf02a7 158
+  s_225007e5bfcf11::t_eb9ec4f7120aa2 10
+  s_225007e5bfcf11::t_07b1716a565662 188
+  s_225007e5bfcf11::t_d5da36395232ec 2-9,11-55,57-89,91-124,135-157,159-187,189-243
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "798e3adda1ec11f57609d0112f1c07a98c052062",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_225007e5bfcf11": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2026d084-bb97-4268-a0fa-01a1f574ddfe",
+        "model": "unknown"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

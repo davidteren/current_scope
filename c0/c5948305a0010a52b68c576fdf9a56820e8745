@@ -1,0 +1,41 @@
+test/collection_scope_gate_test.rb
+  s_225007e5bfcf11::t_290db038d7208e 55-61,63,66,69-82,84,86-87
+  s_225007e5bfcf11::t_87fa79be647c03 120-124,127-128
+  s_225007e5bfcf11::t_97cb2e14bff109 412-416,420-431
+  s_225007e5bfcf11::t_04924612b2340c 465-554,558-561,563-589
+  s_225007e5bfcf11::t_05d23fade145bd 203-205,210-216
+  s_225007e5bfcf11::t_90fcaf581ddb7a 555-557,562
+  s_225007e5bfcf11::t_66dee48988fa35 8-13
+test/dummy/app/models/receipt.rb
+  s_225007e5bfcf11::t_a914e4015dc8ed 1-6
+lib/current_scope/guard.rb
+  s_225007e5bfcf11::t_9fc419e491e78a 43-48
+lib/current_scope/resolver.rb
+  s_225007e5bfcf11::t_951c453f298e12 339-355
+  s_225007e5bfcf11::t_8e766ca440b885 388-390,393-399
+  s_225007e5bfcf11::t_39545b5915b4e8 93-96
+  s_225007e5bfcf11::t_d4636388137c6a 15-20
+  s_225007e5bfcf11::t_3fd089871fd88d 410-420,425-426
+  s_225007e5bfcf11::t_e7f1f50f19d98c 446-452
+  s_225007e5bfcf11::t_91911f06588eb7 360-361,364-366
+  s_225007e5bfcf11::t_f18931864ba8f1 182,185-194
+  s_225007e5bfcf11::t_cfbe81b3311fba 292-305
+test/scope_for_test.rb
+  s_225007e5bfcf11::t_0364ad7efadad1 59-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "c0c5948305a0010a52b68c576fdf9a56820e8745",
+  "prompts": {},
+  "sessions": {
+    "s_225007e5bfcf11": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2026d084-bb97-4268-a0fa-01a1f574ddfe",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

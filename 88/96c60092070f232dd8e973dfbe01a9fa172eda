@@ -1,0 +1,35 @@
+test/configuration_test.rb
+  s_225007e5bfcf11::t_e89a204a299ede 174-208
+  s_225007e5bfcf11::t_734eab7d4bce30 167
+lib/current_scope/guard.rb
+  s_225007e5bfcf11::t_f04bad9a78cc57 432-437,441-445
+lib/current_scope/configuration.rb
+  s_225007e5bfcf11::t_56fad20fe7a714 145-148
+  s_225007e5bfcf11::t_1e6e3b3e2eb4b6 167-180,182-193,196-198
+  s_225007e5bfcf11::t_15238addf9cffc 485-505
+  s_225007e5bfcf11::t_5c965ab4f51017 199
+test/collection_scope_gate_test.rb
+  s_225007e5bfcf11::t_734eab7d4bce30 534,541,544
+README.md
+  s_225007e5bfcf11::t_734eab7d4bce30 543-548
+lib/generators/current_scope/install/templates/initializer.rb
+  s_225007e5bfcf11::t_734eab7d4bce30 61-64
+test/integration/collection_read_gate_test.rb
+  s_225007e5bfcf11::t_734eab7d4bce30 8,62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "8896c60092070f232dd8e973dfbe01a9fa172eda",
+  "prompts": {},
+  "sessions": {
+    "s_225007e5bfcf11": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2026d084-bb97-4268-a0fa-01a1f574ddfe",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

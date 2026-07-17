@@ -41,7 +41,7 @@ RubyGems; not production-ready.
   non-technical reader could follow; technical detail below that block.
 - Never push a failing suite.
 
-## Review gate — before every commit
+## Review gate — before opening a PR
 
 1. `/ce-code-review` — fix findings
 2. `/ie-review` — fix findings

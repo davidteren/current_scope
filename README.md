@@ -300,10 +300,14 @@ def current_scope_model = Project
 - **no grant** (or no subject) → empty, fail-closed like the gate.
 
 The gate agrees. A collection action like `#index` has no record to name, so it
-asks a record-less question — and a scoped grant whose role ticks that key
-answers it **for the type the controller declares** (`current_scope_model`,
-above): the subject reaches the list, and `scope_for` narrows it to the
-records they were actually granted. A grant on a `Report` never opens a
+asks a record-less question, bound to the type the controller declares
+(`current_scope_model`, above). For a **collection read**
+(`config.collection_read_actions`, `index` by default) the gate asks
+`scope_for` itself: the subject reaches the list exactly when it would show
+them records — scoped `full_access` grants included — and the two halves
+cannot disagree, because they are one query. Any other record-less key needs a
+scoped grant whose role ticks it explicitly; `scope_for` then narrows the list
+to the records they were actually granted. A grant on a `Report` never opens a
 `Projects` gate — the type is what binds them. **No org-wide grant is needed to
 reach a scoped index** (and reaching for one would defeat the purpose — an
 org-wide grant means "see everything", so `scope_for` would return
@@ -321,17 +325,24 @@ names the one-line fix).
 > it queries. Gate a collection action for scoped roles only alongside a
 > `scope_for` list.
 
-The rule is uniform across record-less actions, not special-cased to `#index`:
-a scoped role that ticks `create` or a bulk key opens *those* collection gates
-too, exactly as an org-wide grant of the same key already does. Tick a
-collection key on a scoped role only when you mean it — there is no record
-filter on `create`.
+Off the read list the rule is uniform: a scoped role that ticks `create` or a
+bulk key opens *those* collection gates too, exactly as an org-wide grant of
+the same key already does. Tick a collection key on a scoped role only when
+you mean it — there is no record filter on `create`.
 
-A scoped **`full_access`** role is the exception: it does not open record-less
-gates. A full_access role satisfies *every* key, so honoring it where no record
-is named would make one scoped grant a pass on every `#index` and `#create` in
-the app. "Owner of Project #7" keeps full authority over Project #7 — to reach
-a scoped index, tick the key on the role explicitly.
+A scoped **`full_access`** role follows the read/write split: it opens the
+listed reads of its record's type — the gate derives from which records the
+grant actually holds, so "Owner of Project #7" reaches the project index and
+sees Project #7 — and nothing else record-less. A full_access role satisfies
+*every* key, so honoring it in a record-less check that answers with a bare
+boolean would make one scoped grant a pass on every `#create` in the app; the
+read gates are safe precisely because their answer comes from the list. Two
+consequences worth knowing: a grant whose record was destroyed opens nothing
+(an empty list is a 403, not an empty page), and the declared
+`current_scope_model` is **trusted like the record hook** — a wrong
+declaration opens that controller's listed reads to full_access holders of the
+declared type, so review the declaration the way you review
+`current_scope_record`.
 
 It returns a chainable `ActiveRecord::Relation`, so `.where`/`.order`/`.page`
 compose normally. `permission:` defaults to the model's `index` key and accepts
@@ -522,6 +533,16 @@ users](#retrofitting-an-app-that-already-has-users). It relaxes nothing else: th
 SoD veto and the management console are untouched by it. An unknown value raises
 at boot rather than being silently treated as one of the two — believing you're
 enforcing when you aren't is the worst way to be wrong about this setting.
+
+**`config.collection_read_actions`** — `["index"]` by default. The record-less
+actions whose gate derives its answer from the scoped list, so a scoped
+`full_access` grant opens exactly the collections that would show its records
+(gate and list agree by construction — the #65 fix). Set `[]` to restore the
+0.2 behavior, where scoped `full_access` opens no record-less gate at all.
+**List-narrowing reads only:** never name a mutating action here — that would
+hand a scoped full_access holder the action on every record of the type off a
+grant on one record. Custom read actions (`export`, `search`) are the intended
+additions. Members normalize to strings on assignment, so `%i[index]` works.
 
 The **audit ledger** is controlled by `config.audit` — tri-state
 `false | true | :strict`. `false` records nothing; `true` (the default) records

@@ -139,27 +139,35 @@ Its permissions apply **only when the action targets that record.** Being
 The one qualifier: a **record-less** check — a collection action like `#index`,
 which reaches the resolver with no record, or the class form
 `allowed_to?(:index, Project)` — names no record for the grant to be measured
-against. There, any scoped grant whose role ticks the key opens the gate, and
-`scope_for` narrows the resulting list to the granted records. This is what lets
-"Editor of Project #7" reach a project index at all without an org-wide grant
-(which would mean *see everything*). It never widens a decision on an actual
-record: Project #8 is still denied.
+against. For an action in `config.collection_read_actions` (`index` by
+default) the gate asks `scope_for` itself — the id-narrowed query the list
+renders from — so it opens exactly when the subject's list would show records,
+scoped `full_access` grants included, and gate and list agree by construction
+(#65). Any other record-less action needs a scoped grant whose role ticks the
+key explicitly; `scope_for` then narrows the resulting list to the granted
+records. This is what lets "Editor of Project #7" reach a project index at all
+without an org-wide grant (which would mean *see everything*). It never widens
+a decision on an actual record: Project #8 is still denied.
 
-This is uniform across record-less actions rather than special-cased to
-`#index`: a scoped role ticking `create` or a bulk key opens those gates too,
-as an org-wide grant of that key already does. The role author's ticks are the
-control — a record-less action has no record to filter on either way. The
-target shape is a closed set (`nil` or a `Class`); anything else is not
-record-less and is denied, so a hook that returns something other than a record
-fails closed.
+Off the read list the rule is uniform: a scoped role ticking `create` or a
+bulk key opens those gates too, as an org-wide grant of that key already does.
+The role author's ticks are the control — a record-less action has no record
+to filter on either way. The target shape is a closed set (`nil` or a
+`Class`); anything else is not record-less and is denied, so a hook that
+returns something other than a record fails closed.
 
 Two bounds worth stating, because a record-less check is the one grant check
 tied to no record:
 
-- **A tick must be explicit.** `full_access` is *not* honored here, though it is
-  everywhere else. A full_access role satisfies every key, so one scoped
-  full_access grant would otherwise pass every record-less gate in the app.
-  Bounding it needs the type, which the `nil` target does not carry (§3.4 above).
+- **`full_access` is honored only where the answer is derived from records.**
+  On a listed read the gate asks `scope_for`, whose answer is the record ids
+  the subject actually holds — so a scoped full_access grant opens exactly the
+  lists that would show its record, and a grant on a destroyed record opens
+  nothing (#65). Every other record-less check answers with a boolean off a
+  type-bound match, which discards the id — honoring full_access there would
+  turn one scoped grant into a pass on every `#create` of the type, so those
+  need an explicit tick. A type bind alone never makes the wildcard safe; only
+  an id-derived answer does.
 - **An SoD action is never opened this way.** A four-eyes action is
   record-targeted by definition — there is no record for the veto to measure, so
   the veto cannot run (§3.6). Rather than hand out the action with the guarantee
@@ -231,10 +239,15 @@ resolve(subject, permission, record = nil):
   4. scoped role     → if subject holds a scoped role on THIS `record`
                         whose role includes `permission`  → ALLOW
   5. scoped role,    → if `record` is RECORD-LESS (nil for a collection action,
-     record-less        or a Class) AND subject holds ANY scoped role that
-                        EXPLICITLY ticks `permission`  → ALLOW
-                        (full_access does not count here, and an SoD action is
-                         never opened this way — see §3.4)
+     record-less        or a Class):
+                        - an action in config.collection_read_actions asks
+                          scope_for (the id-narrowed list query) — ALLOW iff
+                          the subject's list is non-empty (full_access counts,
+                          because the answer is derived from record ids — #65)
+                        - any other action → ALLOW iff a scoped role
+                          EXPLICITLY ticks `permission` (full_access does not
+                          count off the read list)
+                        (an SoD action is never opened this way — see §3.4)
   6. otherwise       → DENY   (default-deny)
 ```
 

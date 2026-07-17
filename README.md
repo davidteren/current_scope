@@ -337,8 +337,10 @@ sees Project #7 — and nothing else record-less. A full_access role satisfies
 *every* key, so honoring it in a record-less check that answers with a bare
 boolean would make one scoped grant a pass on every `#create` in the app; the
 read gates are safe precisely because their answer comes from the list. Two
-consequences worth knowing: a grant whose record was destroyed opens nothing
-(an empty list is a 403, not an empty page), and the declared
+consequences worth knowing: a grant whose record is absent from the model's
+default scope — destroyed, soft-deleted, or scoped out by a tenant
+`default_scope` — opens nothing (an empty list is a 403, not an empty page),
+and the declared
 `current_scope_model` is **trusted like the record hook** — a wrong
 declaration opens that controller's listed reads to full_access holders of the
 declared type, so review the declaration the way you review

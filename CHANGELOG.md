@@ -29,10 +29,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   working `#index` for their record's type on upgrade (this is the fix; set
   `config.collection_read_actions = []` to keep the old refusal). *Tightened:*
   a subject whose scoped grant — ticked or full_access — points at a record
-  that has since been **destroyed** now gets a 403 where they previously saw
-  an empty page, because listed reads answer strictly from the live list. A
-  new post-upgrade 403 on an index almost always means the granted record is
-  gone; the orphaned grant row still shows in the console.
+  that is **absent from the model's default scope** now gets a 403 where they
+  previously saw an empty page, because listed reads answer strictly from the
+  live list. "Absent" means destroyed, but equally soft-deleted, archived, or
+  filtered out by a multi-tenant `default_scope` — the list would not show
+  the record, so the gate agrees. A new post-upgrade 403 on an index almost
+  always means the granted record is gone from the subject's list; the grant
+  row still shows in the console. One more widened-label consequence: in
+  report mode (`enforcement = :report`), a scoped full_access holder hitting
+  a listed read on a controller with `current_scope_record = nil` but no
+  `current_scope_model` is now denied `:model_undeclared` — a hard 403 even
+  in report mode (which downgrades only `:no_grant`), where pre-upgrade the
+  same request passed through. Declaring the model is the one-line fix, and
+  the dev/test nudge names it.
 - **Scoped grants open a collection gate only for the type the controller
   declares (#50).** A collection action (`#index`, `#create`, a bulk key) names
   no record, so the gate could not tell which *type* it was deciding about — a

@@ -511,6 +511,26 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
       "an explicitly-ticked grant on a destroyed record flips too: strict means strict"
   end
 
+  test "#65 general rule: a granted record excluded by a default_scope opens nothing, like a destroyed one" do
+    # AE4's destroyed-record pin is one instance of the general rule: the read
+    # arm answers from scope_for, whose model.where(id: ...) inherits the
+    # model's default scope — so a granted record that is soft-deleted,
+    # archived, or tenant-scoped OUT of model.all denies exactly like a
+    # destroyed one, for ticked roles as much as full_access. Pinned so the
+    # broader trigger (named in the CHANGELOG's Tightened callout) has its own
+    # regression surface, not just the hard-destroy flavor.
+    scope_grant(@alice, role("Owner", full_access: true), @report)
+    scope_grant(@bob, role("Editor", "reports#index"), @report)
+    Report.instance_eval { default_scope { where.not(title: "Q3") } } # @report's title — scoped out, not destroyed
+
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Report),
+      "the list would not show a scoped-out record — the gate agrees (full_access)"
+    assert_not @resolver.allow?(subject: @bob, permission: "reports#index", record: nil, model: Report),
+      "and the same for an explicitly-ticked grant: strict means strict"
+  ensure
+    Report.default_scopes = []
+  end
+
   test "AE5 (#65) opt-out: an empty collection_read_actions restores the 0.2 record-less semantics" do
     original = CurrentScope.config.collection_read_actions
     CurrentScope.config.collection_read_actions = []

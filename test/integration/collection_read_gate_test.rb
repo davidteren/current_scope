@@ -78,6 +78,28 @@ class CollectionReadGateTest < ActionDispatch::IntegrationTest
     assert_nil response.headers["X-Current-Scope-Reason"], "a genuine allow carries no reason"
   end
 
+  # Report mode + the widened :model_undeclared label, pinned deliberately: a
+  # scoped full_access holder hitting a listed read on a controller that
+  # declared `current_scope_record = nil` but no current_scope_model is denied
+  # :model_undeclared since #65 (the label predicate honors full_access for
+  # listed reads), and report mode downgrades EXACTLY :no_grant — so this is a
+  # hard 403 even in report mode, where pre-#65 the same request passed
+  # through (its reason was :no_grant). Same doctrine as #50 for ticked
+  # grants ("new reasons are refusals until someone deliberately says
+  # otherwise"); #65 widens the population, and this pin plus the CHANGELOG
+  # callout make the widening a decision, not an accident.
+  test "report mode still hard-403s the undeclared-model deny for a scoped full_access holder" do
+    CurrentScope.config.enforcement = :report
+
+    assert_no_difference -> { CurrentScope::Event.count } do
+      get "/undeclared_model", headers: sign_in(@alice)
+    end
+
+    assert_response :forbidden, "report mode downgrades only :no_grant — :model_undeclared stays a refusal"
+    assert_equal "model_undeclared", response.headers["X-Current-Scope-Reason"],
+      "the reason names the one-line fix (declare current_scope_model)"
+  end
+
   # Scope Boundaries safety check for the orphan-grant follow-up: under #65 a
   # grant on a destroyed record opens nothing, but its row still renders in
   # the console. The page must degrade, not 500 — reaping/labeling orphans is

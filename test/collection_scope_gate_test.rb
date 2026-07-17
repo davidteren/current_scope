@@ -5,10 +5,12 @@ require "test_helper"
 # (allowed_to?(:index, Report)) reaches it with a Class. Neither can carry a
 # scoped grant, so a scoped-only subject used to be turned away from the very
 # list scope_for exists to narrow — and the org-wide grant that got them past
-# the gate made scope_for return every record. This suite pins the fix: a
-# record-less target is allowed when the subject holds ANY scoped grant whose
-# role ticks the key, while every persisted-record decision stays byte-for-byte
-# unchanged (the load-bearing assertions below).
+# the gate made scope_for return every record. This suite pins the rule: for a
+# record-less target of a known type, an action in collection_read_actions
+# answers via the id-narrowed scope_for query (so gate and list agree by
+# construction, full_access included — #65), any other action needs a scoped
+# grant whose role EXPLICITLY ticks the key, and every persisted-record
+# decision stays byte-for-byte unchanged (the load-bearing assertions below).
 class CollectionScopeGateTest < ActiveSupport::TestCase
   setup do
     @resolver = CurrentScope::Resolver.new
@@ -50,21 +52,39 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
       "the view helper and the gate must never disagree"
   end
 
-  # The record-less branch requires an EXPLICIT tick, so a scoped full_access
-  # role does NOT open it. A full_access role satisfies every key, and this is
-  # the one grant check bound to no record — wildcarding it would turn a single
-  # scoped grant on a single record into a pass on every #index and #create in
-  # the host app. That is reachable with stock data: seed_defaults! ships a
+  # Since #65 a scoped full_access role opens LISTED READS of its own type —
+  # the gate derives from the id-narrowed scope_for query, so it opens exactly
+  # the collections that would show the record. Everything else stays barred:
+  # a full_access role satisfies every key, so any record-less check that
+  # answers with a boolean off an unbound (or merely type-bound) match would
+  # turn one scoped grant on one record into a pass on every #create in the
+  # host app. That is reachable with stock data: seed_defaults! ships a
   # full_access "Owner" role and the scoped picker offers every role.
-  test "a scoped full_access role does NOT open record-less gates app-wide" do
+  test "a scoped full_access role opens only listed reads of its own type — never writes, never app-wide" do
     scope_grant(@alice, role("Owner", full_access: true), @report)
 
+    # No declared type ⇒ every record-less check stays shut (fail-closed, #50).
     %w[reports#index reports#create projects#index documents#create widgets#anything].each do |key|
       assert_not @resolver.allow?(subject: @alice, permission: key, record: nil),
-        "one scoped full_access grant on one Report must not open #{key}"
-      assert_not @resolver.allow?(subject: @alice, permission: key, record: Report),
-        "nor the class form of #{key}"
+        "no declared type ⇒ #{key} stays shut"
     end
+
+    # The class form carries the type. Listed reads open off the id-narrowed
+    # list — another controller's key included, because for a full_access
+    # grant scope_for's answer turns on the type and record liveness, not the
+    # key's controller: that gate's list would show her the Report too.
+    assert @resolver.allow?(subject: @alice, permission: "reports#index", record: Report)
+    assert @resolver.allow?(subject: @alice, permission: "projects#index", record: Report)
+
+    # Keys with no list side stay barred off full_access — the #49/#65
+    # escalation line: one grant on one Report must not create Reports,
+    # create Documents, or touch another type's gates.
+    %w[reports#create documents#create widgets#anything].each do |key|
+      assert_not @resolver.allow?(subject: @alice, permission: key, record: Report),
+        "#{key} has no list side — a scoped full_access grant must not open it"
+    end
+    assert_not @resolver.allow?(subject: @alice, permission: "documents#index", record: Document),
+      "a Report grant opens nothing of another type, listed read or not"
   end
 
   # --- #50: the record-less branch binds by the declared TYPE ---
@@ -97,15 +117,15 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
       "no declared type ⇒ the branch does not fire; deny is the honest answer"
   end
 
-  test "consequence 2 stays open (#65): scoped full_access does not open its own type's index" do
-    # R4 is WITHDRAWN — a scoped full_access role still does not open a
-    # record-less gate even for its own type, because this branch answers with
-    # a boolean and full_access there is a wildcard. Tracked in #65; the fix
-    # must narrow to granted record ids, not a type.
+  test "#65 closed: scoped full_access opens its own type's listed read, derived from the scoped list" do
+    # 029's R4 was withdrawn because a type-bound BOOLEAN cannot honor
+    # full_access safely. This is not that: the gate asks scope_for, whose
+    # answer is derived from the record ids the subject actually holds — the
+    # one shape the roles_granting safety condition names as safe.
     scope_grant(@alice, role("Owner", full_access: true), @report)
 
-    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Report),
-      "a scoped full_access role must not open its own record-less gate (that is #65's escalation)"
+    assert @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Report),
+      "the list would show her Report — the gate derives from the same id-narrowed query and agrees"
   end
 
   test "the P0 stays shut with a type in hand: full_access on Report never opens Documents" do
@@ -180,15 +200,20 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
   end
 
   # A role can be full_access AND carry explicit rows — tick grid cells, then
-  # flip the full-access toggle. Matching on the leftover row would walk it right
-  # back through the branch full_access is barred from.
-  test "a scoped full_access role with explicit permission rows is still barred" do
+  # flip the full-access toggle. On the write side, matching on the leftover
+  # row would walk it right back through the branch full_access is barred from.
+  test "a scoped full_access role with explicit rows follows the same read-only rule" do
     owner = role("Owner", "reports#index", full_access: true)
     scope_grant(@alice, owner, @report)
 
     assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: nil),
-      "the explicit row must not smuggle a full_access role past the exclusion"
-    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: Report)
+      "no declared type ⇒ shut, leftover row or not"
+    # A listed read of her own type opens off the id-narrowed list (#65) —
+    # both the leftover row and the wildcard legitimately match there.
+    assert @resolver.allow?(subject: @alice, permission: "reports#index", record: Report)
+    # ...and the leftover row must not smuggle the role past the write-side bar.
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#create", record: Report),
+      "the explicit row must not walk a full_access role through the non-read branch"
 
     # Unchanged where it is bound to a record: full_access still means full
     # access to the record it was granted on.
@@ -384,15 +409,26 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
       "with nothing granted, declaring a model would change nothing — the label would lie"
   end
 
-  test "R7a: the label requires an EXPLICIT tick — a scoped full_access grant stays :no_grant" do
-    # The #65 tripwire, mirrored onto the label: roles_ticking, NOT
-    # roles_granting. A full_access grant would NOT have been allowed by a
-    # declared type (the branch bars full_access), so labelling it
-    # :model_undeclared would send the host to declare a hook that fixes
-    # nothing. A roles_granting swap in the predicate turns this red.
+  test "R7a widened (#65): a scoped full_access grant on a LISTED read is :model_undeclared" do
+    # Since #65 a declared model WOULD honor full_access on a listed read (the
+    # scope_for-derived branch), so the label is honest here — with the caveat
+    # its nudge wording already carries: the predicate runs without a model
+    # and cannot check record liveness, so it says "may fix", never promises.
     scope_grant(@alice, role("Owner", full_access: true), @report)
 
     allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index", record: nil, model: nil)
+    assert_not allowed, "the label must not change the decision — still a deny"
+    assert_equal :model_undeclared, reason
+  end
+
+  test "R7a unchanged off the read list: a full_access-only grant on create stays :no_grant" do
+    # The original #65 tripwire, now scoped to where it still holds: declaring
+    # a model would NOT open create off full_access (that branch keeps
+    # roles_ticking), so labelling it :model_undeclared would send the host to
+    # a fix that fixes nothing. A roles_granting swap there turns this red.
+    scope_grant(@alice, role("Owner", full_access: true), @report)
+
+    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#create", record: nil, model: nil)
     assert_not allowed
     assert_equal :no_grant, reason
   end
@@ -424,6 +460,131 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
     allowed, reason = @resolver.decide(subject: @alice, permission: "documents#index", record: nil, model: Document)
     assert_not allowed
     assert_equal :no_grant, reason
+  end
+
+  # --- #65: listed collection reads derive from the scoped list ---
+  #
+  # The gate asks scope_for(...).exists? — the same id-narrowed query the list
+  # renders from — so for these actions "the gate let them in" and "it is in
+  # their list" are one claim, by construction. The pins below are the durable
+  # tripwire the issue asks for: they discriminate a respell back to any
+  # boolean-permit form (assignment-level EXISTS/any?/count over a
+  # full_access-inclusive set), which is #49's escalation shape.
+
+  test "AE1 (#65): gate and list agree — the full_access owner opens reports#index and sees exactly her record" do
+    scope_grant(@alice, role("Owner", full_access: true), @report)
+
+    assert @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Report)
+    assert @resolver.allow?(subject: @alice, permission: "reports#index", record: Report),
+      "the class form binds the same type and must agree with the gate"
+    assert_equal [ @report.id ],
+      @resolver.scope_for(subject: @alice, model: Report, permission: "reports#index").ids,
+      "the list half of the same claim: exactly the granted record, nothing else"
+  end
+
+  test "AE2 (#65) read/write split: the same owner is denied every record-less Report key off the read list" do
+    # Deliberate asymmetry, pinned so a future "fix" of it is a knowing one:
+    # reads derive from the list; create and friends have no list to derive
+    # from, so full_access stays barred there. Opening them off a scoped grant
+    # is the #49 escalation wearing the fix's clothes (#65).
+    scope_grant(@alice, role("Owner", full_access: true), @report)
+
+    %w[reports#create reports#new reports#destroy_all].each do |key|
+      assert_not @resolver.allow?(subject: @alice, permission: key, record: nil, model: Report),
+        "#{key} must not open off a scoped full_access grant"
+    end
+  end
+
+  test "AE4 (#65) strict agreement: a grant on a destroyed record opens nothing — ticked or full_access" do
+    # The old branch matched the surviving assignment ROW and admitted the
+    # subject into an empty page. Deriving from the list makes an empty list a
+    # deny — fail-closed — and this is the pin that discriminates a respell
+    # back to an assignment-level EXISTS, which would go green here.
+    doomed = Report.create!(title: "Gone", requested_by: @bob)
+    scope_grant(@alice, role("Owner", full_access: true), doomed)
+    scope_grant(@bob, role("Editor", "reports#index"), doomed)
+    doomed.destroy!
+
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Report),
+      "a full_access grant on a destroyed record is an empty list — the gate must agree"
+    assert_not @resolver.allow?(subject: @bob, permission: "reports#index", record: nil, model: Report),
+      "an explicitly-ticked grant on a destroyed record flips too: strict means strict"
+  end
+
+  test "AE5 (#65) opt-out: an empty collection_read_actions restores the 0.2 record-less semantics" do
+    original = CurrentScope.config.collection_read_actions
+    CurrentScope.config.collection_read_actions = []
+    scope_grant(@alice, role("Owner", full_access: true), @report)
+    scope_grant(@bob, role("Editor", "reports#index"), @report)
+
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Report),
+      "opted out, full_access is barred from the record-less branch exactly as in 0.2"
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: Report)
+    assert @resolver.allow?(subject: @bob, permission: "reports#index", record: nil, model: Report),
+      "explicit ticks keep working through the 0.2 branch"
+  ensure
+    CurrentScope.config.collection_read_actions = original
+  end
+
+  test "AE6 (#65): SoD's record-less refusal beats the read list" do
+    original_sod = CurrentScope.config.sod_actions
+    original_reads = CurrentScope.config.collection_read_actions
+    CurrentScope.config.sod_actions = %w[approve]
+    CurrentScope.config.collection_read_actions = %w[index approve]
+    scope_grant(@alice, role("Owner", full_access: true), @report)
+
+    [ nil, Report ].each do |target|
+      assert_not @resolver.allow?(subject: @alice, permission: "reports#approve", record: target, model: Report),
+        "an SoD action is refused record-less whatever the read list says (target: #{target.inspect})"
+    end
+  ensure
+    CurrentScope.config.sod_actions = original_sod
+    CurrentScope.config.collection_read_actions = original_reads
+  end
+
+  test "#65 STI: an Invoice grant opens Document- and Invoice-declared reads via the id-narrowed query" do
+    invoice = Invoice.create!(title: "INV-1")
+    scope_grant(@alice, role("Owner", full_access: true), invoice)
+
+    assert @resolver.allow?(subject: @alice, permission: "documents#index", record: nil, model: Document),
+      "the grant stores resource_type Document (base_class); the Document list shows the invoice"
+    assert @resolver.allow?(subject: @alice, permission: "documents#index", record: nil, model: Invoice),
+      "Invoice.where(id: ...) matches — the granted row IS an Invoice"
+  end
+
+  test "#65 STI tightening: a sibling-subclass grant does not open an Invoice-declared read; create keeps the ceiling" do
+    receipt = Receipt.create!(title: "RCPT-1")
+    scope_grant(@alice, role("Editor", "documents#index", "documents#create"), receipt)
+
+    # Read side: scope_for applies STI's own type predicate, so the sibling
+    # collapse the old branch accepted (R6a) tightens here — fail-closed.
+    assert_not @resolver.allow?(subject: @alice, permission: "documents#index", record: nil, model: Invoice),
+      "the Invoice list would not show a Receipt — the gate agrees"
+    # Write side: the roles_ticking branch still binds by base_class alone —
+    # the accepted R6a ceiling, unchanged. The read/write split is deliberate.
+    assert @resolver.allow?(subject: @alice, permission: "documents#create", record: nil, model: Invoice),
+      "the non-read branch keeps its R6a base_class ceiling"
+  end
+
+  test "#65 shape-guard order: a non-AR type on a listed read still fails closed, never crashes" do
+    scope_grant(@alice, role("Owner", full_access: true), @report)
+
+    # Gadget has no base_class/where — the AR-class guard must run BEFORE the
+    # scope_for branch, or this is a NoMethodError 500 instead of a clean deny.
+    assert_not @resolver.allow?(subject: @alice, permission: "gadgets#index", record: Gadget)
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Gadget)
+  end
+
+  test "#65 purity: the scope_for-derived branch reads only and leaves no residue between calls" do
+    scope_grant(@alice, role("Owner", full_access: true), @report)
+
+    assert_no_difference [ "CurrentScope::Event.count", "CurrentScope::ScopedRoleAssignment.count" ] do
+      assert @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Report)
+      assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Document),
+        "a Document gate does not open off a Report grant — and leaves no residue"
+      assert @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Report),
+        "repeating the first call still allows — order-independent"
+    end
   end
 
   # --- R6: the resolver stays a pure decision function ---

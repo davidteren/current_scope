@@ -40,6 +40,12 @@ module CurrentScope
   # type (#50); absent means the type is unknown. A plain method, so a host
   # may branch on action_name for a per-action answer.
   #
+  # The declaration is TRUSTED, like current_scope_record: since #65 a listed
+  # collection-read gate derives its answer from the declared type's scoped
+  # list — full_access included — so declaring the WRONG type opens this
+  # controller's reads to subjects holding scoped full_access grants of that
+  # type. Review the declaration the way you review the record hook.
+  #
   # The two hooks PAIR, they don't substitute: current_scope_model WITHOUT
   # current_scope_record is inert, because declaring no record hook passes
   # NO_RECORD (below) and the record-less branch never runs — the declared

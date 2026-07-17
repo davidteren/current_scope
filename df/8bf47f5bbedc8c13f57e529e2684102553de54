@@ -1,0 +1,24 @@
+test/configuration_test.rb
+  s_225007e5bfcf11::t_40580260bb2736 142-173
+lib/current_scope/configuration.rb
+  s_225007e5bfcf11::t_ba14d3e08c9c71 363
+  s_225007e5bfcf11::t_88cebd96aed8ae 137-170
+lib/generators/current_scope/install/templates/initializer.rb
+  s_225007e5bfcf11::t_9d3148079d3961 55-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "df8bf47f5bbedc8c13f57e529e2684102553de54",
+  "prompts": {},
+  "sessions": {
+    "s_225007e5bfcf11": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2026d084-bb97-4268-a0fa-01a1f574ddfe",
+        "model": "unknown"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+test/collection_scope_gate_test.rb
+  s_225007e5bfcf11::t_7ee8080160e7be 514-533
+README.md
+  s_225007e5bfcf11::t_5a53e16ff21393 340-343
+CHANGELOG.md
+  s_225007e5bfcf11::t_5d70e4e5ca1fd3 32-44
+test/integration/collection_read_gate_test.rb
+  s_225007e5bfcf11::t_daff2a6b54c1b9 81-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "d175a83bd9c614af060e7309f6dd6a938251efc9",
+  "prompts": {},
+  "sessions": {
+    "s_225007e5bfcf11": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2026d084-bb97-4268-a0fa-01a1f574ddfe",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

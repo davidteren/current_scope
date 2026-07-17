@@ -139,4 +139,36 @@ class ConfigurationTest < ActiveSupport::TestCase
     assert_match ":subject", error.message
     assert_equal :either, config.sod_identity, "the default stands"
   end
+
+  # --- collection_read_actions (#65) ---
+  #
+  # The list is matched as STRINGS against the key's action segment, so the
+  # writer normalizes. A host writing the natural [:index] must not silently
+  # fall back to the ticking-only branch — that would un-fix #65 with no
+  # signal, which is exactly the footgun sod_actions' plain accessor has and
+  # a new key need not inherit.
+
+  test "collection reads are on by default — collection_read_actions is [index]" do
+    assert_equal [ "index" ], CurrentScope::Configuration.new.collection_read_actions
+  end
+
+  test "collection_read_actions normalizes symbols so [:index] cannot silently disable the fix" do
+    config = CurrentScope::Configuration.new
+    config.collection_read_actions = [ :index, :export ]
+    assert_equal [ "index", "export" ], config.collection_read_actions
+  end
+
+  test "a bare string wraps to a one-element list" do
+    config = CurrentScope::Configuration.new
+    config.collection_read_actions = "index"
+    assert_equal [ "index" ], config.collection_read_actions
+  end
+
+  test "nil and [] both opt out, restoring the 0.2 record-less semantics" do
+    config = CurrentScope::Configuration.new
+    config.collection_read_actions = nil
+    assert_equal [], config.collection_read_actions
+    config.collection_read_actions = []
+    assert_equal [], config.collection_read_actions
+  end
 end

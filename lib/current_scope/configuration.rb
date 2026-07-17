@@ -134,6 +134,40 @@ module CurrentScope
     # rejected if assigned. (#21)
     attr_accessor :sod_bypass_permission
 
+    # Action names whose RECORD-LESS gate derives its answer from the scoped
+    # list (#65): for these, the check asks scope_for — the same id-narrowed
+    # query the list renders from — so a scoped full_access grant opens
+    # exactly the collections that would show it records, and gate and list
+    # agree by construction. Matched like sod_actions, on the action segment
+    # of the key ("index" in "reports#index").
+    #
+    # DEFAULT ["index"] — the #65 fix is on out of the box. Set [] to restore
+    # the 0.2 record-less semantics: a scoped full_access role opens no
+    # record-less gate, only explicit ticks do, and the gate/list
+    # disagreement #65 describes comes back with it.
+    #
+    # LIST-NARROWING READS ONLY. The full_access safety argument is that the
+    # answer is derived from record ids — WHICH records the subject holds —
+    # so it is only sound for actions with a list side. Naming a mutating or
+    # non-idempotent action here ("create", "destroy_all") hands scoped
+    # full_access holders that action on the whole TYPE off a grant on one
+    # record: the #49 escalation, reintroduced by config. Custom read-shaped
+    # actions (export, search) are the intended additions.
+    #
+    # The declared current_scope_model is trusted here the way
+    # current_scope_record already is — a wrong declaration plus a scoped
+    # full_access grant of the declared type opens that controller's listed
+    # reads, so review the declaration like the record hook.
+    attr_reader :collection_read_actions
+
+    # Normalizing writer, unlike sod_actions' plain accessor (that footgun is
+    # grandfathered, not precedent): the list is matched as STRINGS, so
+    # [:index] matching nothing would silently un-fix #65. Normalize rather
+    # than raise — every input has an unambiguous meaning (nil ⇒ []).
+    def collection_read_actions=(value)
+      @collection_read_actions = Array(value).map(&:to_s)
+    end
+
     # Tri-state: false | true (default) | :strict — controls
     # CurrentScope::Event.record!.
     #   false   — record! is a silent no-op; hosts that don't want the ledger
@@ -326,6 +360,7 @@ module CurrentScope
       @sod_identity = :either
       @allow_sod_bypass = false
       @sod_bypass_permission = "bypass_sod"
+      @collection_read_actions = [ "index" ]
       @allow_mutations_while_impersonating = false
       @excluded_controllers = [
         %r{\Arails/}, %r{\Aactive_storage/}, %r{\Aaction_mailbox/},

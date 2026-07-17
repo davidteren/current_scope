@@ -52,6 +52,23 @@ CurrentScope.configure do |config|
   # config.permission_grid_groups = { "read" => %w[index show], "create" => %w[new create],
   #                                   "update" => %w[edit update], "destroy" => %w[destroy] }
 
+  # Action names whose record-less gate derives its answer from the scoped
+  # list: for these, "may they open this list?" is answered by the same
+  # id-narrowed query scope_for renders from, so a scoped full_access role
+  # ("Owner of Report #7") opens exactly the collections that would show it
+  # records — gate and list agree by construction. Matched on the action
+  # segment of the key, like sod_actions. Default ["index"]; set [] to
+  # restore the 0.2 behavior (scoped full_access opens no record-less gate).
+  #
+  # LIST-NARROWING READS ONLY: the safety of honoring full_access here comes
+  # from the answer being derived from record ids, so it is only sound for
+  # actions with a list side. Never name a mutating action ("create",
+  # "destroy_all") — that would hand a scoped full_access holder the action
+  # on every record of the type off a grant on one record. Custom read
+  # actions (export, search) are the intended additions. The declared
+  # current_scope_model is trusted like current_scope_record: review both.
+  # config.collection_read_actions = %w[index]
+
   # --- Impersonation (act-as) ---------------------------------------------
   # These three knobs layer, in this order:
   #

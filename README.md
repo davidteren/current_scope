@@ -540,7 +540,12 @@ enforcing when you aren't is the worst way to be wrong about this setting.
 actions whose gate derives its answer from the scoped list, so a scoped
 `full_access` grant opens exactly the collections that would show its records
 (gate and list agree by construction — the #65 fix). Set `[]` to restore the
-0.2 behavior, where scoped `full_access` opens no record-less gate at all.
+pre-#65 behavior, where explicit ticks still open type-bound record-less gates
+but scoped `full_access` opens none (the whole record-less family is new in
+this release — no released version had either posture). A full key
+(`"reports#index"`) raises at assignment (the list is action-segment matched,
+app-wide), and a canonical mutating name (`create`/`update`/`destroy`) logs a
+loud warning.
 **List-narrowing reads only:** never name a mutating action here — that would
 hand a scoped full_access holder the action on every record of the type off a
 grant on one record. Custom read actions (`export`, `search`) are the intended

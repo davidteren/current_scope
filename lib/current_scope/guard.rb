@@ -429,16 +429,20 @@ module CurrentScope
       return unless CurrentScope.config.warn_on_undeclared_collection_model
       return unless reason == :model_undeclared
 
-      # The grant is known to tick the key on SOME record of SOME type — the
-      # missing declaration is exactly why the gate couldn't check which. So
-      # the fix is named conditionally, not promised. (#61 wording precedent)
+      # The grant is known to satisfy the key on SOME record of SOME type — a
+      # tick, or (on a listed read, #65) a full_access role, which ticks
+      # nothing. The missing declaration is exactly why the gate couldn't
+      # check which, and it also can't check record liveness — so the fix is
+      # named as "may fix", never promised. (#61 wording precedent; the
+      # resolver's label-predicate comment relies on this hedge.)
       Rails.logger&.warn(
         "[CurrentScope] denied \"#{permission}\" (model_undeclared) — this is a declared " \
         "collection action (current_scope_record returned nil) and the subject holds a scoped " \
-        "grant ticking the key, but #{controller_path} declares no current_scope_model, so the " \
-        "gate had no type to bind that grant to and failed closed. Declare the type this " \
-        "collection deals in (`def current_scope_model = TheType`) — if the grant is of that " \
-        "type, that fixes this."
+        "grant that satisfies the key, but #{controller_path} declares no current_scope_model, " \
+        "so the gate had no type to bind it to and failed closed. Declaring the type this " \
+        "collection deals in (`def current_scope_model = TheType`) may fix this — the grant " \
+        "must be of that type, and for a listed read its record must still be in the model's " \
+        "default scope."
       )
     end
 

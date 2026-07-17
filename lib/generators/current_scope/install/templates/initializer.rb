@@ -58,7 +58,10 @@ CurrentScope.configure do |config|
   # ("Owner of Report #7") opens exactly the collections that would show it
   # records — gate and list agree by construction. Matched on the action
   # segment of the key, like sod_actions. Default ["index"]; set [] to
-  # restore the 0.2 behavior (scoped full_access opens no record-less gate).
+  # restore the pre-#65 behavior (explicit ticks still open type-bound
+  # record-less gates; scoped full_access opens none). A full key
+  # ("reports#index") raises — the list is action-segment matched, app-wide —
+  # and a canonical mutating name (create/update/destroy) warns at assignment.
   #
   # LIST-NARROWING READS ONLY: the safety of honoring full_access here comes
   # from the answer being derived from record ids, so it is only sound for

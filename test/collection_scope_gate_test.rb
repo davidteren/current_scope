@@ -531,17 +531,17 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
     Report.default_scopes = []
   end
 
-  test "AE5 (#65) opt-out: an empty collection_read_actions restores the 0.2 record-less semantics" do
+  test "AE5 (#65) opt-out: an empty collection_read_actions restores the pre-#65 record-less semantics" do
     original = CurrentScope.config.collection_read_actions
     CurrentScope.config.collection_read_actions = []
     scope_grant(@alice, role("Owner", full_access: true), @report)
     scope_grant(@bob, role("Editor", "reports#index"), @report)
 
     assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Report),
-      "opted out, full_access is barred from the record-less branch exactly as in 0.2"
+      "opted out, full_access is barred from the record-less branch exactly as pre-#65"
     assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: Report)
     assert @resolver.allow?(subject: @bob, permission: "reports#index", record: nil, model: Report),
-      "explicit ticks keep working through the 0.2 branch"
+      "explicit ticks keep working through the pre-#65 ticking branch"
   ensure
     CurrentScope.config.collection_read_actions = original
   end

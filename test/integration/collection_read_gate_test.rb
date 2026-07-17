@@ -5,7 +5,7 @@ require "test_helper"
 # stack. The resolver-unit truth lives in test/collection_scope_gate_test.rb;
 # this file proves the wiring — the hooks thread the type, the reason rides the
 # header, report mode stops surveying what is now a genuine allow, and the
-# opt-out restores the 0.2 request behavior.
+# opt-out restores the pre-#65 request behavior.
 class CollectionReadGateTest < ActionDispatch::IntegrationTest
   setup do
     @alice = User.create!(name: "Alice")
@@ -59,7 +59,7 @@ class CollectionReadGateTest < ActionDispatch::IntegrationTest
     assert_equal "no_grant", response.headers["X-Current-Scope-Reason"]
   end
 
-  test "opt-out: an empty collection_read_actions restores the 0.2 request behavior" do
+  test "opt-out: an empty collection_read_actions restores the pre-#65 request behavior" do
     CurrentScope.config.collection_read_actions = []
 
     get reports_url, headers: sign_in(@alice)

@@ -142,9 +142,10 @@ module CurrentScope
     # of the key ("index" in "reports#index").
     #
     # DEFAULT ["index"] — the #65 fix is on out of the box. Set [] to restore
-    # the 0.2 record-less semantics: a scoped full_access role opens no
-    # record-less gate, only explicit ticks do, and the gate/list
-    # disagreement #65 describes comes back with it.
+    # the pre-#65 record-less semantics (never a released posture on their
+    # own — #19/#50/#65 ship together): explicit ticks still open type-bound
+    # record-less gates, a scoped full_access role opens none, and the
+    # gate/list disagreement #65 describes comes back with it.
     #
     # LIST-NARROWING READS ONLY. The full_access safety argument is that the
     # answer is derived from record ids — WHICH records the subject holds —
@@ -163,10 +164,38 @@ module CurrentScope
     # Normalizing writer, unlike sod_actions' plain accessor (that footgun is
     # grandfathered, not precedent): the list is matched as STRINGS, so
     # [:index] matching nothing would silently un-fix #65. Normalize rather
-    # than raise — every input has an unambiguous meaning (nil ⇒ []).
+    # than raise for shape (nil ⇒ [], symbols ⇒ strings — unambiguous), but
+    # two inputs get a voice, because a silently-inert or silently-widened
+    # security knob is the failure this writer exists to prevent:
+    #
+    #   - a full KEY ("reports#index") RAISES — the list is matched on the
+    #     action segment and applies to every controller, so a keyed member
+    #     can never match (silently inert) and stripping it to "index" would
+    #     silently widen a deliberately controller-scoped intent. Neither
+    #     reading is honest; say so at assignment.
+    #   - a canonical mutating action name (create/update/destroy) WARNS —
+    #     the #49 escalation shape, reintroduced by config. A warning, not a
+    #     raise: custom action names make any blocklist partial, and the
+    #     report-mode precedent (warn_report_mode_in_production) is the
+    #     house style for "legal but almost certainly not what you meant".
     def collection_read_actions=(value)
-      @collection_read_actions = Array(value).map(&:to_s)
+      actions = Array(value).map(&:to_s)
+
+      if (keyed = actions.grep(/#/)).any?
+        raise ConfigurationError,
+              "config.collection_read_actions is matched on the ACTION segment of a key and " \
+              "applies to every controller that routes it — #{keyed.map(&:inspect).join(', ')} " \
+              "can never match. Write \"index\", not \"reports#index\"; there is no " \
+              "per-controller form of this list."
+      end
+
+      warn_on_mutating_collection_reads(actions)
+      @collection_read_actions = actions
     end
+
+    # The three canonical Rails write actions — the unambiguous slice of the
+    # mutating-action space the writer above warns about.
+    MUTATING_ACTION_NAMES = %w[create update destroy].freeze
 
     # Tri-state: false | true (default) | :strict — controls
     # CurrentScope::Event.record!.
@@ -449,6 +478,27 @@ module CurrentScope
         # Boot order: an initializer can run before the logger exists. Say it
         # anyway — a warning nobody sees is the thing this method exists to
         # prevent.
+        warn(message)
+      end
+    end
+
+    # Mirrors warn_report_mode_in_production: a legal posture that is almost
+    # never what the host meant says so once, loudly, where a boot log keeps
+    # it. Warn in every env — unlike report mode this misconfiguration is as
+    # wrong in development as in production.
+    def warn_on_mutating_collection_reads(actions)
+      mutating = actions & MUTATING_ACTION_NAMES
+      return if mutating.empty?
+
+      message = "[CurrentScope] config.collection_read_actions includes " \
+                "#{mutating.map(&:inspect).join(', ')} — this list is for LIST-NARROWING READS. " \
+                "A mutating action here hands scoped full_access holders that action on every " \
+                "record of its type off a grant on ONE record (the #49 escalation shape). " \
+                "Remove it unless that is genuinely intended."
+
+      if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
+        Rails.logger.warn(message)
+      else
         warn(message)
       end
     end

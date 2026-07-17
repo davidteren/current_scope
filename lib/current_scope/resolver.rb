@@ -388,7 +388,13 @@ module CurrentScope
       # class form returned for a non-AR argument. This guard must stay ABOVE
       # the read arm — scope_for calls type.base_class and type.where, so a
       # non-AR type would 500 instead of denying. (#50 review, #65)
-      return false unless type.is_a?(Class) && type < ActiveRecord::Base
+      #
+      # ABSTRACT classes are excluded too (#65 review): ApplicationRecord
+      # passes `< ActiveRecord::Base` but has no table, so the read arm's
+      # scope_for would raise TableNotSpecified where the ticking arm's
+      # resource_type match simply found nothing. An abstract class stores no
+      # rows, so no scoped grant can name it — deny, don't 500.
+      return false unless type.is_a?(Class) && type < ActiveRecord::Base && !type.abstract_class?
 
       if collection_read_action?(permission)
         scope_for(subject: subject, model: type, permission: permission).exists?

@@ -186,6 +186,14 @@ class ConfigurationTest < ActiveSupport::TestCase
       "the previous list stands, like the other validating writers"
   end
 
+  test "the stored list is frozen — in-place mutation cannot bypass the writer" do
+    # config.collection_read_actions << :export would dodge normalization, the
+    # keyed-member raise, and the mutating-name warning. Frozen is loud.
+    config = CurrentScope::Configuration.new
+    assert_raises(FrozenError) { config.collection_read_actions << "export" }
+    assert_equal [ "index" ], config.collection_read_actions
+  end
+
   test "a canonical mutating action warns loudly but is accepted" do
     config = CurrentScope::Configuration.new
     out = capture_rails_log { config.collection_read_actions = %w[index destroy] }

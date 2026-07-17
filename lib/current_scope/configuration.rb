@@ -190,7 +190,11 @@ module CurrentScope
       end
 
       warn_on_mutating_collection_reads(actions)
-      @collection_read_actions = actions
+      # Frozen so in-place mutation (config.collection_read_actions << :export)
+      # cannot bypass the writer — a symbol appended in place would silently
+      # never match, a "#" key would dodge the raise, and a mutating name would
+      # dodge the warning. FrozenError is loud; assign a new list instead.
+      @collection_read_actions = actions.freeze
     end
 
     # The three canonical Rails write actions — the unambiguous slice of the
@@ -389,7 +393,7 @@ module CurrentScope
       @sod_identity = :either
       @allow_sod_bypass = false
       @sod_bypass_permission = "bypass_sod"
-      @collection_read_actions = [ "index" ]
+      @collection_read_actions = [ "index" ].freeze
       @allow_mutations_while_impersonating = false
       @excluded_controllers = [
         %r{\Arails/}, %r{\Aactive_storage/}, %r{\Aaction_mailbox/},

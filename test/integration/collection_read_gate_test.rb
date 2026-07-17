@@ -109,7 +109,9 @@ class CollectionReadGateTest < ActionDispatch::IntegrationTest
     CurrentScope::RoleAssignment.create!(subject: admin, role: role("Root", full_access: true))
     @mine.destroy!
 
-    get current_scope.members_role_url(@owner), headers: sign_in(admin)
+    # Literal path, not the engine URL helper — the repo convention for
+    # integration tests (SCRIPT_NAME sticks after engine requests). (#89 review)
+    get "/current_scope/roles/#{@owner.id}/members", headers: sign_in(admin)
 
     assert_response :success
   end

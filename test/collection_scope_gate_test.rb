@@ -521,6 +521,7 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
     # regression surface, not just the hard-destroy flavor.
     scope_grant(@alice, role("Owner", full_access: true), @report)
     scope_grant(@bob, role("Editor", "reports#index"), @report)
+    original_scopes = Report.default_scopes
     Report.instance_eval { default_scope { where.not(title: "Q3") } } # @report's title — scoped out, not destroyed
 
     assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Report),
@@ -528,7 +529,9 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
     assert_not @resolver.allow?(subject: @bob, permission: "reports#index", record: nil, model: Report),
       "and the same for an explicitly-ticked grant: strict means strict"
   ensure
-    Report.default_scopes = []
+    # Restore what was there (not []): wiping default_scopes would silently
+    # erase a real default scope if Report ever gained one. (#89 review)
+    Report.default_scopes = original_scopes
   end
 
   test "AE5 (#65) opt-out: an empty collection_read_actions restores the pre-#65 record-less semantics" do
@@ -593,6 +596,12 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
     # scope_for branch, or this is a NoMethodError 500 instead of a clean deny.
     assert_not @resolver.allow?(subject: @alice, permission: "gadgets#index", record: Gadget)
     assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Gadget)
+
+    # An ABSTRACT class passes `< ActiveRecord::Base` but has no table — the
+    # read arm's scope_for would raise TableNotSpecified where the old ticking
+    # arm quietly matched nothing. Deny, don't 500. (#89 review)
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: ApplicationRecord)
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: ApplicationRecord)
   end
 
   test "#65 purity: the scope_for-derived branch reads only and leaves no residue between calls" do

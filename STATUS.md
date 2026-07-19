@@ -33,9 +33,11 @@ controllers, views, and ViewComponents.
 - Showcase app: **[davidteren/current_scope_showcase](https://github.com/davidteren/current_scope_showcase)**
   (own repo; consumes the published gem — no longer vendored)
 
-Version `0.3.0`, **published to RubyGems** (tag `v0.3.0` + GitHub Release,
-2026-07-19) — the showcase consumes it as an ordinary `gem "current_scope"`
-(`~> 0.3.0`). Not production-ready; see the README banner.
+Version **`0.3.0` published** to RubyGems (tag `v0.3.0` + GitHub Release,
+2026-07-19). Branch `fix/solid-solution-phase-0` / PR #100 bumps the gem to
+**`0.3.1`** (post-release patch — SoD config writer, last full-access lockout
+guards, related DX). Showcase still on `~> 0.3.0` until 0.3.1 is tagged and
+pushed. Not production-ready; see the README banner.
 
 **0.3.0 shipped 2026-07-19.** The release gate (dte-deep-reviewer +
 dte-test-auditor + /security-review; records in `docs/reviews/`) passed with

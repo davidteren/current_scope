@@ -316,7 +316,10 @@ org-wide grant means "see everything", so `scope_for` would return
 view helper and the gate never disagree. A controller that does **not** declare
 `current_scope_model` fails the record-less gate closed for scoped grants (the
 denial carries `X-Current-Scope-Reason: model_undeclared`, and a dev nudge
-names the one-line fix).
+names the one-line fix). A declaration that returns something other than a
+concrete ActiveRecord class — `"Report"` for `Report`, say — also fails
+closed, labelled `model_invalid`, with a nudge naming the value the hook
+returned.
 
 > **The gate admits; `scope_for` narrows. Both halves are yours to wire.** The
 > gate only decides *whether* `#index` runs — it cannot filter a list you build
@@ -768,6 +771,8 @@ the response as the `X-Current-Scope-Reason` header:
 |---|---|
 | `sod_veto` | the record's initiator can't perform a separation-of-duties action on it |
 | `no_grant` | nothing granted the permission — the default deny |
+| `model_undeclared` | a record-less deny that a scoped grant would have opened, had the controller declared `current_scope_model` |
+| `model_invalid` | `current_scope_model` was declared but returned something other than a concrete ActiveRecord class |
 | `impersonation_gate` | a mutation while impersonating, which is read-only |
 | `not_full_access` | the management UI, which only full-access subjects enter |
 

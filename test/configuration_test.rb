@@ -203,6 +203,51 @@ class ConfigurationTest < ActiveSupport::TestCase
     assert_match '"destroy"', out
   end
 
+  test "the writer's own freeze holds — an ASSIGNED list rejects in-place mutation too" do
+    # The default's freeze comes from initialize; this pins the WRITER's. The
+    # 0.3.0 release-gate mutation audit deleted the writer's .freeze and the
+    # suite stayed green — this is the test that reddens that.
+    config = CurrentScope::Configuration.new
+    config.collection_read_actions = %w[index export]
+    assert_raises(FrozenError) { config.collection_read_actions << "create" }
+    assert_equal [ "index", "export" ], config.collection_read_actions
+  end
+
+  test "a Hash or nested array raises — Array-coercion garbage cannot silently un-fix #65" do
+    # Array({ index: true }) is [[:index, true]] and .to_s makes it
+    # "[:index, true]" — a member that can never match, silently replacing
+    # the default. The writer says so instead. (0.3.0 release-gate finding)
+    config = CurrentScope::Configuration.new
+    error = assert_raises(CurrentScope::ConfigurationError) do
+      config.collection_read_actions = { index: true }
+    end
+    assert_match "[:index, true]", error.message, "the raise names the offending element"
+    assert_raises(CurrentScope::ConfigurationError) do
+      config.collection_read_actions = [ %w[index] ]
+    end
+    assert_equal [ "index" ], config.collection_read_actions,
+      "the previous list stands, like the keyed-member raise"
+  end
+
+  test "a NON-canonical mutating name is accepted with NO warning — the blocklist ceiling, pinned" do
+    # MUTATING_ACTION_NAMES is create/update/destroy only, so destroy_all —
+    # the very example the writer's comment names — enters silently. That is
+    # the accepted partial-blocklist limitation; pinned here so widening or
+    # narrowing the constant is a deliberate, test-visible decision, not
+    # drift. (0.3.0 release-gate finding)
+    config = CurrentScope::Configuration.new
+    out = capture_rails_log { config.collection_read_actions = %w[index destroy_all] }
+    assert_equal [ "index", "destroy_all" ], config.collection_read_actions
+    assert_equal "", out, "no warning fires for names outside the canonical trio"
+  end
+
+  test "a clean read-shaped list warns nothing — the suppressed side, pinned" do
+    config = CurrentScope::Configuration.new
+    out = capture_rails_log { config.collection_read_actions = %w[index export search] }
+    assert_equal [ "index", "export", "search" ], config.collection_read_actions
+    assert_equal "", out
+  end
+
   private
 
   def capture_rails_log

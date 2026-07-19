@@ -178,8 +178,24 @@ module CurrentScope
     #     raise: custom action names make any blocklist partial, and the
     #     report-mode precedent (warn_report_mode_in_production) is the
     #     house style for "legal but almost certainly not what you meant".
+    #   - an element that is not a String/Symbol RAISES — Array({ index: true })
+    #     is [[:index, true]], and .to_s on that pair is "[:index, true]": a
+    #     member that can never match, silently REPLACING the default and
+    #     un-fixing #65 with no signal (0.3.0 release-gate finding). Only
+    #     action names have an unambiguous string form; anything else says so
+    #     at assignment.
     def collection_read_actions=(value)
-      actions = Array(value).map(&:to_s)
+      elements = Array(value)
+
+      if (bad = elements.reject { |e| e.is_a?(String) || e.is_a?(Symbol) }).any?
+        raise ConfigurationError,
+              "config.collection_read_actions takes action NAMES (strings or symbols); got " \
+              "#{bad.map(&:inspect).join(', ')}. A Hash or nested array would coerce to a " \
+              "member that can never match an action, silently restoring the pre-#65 " \
+              "record-less semantics. Write e.g. %w[index export]."
+      end
+
+      actions = elements.map(&:to_s)
 
       if (keyed = actions.grep(/#/)).any?
         raise ConfigurationError,
@@ -294,7 +310,9 @@ module CurrentScope
     # controller names no current_scope_model, while the subject holds a scoped
     # grant ticking the key. The record-less branch had no type to bind that
     # grant to, so it failed closed (#50) — correctly, but the 403 looks like
-    # "never granted" while the fix is one line in the controller.
+    # "never granted" while the fix is one line in the controller. The same
+    # flag gates the :model_invalid nudge — the hook was declared but returned
+    # something unusable ("Report" for Report); one failure family, one knob.
     attr_accessor :warn_on_undeclared_collection_model
 
     # How the role-editor grid folds RESTful actions into columns. An ordered

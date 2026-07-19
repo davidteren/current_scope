@@ -50,6 +50,12 @@ RubyGems; not production-ready.
 Milestone / release gate (before any version bump or RubyGems tag):
 `dte-deep-reviewer` + `dte-test-auditor` + `/security-review`.
 
+**Reply to every PR review comment before resolving its thread** — never
+resolve silently. If the finding was fixed: say what was done and name the
+commit. If it was not: say the rationale (false positive, intended behavior,
+already covered — and where). Confirm the fix commit actually reached the
+remote before resolving (see PR #64/#71).
+
 ## Tool & skill playbook
 
 **Discovery order:** `codebase-retrieval` (Augment) first for "how/where does X

@@ -150,6 +150,9 @@ CurrentScope.configure do |config|
   # current_scope_model, while the subject holds a scoped grant ticking the
   # key. The gate had no type to bind that grant to, so it failed closed —
   # correctly, but the fix is one line: `def current_scope_model = TheType`.
+  # The same flag covers "model_invalid" — a declared hook returning
+  # something other than a concrete AR class ("Report" for Report); that
+  # nudge names the value the hook returned.
   # config.warn_on_undeclared_collection_model = Rails.env.local?
   # ------------------------------------------------------------------------
 

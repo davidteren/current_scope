@@ -35,7 +35,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   filtered out by a multi-tenant `default_scope` — the list would not show
   the record, so the gate agrees. A new post-upgrade 403 on an index almost
   always means the granted record is gone from the subject's list; the grant
-  row still shows in the console. One more widened-label consequence: in
+  row still shows in the console. The widening reaches the class form too:
+  `allowed_to?(:index, Report)` in any view — no controller declaration
+  involved, the class form carries its own type — now returns true for a
+  scoped `full_access` holder of a `Report`, so a link hidden pre-upgrade
+  renders after it. One more widened-label consequence: in
   report mode (`enforcement = :report`), a scoped full_access holder hitting
   a listed read on a controller with `current_scope_record = nil` but no
   `current_scope_model` is now denied `:model_undeclared` — a hard 403 even
@@ -212,6 +216,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   where you are. Override any of them either way. (#41)
 
 ### Fixed
+- **`config.collection_read_actions` rejects elements that aren't action
+  names.** `Array({ index: true })` is `[[:index, true]]`, and its `.to_s` is
+  a member that can never match an action — so a Hash or nested array froze
+  as a silently-inert list, replacing the `["index"]` default and restoring
+  the pre-#65 record-less semantics with no signal. Fails closed (never
+  widens), but a silently-disabled security knob is the exact failure the
+  writer's validations exist to prevent. Non-String/Symbol elements now raise
+  `ConfigurationError` naming the offending value, like the keyed-member
+  raise. (0.3.0 release-gate finding)
+- **A mis-declared `current_scope_model` now says so.** A declared hook
+  returning something unusable — `"Report"` for `Report`, an instance, an
+  abstract class — was refused by the shape guard (correctly, fail-closed)
+  but denied as plain `:no_grant`: byte-identical to "never granted", pointing
+  nowhere near the bad declaration. That deny is now labelled
+  `:model_invalid` on `X-Current-Scope-Reason` (when the subject holds a
+  scoped grant satisfying the key — the same honesty condition as
+  `:model_undeclared`), and the dev/test nudge (same
+  `warn_on_undeclared_collection_model` flag) names the value the hook
+  returned and the fix. Label-only under `:enforce` — and, like
+  `:model_undeclared` above, a **report-mode** host with a mis-declared model
+  now gets a hard 403 where the same request previously passed through as an
+  observed `:no_grant` (report mode downgrades only `:no_grant`; a
+  misconfigured collection gate is not that). (0.3.0 release-gate finding)
 - **The management UI's 403 now says why.** Opening the console without a
   full-access role returned a bare, bodyless `403` with no
   `X-Current-Scope-Reason` — the one denial in the gem that sat outside the

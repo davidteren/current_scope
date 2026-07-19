@@ -23,6 +23,10 @@ module  CurrentScope
   #   :model_undeclared   — a record-less deny that a scoped grant would have
   #                         opened, had the controller declared current_scope_model
   #                         to bind it to a type (#50). Fail-closed, with the fix named.
+  #   :model_invalid      — its sibling: current_scope_model WAS declared but
+  #                         returned something the shape guard refuses (a String,
+  #                         an instance, an abstract class — not a concrete AR
+  #                         class). Same cell, different fix, so a different label.
   #   :impersonation_gate — a mutation while impersonating, which is read-only
   #   :not_full_access    — the engine's management UI, which only full_access enters
   #

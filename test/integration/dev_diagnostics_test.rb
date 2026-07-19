@@ -338,6 +338,52 @@ class UndeclaredCollectionModelNudgeTest < ActionDispatch::IntegrationTest
     assert_equal off, on
   end
 
+  test "a declared-but-INVALID model denies :model_invalid and the nudge names the returned value" do
+    # The sibling gap (0.3.0 release gate): the host DID declare the hook and
+    # typo'd it — "Report" for Report. Before the label this denied as plain
+    # :no_grant, byte-identical to "never granted", pointing nowhere near the
+    # bad declaration.
+    scoped(@alice, role("Editor", "invalid_model#index"), @report)
+
+    log = capture_log { get "/invalid_model", headers: sign_in(@alice) }
+
+    assert_response :forbidden, "an unusable type fails closed — the label changes nothing"
+    assert_equal "model_invalid", response.headers["X-Current-Scope-Reason"],
+                 "declared-but-refused is its own cell, not :model_undeclared"
+    assert_equal 1, nudges(log).grep(/model_invalid/).size, "exactly one nudge"
+    assert_match '"Report"', log, "the nudge names the value the hook returned"
+    assert_match "def current_scope_model", log, "and the fix"
+  end
+
+  test "report mode: :model_invalid is NOT downgraded either — the sibling pin" do
+    # Same contract as :model_undeclared below: report_only_denial? matches
+    # :no_grant positively, so the mis-declared-model cell 403s even under
+    # :report — where pre-label the same request passed as an observed
+    # :no_grant. Disclosed in the CHANGELOG; pinned here. (ce review, pre-PR)
+    CurrentScope.config.enforcement = :report
+    scoped(@alice, role("Editor", "invalid_model#index"), @report)
+
+    log = capture_log { get "/invalid_model", headers: sign_in(@alice) }
+
+    assert_response :forbidden, "report mode relaxes exactly :no_grant — this is not that"
+    assert_equal "model_invalid", response.headers["X-Current-Scope-Reason"]
+    assert_equal 1, nudges(log).grep(/model_invalid/).size
+  ensure
+    CurrentScope.config.enforcement = :enforce
+  end
+
+  test "flag off: no :model_invalid nudge either — the reason still rides the header" do
+    CurrentScope.config.warn_on_undeclared_collection_model = false
+    scoped(@alice, role("Editor", "invalid_model#index"), @report)
+
+    log = capture_log { get "/invalid_model", headers: sign_in(@alice) }
+
+    assert_response :forbidden
+    assert_empty nudges(log)
+    assert_equal "model_invalid", response.headers["X-Current-Scope-Reason"],
+                 "same contract as :model_undeclared — the flag gates only the log line"
+  end
+
   test "advisory allowed_to? for the same denied subject never nudges" do
     scoped(@alice, role("Editor", "undeclared_model#index"), @report)
 

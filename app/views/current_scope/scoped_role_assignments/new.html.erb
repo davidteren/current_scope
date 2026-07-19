@@ -24,15 +24,15 @@
 <%= form_with url: new_scoped_role_assignment_path, method: :get, id: "cs-cascade",
       data: { turbo_frame: "cascade" }, class: "cs-picker" do %>
   <p>
-    <label>Role</label>
+    <%= label_tag :role_id, "Role" %>
     <%= select_tag :role_id,
           options_from_collection_for_select(@roles, :id, :name, params[:role_id]),
           data: { current_scope_autosubmit: true } %>
   </p>
   <% if @bulk_subjects.any? %>
     <p>
-      <label>Subjects</label>
-      <span class="cs-hint">
+      <span class="cs-label" id="cs_bulk_subjects_label">Subjects</span>
+      <span class="cs-hint" aria-labelledby="cs_bulk_subjects_label">
         Granting to <strong><%= @bulk_subjects.size %></strong>:
         <%= @bulk_subjects.map { |s| current_scope_subject_label(s) }.to_sentence %>
       </span>
@@ -42,7 +42,7 @@
     </p>
   <% else %>
     <p>
-      <label>Subject</label>
+      <%= label_tag :subject_gid, "Subject" %>
       <%= select_tag :subject_gid,
             options_for_select(@subjects.map { |s| [ current_scope_subject_label(s), s.to_gid.to_s ] },
                                params[:subject_gid]),
@@ -67,7 +67,7 @@
       end
     %>
     <p>
-      <label>Resource type</label>
+      <%= label_tag :resource_type, "Resource type" %>
       <%= select_tag :resource_type,
             options_for_select(type_options, @resource_type&.name),
             include_blank: "— choose a type —", form: "cs-cascade",
@@ -82,13 +82,13 @@
       <% else %>
         <% if @searchable %>
           <p>
-            <label>Search records</label>
+            <%= label_tag :q, "Search records" %>
             <%= search_field_tag :q, params[:q], placeholder: "Filter by label",
                   form: "cs-cascade", data: { current_scope_autosubmit: true } %>
           </p>
         <% end %>
         <p>
-          <label>Record</label>
+          <%= label_tag :resource_gid, "Record" %>
           <%
             record_options = (@records || []).map { |record| [ current_scope_label(record), record.to_gid.to_s ] }
             # Keep a deep-linked record selectable even if it fell outside the

@@ -23,6 +23,36 @@ class ConfigurationTest < ActiveSupport::TestCase
     assert_empty CurrentScope::Configuration.new.sod_actions
   end
 
+  # --- sod_actions writer (#91 / solid-solution S1) ---
+
+  test "sod_actions normalizes symbols so [:approve] cannot silently disable SoD" do
+    config = CurrentScope::Configuration.new
+    config.sod_actions = [ :approve, :reject ]
+    assert_equal %w[approve reject], config.sod_actions
+  end
+
+  test "sod_actions freezes the list — in-place mutation cannot bypass the writer" do
+    config = CurrentScope::Configuration.new
+    config.sod_actions = %w[approve]
+    assert_raises(FrozenError) { config.sod_actions << "reject" }
+    assert_equal %w[approve], config.sod_actions
+  end
+
+  test "sod_actions raises on a full permission key" do
+    config = CurrentScope::Configuration.new
+    error = assert_raises(CurrentScope::ConfigurationError) do
+      config.sod_actions = %w[reports#approve]
+    end
+    assert_match "reports#approve", error.message
+    assert_empty config.sod_actions, "the previous list stands"
+  end
+
+  test "sod_actions raises on a Hash or nested array" do
+    config = CurrentScope::Configuration.new
+    assert_raises(CurrentScope::ConfigurationError) { config.sod_actions = { approve: true } }
+    assert_empty config.sod_actions
+  end
+
   test "allows impersonated mutations outside production" do
     config = CurrentScope::Configuration.new
     with_rails_env("staging") do
@@ -229,16 +259,26 @@ class ConfigurationTest < ActiveSupport::TestCase
       "the previous list stands, like the keyed-member raise"
   end
 
-  test "a NON-canonical mutating name is accepted with NO warning — the blocklist ceiling, pinned" do
-    # MUTATING_ACTION_NAMES is create/update/destroy only, so destroy_all —
-    # the very example the writer's comment names — enters silently. That is
-    # the accepted partial-blocklist limitation; pinned here so widening or
-    # narrowing the constant is a deliberate, test-visible decision, not
-    # drift. (0.3.0 release-gate finding)
+  # Phase 0 (solid-solution S1 area): MUTATING_ACTION_NAMES includes
+  # destroy_all/update_all so the docs' #49 escalation examples cannot re-enter
+  # via config with no signal. Custom names still evade the partial blocklist.
+  # (main's 0.3.0 pin expected destroy_all silent; Phase 0 deliberately widens.)
+  test "destroy_all and update_all warn like the canonical write verbs" do
     config = CurrentScope::Configuration.new
     out = capture_rails_log { config.collection_read_actions = %w[index destroy_all] }
     assert_equal [ "index", "destroy_all" ], config.collection_read_actions
-    assert_equal "", out, "no warning fires for names outside the canonical trio"
+    assert_match "#49", out
+    assert_match "destroy_all", out
+
+    out = capture_rails_log { config.collection_read_actions = %w[index update_all] }
+    assert_match "update_all", out
+  end
+
+  test "a custom non-listed name is accepted with NO warning — partial blocklist ceiling" do
+    config = CurrentScope::Configuration.new
+    out = capture_rails_log { config.collection_read_actions = %w[index bulk_approve] }
+    assert_equal [ "index", "bulk_approve" ], config.collection_read_actions
+    assert_equal "", out
   end
 
   test "a clean read-shaped list warns nothing — the suppressed side, pinned" do

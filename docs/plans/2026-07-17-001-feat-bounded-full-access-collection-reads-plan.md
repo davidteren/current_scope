@@ -18,7 +18,10 @@ deepened: 2026-07-17
 - **Authority hierarchy:** issue #65's "Done when" bullets > AGENTS.md hard rules (fail-closed resolver, decision order, vanilla Rails) > this plan > implementer discretion.
 - **Immutable invariants:** default-deny and the decision order in `lib/current_scope/resolver.rb` (SoD veto → full_access → org-wide role → scoped role → record-less target → deny); no query that DECIDES may match scoped assignments against a full_access-inclusive role set unless it binds `resource:` to the exact record or answers in record ids (the `roles_granting` safety comment in `lib/current_scope/resolver.rb`); SoD's record-less refusal stays first and unconditional.
 - **Stop conditions:** a test outside the enumerated flip set (U2) goes red → stop and re-derive rather than editing it green; any cross-type or create/mutation denial pin goes red → the change is the #49 escalation, revert; a design fork not covered by a KTD appears → surface it, don't improvise.
-- **Delivery posture:** one branch → PR to `main` (PRs always), review gate `/ce-code-review` → `/ie-review` → `/run-review` before opening the PR. The PR body must name the deliberately retired test assertions (issue requirement).
+- **Delivery posture:** one branch → PR to `main` (PRs always), review gate
+  `/dt-pre-pr-gate` (`/ce-code-review` → `/ie-review` → `/cubic-loop` local)
+  before opening the PR — not `/run-review` alone (see AGENTS.md). The PR body
+  must name the deliberately retired test assertions (issue requirement).
 
 ---
 
@@ -220,7 +223,9 @@ No browser QA required: no engine view changes (AGENTS.md rule 4 is conditional 
 - The R9 documentation sweep landed in the same PR (drift rule), including the CHANGELOG upgrade-visible callout.
 - The PR body opens with plain-language What/Why/How and explicitly names each retired/reworded pin from U2's enumerated flip set with its one-line justification (issue requirement).
 - Follow-up issue filed for orphaned scoped-assignment rows (console rendering/reaping — Scope Boundaries).
-- No abandoned-attempt code in the diff; the review gate (`/ce-code-review` → `/ie-review` → `/run-review`) ran and findings are resolved.
+- No abandoned-attempt code in the diff; the review gate (`/dt-pre-pr-gate`:
+  `/ce-code-review` → `/ie-review` → `/cubic-loop` local) ran on the PR-head
+  SHA and findings are resolved.
 
 ---
 

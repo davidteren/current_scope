@@ -108,6 +108,22 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "roles#update full_access toggle emits role.updated with from/to" do
+    other = User.create!(name: "CoOwner")
+    co = CurrentScope::Role.create!(name: "CoOwner", full_access: true)
+    CurrentScope::RoleAssignment.create!(subject: other, role: co)
+
+    patch current_scope.role_url(@owner_role), headers: as(@owner), params: {
+      role: { name: "Owner", full_access: "0", permission_keys: [ "" ] }
+    }
+    event = only_event
+
+    assert_equal "role.updated", event.event
+    assert_equal true, event.details["full_access_from"]
+    assert_equal false, event.details["full_access_to"]
+    assert_not @owner_role.reload.full_access?
+  end
+
   # --- roles#destroy -------------------------------------------------------
 
   test "roles#destroy emits role.deleted plus one cascade event per assignment (pre-destroy snapshot)" do

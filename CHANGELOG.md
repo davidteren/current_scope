@@ -6,6 +6,41 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-07-19
+
+Post-`0.3.0` patch: silent-security footguns and management-console lockout
+guards from the solid-solution worklist (PR #100). No intended host API break.
+
+### Fixed
+- **`config.sod_actions` normalizes symbols and freezes the list (#91).**
+  Writing `[:approve]` used to leave SoD off silently because the resolver
+  matches action-segment **strings**. The writer now maps symbols → strings,
+  freezes the list, and raises on full keys / non-name elements — same honesty
+  as `collection_read_actions=`.
+- **`collection_read_actions=` rejects Hash / nested-array junk and warns on
+  `destroy_all` / `update_all`.** A Hash coerced to a never-matching member
+  silently restored pre-#65 semantics; bulk write names the docs cite as
+  escalation examples now warn like `create`/`update`/`destroy`.
+- **Last full-access console lockout guards.** Demoting or deleting a
+  full-access role, or clearing/destroying an org-wide assignment, is refused
+  when it would leave **zero full-access org holders**. Checks use holder
+  semantics (not “any empty spare full_access role row”), run under
+  transactional locks, and allow deleting **unassigned** full-access roles.
+  Demotion only treats an **explicit** `full_access` param as demoting.
+- **Role destroy cascade audit no longer 500s on orphaned polymorphic
+  subjects/resources** — event targets resolve defensively, like the members
+  page already did.
+- **`full_access` toggle is recorded on role update audit events**
+  (`full_access_from` / `full_access_to`).
+- **`ambient_collection_model` is private** on the Permissions mixin (internal
+  gate/view binding, not host API).
+
+### Changed
+- Management UI: role delete confirm names non-zero cascade holder counts and
+  uses the danger button; scoped-picker labels associate with controls;
+  subjects Set controls get subject-scoped `aria-label`s; lockout flashes
+  include a recovery step.
+
 ## [0.3.0] - 2026-07-19
 
 ### Added
@@ -441,7 +476,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   so `allowed_to?` works identically in controllers, views, and ViewComponents,
   the mounted management UI, and the `current_scope:install` generator.
 
-[Unreleased]: https://github.com/davidteren/current_scope/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/davidteren/current_scope/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/davidteren/current_scope/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/davidteren/current_scope/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/davidteren/current_scope/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/davidteren/current_scope/releases/tag/v0.1.0

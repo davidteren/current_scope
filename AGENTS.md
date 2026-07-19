@@ -41,20 +41,42 @@ RubyGems; not production-ready.
   non-technical reader could follow; technical detail below that block.
 - Never push a failing suite.
 
-## Review gate — before opening a PR
+## Review gate — before opening a PR (mandatory — never skip)
 
-1. `/ce-code-review` — fix findings
-2. `/ie-review` — fix findings
-3. `/run-review` (cubic) — fix findings
+**Do not run `gh pr create` (or any skill that opens a new PR) until this
+gate has completed on the exact commit that will be the PR head.**
+
+Use skill **`/dt-pre-pr-gate`**, which runs in order:
+
+1. `/ce-code-review` — fix findings (may commit)
+2. `/ie-review` — fix findings (may commit)
+3. `/cubic-loop` (**local** mode) — fix findings until clean / residual P3 only
+   (`/run-review` is a lighter one-shot cubic pass; it is **not** a substitute
+   for step 3 of this gate)
+
+**Stale-gate rule:** if anything is committed after the gate finishes,
+the gate is void — re-run `/dt-pre-pr-gate` on the new `HEAD` before
+create. An earlier pass on an older SHA does **not** count.
+
+**Waive only if the user explicitly waives it in chat for that PR** —
+never self-waive for "small" or "docs-only" diffs.
 
 Milestone / release gate (before any version bump or RubyGems tag):
 `dte-deep-reviewer` + `dte-test-auditor` + `/security-review`.
 
-**Reply to every PR review comment before resolving its thread** — never
-resolve silently. If the finding was fixed: say what was done and name the
-commit. If it was not: say the rationale (false positive, intended behavior,
-already covered — and where). Confirm the fix commit actually reached the
-remote before resolving (see PR #64/#71).
+**After opening a PR (mandatory — never skip):**
+
+1. **Wait** for PR review agents (cubic, qodo, Devin, etc.) to finish.
+2. **Address every comment** — valid ones: fix in code/docs; invalid ones:
+   still reply (do not ignore).
+3. **Reply inline on every thread** before resolving — agents use those
+   replies to self-learn. Fixed: agreement + what changed + fix commit SHA.
+   Not fixed: rationale (false positive / intended / already covered — and
+   where). Never resolve silently. Confirm the fix commit is on the remote
+   before resolving (see PR #64/#71).
+4. **CI green** — lint, test, and other required workflows must pass before
+   declaring ready (skills: `check-pr-comments`, `dt-address-PR-for-readiness`).
+5. **Never merge** unless the human asks — report readiness only.
 
 ## Tool & skill playbook
 

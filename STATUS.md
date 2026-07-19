@@ -6,6 +6,10 @@
 > [Verification brief](#verification-brief--for-a-fresh-session).**
 > It names what to distrust and why, and it is more useful than reading this
 > file top-to-bottom.
+>
+> **Solid-solution worklist (current):**  
+> [docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md](docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md)  
+> TL;DR: [docs/reviews/grok-whole-app-2026-07-19/TLDR.md](docs/reviews/grok-whole-app-2026-07-19/TLDR.md)
 
 ## What this is
 
@@ -29,9 +33,11 @@ controllers, views, and ViewComponents.
 - Showcase app: **[davidteren/current_scope_showcase](https://github.com/davidteren/current_scope_showcase)**
   (own repo; consumes the published gem — no longer vendored)
 
-Version `0.3.0`, **published to RubyGems** (tag `v0.3.0` + GitHub Release,
-2026-07-19) — the showcase consumes it as an ordinary `gem "current_scope"`
-(`~> 0.3.0`). Not production-ready; see the README banner.
+Version **`0.3.0` published** to RubyGems (tag `v0.3.0` + GitHub Release,
+2026-07-19). Branch `fix/solid-solution-phase-0` / PR #100 bumps the gem to
+**`0.3.1`** (post-release patch — SoD config writer, last full-access lockout
+guards, related DX). Showcase still on `~> 0.3.0` until 0.3.1 is tagged and
+pushed. Not production-ready; see the README banner.
 
 **0.3.0 shipped 2026-07-19.** The release gate (dte-deep-reviewer +
 dte-test-auditor + /security-review; records in `docs/reviews/`) passed with
@@ -44,6 +50,12 @@ published gem, zero regressions — and the shakedown caught #85's
 unlisted, now CHANGELOG errata (PR #95) and in the Release notes. Workflow
 rule added to AGENTS.md the same day (2026-07-19): every PR review comment
 gets a reply before its thread resolves.
+
+**Solid-solution Phase 0 (this branch `fix/solid-solution-phase-0`, post-0.3.0):**
+implements worklist S1–S5 / #91 and related lockout guards (holder-based
+full-access guards, cascade audit safety, expanded mutating-name warnings on
+`collection_read_actions`, `sod_actions` normalizing writer). Not yet on
+`main` / not yet released — parent will bump patch after this merges.
 
 ## Done (all committed on `main`)
 
@@ -509,18 +521,55 @@ confident, well-argued, wrong.
 
 ---
 
+## Reviews (2026-07-19)
+
+### 0.3.0 release gate (diff `102de5d..main`, PRs #88 / #89 / #92)
+
+| Doc | Role |
+|---|---|
+| [docs/reviews/deep-review-0.3.0-release-gate-2026-07-19.md](docs/reviews/deep-review-0.3.0-release-gate-2026-07-19.md) | Multi-lens deep review of the release delta |
+| [docs/reviews/security-review-0.3.0-release-gate-2026-07-19.md](docs/reviews/security-review-0.3.0-release-gate-2026-07-19.md) | Security review — PASS, no blockers |
+| [docs/reviews/test-audit-0.3.0-release-gate-2026-07-19.md](docs/reviews/test-audit-0.3.0-release-gate-2026-07-19.md) | Test audit — STRONG (A-) |
+
+**Gate verdict:** releasable for the #50/#65 surface; health ~8.5/10. Core
+fail-closed order intact. Pre-tag fixes for writer element validation and
+`:model_invalid` landed on `chore/0.3.0-pre-tag-fixes` (not yet all on main).
+
+### Whole-app Grok deep review + solid-solution worklist
+
+Multi-lens whole-codebase review (authz, architecture, UX, tests) plus open
+GitHub issues (27), caching/DX investigation, and a master worklist.
+
+| Doc | Role |
+|---|---|
+| **[docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md](docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md)** | **Master checklist** (~62 items, all open issues mapped, phases 0–6) |
+| [docs/reviews/grok-whole-app-2026-07-19/TLDR.md](docs/reviews/grok-whole-app-2026-07-19/TLDR.md) | Short start + P0 list |
+| [docs/reviews/grok-whole-app-2026-07-19/README.md](docs/reviews/grok-whole-app-2026-07-19/README.md) | Pack index |
+| [docs/reviews/grok-whole-app-2026-07-19/01-deep-review-main.md](docs/reviews/grok-whole-app-2026-07-19/01-deep-review-main.md) | Severity-ranked findings |
+| [docs/reviews/grok-whole-app-2026-07-19/07-issues-caching-docs-investigation.md](docs/reviews/grok-whole-app-2026-07-19/07-issues-caching-docs-investigation.md) | Issues + caching/Solid Cache + docs IA |
+
+**Whole-app verdict:** fail-closed core trustworthy; overall health **8.3/10**.
+No non-admin bypass found. Residual risk is silent host-config footguns, admin
+self-lockout paths, docs overload, and multi-frontend surfaces (#96/#97).
+
+**Solid v1 DoD (from worklist):** Phase 0 (silent security + lockout) + Phase 1
+(loud misconfig/audit honesty) + minimum Phase 2 docs (README→guides, one
+quickstart, production checklist) + tests T1–T4.
+
+> Note: `wip/` remains gitignored. Review artifacts that must be durable live
+> under `docs/reviews/` (this pack), not under `wip/`.
+
 ## Next
 
 1. ~~**0.3.0 — #50 (plan 029) + #65 together.**~~ — **SHIPPED 2026-07-19**
    (PRs #88/#89, release-gate fixes PR #93, CHANGELOG errata PR #95; see the
-   shipped note at the top of this file). Follow-ups #90/#91 below.
-2. **#91 — `sod_actions` normalizing writer (agreed next, 2026-07-19).** A
-   symbol or typo'd member silently un-matches and weakens the SoD veto with
-   no signal — the exact footgun `collection_read_actions=` was built to
-   prevent, whose comment calls the plain accessor "grandfathered, not
-   precedent". Give it the same writer (symbols→strings, raise on keyed
-   members) + a signal for names matching nothing in the catalog.
-   Mutation-check the SoD path per house style.
+   shipped note at the top of this file).
+2. **Solid-solution Phase 0 → merge + tag 0.3.1** — PR #100 already bumps
+   VERSION to **0.3.1** and implements worklist S1–S5, **#91** (`sod_actions`
+   normalizing writer), holder-based last full-access / lockout guards, cascade
+   audit safety, and expanded `MUTATING_ACTION_NAMES` (destroy_all/update_all
+   warn). After merge to main: tag `v0.3.1` and publish (VERSION is already on
+   this branch — no second parent-only version bump required).
 3. **#90 — orphaned scoped grants render as real access in the console.**
    Inert on listed reads since #65 (destroyed record ⇒ empty list ⇒ deny),
    but the console still shows them as live grants. UI honesty fix — needs
@@ -534,8 +583,11 @@ confident, well-argued, wrong.
    copy-pasteable **agentic-coding prompts** per guide (plus `llms.txt`).
    Folds in #33 (site source/drift), feeds #34 (README→guides) and #32
    (security checklist page).
-5. ~~**PR #69 review → implement plan 030**~~ — **done** (PR #79, #62 closed).
-6. **#45 — UNPARKED by the 0.3.0 release.** — delivery split already settled: parity
+5. **Solid-solution worklist Phase 1+** — follow
+   [08-solid-solution-worklist.md](docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md).
+   Still open high-value tickets: **#40**, **#30**, **#73**, **#74**.
+6. ~~**PR #69 review → implement plan 030**~~ — **done** (PR #79, #62 closed).
+7. **#45 — UNPARKED by the 0.3.0 release.** — delivery split already settled: parity
    harness ships in the gem, analyzer ships as a skill. First-PR scope answered
    by the audit (2026-07-16): **Action-Policy-first for the first adapter** —
    Pundit-first has no recorded rationale anywhere, while #45 calls AP the
@@ -544,16 +596,18 @@ confident, well-argued, wrong.
    not certify hosts against semantics about to change). Note: the parking +
    delivery split exist only in this file — ~~record them on issue #45~~ (done,
    2026-07-16 comment) and plan 027 is amended (PR #78).
-7. Then the docs cluster: **#30, #28, #27, #24** (plan 006 is "relocate and
-   complete", not "write").
-8. ~~**Publish to RubyGems**~~ — **done; current release is `v0.3.0`**
+8. Then the docs cluster: **#30, #28, #27, #24** (plan 006 is "relocate and
+   complete", not "write"); also **#34**, **#25**, **#33**, **#32**.
+9. ~~**Publish to RubyGems**~~ — **done; current release is `v0.3.0`**
    (2026-07-19; `v0.2.0` was the first published version). The release recipe,
    proven twice now: bump `lib/current_scope/version.rb` + CHANGELOG heading,
    run the release gate, tag + GitHub Release, `gem push`, then bump the
-   showcase's `gem "current_scope"` pin.
-9. **README screenshots** — the UI is clean and verified; capture the dashboard,
-   permission grid, subjects, members, events when convenient.
-10. Open design questions (DESIGN.md §9): resource hierarchy/cascade,
+   showcase's `gem "current_scope"` pin. Next publish is the Phase 0 patch.
+10. **#96 / #97** — API abilities payload + Inertia shared props (after core
+    solid bar, or parallel if capacity).
+11. **README screenshots** — the UI is clean and verified; capture the dashboard,
+    permission grid, subjects, members, events when convenient.
+12. Open design questions (DESIGN.md §9): resource hierarchy/cascade,
    multiple org-wide roles, scoped-role capability restriction.
 
 ## Still to be done (open design questions — DESIGN.md §9)

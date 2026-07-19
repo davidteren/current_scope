@@ -17,7 +17,11 @@ module CurrentScope
     # EMPTY BY DEFAULT — SoD is opt-in. The engine's baseline is scoped RBAC;
     # many hosts want nothing to do with four-eyes. Enable it by listing the
     # actions to gate, e.g. `config.sod_actions = %w[approve]`.
-    attr_accessor :sod_actions
+    #
+    # Matched as STRINGS against the key's action segment (see Resolver#sod_action?).
+    # Use the writer below — a plain Symbol list ([:approve]) used to silently
+    # disable the veto (#91). Same shape as collection_read_actions=.
+    attr_reader :sod_actions
 
     # Which identities the separation-of-duties veto weighs:
     #   :either  (default) — veto if the effective subject OR (while
@@ -31,6 +35,32 @@ module CurrentScope
     attr_reader :sod_identity
 
     SOD_IDENTITY_MODES = %i[either subject].freeze
+
+    # Normalizing writer for sod_actions (#91). The resolver matches with
+    # include?(permission.split("#").last) — a String — so symbols never match
+    # and silently turn the fraud control off. Normalize symbols to strings,
+    # reject non-String/Symbol elements and full keys (same honesty as
+    # collection_read_actions=), freeze the list.
+    def sod_actions=(value)
+      elements = Array(value)
+
+      if (bad = elements.reject { |e| e.is_a?(String) || e.is_a?(Symbol) }).any?
+        raise ConfigurationError,
+              "config.sod_actions takes action NAMES (strings or symbols); got " \
+              "#{bad.map(&:inspect).join(', ')}. Write e.g. %w[approve] or [:approve]."
+      end
+
+      actions = elements.map(&:to_s)
+
+      if (keyed = actions.grep(/#/)).any?
+        raise ConfigurationError,
+              "config.sod_actions is matched on the ACTION segment of a key — " \
+              "#{keyed.map(&:inspect).join(', ')} can never match. Write \"approve\", " \
+              "not \"reports#approve\"."
+      end
+
+      @sod_actions = actions.freeze
+    end
 
     # Validating writer, same contract as enforcement=: the resolver compares
     # `== :either`, so a typo (`:both`, `:actor`) would otherwise silently
@@ -161,12 +191,11 @@ module CurrentScope
     # reads, so review the declaration like the record hook.
     attr_reader :collection_read_actions
 
-    # Normalizing writer, unlike sod_actions' plain accessor (that footgun is
-    # grandfathered, not precedent): the list is matched as STRINGS, so
-    # [:index] matching nothing would silently un-fix #65. Normalize rather
-    # than raise for shape (nil ⇒ [], symbols ⇒ strings — unambiguous), but
-    # two inputs get a voice, because a silently-inert or silently-widened
-    # security knob is the failure this writer exists to prevent:
+    # Normalizing writer: the list is matched as STRINGS, so [:index] matching
+    # nothing would silently un-fix #65. Normalize rather than raise for shape
+    # (nil ⇒ [], symbols ⇒ strings — unambiguous), but two inputs get a voice,
+    # because a silently-inert or silently-widened security knob is the failure
+    # this writer exists to prevent:
     #
     #   - a full KEY ("reports#index") RAISES — the list is matched on the
     #     action segment and applies to every controller, so a keyed member
@@ -213,9 +242,11 @@ module CurrentScope
       @collection_read_actions = actions.freeze
     end
 
-    # The three canonical Rails write actions — the unambiguous slice of the
-    # mutating-action space the writer above warns about.
-    MUTATING_ACTION_NAMES = %w[create update destroy].freeze
+    # Canonical mutating / bulk-write action names the collection_read writer
+    # warns about. Includes destroy_all/update_all — the docs' escalation
+    # examples — so those cannot reintroduce #49 via config with no signal.
+    # Custom names still evade any partial blocklist; that ceiling is deliberate.
+    MUTATING_ACTION_NAMES = %w[create update destroy destroy_all update_all].freeze
 
     # Tri-state: false | true (default) | :strict — controls
     # CurrentScope::Event.record!.
@@ -407,7 +438,7 @@ module CurrentScope
     def initialize
       @user_method = :current_user
       @actor_method = nil
-      @sod_actions = []
+      @sod_actions = [].freeze
       @sod_identity = :either
       @allow_sod_bypass = false
       @sod_bypass_permission = "bypass_sod"

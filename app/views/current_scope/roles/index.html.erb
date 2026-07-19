@@ -30,9 +30,23 @@
         </td>
         <td>
           <%= link_to "Members", members_role_path(role), class: "cs-btn" %>
+          <%
+            org_n = role.role_assignments.size
+            scoped_n = role.scoped_role_assignments.size
+            parts = []
+            parts << "#{org_n} org-wide #{"holder".pluralize(org_n)}" if org_n.positive?
+            parts << "#{scoped_n} scoped #{"holder".pluralize(scoped_n)}" if scoped_n.positive?
+            delete_prompt = if parts.empty?
+              "Delete role #{role.name}?"
+            else
+              "Delete role #{role.name}? This also removes it from #{parts.to_sentence}."
+            end
+          %>
           <%= button_to "Delete", role_path(role), method: :delete,
-                form: { data: { cs_confirm: "Delete role #{role.name}?" } },
-                data: { turbo_confirm: "Delete role #{role.name}?" } %>
+                class: "cs-btn cs-btn-danger",
+                form: { data: { cs_confirm: delete_prompt } },
+                aria: { label: "Delete role #{role.name}" },
+                data: { turbo_confirm: delete_prompt } %>
         </td>
       </tr>
     <% end %>

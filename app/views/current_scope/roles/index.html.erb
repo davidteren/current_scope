@@ -30,9 +30,21 @@
         </td>
         <td>
           <%= link_to "Members", members_role_path(role), class: "cs-btn" %>
+          <%
+            org_n = role.role_assignments.size
+            scoped_n = role.scoped_role_assignments.size
+            delete_prompt = if org_n.zero? && scoped_n.zero?
+              "Delete role #{role.name}?"
+            else
+              "Delete role #{role.name}? This also removes it from " \
+                "#{org_n} org-wide and #{scoped_n} scoped " \
+                "#{'holder'.pluralize(org_n + scoped_n)}."
+            end
+          %>
           <%= button_to "Delete", role_path(role), method: :delete,
-                form: { data: { cs_confirm: "Delete role #{role.name}?" } },
-                data: { turbo_confirm: "Delete role #{role.name}?" } %>
+                class: "cs-btn cs-btn-danger",
+                form: { data: { cs_confirm: delete_prompt } },
+                data: { turbo_confirm: delete_prompt } %>
         </td>
       </tr>
     <% end %>

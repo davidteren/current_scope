@@ -1,7 +1,8 @@
 module CurrentScope
   class RolesController < ApplicationController
     def index
-      @roles = Role.order(:name)
+      # Includes for delete-confirm holder counts (cascade warning).
+      @roles = Role.order(:name).includes(:role_assignments, :scoped_role_assignments)
     end
 
     def new
@@ -56,10 +57,21 @@ module CurrentScope
 
     def update
       @role = Role.find(params[:id])
+      permitted = role_params
+
+      # Same harm class as delete: unchecking Full access on the sole Owner
+      # role locks every subject out of the management console.
+      if demoting_last_full_access?(@role, permitted)
+        redirect_to edit_role_path(@role),
+                    alert: "Refusing to remove full access from the last full-access role — " \
+                           "it would lock everyone out of this UI."
+        return
+      end
+
       previous_name = @role.name
       saved = false
       Role.transaction do
-        saved = @role.update(role_params)
+        saved = @role.update(permitted)
         record_role_update(@role, previous_name) if saved
       end
 
@@ -119,6 +131,16 @@ module CurrentScope
 
     def last_full_access?(role)
       role.full_access? && !Role.where(full_access: true).where.not(id: role.id).exists?
+    end
+
+    # True when the update would turn off full_access on the only remaining
+    # full-access role. Uses ActiveModel boolean cast so "0"/"false" form values
+    # count as demoting.
+    def demoting_last_full_access?(role, permitted)
+      return false unless role.full_access?
+      return false if ActiveModel::Type::Boolean.new.cast(permitted[:full_access])
+
+      !Role.where(full_access: true).where.not(id: role.id).exists?
     end
 
     def role_params

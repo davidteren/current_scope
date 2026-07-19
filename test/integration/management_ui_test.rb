@@ -155,6 +155,50 @@ class ManagementUiTest < ActionDispatch::IntegrationTest
     assert_not CurrentScope::Role.exists?(@owner_role.id)
   end
 
+  test "refuses to demote the last full-access role on update" do
+    patch current_scope.role_url(@owner_role), headers: as(@owner), params: {
+      role: { name: "Owner", full_access: "0", permission_keys: [ "" ] }
+    }
+    assert_redirected_to current_scope.edit_role_url(@owner_role)
+    assert @owner_role.reload.full_access?, "sole full-access role must stay full_access"
+
+    CurrentScope::Role.create!(name: "SecondOwner", full_access: true)
+    patch current_scope.role_url(@owner_role), headers: as(@owner), params: {
+      role: { name: "Owner", full_access: "0", permission_keys: [ "" ] }
+    }
+    assert_redirected_to current_scope.roles_url
+    assert_not @owner_role.reload.full_access?
+  end
+
+  test "refuses to clear the last full-access org-wide assignment" do
+    post current_scope.role_assignments_url, headers: as(@owner),
+         params: { subject_gid: @owner.to_gid.to_s, role_id: "" }
+    assert_redirected_to current_scope.subjects_url
+    assert CurrentScope::RoleAssignment.find_by(subject: @owner),
+      "clearing the sole full-access holder must be refused"
+
+    other = User.create!(name: "CoOwner")
+    co = CurrentScope::Role.create!(name: "CoOwner", full_access: true)
+    CurrentScope::RoleAssignment.create!(subject: other, role: co)
+
+    post current_scope.role_assignments_url, headers: as(@owner),
+         params: { subject_gid: @owner.to_gid.to_s, role_id: "" }
+    assert_nil CurrentScope::RoleAssignment.find_by(subject: @owner)
+  end
+
+  test "refuses a member POST that would escalate grants" do
+    post current_scope.role_assignments_url, headers: as(@member),
+         params: { subject_gid: @member.to_gid.to_s, role_id: @owner_role.id }
+    assert_response :forbidden
+    assert_equal @member_role, CurrentScope::RoleAssignment.find_by(subject: @member).role
+
+    patch current_scope.role_url(@member_role), headers: as(@member), params: {
+      role: { name: "Member", full_access: "1", permission_keys: [ "" ] }
+    }
+    assert_response :forbidden
+    assert_not @member_role.reload.full_access?
+  end
+
   test "subjects page renders role chips" do
     get current_scope.subjects_url, headers: as(@owner)
     assert_response :success

@@ -134,8 +134,10 @@ module CurrentScope
       CurrentScope::Current.collection_model = record.equal?(NO_RECORD) ? nil : model
       CurrentScope::Current.collection_model_path = controller_path
 
-      # The real actor (Current.actor) enters here explicitly — the resolver
-      # never reads Current itself (PDP purity). It only matters under SoD
+      # Decision *inputs* (subject, permission, record, model, actor) are
+      # explicit — the resolver does not read ambient identity for the allow/
+      # deny answer. Org-role *lookup* may use Current.memoized_org_role (a
+      # per-request cache, not a decision input). Actor only widens SoD under
       # :either while impersonating; otherwise actor == subject.
       allowed, reason = CurrentScope.resolver.decide(
         subject: CurrentScope::Current.user, permission: permission,

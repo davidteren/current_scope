@@ -10,6 +10,15 @@ module CurrentScope
 
       clearing = params[:role_id].blank?
 
+      # Refuse a bulk clear/reassign that would leave zero full-access org holders
+      # (same lockout as deleting the last full-access role).
+      if would_remove_last_full_access_holders?(subjects, clearing: clearing)
+        redirect_back_or_to subjects_path,
+                            alert: "Refusing to remove the last full-access org-wide assignment — " \
+                                   "it would lock everyone out of this UI."
+        return
+      end
+
       # One transaction for the whole bulk action: the UI presents it as a single
       # operation, so a failure partway must not leave only the first subjects
       # changed. All-or-nothing across assignments and their audit events. Count
@@ -41,6 +50,13 @@ module CurrentScope
       subject = resolve_subject(assignment)
       role_name = assignment.role.name
 
+      if last_full_access_org_assignment?(assignment)
+        redirect_back_or_to subjects_path,
+                            alert: "Refusing to remove the last full-access org-wide assignment — " \
+                                   "it would lock everyone out of this UI."
+        return
+      end
+
       RoleAssignment.transaction do
         assignment.destroy!
         Event.record!(event: "org_role.removed", target: subject || assignment, details: { role: role_name })
@@ -66,6 +82,40 @@ module CurrentScope
 
       verb = clearing ? "cleared" : "set"
       count == 1 ? "Org-wide role #{verb}." : "Org-wide role #{verb} for #{count} subjects."
+    end
+
+    # True when this assignment is a full_access org role and no other
+    # full_access org assignment exists.
+    def last_full_access_org_assignment?(assignment)
+      return false unless assignment.role&.full_access?
+
+      !full_access_org_assignments.where.not(id: assignment.id).exists?
+    end
+
+    # True when applying clear (or reassign to a non-full_access role) to these
+    # subjects would leave zero full_access org holders.
+    def would_remove_last_full_access_holders?(subjects, clearing:)
+      holders = full_access_org_assignments.to_a
+      return false if holders.empty?
+
+      affected_ids = holders.select { |a| subjects.any? { |s| same_subject?(a, s) } }.map(&:id)
+      return false if affected_ids.empty?
+
+      unless clearing
+        new_role = Role.find_by(id: params[:role_id])
+        return false if new_role&.full_access?
+      end
+
+      remaining = holders.reject { |a| affected_ids.include?(a.id) }
+      remaining.empty?
+    end
+
+    def full_access_org_assignments
+      RoleAssignment.joins(:role).where(current_scope_roles: { full_access: true })
+    end
+
+    def same_subject?(assignment, subject)
+      assignment.subject_type == subject.class.base_class.name && assignment.subject_id == subject.id
     end
 
     # Returns true when a role was actually cleared, false when there was nothing

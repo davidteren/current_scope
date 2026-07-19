@@ -543,14 +543,14 @@ quickstart, production checklist) + tests T1–T4.
 ## Next
 
 1. **0.3.0 tag gate** — #50 + #65 are **on main** (PRs #88 / #89). Version is
-   already `0.3.0`. Before tag: land remaining pre-tag fixes (worklist Phase 0:
-   **#91** sod_actions writer, last full-access demote/clear guards, mutating
-   collection_read warn expansion) + re-run / confirm release gate as needed.
-   Then CHANGELOG `[Unreleased]` → `[0.3.0]`, tag, `gem push`, bump showcase.
-2. **Solid-solution worklist Phase 0–1** — follow
+   already `0.3.0`. Phase 0 solid-solution items (S1–S5, lockout guards, related
+   tests/UI) are implemented on branch `fix/solid-solution-phase-0` (not yet
+   PR'd). Merge that + pre-tag branch into main, re-run gate as needed, then
+   CHANGELOG `[Unreleased]` → `[0.3.0]`, tag, `gem push`, bump showcase.
+2. **Solid-solution worklist Phase 1+** — follow
    [08-solid-solution-worklist.md](docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md).
-   Priority tickets already open: **#91**, **#40**, **#30**, **#73**, **#74**,
-   **#90**. File last-full-access demote/clear if still unfiled.
+   Still open high-value tickets: **#40**, **#30**, **#73**, **#74**, **#90**,
+   **#91** (code for #91 is on the phase-0 branch — close when merged).
 3. **Docs cluster (Phase 2)** — **#34** README restructure (plan 016), **#25**
    canonical quickstart, **#33** docs site, **#32** production checklist,
    **#27** UPGRADING, **#24** denial guide, **#28** config reference.

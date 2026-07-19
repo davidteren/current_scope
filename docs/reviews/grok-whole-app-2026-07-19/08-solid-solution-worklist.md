@@ -31,11 +31,11 @@ Items below are what still stand between “good engine” and that bar.
 
 | ID | Item | Why | Source | Status |
 |---|---|---|---|---|
-| **S1** | Normalize `config.sod_actions` (symbols → strings, freeze; raise on full keys) | `[:approve]` silently disables SoD | R P0 · **#91** | Open |
-| **S2** | Refuse demoting last `full_access` role on update | Destroy guarded; uncheck+save locks console | R P0 | Open — **file issue if none** |
-| **S3** | Refuse clearing last full_access org holder | Same lockout via Subjects clear/destroy | R P0 | Open — **file issue if none** |
-| **S4** | `collection_read_actions=` raise on Hash / non-String/Symbol | Silent un-fix of #65 | R P0 · gate | Fixed on pre-tag branch; confirm on `main` |
-| **S5** | Warn on `destroy_all` / `update_all` in collection_read list | #49 shape via config | R P0 · gate | Open / partial |
+| **S1** | Normalize `config.sod_actions` (symbols → strings, freeze; raise on full keys) | `[:approve]` silently disables SoD | R P0 · **#91** | **Done** on `fix/solid-solution-phase-0` |
+| **S2** | Refuse demoting last `full_access` role on update | Destroy guarded; uncheck+save locks console | R P0 | **Done** on `fix/solid-solution-phase-0` |
+| **S3** | Refuse clearing last full_access org holder | Same lockout via Subjects clear/destroy | R P0 | **Done** on `fix/solid-solution-phase-0` |
+| **S4** | `collection_read_actions=` raise on Hash / non-String/Symbol | Silent un-fix of #65 | R P0 · gate | **Done** (pre-tag + this branch) |
+| **S5** | Warn on `destroy_all` / `update_all` in collection_read list | #49 shape via config | R P0 · gate | **Done** on `fix/solid-solution-phase-0` |
 | **S6** | Boot-validate `sod_bypass_permission` ∉ `sod_actions` | Forbidden misconfig only 500s mid-request | **#40** | Open |
 | **S7** | Audit non-UI grants (`grant!`, seeds, rake) + honest `request_id` | Ledger gaps; silent Owner replace via rake | **#30** (bug) | Open |
 | **S8** | SoD nil-record nudge: ask `resolver.sod_veto_skipped?`; cover `params[:id]` | Diagnostic silent on common mistake | **#74** | Open |
@@ -53,7 +53,7 @@ Items below are what still stand between “good engine” and that bar.
 | ID | Item | Why | Source | Status |
 |---|---|---|---|---|
 | **O1** | Orphaned scoped grants: label / cleanup / reap | Inert since #65 but look like real access | **#90** | Open |
-| **O2** | Role delete confirm with holder counts + danger button | Cascade wipes all holders; confirm understates | R UX | Open |
+| **O2** | Role delete confirm with holder counts + danger button | Cascade wipes all holders; confirm understates | R UX | **Done** on `fix/solid-solution-phase-0` |
 | **O3** | `current_scope_skip_gate!(reason:)` + grid shows declared vs bare skip | Unexplained skips must stay alarming | **#76** | Open |
 | **O4** | Flag catalog rows whose controller does not resolve | Phantom grants → 500 on hit | **#43** | Open |
 | **O5** | Error polish: double org-grant message; excluded regex named | Cryptic failures send people to source | **#44** | Open |
@@ -69,8 +69,8 @@ Items below are what still stand between “good engine” and that bar.
 
 | ID | Item | Why | Source | Status |
 |---|---|---|---|---|
-| **U1** | Scoped picker labels associated (`for=` / `label_tag`) | WCAG 1.3.1 / 3.3.2 | R UX | Open |
-| **U2** | Subjects row Set: subject-scoped `aria-label` | Identical controls per row for AT | R UX | Open |
+| **U1** | Scoped picker labels associated (`for=` / `label_tag`) | WCAG 1.3.1 / 3.3.2 | R UX | **Done** on `fix/solid-solution-phase-0` |
+| **U2** | Subjects row Set: subject-scoped `aria-label` | Identical controls per row for AT | R UX | **Done** on `fix/solid-solution-phase-0` |
 | **U3** | Client filter empty: `role="status"` / aria-live | Zero matches not announced | R UX | Open |
 | **U4** | Cascade autosubmit `aria-busy` | Looks broken on slow loads | R UX | Open |
 | **U5** | Per-page `<title>` via `content_for` | Every tab says CurrentScope | R UX | Open |
@@ -83,8 +83,8 @@ Items below are what still stand between “good engine” and that bar.
 
 | ID | Item | Why | Source | Status |
 |---|---|---|---|---|
-| **E1** | `private :ambient_collection_model` | Accidental public host surface | R | Open |
-| **E2** | Reword Guard “resolver never reads Current” | Stale purity claim vs org-role memo | R · gate | Open |
+| **E1** | `private :ambient_collection_model` | Accidental public host surface | R | **Done** on `fix/solid-solution-phase-0` |
+| **E2** | Reword Guard “resolver never reads Current” | Stale purity claim vs org-role memo | R · gate | **Done** on `fix/solid-solution-phase-0` |
 | **E3** | Dual-hook macro e.g. `current_scope_collection Report` | Pair record+model; cut adoption footgun | R · C | Open (product) |
 | **E4** | Whole-controller / wildcard grants in model API | Grid JS sugar; seeds silently drop | **#42** | Open |
 | **E5** | Mis-declared `current_scope_model` diagnostic completeness | Fail closed with clear label/nudge | R gate finding 2 | Partially shipped (`:model_invalid`); verify remaining gaps |
@@ -98,10 +98,10 @@ Items below are what still stand between “good engine” and that bar.
 
 | ID | Item | Why | Source | Status |
 |---|---|---|---|---|
-| **T1** | Pin symbol `sod_actions` still enforces (with S1) | Fraud-control regression | T · R | Open |
+| **T1** | Pin symbol `sod_actions` still enforces (with S1) | Fraud-control regression | T · R | **Done** on `fix/solid-solution-phase-0` |
 | **T2** | Integration GET: empty-list deny after destroy | Unit-only today | T · gate | Open |
-| **T3** | Non-admin POST role/grant mutations → 403 | Self-escalation regression | T · R | Open |
-| **T4** | Org-role uniqueness regression test | Schema-only today | T | Open |
+| **T3** | Non-admin POST role/grant mutations → 403 | Self-escalation regression | T · R | **Done** on `fix/solid-solution-phase-0` |
+| **T4** | Org-role uniqueness regression test | Schema-only today | T | **Done** on `fix/solid-solution-phase-0` |
 | **T5** | Reason-trio includes `:sod_bypassed` | Order pin for break-glass | T | Open |
 | **T6** | SimpleCov (± mutant) in CI | Coverage number missing | T · R | Open |
 | **T7** | System tests prefer stable ids over text | AGENTS.md | T · U6 | Open |

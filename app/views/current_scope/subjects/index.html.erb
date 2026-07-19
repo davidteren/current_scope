@@ -77,8 +77,10 @@
             <%= hidden_field_tag :subject_gid, subject.to_gid %>
             <%= select_tag :role_id,
                   options_from_collection_for_select(@roles, :id, :name, @assignments[key]&.role_id),
-                  include_blank: "— none —" %>
-            <%= submit_tag "Set", name: nil %>
+                  include_blank: "— none —",
+                  aria: { label: "Org-wide role for #{label}" } %>
+            <%= submit_tag "Set", name: nil,
+                  aria: { label: "Set org-wide role for #{label}" } %>
           <% end %>
         </td>
         <td>

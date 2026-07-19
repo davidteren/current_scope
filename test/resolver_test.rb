@@ -205,4 +205,17 @@ class ResolverTest < ActiveSupport::TestCase
     assert allowed
     assert_nil reason
   end
+
+  # Symbol list used to silent-disable SoD (#91). The writer normalizes; this
+  # pins that the veto still fires when the host writes the natural Ruby form.
+  test "sod_actions = [:approve] still enforces the veto after normalization" do
+    original = CurrentScope.config.sod_actions
+    CurrentScope.config.sod_actions = [ :approve ]
+    assign(@bob, role("Reviewer", "reports#approve"))
+
+    assert_not @resolver.allow?(subject: @bob, permission: "reports#approve", record: @report),
+      "symbol list must not silent-disable SoD"
+  ensure
+    CurrentScope.config.sod_actions = original
+  end
 end

@@ -266,15 +266,11 @@ module CurrentScope
 
       # Re-entrancy is bounded ONLY because the bypass permission isn't itself an
       # SoD action (KTD-5) — the inner allowed? below returns at the SoD step
-      # without recursing. Enforce that invariant loudly rather than trusting the
-      # host to honor the doc comment: a bypass action in sod_actions would
-      # recurse to a SystemStackError.
-      bypass_action = CurrentScope.config.sod_bypass_permission.to_s.split("#").last
-      if CurrentScope.config.sod_actions.include?(bypass_action)
-        raise ConfigurationError,
-              "config.sod_bypass_permission (#{CurrentScope.config.sod_bypass_permission.inspect}) is the " \
-              "action #{bypass_action.inspect}, which is also in config.sod_actions. The bypass permission " \
-              "must not be an SoD action — it would recurse. Remove #{bypass_action.inspect} from sod_actions."
+      # without recursing. Boot validate! is the primary gate (#40); this raise
+      # is defense in depth for runtime-mutated config (tests reassign live).
+      # The conflict test lives on Configuration so boot and decide cannot drift.
+      if CurrentScope.config.sod_bypass_permission_conflicts_with_sod_actions?
+        CurrentScope.config.validate!
       end
 
       # Absent hook ⇒ this type never breaks glass (fail-closed, no raise).

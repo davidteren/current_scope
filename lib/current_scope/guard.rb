@@ -386,9 +386,22 @@ module CurrentScope
       return unless CurrentScope.config.warn_on_inert_scoped_grant
       return unless reason == :no_grant
       return unless record.equal?(NO_RECORD)
-      return unless CurrentScope.resolver.scoped_grant_exists?(
-        subject: CurrentScope::Current.user, permission: permission
-      )
+
+      # Diagnostics must not 500 the request (#74): a transient DB error inside
+      # scoped_grant_exists? is log-only, matching record_would_deny_event.
+      has_grant =
+        begin
+          CurrentScope.resolver.scoped_grant_exists?(
+            subject: CurrentScope::Current.user, permission: permission
+          )
+        rescue StandardError => e
+          Rails.logger&.warn(
+            "[CurrentScope] warn_on_inert_scoped_grant could not check scoped grants " \
+            "(#{e.class}: #{e.message}); skipping diagnostic for \"#{permission}\"."
+          )
+          false
+        end
+      return unless has_grant
 
       # Says only what the predicate proves. scoped_grant_exists? has no resource
       # filter — it can't have one, the missing record IS the bug — so it
@@ -481,16 +494,23 @@ module CurrentScope
 
     def nudge_on_nil_sod_record(permission, record)
       return unless CurrentScope.config.warn_on_nil_sod_record
-      # NO_RECORD counts: it IS the member-action-with-no-record case this nudge
-      # exists to catch, so it must not go quiet just because the Guard now
-      # labels that case instead of passing a bare nil.
-      return unless record.nil? || record.equal?(NO_RECORD)
-      return unless CurrentScope.config.sod_actions.include?(permission.split("#").last)
+      # Ask the resolver (#74) — do not re-derive "did the veto skip?". A private
+      # nil/NO_RECORD copy missed the commonest mistake: a hook returning
+      # params[:id] (a String). sod_veto_skipped? is the single definition.
+      gate_record = record.equal?(NO_RECORD) ? nil : record
+      return unless CurrentScope.resolver.sod_veto_skipped?(permission: permission, record: gate_record)
+
+      shape_hint =
+        if gate_record.nil?
+          "a nil record"
+        else
+          "a non-record (#{gate_record.class.name}) — often a hook returning params[:id]"
+        end
 
       Rails.logger&.warn(
-        "[CurrentScope] \"#{permission}\" is a separation-of-duties action but was gated with a " \
-        "nil record, so the SoD veto was skipped. If this is a member action, current_scope_record " \
-        "must return the record; if it's a collection action, this is expected."
+        "[CurrentScope] \"#{permission}\" is a separation-of-duties action but was gated with " \
+        "#{shape_hint}, so the SoD veto was skipped. If this is a member action, " \
+        "current_scope_record must return the AR record; if it's a collection action, this is expected."
       )
     end
   end

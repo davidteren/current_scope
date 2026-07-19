@@ -492,6 +492,35 @@ module CurrentScope
       @allow_mutations_while_impersonating = value
     end
 
+    # Action segment of sod_bypass_permission — bare name or "controller#action".
+    # Shared by boot validation and the resolver's recursion guard so the two
+    # never normalize differently (#40).
+    def sod_bypass_action
+      sod_bypass_permission.to_s.split("#").last
+    end
+
+    # True when the break-glass bypass permission is also listed in sod_actions.
+    # That pairing would re-enter the SoD step on every bypass check and stack
+    # overflow. Never valid in any environment (#40).
+    def sod_bypass_permission_conflicts_with_sod_actions?
+      action = sod_bypass_action
+      action.present? && sod_actions.include?(action)
+    end
+
+    # Boot-time config invariants. Wired from Engine#after_initialize after the
+    # host initializer has finalized both fields. Extensible seam for future
+    # multi-field checks; today only the bypass-in-sod_actions recursion rule.
+    def validate!
+      return unless sod_bypass_permission_conflicts_with_sod_actions?
+
+      action = sod_bypass_action
+      raise ConfigurationError,
+            "config.sod_bypass_permission (#{sod_bypass_permission.inspect}) is the " \
+            "action #{action.inspect}, which is also in config.sod_actions. The bypass " \
+            "permission must not be an SoD action — it would recurse. Remove " \
+            "#{action.inspect} from sod_actions."
+    end
+
     private
 
     # The env var's VALUE means what it says — presence alone is not consent.

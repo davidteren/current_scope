@@ -110,8 +110,10 @@ CurrentScope.configure do |config|
 
   # Audit ledger — tri-state: false | true (default) | :strict.
   #   false   — no audit rows recorded.
-  #   true    — record every authorization change; if the events table hasn't
-  #             been migrated yet, degrade gracefully (skip + warn once).
+  #   true    — record management-UI mutations, impersonation boundary events,
+  #             and grant!/rake/seeds bootstrap grants; if the events table
+  #             hasn't been migrated yet, degrade gracefully (skip + warn once).
+  #             Direct model writes and test helpers are not recorded.
   #   :strict — a missing events table RAISES (rolling the mutation back), so an
   #             audit-mandatory app never commits an unaudited change.
   # config.audit = true

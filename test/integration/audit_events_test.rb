@@ -58,6 +58,9 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     assert_equal role.to_gid.to_s, event.target
     assert_equal "Auditor", event.details["name"]
     assert_equal [ "reports#index", "reports#show" ].sort, event.details["permission_keys"].sort
+    # #30 — Context stamps request.request_id so ledger rows correlate with logs
+    assert event.request_id.present?, "UI mutations must carry a request_id"
+    assert_equal request.request_id, event.request_id
   end
 
   test "a failed roles#create (invalid) emits no event" do

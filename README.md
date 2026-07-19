@@ -487,7 +487,9 @@ Holding `bypass_sod` on a flagged, self-initiated record **is** the
 authorization for the SoD action — the bypass grants the action, it doesn't
 merely lift the veto and then re-check for a separate `approve` grant.
 `bypass_sod` must **not** appear in `sod_actions` (it isn't an SoD action); the
-engine raises if it does, to prevent a re-entrant loop.
+engine raises **at boot** if it does (and again at decision time as defense in
+depth), so a re-entrant pairing fails the deploy instead of 500ing on the first
+real break-glass attempt.
 
 When a bypass lifts the veto, the engine records exactly one append-only
 `sod.bypassed` audit event at the enforcement gate (never on advisory
@@ -556,10 +558,16 @@ additions. Members normalize to strings on assignment, so `%i[index]` works.
 
 The **audit ledger** is controlled by `config.audit` — tri-state
 `false | true | :strict`. `false` records nothing; `true` (the default) records
-every authorization change and degrades gracefully (skip + warn once) if the
-events table isn't migrated; `:strict` **raises** on a missing events table so
-an audit-mandatory app never commits an unaudited change (the mutation rolls
-back).
+authorization changes made through the **management UI**, the **impersonation
+boundary**, and **`CurrentScope.grant!`** (including the rake task and seeds
+bootstrap path — self-attributed, `details.source = "bootstrap"`), and degrades
+gracefully (skip + warn once) if the events table isn't migrated; `:strict`
+**raises** on a missing events table so an audit-mandatory app never commits an
+unaudited change (the mutation rolls back). Direct `RoleAssignment` /
+`ScopedRoleAssignment` writes and the test helpers (`grant_role!` /
+`grant_scoped_role!`) are **not** recorded — use `grant!` for bootstrap
+paths that need a ledger trail. UI events stamp `request_id` from
+`ActionDispatch::RequestId` via the Context hook.
 
 > **Note on the `!`:** despite the bang, `Event.record!` only guarantees
 > raise-on-failure under `:strict` (and for a missing actor). In the default

@@ -53,6 +53,52 @@ class ConfigurationTest < ActiveSupport::TestCase
     assert_empty config.sod_actions
   end
 
+  # --- #40 boot-validate sod_bypass_permission ∉ sod_actions ---
+
+  test "validate! raises when the bypass permission is also an SoD action" do
+    config = CurrentScope::Configuration.new
+    config.sod_actions = %w[approve]
+    config.sod_bypass_permission = "approve"
+    error = assert_raises(CurrentScope::ConfigurationError) { config.validate! }
+    assert_match "must not be an SoD action", error.message
+    assert_match "sod_actions", error.message
+    assert_match "approve", error.message
+  end
+
+  test "validate! raises for a namespaced bypass permission key" do
+    config = CurrentScope::Configuration.new
+    config.sod_actions = %w[approve]
+    config.sod_bypass_permission = "reports#approve"
+    error = assert_raises(CurrentScope::ConfigurationError) { config.validate! }
+    assert_match "must not be an SoD action", error.message
+    assert_match "approve", error.message
+  end
+
+  test "validate! is a no-op on the default config" do
+    config = CurrentScope::Configuration.new
+    assert_nothing_raised { config.validate! }
+  end
+
+  test "validate! allows the common break-glass setup" do
+    config = CurrentScope::Configuration.new
+    config.sod_actions = %w[approve]
+    config.sod_bypass_permission = "bypass_sod"
+    assert_nothing_raised { config.validate! }
+  end
+
+  test "validate! does not mutate config fields" do
+    config = CurrentScope::Configuration.new
+    config.sod_actions = %w[approve]
+    config.sod_bypass_permission = "bypass_sod"
+    config.validate!
+    assert_equal %w[approve], config.sod_actions
+    assert_equal "bypass_sod", config.sod_bypass_permission
+  end
+
+  test "the live engine config passes validate! — no false-positive at boot" do
+    assert_nothing_raised { CurrentScope.config.validate! }
+  end
+
   test "allows impersonated mutations outside production" do
     config = CurrentScope::Configuration.new
     with_rails_env("staging") do

@@ -41,9 +41,9 @@ survivor, rails-html-sanitizer bump). Post-release shakedown: the showcase and
 all six `current_scope_test_scenarios` apps re-pinned and green against the
 published gem, zero regressions — and the shakedown caught #85's
 `role_assignment` → `role_assignments` route rename as upgrade-breaking and
-unlisted, now CHANGELOG errata (PR #95) and in the Release notes. New
-workflow rule in AGENTS.md: every PR review comment gets a reply before its
-thread resolves.
+unlisted, now CHANGELOG errata (PR #95) and in the Release notes. Workflow
+rule added to AGENTS.md the same day (2026-07-19): every PR review comment
+gets a reply before its thread resolves.
 
 ## Done (all committed on `main`)
 
@@ -546,10 +546,11 @@ confident, well-argued, wrong.
    2026-07-16 comment) and plan 027 is amended (PR #78).
 7. Then the docs cluster: **#30, #28, #27, #24** (plan 006 is "relocate and
    complete", not "write").
-8. ~~**Publish to RubyGems**~~ — **done.** `v0.2.0` is on RubyGems and the
-   showcase consumes it as a normal gem dependency. Releasing now means: bump
-   `lib/current_scope/version.rb` + CHANGELOG, tag, `gem push`, then bump the
-   showcase's `gem "current_scope"`.
+8. ~~**Publish to RubyGems**~~ — **done; current release is `v0.3.0`**
+   (2026-07-19; `v0.2.0` was the first published version). The release recipe,
+   proven twice now: bump `lib/current_scope/version.rb` + CHANGELOG heading,
+   run the release gate, tag + GitHub Release, `gem push`, then bump the
+   showcase's `gem "current_scope"` pin.
 9. **README screenshots** — the UI is clean and verified; capture the dashboard,
    permission grid, subjects, members, events when convenient.
 10. Open design questions (DESIGN.md §9): resource hierarchy/cascade,

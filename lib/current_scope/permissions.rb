@@ -80,12 +80,10 @@ module CurrentScope
     private
 
     # Internal binding for gate/view agreement (#50 KTD-6) — not host API.
-    # Private so it does not appear in controller action_methods.
-    #
-    # The match keys on the KEY's controller, not just the controller: kwarg: a
-    # full "reports#index" key from a projects view names "reports" and must NOT
-    # borrow the projects ambient (a Project grant answering a reports key). A
-    # bare action uses the resolved controller. (#50 review, cubic)
+    # Private so it does not appear in controller action_methods. Matches on
+    # the KEY's controller, not just the controller: kwarg: a full
+    # "reports#index" key from a projects view must not borrow the projects
+    # ambient. A bare action uses the resolved controller. (#50 review, cubic)
     def ambient_collection_model(action, controller)
       key_controller = action.to_s.include?("#") ? action.to_s.split("#").first : controller
       return nil unless key_controller && key_controller == CurrentScope::Current.collection_model_path

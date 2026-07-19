@@ -10,29 +10,39 @@ module CurrentScope
 
       clearing = params[:role_id].blank?
 
-      # Refuse a bulk clear/reassign that would leave zero full-access org holders
-      # (same lockout as deleting the last full-access role).
-      if would_remove_last_full_access_holders?(subjects, clearing: clearing)
-        redirect_back_or_to subjects_path,
-                            alert: "Refusing to remove the last full-access org-wide assignment — " \
-                                   "it would lock everyone out of this UI."
-        return
-      end
-
       # One transaction for the whole bulk action: the UI presents it as a single
       # operation, so a failure partway must not leave only the first subjects
       # changed. All-or-nothing across assignments and their audit events. Count
       # only the subjects that ACTUALLY changed so the notice can't over-report
       # (a re-set to the same role, or a clear on a subject with no role, is a
       # no-op and shouldn't be counted).
+      #
+      # Lock full-access holders inside the same transaction as the writes so
+      # concurrent clears cannot both observe "another holder remains" and then
+      # both proceed to zero holders.
       changed = 0
+      refused = false
       RoleAssignment.transaction do
-        subjects.each do |subject|
-          assignment = RoleAssignment.find_or_initialize_by(subject: subject)
-          prior_role = assignment.role # nil for a brand-new assignment
-          did = clearing ? clear_org_role(subject, assignment, prior_role) : set_org_role(subject, assignment, prior_role)
-          changed += 1 if did
+        lock_full_access_org_holders!
+
+        if would_remove_last_full_access_holders?(subjects, clearing: clearing)
+          refused = true
+        else
+          subjects.each do |subject|
+            assignment = RoleAssignment.find_or_initialize_by(subject: subject)
+            prior_role = assignment.role # nil for a brand-new assignment
+            did = clearing ? clear_org_role(subject, assignment, prior_role) : set_org_role(subject, assignment, prior_role)
+            changed += 1 if did
+          end
         end
+      end
+
+      if refused
+        redirect_back_or_to subjects_path,
+                            alert: "Refusing to remove the last full-access org-wide assignment — " \
+                                   "it would lock everyone out of this UI. Grant full access to " \
+                                   "another subject first, then retry."
+        return
       end
 
       # Return to wherever the action was invoked (the subjects page or a role's
@@ -46,21 +56,31 @@ module CurrentScope
     # clean up an orphaned assignment whose subject was deleted (the subject-keyed
     # clear on `create` can't target a subject that no longer resolves).
     def destroy
-      assignment = RoleAssignment.find(params[:id])
-      subject = resolve_subject(assignment)
-      role_name = assignment.role.name
+      refused = false
+      RoleAssignment.transaction do
+        assignment = RoleAssignment.lock.find(params[:id])
+        subject = resolve_subject(assignment)
+        role_name = assignment.role.name
 
-      if last_full_access_org_assignment?(assignment)
+        # Serialize against concurrent remove/clear of other full-access holders.
+        lock_full_access_org_holders!
+
+        if last_full_access_org_assignment?(assignment)
+          refused = true
+        else
+          assignment.destroy!
+          Event.record!(event: "org_role.removed", target: subject || assignment, details: { role: role_name })
+        end
+      end
+
+      if refused
         redirect_back_or_to subjects_path,
                             alert: "Refusing to remove the last full-access org-wide assignment — " \
-                                   "it would lock everyone out of this UI."
+                                   "it would lock everyone out of this UI. Grant full access to " \
+                                   "another subject first, then retry."
         return
       end
 
-      RoleAssignment.transaction do
-        assignment.destroy!
-        Event.record!(event: "org_role.removed", target: subject || assignment, details: { role: role_name })
-      end
       redirect_back_or_to subjects_path, notice: "Org-wide role removed."
     rescue ActiveRecord::RecordNotFound
       redirect_back_or_to subjects_path, notice: "That org-wide role was already removed."
@@ -112,6 +132,16 @@ module CurrentScope
 
     def full_access_org_assignments
       RoleAssignment.joins(:role).where(current_scope_roles: { full_access: true })
+    end
+
+    # Lock full-access holder rows (and their roles) so concurrent remove/demote
+    # paths serialize on the same set the precheck reads. Call only inside a
+    # transaction. Prefer locking by id after a join pluck — FOR UPDATE with
+    # joins is adapter-fragile.
+    def lock_full_access_org_holders!
+      Role.where(full_access: true).lock.load
+      ids = full_access_org_assignments.pluck(:id)
+      RoleAssignment.where(id: ids).lock.load if ids.any?
     end
 
     def same_subject?(assignment, subject)

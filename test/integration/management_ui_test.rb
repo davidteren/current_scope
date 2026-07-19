@@ -145,29 +145,60 @@ class ManagementUiTest < ActionDispatch::IntegrationTest
     assert_nil CurrentScope::ScopedRoleAssignment.find_by(subject: @member)
   end
 
-  test "refuses to delete the last full-access role" do
+  test "refuses to delete a held full-access role when no other holders remain" do
     delete current_scope.role_url(@owner_role), headers: as(@owner)
     assert_redirected_to current_scope.roles_url
     assert CurrentScope::Role.exists?(@owner_role.id)
 
-    CurrentScope::Role.create!(name: "SecondOwner", full_access: true)
+    # Empty spare full_access role must NOT authorize deleting the held Owner
+    # (would leave zero console holders).
+    CurrentScope::Role.create!(name: "EmptyOwner", full_access: true)
+    delete current_scope.role_url(@owner_role), headers: as(@owner)
+    assert CurrentScope::Role.exists?(@owner_role.id), "empty spare FA role is not a safety net"
+
+    other = User.create!(name: "CoOwner")
+    co = CurrentScope::Role.create!(name: "CoOwner", full_access: true)
+    CurrentScope::RoleAssignment.create!(subject: other, role: co)
     delete current_scope.role_url(@owner_role), headers: as(@owner)
     assert_not CurrentScope::Role.exists?(@owner_role.id)
   end
 
-  test "refuses to demote the last full-access role on update" do
+  test "allows deleting an unassigned full-access role (no holders to lock out)" do
+    spare = CurrentScope::Role.create!(name: "UnusedOwner", full_access: true)
+    delete current_scope.role_url(spare), headers: as(@owner)
+    assert_not CurrentScope::Role.exists?(spare.id)
+  end
+
+  test "refuses to demote a held full-access role when no other holders remain" do
     patch current_scope.role_url(@owner_role), headers: as(@owner), params: {
       role: { name: "Owner", full_access: "0", permission_keys: [ "" ] }
     }
     assert_redirected_to current_scope.edit_role_url(@owner_role)
-    assert @owner_role.reload.full_access?, "sole full-access role must stay full_access"
+    assert @owner_role.reload.full_access?, "sole held full-access role must stay full_access"
 
-    CurrentScope::Role.create!(name: "SecondOwner", full_access: true)
+    CurrentScope::Role.create!(name: "EmptyOwner", full_access: true)
+    patch current_scope.role_url(@owner_role), headers: as(@owner), params: {
+      role: { name: "Owner", full_access: "0", permission_keys: [ "" ] }
+    }
+    assert @owner_role.reload.full_access?, "empty spare FA role must not allow demotion"
+
+    other = User.create!(name: "CoOwner")
+    co = CurrentScope::Role.create!(name: "CoOwner", full_access: true)
+    CurrentScope::RoleAssignment.create!(subject: other, role: co)
     patch current_scope.role_url(@owner_role), headers: as(@owner), params: {
       role: { name: "Owner", full_access: "0", permission_keys: [ "" ] }
     }
     assert_redirected_to current_scope.roles_url
     assert_not @owner_role.reload.full_access?
+  end
+
+  test "a name-only update of a full-access role is not treated as demotion" do
+    patch current_scope.role_url(@owner_role), headers: as(@owner), params: {
+      role: { name: "SuperOwner", permission_keys: [ "" ] }
+    }
+    assert_redirected_to current_scope.roles_url
+    assert @owner_role.reload.full_access?
+    assert_equal "SuperOwner", @owner_role.name
   end
 
   test "refuses to clear the last full-access org-wide assignment" do

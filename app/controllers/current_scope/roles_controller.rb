@@ -56,23 +56,34 @@ module CurrentScope
     end
 
     def update
-      @role = Role.find(params[:id])
       permitted = role_params
+      previous_name = nil
+      saved = false
+      refused = false
 
-      # Same harm class as delete: unchecking Full access on the sole Owner
-      # role locks every subject out of the management console.
-      if demoting_last_full_access?(@role, permitted)
-        redirect_to edit_role_path(@role),
-                    alert: "Refusing to remove full access from the last full-access role — " \
-                           "it would lock everyone out of this UI."
-        return
+      # Lock full-access roles + holders inside the write transaction so two
+      # concurrent demotions of the last held full-access roles cannot both pass
+      # a pre-transaction check and then both commit.
+      Role.transaction do
+        @role = Role.lock.find(params[:id])
+        lock_full_access_console_state!
+
+        if demoting_would_lock_console?(@role, permitted)
+          refused = true
+        else
+          previous_name = @role.name
+          previous_full_access = @role.full_access?
+          saved = @role.update(permitted)
+          record_role_update(@role, previous_name, previous_full_access) if saved
+        end
       end
 
-      previous_name = @role.name
-      saved = false
-      Role.transaction do
-        saved = @role.update(permitted)
-        record_role_update(@role, previous_name) if saved
+      if refused
+        redirect_to edit_role_path(@role),
+                    alert: "Refusing to remove full access — this is the last full-access role " \
+                           "any subject holds and would lock everyone out of this UI. Grant " \
+                           "full access to another subject first, then retry."
+        return
       end
 
       if saved
@@ -83,44 +94,72 @@ module CurrentScope
     end
 
     def destroy
-      role = Role.find(params[:id])
+      refused = false
 
-      if last_full_access?(role)
+      Role.transaction do
+        role = Role.lock.find(params[:id])
+        lock_full_access_console_state!
+
+        if would_lock_console_by_removing_role?(role)
+          refused = true
+        else
+          # Snapshot the cascade BEFORE destroy! — dependent: :destroy takes the
+          # assignments with the role, so they can't be read afterwards.
+          org_removed = role.role_assignments.includes(:subject).to_a
+          scoped_revoked = role.scoped_role_assignments.includes(:subject, :resource).to_a
+
+          role.destroy!
+          Event.record!(event: "role.deleted", target: role, details: { name: role.name })
+          org_removed.each do |a|
+            Event.record!(event: "org_role.removed", target: cascade_subject(a), details: { role: role.name })
+          end
+          scoped_revoked.each do |a|
+            Event.record!(event: "scoped_role.revoked", target: cascade_subject(a),
+                          details: { role: role.name, resource: cascade_resource_label(a) })
+          end
+        end
+      end
+
+      if refused
         redirect_to roles_path,
-                    alert: "Refusing to delete the last full-access role — it would lock everyone out of this UI."
+                    alert: "Refusing to delete this full-access role — it is the last one held by any " \
+                           "subject and would lock everyone out of this UI. Grant full access to " \
+                           "another subject first, then retry."
         return
       end
 
-      # Snapshot the cascade BEFORE destroy! — dependent: :destroy takes the
-      # assignments with the role, so they can't be read afterwards.
-      org_removed = role.role_assignments.includes(:subject).to_a
-      scoped_revoked = role.scoped_role_assignments.includes(:subject, :resource).to_a
-
-      Role.transaction do
-        role.destroy!
-        Event.record!(event: "role.deleted", target: role, details: { name: role.name })
-        org_removed.each do |a|
-          Event.record!(event: "org_role.removed", target: a.subject, details: { role: role.name })
-        end
-        scoped_revoked.each do |a|
-          Event.record!(event: "scoped_role.revoked", target: a.subject,
-                        details: { role: role.name, resource: helpers.current_scope_label(a.resource) })
-        end
-      end
       redirect_to roles_path, notice: "Role deleted."
     end
 
     private
 
+    # Polymorphic subject/resource may be deleted or unresolvable — never 500
+    # the cascade audit (members page already resolves defensively).
+    def cascade_subject(assignment)
+      assignment.subject
+    rescue ActiveRecord::RecordNotFound, NameError
+      assignment
+    end
+
+    def cascade_resource_label(assignment)
+      helpers.current_scope_label(assignment.resource)
+    rescue ActiveRecord::RecordNotFound, NameError
+      "#{assignment.resource_type}##{assignment.resource_id}"
+    end
+
     # One event per save: role.renamed when the name changed (carries old/new
-    # name AND the grid diff), else role.updated for a pure grid change. Emits
-    # nothing when neither the name nor the grid moved.
-    def record_role_update(role, previous_name)
+    # name AND the grid/full_access diff), else role.updated. Emits nothing on
+    # a pure no-op (same name, same grid, same full_access).
+    def record_role_update(role, previous_name, previous_full_access)
       diff = role.permission_keys_change || { added: [], removed: [], rejected: [] }
       renamed = previous_name != role.name
-      return unless renamed || diff[:added].any? || diff[:removed].any?
+      full_access_changed = previous_full_access != role.full_access?
+      return unless renamed || full_access_changed || diff[:added].any? || diff[:removed].any?
 
       details = { added: diff[:added], removed: diff[:removed] }
+      if full_access_changed
+        details.merge!(full_access_from: previous_full_access, full_access_to: role.full_access?)
+      end
       event = "role.updated"
       if renamed
         event = "role.renamed"
@@ -129,18 +168,40 @@ module CurrentScope
       Event.record!(event: event, target: role, details: details)
     end
 
-    def last_full_access?(role)
-      role.full_access? && !Role.where(full_access: true).where.not(id: role.id).exists?
+    # True when removing/demoting this full_access role would leave zero
+    # full_access org holders. An unassigned full_access role is always safe
+    # to delete/demote (cubic). An empty spare full_access role must NOT
+    # authorize demoting the held Owner (CE) — check holders, not role rows.
+    def would_lock_console_by_removing_role?(role)
+      return false unless role.full_access?
+      return false unless RoleAssignment.where(role: role).exists?
+
+      !RoleAssignment.joins(:role)
+        .where(current_scope_roles: { full_access: true })
+        .where.not(role_id: role.id)
+        .exists?
     end
 
-    # True when the update would turn off full_access on the only remaining
-    # full-access role. Uses ActiveModel boolean cast so "0"/"false" form values
-    # count as demoting.
-    def demoting_last_full_access?(role, permitted)
+    # True when the update would turn off full_access and lock the console.
+    # Only treats an EXPLICIT full_access=false as demotion — a missing key
+    # would not change the column and must not false-positive refuse.
+    def demoting_would_lock_console?(role, permitted)
       return false unless role.full_access?
+      return false unless permitted.key?(:full_access)
       return false if ActiveModel::Type::Boolean.new.cast(permitted[:full_access])
 
-      !Role.where(full_access: true).where.not(id: role.id).exists?
+      would_lock_console_by_removing_role?(role)
+    end
+
+    # Serialize demote/delete against concurrent last-holder removal. Lock FA
+    # role rows and their org-wide holder assignments (by id — FOR UPDATE + join
+    # is adapter-fragile). Call only inside a transaction.
+    def lock_full_access_console_state!
+      Role.where(full_access: true).lock.load
+      ids = RoleAssignment.joins(:role)
+        .where(current_scope_roles: { full_access: true })
+        .pluck(:id)
+      RoleAssignment.where(id: ids).lock.load if ids.any?
     end
 
     def role_params

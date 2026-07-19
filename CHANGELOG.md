@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-19
+
 ### Added
 - **A scoped `full_access` role opens its type's collection reads, derived
   from the scoped list (#65).** "Owner of Report #7" no longer gets a 403 on
@@ -427,6 +429,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   so `allowed_to?` works identically in controllers, views, and ViewComponents,
   the mounted management UI, and the `current_scope:install` generator.
 
-[Unreleased]: https://github.com/davidteren/current_scope/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/davidteren/current_scope/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/davidteren/current_scope/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/davidteren/current_scope/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/davidteren/current_scope/releases/tag/v0.1.0

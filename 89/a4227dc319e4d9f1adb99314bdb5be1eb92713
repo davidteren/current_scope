@@ -1,0 +1,52 @@
+docs/reviews/deep-review-0.3.0-release-gate-2026-07-19.md
+  s_78450d8eb59756::t_1db7402094e808 1-121
+test/integration/dev_diagnostics_test.rb
+  s_78450d8eb59756::t_855e5fad46b20c 341-369
+lib/generators/current_scope/install/templates/initializer.rb
+  s_78450d8eb59756::t_693e0f0e0c06af 153-155
+docs/reviews/security-review-0.3.0-release-gate-2026-07-19.md
+  s_78450d8eb59756::t_bd6002a3cbc6ac 1-77
+README.md
+  s_78450d8eb59756::t_f36e3983992779 319-322
+lib/current_scope/resolver.rb
+  s_78450d8eb59756::t_6dcab3438405dd 412-429
+  s_78450d8eb59756::t_5b3e22b49adf30 66-70,72
+  s_78450d8eb59756::t_e919250a242646 401
+  s_78450d8eb59756::t_a1880bd8ea2595 443
+lib/current_scope/configuration.rb
+  s_78450d8eb59756::t_6464a5f6a0d008 181-186,188-198
+test/dummy/app/controllers/invalid_model_controller.rb
+  s_78450d8eb59756::t_10226b8516e37e 1-19
+CHANGELOG.md
+  s_78450d8eb59756::t_39068344d8c834 38-42
+  s_78450d8eb59756::t_21a1da4122ab95 219-238
+test/collection_scope_gate_test.rb
+  s_78450d8eb59756::t_eae9367a7b72c4 465-510
+docs/reviews/test-audit-0.3.0-release-gate-2026-07-19.md
+  s_78450d8eb59756::t_9da279f658de9b 1-101
+lib/current_scope/guard.rb
+  s_78450d8eb59756::t_2a1f3efb4af004 428,430-463
+  s_78450d8eb59756::t_2362cf0d36b79e 155
+test/configuration_test.rb
+  s_78450d8eb59756::t_5fa6971de75e0f 206-250
+test/dummy/config/routes.rb
+  s_78450d8eb59756::t_826510a3ba22a5 50
+Gemfile.lock
+  s_78450d8eb59756::t_7ed1f2e6e9a1b1 129,212-213
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "89a4227dc319e4d9f1adb99314bdb5be1eb92713",
+  "prompts": {},
+  "sessions": {
+    "s_78450d8eb59756": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f912de4a-ca6e-45c8-905f-dcd49b32058b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

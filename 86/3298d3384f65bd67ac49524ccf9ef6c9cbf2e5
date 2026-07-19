@@ -1,0 +1,19 @@
+CHANGELOG.md
+  s_78450d8eb59756::t_c9dee186e58e70 136-147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "863298d3384f65bd67ac49524ccf9ef6c9cbf2e5",
+  "prompts": {},
+  "sessions": {
+    "s_78450d8eb59756": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f912de4a-ca6e-45c8-905f-dcd49b32058b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

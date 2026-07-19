@@ -1,6 +1,6 @@
 # STATUS
 
-> Last updated: 2026-07-16
+> Last updated: 2026-07-19
 >
 > **If you are a fresh session asked to audit this work, start at
 > [Verification brief](#verification-brief--for-a-fresh-session).**
@@ -29,9 +29,21 @@ controllers, views, and ViewComponents.
 - Showcase app: **[davidteren/current_scope_showcase](https://github.com/davidteren/current_scope_showcase)**
   (own repo; consumes the published gem — no longer vendored)
 
-Version `0.2.0`, **published to RubyGems** (tag `v0.2.0`) — the showcase consumes
-it as an ordinary `gem "current_scope"`. Not production-ready; see the README
-banner.
+Version `0.3.0`, **published to RubyGems** (tag `v0.3.0` + GitHub Release,
+2026-07-19) — the showcase consumes it as an ordinary `gem "current_scope"`
+(`~> 0.3.0`). Not production-ready; see the README banner.
+
+**0.3.0 shipped 2026-07-19.** The release gate (dte-deep-reviewer +
+dte-test-auditor + /security-review; records in `docs/reviews/`) passed with
+no blocker; its findings became PR #93 (writer element validation, the
+`:model_invalid` label + nudge, test pins incl. the mutation-audit FrozenError
+survivor, rails-html-sanitizer bump). Post-release shakedown: the showcase and
+all six `current_scope_test_scenarios` apps re-pinned and green against the
+published gem, zero regressions — and the shakedown caught #85's
+`role_assignment` → `role_assignments` route rename as upgrade-breaking and
+unlisted, now CHANGELOG errata (PR #95) and in the Release notes. New
+workflow rule in AGENTS.md: every PR review comment gets a reply before its
+thread resolves.
 
 ## Done (all committed on `main`)
 
@@ -499,20 +511,31 @@ confident, well-argued, wrong.
 
 ## Next
 
-1. **0.3.0 — IN PROGRESS: #50 (plan 029) + #65 together.** Both change the
-   record-less resolver branch, so they ship as one minor release: a
-   `~> 0.2.0` pin must not pick up an authorization-semantics change on a
-   routine `bundle update`. Plan 029 is merged and reviewed. #65 is planned
-   (plan `docs/plans/2026-07-17-001-feat-bounded-full-access-collection-reads-plan.md`)
-   and implemented on its PR branch: the fix narrows to granted record **ids**
-   by asking `scope_for(...).exists?` for actions in the new
-   `config.collection_read_actions` (default `["index"]`, on by default,
-   `[]` opts out) — the one shape `resolver.rb`'s roles_granting safety
-   comment (now four callers) names as safe. Remaining for 0.3.0: merge the
-   #65 PR, then the release gate (dte-deep-reviewer + dte-test-auditor +
-   /security-review) before tagging.
-2. ~~**PR #69 review → implement plan 030**~~ — **done** (PR #79, #62 closed).
-3. **#45 (parked by the maintainer)** — delivery split already settled: parity
+1. ~~**0.3.0 — #50 (plan 029) + #65 together.**~~ — **SHIPPED 2026-07-19**
+   (PRs #88/#89, release-gate fixes PR #93, CHANGELOG errata PR #95; see the
+   shipped note at the top of this file). Follow-ups #90/#91 below.
+2. **#91 — `sod_actions` normalizing writer (agreed next, 2026-07-19).** A
+   symbol or typo'd member silently un-matches and weakens the SoD veto with
+   no signal — the exact footgun `collection_read_actions=` was built to
+   prevent, whose comment calls the plain accessor "grandfathered, not
+   precedent". Give it the same writer (symbols→strings, raise on keyed
+   members) + a signal for names matching nothing in the catalog.
+   Mutation-check the SoD path per house style.
+3. **#90 — orphaned scoped grants render as real access in the console.**
+   Inert on listed reads since #65 (destroyed record ⇒ empty list ⇒ deny),
+   but the console still shows them as live grants. UI honesty fix — needs
+   real-browser verification before merge (unit tests render without layout).
+4. **#98 — docs workstream (maintainer priority, 2026-07-19): the SoD
+   anti-fraud story + a real doc site.** Grow the GitHub Pages site into a
+   typical doc site with committed source (that step IS #33's core), centered
+   on the SoD guide: initiator-cannot-approve in business terms, **opt-in
+   stated loudly** (`config.sod_actions` empty by default — the veto never
+   runs until the host names actions), break-glass + audit trail, and
+   copy-pasteable **agentic-coding prompts** per guide (plus `llms.txt`).
+   Folds in #33 (site source/drift), feeds #34 (README→guides) and #32
+   (security checklist page).
+5. ~~**PR #69 review → implement plan 030**~~ — **done** (PR #79, #62 closed).
+6. **#45 — UNPARKED by the 0.3.0 release.** — delivery split already settled: parity
    harness ships in the gem, analyzer ships as a skill. First-PR scope answered
    by the audit (2026-07-16): **Action-Policy-first for the first adapter** —
    Pundit-first has no recorded rationale anywhere, while #45 calls AP the
@@ -521,15 +544,15 @@ confident, well-argued, wrong.
    not certify hosts against semantics about to change). Note: the parking +
    delivery split exist only in this file — ~~record them on issue #45~~ (done,
    2026-07-16 comment) and plan 027 is amended (PR #78).
-4. Then the docs cluster: **#30, #28, #27, #24** (plan 006 is "relocate and
+7. Then the docs cluster: **#30, #28, #27, #24** (plan 006 is "relocate and
    complete", not "write").
-5. ~~**Publish to RubyGems**~~ — **done.** `v0.2.0` is on RubyGems and the
+8. ~~**Publish to RubyGems**~~ — **done.** `v0.2.0` is on RubyGems and the
    showcase consumes it as a normal gem dependency. Releasing now means: bump
    `lib/current_scope/version.rb` + CHANGELOG, tag, `gem push`, then bump the
    showcase's `gem "current_scope"`.
-6. **README screenshots** — the UI is clean and verified; capture the dashboard,
+9. **README screenshots** — the UI is clean and verified; capture the dashboard,
    permission grid, subjects, members, events when convenient.
-7. Open design questions (DESIGN.md §9): resource hierarchy/cascade,
+10. Open design questions (DESIGN.md §9): resource hierarchy/cascade,
    multiple org-wide roles, scoped-role capability restriction.
 
 ## Still to be done (open design questions — DESIGN.md §9)

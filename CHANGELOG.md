@@ -133,6 +133,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   warning is #76.
 
 ### Changed
+- **Management-UI route rename — upgrade-breaking for hosts that call it
+  programmatically** *(errata: added after the v0.3.0 tag; the change shipped
+  in it, via #85's convention cleanup)*: org-wide role assignment is now
+  `resources :role_assignments` (plural, `create` + `destroy`) instead of
+  `resource :role_assignment, only: :create` plus a hand-rolled delete. A host
+  that POSTs `/current_scope/role_assignment` (singular) gets a 404 on
+  upgrade — POST to `/current_scope/role_assignments`. Route helpers moved
+  too: `current_scope.role_assignment_path` (create) is now
+  `role_assignments_path`, and `remove_role_assignment_path` (destroy) is now
+  `role_assignment_path(id)`. The engine's own UI is unaffected; this bites
+  only direct path/helper callers (both gem test-scenario hosts that did so
+  hit the 404 immediately).
 - **`GatingTripwire` in production now defaults to `:warn` — and that is a
   disclosure change, named plainly:** the old unconditional raise meant an
   ungated action's response was withheld by the 500 (its side effects already

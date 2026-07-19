@@ -494,9 +494,17 @@ module CurrentScope
 
     # Action segment of sod_bypass_permission — bare name or "controller#action".
     # Shared by boot validation and the resolver's recursion guard so the two
-    # never normalize differently (#40).
+    # never normalize differently (#40). Uses split("#", -1) like
+    # PermissionCatalog#bypass_action: plain split("#").last turns "reports#"
+    # into "reports" (trailing empty dropped) and multi-hash values into the
+    # wrong last segment — false conflicts or missed recursion guards.
+    # Malformed shapes return nil (no false conflict); the catalog still raises
+    # loudly when allow_sod_bypass is on and the key is malformed.
     def sod_bypass_action
-      sod_bypass_permission.to_s.split("#").last
+      segments = sod_bypass_permission.to_s.split("#", -1)
+      return if segments.empty? || segments.size > 2 || segments.any?(&:blank?)
+
+      segments.last
     end
 
     # True when the break-glass bypass permission is also listed in sod_actions.

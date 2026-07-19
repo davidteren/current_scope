@@ -74,6 +74,24 @@ class ConfigurationTest < ActiveSupport::TestCase
     assert_match "approve", error.message
   end
 
+  test "sod_bypass_action keeps trailing empty segments (no false 'reports' action)" do
+    config = CurrentScope::Configuration.new
+    config.sod_bypass_permission = "reports#"
+    assert_nil config.sod_bypass_action,
+               "split('#', -1) must not collapse 'reports#' into action 'reports'"
+    config.sod_actions = %w[reports]
+    assert_not config.sod_bypass_permission_conflicts_with_sod_actions?,
+               "malformed key must not false-positive a conflict with the controller name"
+  end
+
+  test "sod_bypass_action rejects multi-hash malformed keys" do
+    config = CurrentScope::Configuration.new
+    config.sod_bypass_permission = "reports#bypass_sod#extra"
+    assert_nil config.sod_bypass_action
+    config.sod_actions = %w[extra bypass_sod]
+    assert_not config.sod_bypass_permission_conflicts_with_sod_actions?
+  end
+
   test "validate! is a no-op on the default config" do
     config = CurrentScope::Configuration.new
     assert_nothing_raised { config.validate! }

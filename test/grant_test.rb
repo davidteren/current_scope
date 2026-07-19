@@ -109,4 +109,24 @@ class GrantTest < ActiveSupport::TestCase
   ensure
     CurrentScope::Current.reset
   end
+
+  # PR #102: missing events table must not poison grant!'s outer transaction
+  # (PostgreSQL aborts the whole txn on StatementInvalid unless the audit write
+  # is isolated in a savepoint — Event.record! uses requires_new).
+  test "grant! with audit=true still assigns when events table is missing" do
+    original_audit = CurrentScope.config.audit
+    CurrentScope.config.audit = true
+    original_create = CurrentScope::Event.method(:create!)
+    CurrentScope::Event.define_singleton_method(:create!) do |*|
+      raise ActiveRecord::StatementInvalid, "SQLite3::SQLException: no such table: current_scope_events"
+    end
+
+    assert_difference -> { CurrentScope::RoleAssignment.where(subject: @user).count }, 1 do
+      assert_nothing_raised { CurrentScope.grant!(@user) }
+    end
+    assert_equal "Owner", CurrentScope::RoleAssignment.find_by(subject: @user).role.name
+  ensure
+    CurrentScope::Event.define_singleton_method(:create!, original_create)
+    CurrentScope.config.audit = original_audit
+  end
 end

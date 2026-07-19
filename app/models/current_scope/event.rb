@@ -55,15 +55,23 @@ module CurrentScope
         # actor is set, equals actor when not impersonating).
         subject ||= CurrentScope::Current.user || actor
 
-        create!(
-          event: event.to_s,
-          actor: actor.to_gid.to_s,
-          subject: subject.to_gid.to_s,
-          target: target.to_gid.to_s,
-          target_label: label_for(target),
-          details: details,
-          request_id: CurrentScope::Current.request_id
-        )
+        # requires_new: on PostgreSQL a StatementInvalid aborts the *whole*
+        # open transaction even if rescued — so a missing events table would
+        # poison grant!/controller mutation transactions that wrap record!.
+        # A savepoint isolates the audit write: default audit=true degrades
+        # and the assignment commits; :strict re-raises and rolls the outer
+        # mutation back (PR #102 review).
+        Event.transaction(requires_new: true) do
+          create!(
+            event: event.to_s,
+            actor: actor.to_gid.to_s,
+            subject: subject.to_gid.to_s,
+            target: target.to_gid.to_s,
+            target_label: label_for(target),
+            details: details,
+            request_id: CurrentScope::Current.request_id
+          )
+        end
       rescue ActiveRecord::StatementInvalid => e
         raise unless missing_events_table?(e)
 

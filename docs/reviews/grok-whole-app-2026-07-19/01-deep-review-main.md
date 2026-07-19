@@ -9,14 +9,20 @@ live Brakeman/bundler-audit (relied on same-day security-review)_
 ## Verdict
 
 **Strong fail-closed engine — health 8.3/10. No confirmed non-admin
-authorization bypass.** Residual risk clusters in three places: (1) silent
+authorization bypass.** At review time residual risk clustered in: (1) silent
 host-config footguns that disable SoD or un-fix collection-read behavior,
-(2) admin self-lockout paths the last-full-access destroy guard does not
-cover, (3) management-UI UX/a11y polish. Production adoption still needs the
-security checklist (audit `:strict`, actor_method, tripwire, report-mode exit).
+(2) admin self-lockout paths the last-full-access destroy guard did not
+cover, (3) management-UI UX/a11y polish. Items (1)–(2) and several (3)
+shipped as **0.3.1 / PR #100**. Production adoption still needs the security
+checklist (audit `:strict`, actor_method, tripwire, report-mode exit).
 
 This review is **whole-app**, not the release delta. The same-day 0.3.0
 release gate remains the authoritative record for the #50/#65 diff alone.
+
+> **Post-review status (2026-07-19):** Phase 0 findings **#1–#4** (and related
+> a11y/test pins) **shipped** on `main` as **0.3.1** / PR #100. File:line cites
+> below are historical. Live backlog:
+> [08-solid-solution-worklist.md](08-solid-solution-worklist.md) · [TLDR.md](TLDR.md).
 
 ## Findings
 
@@ -30,8 +36,8 @@ skipping only `current_scope_check!`, or lifts SoD via the UI.
 
 ### 🟠 Medium
 
-#### 1. `config.sod_actions` Symbol list silently disables SoD
-**Where:** `lib/current_scope/configuration.rb:20` (`attr_accessor`);
+#### 1. `config.sod_actions` Symbol list silently disables SoD · **SHIPPED 0.3.1 / PR #100 (#91)**
+**Where (historical):** `lib/current_scope/configuration.rb:20` (`attr_accessor`);
 `lib/current_scope/resolver.rb:464-466` (`include?` string action segment)
 
 **Why:** Matching is string-only. `config.sod_actions = [:approve]` →
@@ -45,8 +51,8 @@ test both `%w[approve]` and `[:approve]`.
 
 **Confirmed by:** security lens + test auditor + source read. **High confidence.**
 
-#### 2. Last full-access protection is destroy-only
-**Where:** `app/controllers/current_scope/roles_controller.rb:73-80` (destroy);
+#### 2. Last full-access protection is destroy-only · **SHIPPED 0.3.1 / PR #100**
+**Where (historical):** `app/controllers/current_scope/roles_controller.rb:73-80` (destroy);
 `update` at 57-70 has no equivalent. Test covers destroy only:
 `test/integration/management_ui_test.rb:148-156`.
 
@@ -58,8 +64,8 @@ same alert. Add a mirrored integration test.
 
 **Confirmed by:** security lens + source + test gap. **High confidence.**
 
-#### 3. Clearing the last full-access org-wide holder is unrestricted
-**Where:** `role_assignments_controller.rb:76-81` (`clear_org_role`),
+#### 3. Clearing the last full-access org-wide holder is unrestricted · **SHIPPED 0.3.1 / PR #100**
+**Where (historical):** `role_assignments_controller.rb:76-81` (`clear_org_role`),
 `39-51` (`destroy`)
 
 **Why:** Admin can clear their own (or the only) full-access org assignment
@@ -72,8 +78,8 @@ test.
 
 **Confirmed by:** security lens + source. **High confidence.**
 
-#### 4. `collection_read_actions=` Hash / nested array silently un-fixes #65
-**(open on `main` per release gate; fixed on `chore/0.3.0-pre-tag-fixes`)**
+#### 4. `collection_read_actions=` Hash / nested array silently un-fixes #65 · **SHIPPED (#93 + PR #100)**
+**(was open on `main` per release gate; fixed on pre-tag branch, then 0.3.1)**
 
 **Where (main gate):** `configuration.rb` writer — `Array({ index: true }).map(&:to_s)`
 → `["[:index, true]"]`, never matches, replaces default `["index"]`.

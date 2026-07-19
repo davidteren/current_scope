@@ -5,13 +5,16 @@ how the gem must run — recommendations for hosts + product direction._
 
 ## 1. Open GitHub issues (27) as review context
 
-Source: `GET /repos/davidteren/current_scope/issues?state=open` (27 open).
+Source: `GET /repos/davidteren/current_scope/issues?state=open` (27 open at
+write time, including #91). **Post-Phase-0 note (same day):** #91 closed by
+PR #100; open count remains 27 with **#98** in the set. Canonical status:
+[08-solid-solution-worklist.md](08-solid-solution-worklist.md).
 
 ### Already identified on GitHub (overlap with deep review)
 
 | Issue | Topic | vs deep review |
 |---|---|---|
-| **#91** | `sod_actions` symbols silently disable SoD | **Same finding as P0 #1** — already filed; do not re-file |
+| **#91** | `sod_actions` symbols silently disable SoD | **Closed** by PR #100 / 0.3.1 (was review P0 #1) |
 | **#73** | Report-mode SoD blind-spot 403 undiagnosed | Same family as report-mode diagnostic gaps |
 | **#74** | Nil-SoD nudge re-derives condition; misses `params[:id]` | Diagnostic honesty; related to silent fail-closed |
 | **#90** | Orphaned scoped grants inert but look real in console | Deferred from #65; operator honesty, not PDP hole |
@@ -50,14 +53,16 @@ Today the product only supports classic SSR Rails well; #96/#97 are the intentio
 
 ### Not filed as issues (still only in our review)
 
-- Last full-access demotion / clear-holder lockout
-- `collection_read_actions` Hash silence (main; fixed on pre-tag branch)
-- Mutating-name warn expansion (`destroy_all` / `update_all`)
-- Public `ambient_collection_model`
-- Request-level empty-list deny test pin
+- ~~Last full-access demotion / clear-holder lockout~~ — **shipped** PR #100 / 0.3.1
+- ~~`collection_read_actions` Hash silence~~ — **shipped** #93 + PR #100
+- ~~Mutating-name warn expansion (`destroy_all` / `update_all`)~~ — **shipped** PR #100
+- ~~Public `ambient_collection_model`~~ — **shipped** PR #100 (`private`)
+- Request-level empty-list deny test pin — still open (worklist **T2**)
 - **No open issue for resolver N+1 / Solid Cache / cross-request grant cache**
 
-Implication: when prioritizing post-review work, **merge review P0s with existing tickets** (#91 first; file lockout as new issues if not already present).
+Implication: Phase 0 review P0s are **done**. Prioritize Phase 1 tickets
+(**#40** → **#30** → **#74** → **#73** → **#90**) via
+[08-solid-solution-worklist.md](08-solid-solution-worklist.md).
 
 ---
 
@@ -279,11 +284,12 @@ Keep honesty in Limitations:
 
 ## 6. Suggested product directions (priority)
 
-### Do now (already tickets or review P0)
+### Do now (Phase 1 — post 0.3.1)
 
-1. Ship **#91** (sod_actions writer) — review P0  
-2. Land **#34** README → guides (or a vertical slice: front door + map + one guide) so everything else has a home  
-3. File issues for **last full-access demote/clear** if still unfiled  
+1. ~~Ship **#91** (sod_actions writer)~~ — **done** PR #100 / 0.3.1  
+2. Boot-validate **#40** (`sod_bypass_permission` ∉ `sod_actions`)  
+3. Audit honesty **#30**; SoD diagnostics **#74** / **#73**; console orphans **#90**  
+4. Land **#34** README → guides (or a vertical slice: front door + map + one guide) so everything else has a home  
 
 ### Do next (caching / DX without weakening fail-closed)
 
@@ -316,6 +322,7 @@ Keep honesty in Limitations:
 
 ## 8. State
 
-- Investigation: **done**  
-- Engine code changes: **none** (this note only)  
-- Next if acting: implement #91 + open “performance-and-caching” guide skeleton under #34, or file lockout issues from review P0
+- Investigation: **done** (point-in-time; Phase 0 later closed on the same day)  
+- Engine code changes from this note: **none** (findings tracked elsewhere)  
+- Phase 0 / #91 / lockout guards: **shipped** PR #100 / 0.3.1  
+- Next if acting: Phase 1 on the [worklist](08-solid-solution-worklist.md) — **#40** first; optional “performance-and-caching” guide under **#34**

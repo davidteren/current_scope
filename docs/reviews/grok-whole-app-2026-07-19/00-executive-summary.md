@@ -29,24 +29,33 @@ host without the production checklist.
 3. #49/#50/#65: type-bound grants; listed reads derive from `scope_for(...).exists?`; non-read bars scoped full_access
 4. Report mode lifts **only** `:no_grant` (positive match); SoD blind spot and console stay closed
 5. Management UI: every action requires full_access; MutationGuard survives permission skip
-6. Last full-access **role destroy** is protected (update demotion is not — see below)
+6. Last full-access **role destroy** is protected (update demotion + last-holder clear also protected as of 0.3.1 / PR #100)
 7. Append-only audit at AR layer; `:strict` rolls back unaudited mutations
 8. Vanilla Rails first — no Pundit/Devise/dry-effects in the engine
 
 ## Top actions (ordered)
 
-### Before tagging 0.3.0 (high ROI, small diffs)
+> **Status after 0.3.1 (PR #100):** Phase 0 items below are **shipped**. Do not
+> re-implement. Live backlog:
+> [08-solid-solution-worklist.md](08-solid-solution-worklist.md) · short start
+> [TLDR.md](TLDR.md).
 
-1. **Normalize `config.sod_actions`** like `collection_read_actions=` — Symbol lists currently silence SoD (`[:approve].include?("approve")` → false). Fraud-control footgun.
-2. **Guard last full-access on role update** (uncheck Full access on sole Owner) and **clearing the last full-access org holder** — destroy alone is not enough to prevent console lockout.
-3. **Land / merge pre-tag branch fixes** for `collection_read_actions=` Hash raise + `destroy_all` warning expansion if not already on main (release-gate finding 1).
-4. **Dependency:** confirm `rails-html-sanitizer >= 1.7.1` in the published lock story (1.7.1 present in this tree; hosts still resolve their own).
+### Before tagging 0.3.0 (high ROI, small diffs) — **DONE on main / 0.3.1**
 
-### Soon after tag (not blockers for non-admin security)
+1. ~~**Normalize `config.sod_actions`**~~ — **Done** (#91 / PR #100).
+2. ~~**Guard last full-access on role update / clear last holder**~~ — **Done** (PR #100).
+3. ~~**Land pre-tag Hash raise + `destroy_all` warn**~~ — **Done** (#93 + PR #100).
+4. ~~**Dependency:** `rails-html-sanitizer >= 1.7.1`~~ — **Done** in engine lock; still document for hosts (S14).
 
-5. Role delete confirm should name cascade holder counts; picker labels need `for=` associations.
-6. Test pins: symbol `sod_actions`; empty-list deny via real GET; non-admin POST mutations; org-role uniqueness.
-7. Docs: purity claim on Guard (“resolver never reads Current”) is stale — org-role memo uses Current.
+### Soon after tag — **partially done; remainder is Phase 1+**
+
+5. ~~Role delete confirm + picker/`Set` a11y~~ — **Done** PR #100. Empty states / remaining a11y still open (O7–O8, U3–U7).
+6. Test pins: ~~symbol `sod_actions`; non-admin POST; org-role uniqueness~~ **Done**. Empty-list deny via real GET still open (**T2**).
+7. ~~Guard purity comment~~ — **Done** PR #100.
+
+### Next (Phase 1)
+
+**#40** → **#30** → **#74** → **#73** → **#90** (see worklist).
 
 ### Deliberate residuals (document, do not “fix open”)
 
@@ -59,4 +68,4 @@ host without the production checklist.
 
 - **Is:** whole-app deep review of main for shipping judgment and a fix backlog
 - **Is not:** a re-run of the live test suite (shell unavailable this session); not architecture migration plans (use `dte-arc-plan` next if acting)
-- **Next if acting:** `dte-arc-plan` on the ranked list in `06-recommended-actions.md`
+- **Next if acting:** Phase 1 on [08-solid-solution-worklist.md](08-solid-solution-worklist.md) (or ranked list in `06-recommended-actions.md` for the short stack)

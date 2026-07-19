@@ -22,15 +22,15 @@ _2026-07-19 · multi-lens whole-codebase review of the authorization engine_
 | Item | Value |
 |---|---|
 | Product | **CurrentScope** — mountable Rails 8.1+ authorization engine |
-| Branch | **`main`** tip `7f8ab12` (v0.3.0, not yet tagged on RubyGems as of review) |
+| Branch (review target) | **`main`** tip `7f8ab12` (v0.3.0 era — historical review snapshot) |
+| Branch (today) | **`main`** at **0.3.1** — Phase 0 shipped in PR #100; use [08-solid-solution-worklist.md](08-solid-solution-worklist.md) for current Done/Open |
 | Scope | **Whole codebase**, not only the 0.3.0 release delta |
 | Companion gate | Same-day release-gate pack under `docs/reviews/*-0.3.0-release-gate-2026-07-19.md` (diff-scoped) |
 
-**Note on workspace:** this review was run from a worktree that also carries
-`chore/0.3.0-pre-tag-fixes` (3 commits ahead of `main`). Where that branch
-already closes a main-only gap (e.g. `collection_read_actions=` Hash raise),
-the finding is marked **fixed on pre-tag branch / still open on main** so you
-do not double-count after merge.
+**Note on workspace (historical):** the review was run from a worktree that also
+carried `chore/0.3.0-pre-tag-fixes`. Those pre-tag gaps (Hash raise on
+`collection_read_actions=`, etc.) and Phase 0 (S1–S5 / #91) are **on `main` as
+0.3.1** — do not re-implement from the original P0 wording in 01/02.
 
 ## Tools & lenses used
 

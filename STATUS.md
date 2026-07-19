@@ -33,11 +33,12 @@ controllers, views, and ViewComponents.
 - Showcase app: **[davidteren/current_scope_showcase](https://github.com/davidteren/current_scope_showcase)**
   (own repo; consumes the published gem — no longer vendored)
 
-Version **`0.3.0` published** to RubyGems (tag `v0.3.0` + GitHub Release,
-2026-07-19). Branch `fix/solid-solution-phase-0` / PR #100 bumps the gem to
-**`0.3.1`** (post-release patch — SoD config writer, last full-access lockout
-guards, related DX). Showcase still on `~> 0.3.0` until 0.3.1 is tagged and
-pushed. Not production-ready; see the README banner.
+Version **`0.3.1` published** to RubyGems (tag `v0.3.1` + GitHub Release,
+2026-07-19 — same day as 0.3.0). It is the Phase 0 post-release patch (PR
+#100): SoD config writer, last full-access lockout guards, related DX. The
+showcase's `~> 0.3.0` pin already admits 0.3.1 — a `bundle update
+current_scope` there picks it up, no pin edit needed. Not production-ready;
+see the README banner.
 
 **0.3.0 shipped 2026-07-19.** The release gate (dte-deep-reviewer +
 dte-test-auditor + /security-review; records in `docs/reviews/`) passed with
@@ -51,11 +52,11 @@ unlisted, now CHANGELOG errata (PR #95) and in the Release notes. Workflow
 rule added to AGENTS.md the same day (2026-07-19): every PR review comment
 gets a reply before its thread resolves.
 
-**Solid-solution Phase 0 (this branch `fix/solid-solution-phase-0`, post-0.3.0):**
+**Solid-solution Phase 0 — SHIPPED as `0.3.1` (PR #100, 2026-07-19):**
 implements worklist S1–S5 / #91 and related lockout guards (holder-based
 full-access guards, cascade audit safety, expanded mutating-name warnings on
-`collection_read_actions`, `sod_actions` normalizing writer). Not yet on
-`main` / not yet released — parent will bump patch after this merges.
+`collection_read_actions`, `sod_actions` normalizing writer). Merged to
+`main`, tagged `v0.3.1`, GitHub Release created, gem pushed to RubyGems.
 
 ## Done (all committed on `main`)
 
@@ -564,12 +565,11 @@ quickstart, production checklist) + tests T1–T4.
 1. ~~**0.3.0 — #50 (plan 029) + #65 together.**~~ — **SHIPPED 2026-07-19**
    (PRs #88/#89, release-gate fixes PR #93, CHANGELOG errata PR #95; see the
    shipped note at the top of this file).
-2. **Solid-solution Phase 0 → merge + tag 0.3.1** — PR #100 already bumps
-   VERSION to **0.3.1** and implements worklist S1–S5, **#91** (`sod_actions`
-   normalizing writer), holder-based last full-access / lockout guards, cascade
-   audit safety, and expanded `MUTATING_ACTION_NAMES` (destroy_all/update_all
-   warn). After merge to main: tag `v0.3.1` and publish (VERSION is already on
-   this branch — no second parent-only version bump required).
+2. ~~**Solid-solution Phase 0 → merge + tag 0.3.1**~~ — **SHIPPED 2026-07-19**
+   (PR #100 merged, tag `v0.3.1`, GitHub Release, RubyGems). Worklist S1–S5,
+   **#91** (`sod_actions` normalizing writer), holder-based last full-access /
+   lockout guards, cascade audit safety, expanded `MUTATING_ACTION_NAMES`
+   (destroy_all/update_all warn).
 3. **#90 — orphaned scoped grants render as real access in the console.**
    Inert on listed reads since #65 (destroyed record ⇒ empty list ⇒ deny),
    but the console still shows them as live grants. UI honesty fix — needs
@@ -598,11 +598,13 @@ quickstart, production checklist) + tests T1–T4.
    2026-07-16 comment) and plan 027 is amended (PR #78).
 8. Then the docs cluster: **#30, #28, #27, #24** (plan 006 is "relocate and
    complete", not "write"); also **#34**, **#25**, **#33**, **#32**.
-9. ~~**Publish to RubyGems**~~ — **done; current release is `v0.3.0`**
+9. ~~**Publish to RubyGems**~~ — **done; current release is `v0.3.1`**
    (2026-07-19; `v0.2.0` was the first published version). The release recipe,
-   proven twice now: bump `lib/current_scope/version.rb` + CHANGELOG heading,
-   run the release gate, tag + GitHub Release, `gem push`, then bump the
-   showcase's `gem "current_scope"` pin. Next publish is the Phase 0 patch.
+   proven three times now: bump `lib/current_scope/version.rb` + CHANGELOG
+   heading, run the release gate, tag + **GitHub Release** (a pushed tag alone
+   does not update the Releases page — 0.3.1 stalled here), `gem push`
+   (**requires interactive WebAuthn MFA — a human step, an agent can only
+   build**), then `bundle update current_scope` in the showcase.
 10. **#96 / #97** — API abilities payload + Inertia shared props (after core
     solid bar, or parallel if capacity).
 11. **README screenshots** — the UI is clean and verified; capture the dashboard,

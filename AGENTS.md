@@ -51,6 +51,8 @@ Use skill **`/dt-pre-pr-gate`**, which runs in order:
 1. `/ce-code-review` — fix findings (may commit)
 2. `/ie-review` — fix findings (may commit)
 3. `/cubic-loop` (**local** mode) — fix findings until clean / residual P3 only
+   (`/run-review` is a lighter one-shot cubic pass; it is **not** a substitute
+   for step 3 of this gate)
 
 **Stale-gate rule:** if anything is committed after the gate finishes,
 the gate is void — re-run `/dt-pre-pr-gate` on the new `HEAD` before

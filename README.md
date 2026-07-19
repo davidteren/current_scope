@@ -771,6 +771,8 @@ the response as the `X-Current-Scope-Reason` header:
 |---|---|
 | `sod_veto` | the record's initiator can't perform a separation-of-duties action on it |
 | `no_grant` | nothing granted the permission — the default deny |
+| `model_undeclared` | a record-less deny a scoped grant would have opened, had the controller declared `current_scope_model` |
+| `model_invalid` | `current_scope_model` was declared but returned something other than a concrete ActiveRecord class |
 | `impersonation_gate` | a mutation while impersonating, which is read-only |
 | `not_full_access` | the management UI, which only full-access subjects enter |
 

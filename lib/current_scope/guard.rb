@@ -152,7 +152,7 @@ module CurrentScope
         # grant against. This is the line that says why. Log-only either way, so
         # it cannot affect the branch below. (#37/#41 interaction)
         nudge_on_inert_scoped_grant(permission, record, reason)
-        nudge_on_undeclared_collection_model(permission, record, reason, model)
+        nudge_on_undeclared_collection_model(permission, record, reason)
 
         return report_would_deny(permission, record) if report_only_denial?(reason, permission, record)
 
@@ -425,7 +425,7 @@ module CurrentScope
     # record/grants would be the drifting second copy KTD-5 warns about.
     # `record` is taken to mirror its sibling's call shape, not consulted.
     # Log-only; the reason rides X-Current-Scope-Reason with or without this.
-    def nudge_on_undeclared_collection_model(permission, _record, reason, model = nil)
+    def nudge_on_undeclared_collection_model(permission, _record, reason)
       return unless CurrentScope.config.warn_on_undeclared_collection_model
 
       # Both labels are the same cell — a scoped grant satisfies the key but
@@ -452,9 +452,23 @@ module CurrentScope
           "default scope."
         )
       when :model_invalid
+        # Re-read the hook rather than thread the value through the call —
+        # keeping the call site at its siblings' 3-arg shape, so a host that
+        # collides with this (private, but un-namespaced) method name at the
+        # old arity gets its own method called, not an ArgumentError-500 on a
+        # denied request (PR #93 review, qodo + cubic). Display-only re-read:
+        # the hook is a plain method and the decision is already made.
+        model = resolve_current_scope_model
+        # A diagnostic must never alter the denial path — an object whose
+        # inspect raises would turn this 403 into a 500 (PR #93 review, cubic).
+        described = begin
+          model.inspect
+        rescue StandardError
+          "(uninspectable object)"
+        end
         Rails.logger&.warn(
           "[CurrentScope] denied \"#{permission}\" (model_invalid) — #{controller_path}'s " \
-          "current_scope_model returned #{model.inspect}, which is not a concrete " \
+          "current_scope_model returned #{described}, which is not a concrete " \
           "ActiveRecord model class, so the gate could not bind the record-less check to it " \
           "and failed closed. Return the AR class this collection lists " \
           "(`def current_scope_model = TheType`) — a String, instance, or abstract class " \

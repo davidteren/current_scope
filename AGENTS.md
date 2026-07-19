@@ -41,11 +41,23 @@ RubyGems; not production-ready.
   non-technical reader could follow; technical detail below that block.
 - Never push a failing suite.
 
-## Review gate — before opening a PR
+## Review gate — before opening a PR (mandatory — never skip)
 
-1. `/ce-code-review` — fix findings
-2. `/ie-review` — fix findings
-3. `/run-review` (cubic) — fix findings
+**Do not run `gh pr create` (or any skill that opens a new PR) until this
+gate has completed on the exact commit that will be the PR head.**
+
+Use skill **`/dt-pre-pr-gate`**, which runs in order:
+
+1. `/ce-code-review` — fix findings (may commit)
+2. `/ie-review` — fix findings (may commit)
+3. `/cubic-loop` (**local** mode) — fix findings until clean / residual P3 only
+
+**Stale-gate rule:** if anything is committed after the gate finishes,
+the gate is void — re-run `/dt-pre-pr-gate` on the new `HEAD` before
+create. An earlier pass on an older SHA does **not** count.
+
+**Waive only if the user explicitly waives it in chat for that PR** —
+never self-waive for "small" or "docs-only" diffs.
 
 Milestone / release gate (before any version bump or RubyGems tag):
 `dte-deep-reviewer` + `dte-test-auditor` + `/security-review`.

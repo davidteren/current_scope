@@ -659,6 +659,8 @@ input[type="checkbox"], input[type="radio"] {
    host might place in the sidebar or topbar. */
 .cs-main form p { margin: 0 0 1rem; max-width: 30rem; }
 
+/* Non-control captions (bulk subjects line) share form-label type. */
+.cs-main form p > .cs-label,
 .cs-main form p > label {
   display: block;
   font-size: 0.7rem;

@@ -148,7 +148,7 @@ Document these; do not treat as defects to loosen.
 | A2: `actor_method` only loud at boundary APIs | Document + doctor (#46); no false auto-detect |
 | A6: `audit=true` degrades without table | Push `:strict` in checklist (S13); don’t change default without UPGRADING |
 | Trusted wrong `current_scope_model` | #65 trade; review like record hook |
-| Report mode hard-403 `:model_undeclared` | Deliberate pin |
+| Report mode hard-403 `:model_undeclared` / `:model_invalid` | Deliberate pin — **403 with `X-Current-Scope-Reason` + dev log nudge**, not a report-mode observation row; do not look for a `:report` ledger entry |
 | GatingTripwire opt-in | Keep opt-in; recommend in checklist |
 | Solid Cache required by gem | Never; host recipe only (D8) |
 | Auto-include Guard on every Metal controller | Would surprise hosts |

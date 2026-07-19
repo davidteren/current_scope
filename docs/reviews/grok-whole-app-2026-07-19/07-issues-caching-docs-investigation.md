@@ -151,13 +151,17 @@ For hosts that **measure** hot paths and accept explicit invalidation:
 | Safe | Unsafe |
 |---|---|
 | Catalog of route keys (already process-local) | Per-decision allow/deny without version |
-| Subject’s **permission key set** + role id + `updated_at`/version of role rows | Raw AR objects (`Rails.cache` + Role instance) — Rails guide forbids |
-| `scope_for` id lists with short TTL **or** version token from max(role_permissions.updated_at, assignments.updated_at) | Infinite TTL grant payload on the client (#96) without refresh rules |
+| Subject’s **permission key set** + role id + version of grant graph | Raw AR objects (`Rails.cache` + Role instance) — Rails guide forbids |
+| `scope_for` id lists with short TTL **or** an explicit grant-version/counter | Infinite TTL grant payload on the client (#96) without refresh rules |
 
 **Invalidation sketch (if a host opts in):**
 
 ```
-version = CurrentScope.grants_version_for(subject)  # max timestamp / counter
+# Do NOT key only on role_permissions.updated_at — that table has no updated_at,
+# and scoped assignment changes would be invisible. Prefer an explicit counter
+# (or max of Role/RoleAssignment/ScopedRoleAssignment timestamps + permission
+# row presence) bumped on every grant-graph write.
+version = CurrentScope.grants_version_for(subject)
 Rails.cache.fetch(["cs", subject.to_gid, "keys", version], expires_in: 5.minutes) do
   # load permission keys + full_access flag as primitives
 end

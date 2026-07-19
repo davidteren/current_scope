@@ -30,7 +30,7 @@ Source: `lib/current_scope/resolver.rb:47-75`.
 | Query-string `?id=` on collection | Hooks must use `path_parameters`; regression-tested |
 | Non-record hook return (String) | Not record-less → scoped branch closed |
 | Cross-type scoped grant on #create | Denied without matching `current_scope_model` type (#50) |
-| Scoped full_access on non-list action | Barred (`roles_ticking` excludes full_access) |
+| Scoped full_access on **record-less** non-list action | Barred (`roles_ticking` excludes full_access); **per-record** non-list on the granted resource is still allowed |
 | Mass-assignment of permissions | Catalog validation; unknown keys rejected |
 | Crafted subject GID of wrong class | `locate_subjects` filters `is_a?(subject_class)` |
 | Arbitrary resource_type constantize | Scopeable registry only |
@@ -41,17 +41,19 @@ Source: `lib/current_scope/resolver.rb:47-75`.
 
 ## Medium findings (detail)
 
-### M1 — Symbol `sod_actions` disables SoD
-See master review #1. Highest-priority config footgun for fraud control.
+### M1 — Symbol `sod_actions` disables SoD — **fixed in 0.3.1 / PR #100**
+Normalizing writer maps symbols → strings and freezes the list (#91). Historical
+finding retained for context only.
 
-### M2 — Last full-access demotion via update
-See master #2. `last_full_access?` exists only on destroy path.
+### M2 — Last full-access demotion via update — **fixed in 0.3.1 / PR #100**
+Holder-based lockout: refuse demoting the last *held* full_access role (empty spare FA roles no longer count as a safety net).
 
-### M3 — Clear last full-access holder
-See master #3. `clear_org_role` / assignment `destroy` have no holder-count guard.
+### M3 — Clear last full-access holder — **fixed in 0.3.1 / PR #100**
+`clear_org_role` / assignment `destroy` refuse removing the last live FA org holder (orphan/deleted subjects do not permanently block cleanup).
 
 ### M4–M5 — `collection_read_actions` silence / partial mutating list
-See master #4–5. Hash path is fail-closed but silent; custom mutating names reintroduce #49 shape.
+**Hash / non-String elements:** fail-closed raise shipped in 0.3.0/#93 (no longer silent).  
+**Custom mutating action names** outside the expanded list still reintroduce the #49 shape — residual host-config footgun, not an open gem defect.
 
 ### M6 — A5 residual (org + nil SoD record)
 Pinned intentional fail-open for host misconfig. Scoped path and report-mode blind spot are closed.

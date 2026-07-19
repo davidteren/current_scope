@@ -217,6 +217,18 @@ class ManagementUiTest < ActionDispatch::IntegrationTest
     assert_nil CurrentScope::RoleAssignment.find_by(subject: @owner)
   end
 
+  test "destroying a role with an orphaned holder records audit and succeeds" do
+    ghost = User.create!(name: "Ghost")
+    CurrentScope::RoleAssignment.create!(subject: ghost, role: @member_role)
+    ghost.destroy!
+
+    delete current_scope.role_url(@member_role), headers: as(@owner)
+    assert_redirected_to current_scope.roles_url
+    assert_not CurrentScope::Role.exists?(@member_role.id)
+    # Ledger row targets the assignment (or survives) rather than 500ing.
+    assert CurrentScope::Event.where(event: "role.deleted").exists?
+  end
+
   test "refuses a member POST that would escalate grants" do
     post current_scope.role_assignments_url, headers: as(@member),
          params: { subject_gid: @member.to_gid.to_s, role_id: @owner_role.id }

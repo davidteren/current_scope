@@ -13,7 +13,7 @@ leave operators guessing.
 
 - Design tokens + theme toggle; `prefers-reduced-motion`; `:focus-visible`
 - Skip-to-content → `#cs-main-content`
-- Destructive actions dual-guarded (`data-cs-confirm` + `data-turbo-confirm`) with JS that works without Turbo
+- Most destructive actions dual-guarded (`data-cs-confirm` + `data-turbo-confirm`) with JS that works without Turbo; Members org-wide **Remove** is `cs-confirm`-only (see confirm table below)
 - Permission grid: sticky headers, partial/ungated states with text (not color-only), stable `perm_*` / `cs_ungated_*` ids
 - Scoped picker: GET cascade vs POST grant (CSRF-safe); empty states for no types / no records / no matches
 - Theme cookie `html_safe` allowlisted; event ledger text escaped by default

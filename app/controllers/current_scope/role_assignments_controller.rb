@@ -58,12 +58,13 @@ module CurrentScope
     def destroy
       refused = false
       RoleAssignment.transaction do
+        # Lock FA state BEFORE the target assignment so order matches create/
+        # role demote/delete (FA roles → FA holders → target row). Locking the
+        # assignment first inverted that order and could deadlock.
+        lock_full_access_org_holders!
         assignment = RoleAssignment.lock.find(params[:id])
         subject = resolve_subject(assignment)
         role_name = assignment.role.name
-
-        # Serialize against concurrent remove/clear of other full-access holders.
-        lock_full_access_org_holders!
 
         if last_full_access_org_assignment?(assignment)
           refused = true
@@ -104,10 +105,12 @@ module CurrentScope
       count == 1 ? "Org-wide role #{verb}." : "Org-wide role #{verb} for #{count} subjects."
     end
 
-    # True when this assignment is a full_access org role and no other
-    # full_access org assignment exists.
+    # True when this assignment is a live full_access org holder and no other
+    # full_access org assignment exists. Orphan rows (deleted subject → nil)
+    # must not permanently block cleanup of the last FA assignment.
     def last_full_access_org_assignment?(assignment)
       return false unless assignment.role&.full_access?
+      return false if resolve_subject(assignment).nil?
 
       !full_access_org_assignments.where.not(id: assignment.id).exists?
     end
@@ -145,7 +148,9 @@ module CurrentScope
     end
 
     def same_subject?(assignment, subject)
-      assignment.subject_type == subject.class.base_class.name && assignment.subject_id == subject.id
+      # Match the polymorphic storage name the subjects page uses (not only
+      # base_class.name — hosts can customize polymorphic_name).
+      assignment.subject_type == subject.class.polymorphic_name && assignment.subject_id == subject.id
     end
 
     # Returns true when a role was actually cleared, false when there was nothing

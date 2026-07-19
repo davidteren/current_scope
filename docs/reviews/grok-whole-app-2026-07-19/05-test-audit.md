@@ -25,11 +25,11 @@ _2026-07-19 · Builds on `docs/reviews/test-audit-0.3.0-release-gate-2026-07-19.
 | Prod impersonation mutations guardrail | COVERED |
 | Audit `:strict` rollback | COVERED |
 | Last full-access **destroy** | COVERED |
-| Last full-access **demote / clear holder** | MISSING |
-| Symbol `sod_actions` still enforces | MISSING |
+| Last full-access **demote / clear holder** | COVERED (0.3.1 / PR #100) |
+| Symbol `sod_actions` still enforces | COVERED (writer + resolver pins, 0.3.1) |
 | Empty-list deny after destroy via GET | UNIT-ONLY |
-| Non-admin mutation POSTs | MISSING |
-| One org-role uniqueness | MISSING (schema only) |
+| Non-admin mutation POSTs | COVERED (member POST escalate refused) |
+| One org-role uniqueness | COVERED (integration + schema unique index) |
 
 ## Quality smells
 
@@ -54,8 +54,8 @@ _2026-07-19 · Builds on `docs/reviews/test-audit-0.3.0-release-gate-2026-07-19.
 
 ## Recommended pins (shortest)
 
-1. `sod_actions = [:approve]` still vetoes (or writer normalizes)
-2. Real GET after destroy → forbidden for scoped full_access index
-3. Member POST role_assignment / role update → 403 + no row change
-4. Second org RoleAssignment → RecordNotUnique
-5. Reason-trio includes `[true, :sod_bypassed]`
+1. ~~`sod_actions = [:approve]` still vetoes~~ — **done** in 0.3.1 / PR #100
+2. Real GET after destroy → forbidden for scoped full_access index — still open
+3. ~~Member POST role_assignment / role update → 403~~ — **done** in 0.3.1 / PR #100
+4. ~~Second org RoleAssignment → RecordNotUnique~~ — **done** in 0.3.1 / PR #100
+5. Reason-trio includes `[true, :sod_bypassed]` — still open

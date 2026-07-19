@@ -48,17 +48,19 @@ Resolver uses `Current.memoized_org_role` while Guard comments claim purity. Dec
 - `Event.record!` ambient-coupled (intentional fail-loud)
 - ApplicationHelper diagnostic subsystem size
 - Scoped-grant path not request-memoized (ROADMAP 2.4 partial)
-- `ambient_collection_model` should be private
+- ~~`ambient_collection_model` should be private~~ — **already private** in `Permissions`
 - Config surface large but each knob earned — group docs by adoption phase
+- Events page: GlobalID actor/subject label lookups from the view (N+1 risk up to two per row; not a clean check)
 
 ## Clean checks
 
 - Models thin; no Current-driven decisions in models
 - No params/request in `lib/` domain objects
-- No query-in-view in engine
 - No unauthorized gems or policy-object zoo
 - Fail-closed order intact
 - Report mode positive-match closed set
+
+_Note:_ the events index is **not** query-free in the view — labels resolve GlobalIDs per row (follow-up: preload/cache).
 
 ## Scores
 
@@ -72,7 +74,8 @@ Resolver uses `Current.memoized_org_role` while Guard comments claim purity. Dec
 ## Priority if acting on architecture only
 
 1. Reword purity comment (zero risk)
-2. Private `ambient_collection_model`
+2. ~~Private `ambient_collection_model`~~ — already done
 3. Optional Guard extract when next nudge lands
 4. Dual-hook macro before next major
 5. Scoped-grant memo only with measured N+1
+6. Preload/cache event actor+subject labels (view N+1)

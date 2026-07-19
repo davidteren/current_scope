@@ -65,8 +65,10 @@ module CurrentScope
       # concurrent demotions of the last held full-access roles cannot both pass
       # a pre-transaction check and then both commit.
       Role.transaction do
-        @role = Role.lock.find(params[:id])
+        # Lock FA console state before the target role so concurrent demote/delete
+        # of two FA roles cannot invert lock order (roles first, then assignments).
         lock_full_access_console_state!
+        @role = Role.lock.find(params[:id])
 
         if demoting_would_lock_console?(@role, permitted)
           refused = true
@@ -97,16 +99,17 @@ module CurrentScope
       refused = false
 
       Role.transaction do
-        role = Role.lock.find(params[:id])
         lock_full_access_console_state!
+        role = Role.lock.find(params[:id])
 
         if would_lock_console_by_removing_role?(role)
           refused = true
         else
-          # Snapshot the cascade BEFORE destroy! — dependent: :destroy takes the
-          # assignments with the role, so they can't be read afterwards.
-          org_removed = role.role_assignments.includes(:subject).to_a
-          scoped_revoked = role.scoped_role_assignments.includes(:subject, :resource).to_a
+          # Snapshot WITHOUT polymorphic includes — includes(:subject)/:resource
+          # can raise NameError for stale types at preload (members page avoids
+          # this for the same reason). Resolve each row inside the helpers.
+          org_removed = role.role_assignments.to_a
+          scoped_revoked = role.scoped_role_assignments.to_a
 
           role.destroy!
           Event.record!(event: "role.deleted", target: role, details: { name: role.name })
@@ -134,16 +137,24 @@ module CurrentScope
     private
 
     # Polymorphic subject/resource may be deleted or unresolvable — never 500
-    # the cascade audit (members page already resolves defensively).
+    # the cascade audit. Deleted records return nil without raising (especially
+    # after includes preload), so use || assignment, not rescue-only.
     def cascade_subject(assignment)
-      assignment.subject
+      assignment.subject || assignment
     rescue ActiveRecord::RecordNotFound, NameError
       assignment
     end
 
     def cascade_resource_label(assignment)
-      helpers.current_scope_label(assignment.resource)
-    rescue ActiveRecord::RecordNotFound, NameError
+      resource = begin
+        assignment.resource
+      rescue ActiveRecord::RecordNotFound, NameError
+        nil
+      end
+      return "#{assignment.resource_type}##{assignment.resource_id}" if resource.nil?
+
+      helpers.current_scope_label(resource)
+    rescue StandardError
       "#{assignment.resource_type}##{assignment.resource_id}"
     end
 

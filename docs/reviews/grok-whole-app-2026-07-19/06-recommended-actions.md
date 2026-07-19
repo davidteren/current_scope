@@ -4,13 +4,17 @@ _2026-07-19 · Synthesized from all lenses. Prefer small PRs; each row is indepe
 
 ## P0 — before 0.3.0 tag (security / silent fraud-control)
 
-| # | Action | Files | Why |
-|---|---|---|---|
-| 1 | Normalizing writer for `sod_actions` (+ freeze + tests for symbols) | `configuration.rb`, `configuration_test.rb`, `resolver_test.rb` | Symbol list silently disables SoD |
-| 2 | Refuse demoting last full_access role on update | `roles_controller.rb`, `management_ui_test.rb` | Console lockout |
-| 3 | Refuse clearing last full_access org holder | `role_assignments_controller.rb`, integration test | Console lockout |
-| 4 | Ensure main has Hash/non-String raise on `collection_read_actions=` | `configuration.rb` (pre-tag may already have it) | Silent un-fix of #65 |
-| 5 | Expand mutating warn list with `destroy_all` / `update_all` | `configuration.rb` | Docs-named escalation |
+> **Status 2026-07-19:** items 1–5 landed on `fix/solid-solution-phase-0` /
+> PR #100 as **0.3.1**. Treat this section as historical / verification, not a
+> to-do list.
+
+| # | Action | Files | Why | Status |
+|---|---|---|---|---|
+| 1 | Normalizing writer for `sod_actions` (+ freeze + tests for symbols) | `configuration.rb`, tests | Symbol list silently disables SoD | **Done** 0.3.1 |
+| 2 | Refuse demoting last full_access when no other **holders** remain | `roles_controller.rb` | Console lockout | **Done** 0.3.1 |
+| 3 | Refuse clearing last full_access org holder | `role_assignments_controller.rb` | Console lockout | **Done** 0.3.1 |
+| 4 | Hash/non-String raise on `collection_read_actions=` | `configuration.rb` | Silent un-fix of #65 | **Done** 0.3.0/#93 |
+| 5 | Expand mutating warn list with `destroy_all` / `update_all` | `configuration.rb` | Docs-named escalation | **Done** 0.3.1 |
 
 ## P1 — soon after tag (still high ROI)
 

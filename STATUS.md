@@ -564,12 +564,12 @@ quickstart, production checklist) + tests T1–T4.
 1. ~~**0.3.0 — #50 (plan 029) + #65 together.**~~ — **SHIPPED 2026-07-19**
    (PRs #88/#89, release-gate fixes PR #93, CHANGELOG errata PR #95; see the
    shipped note at the top of this file).
-2. **Solid-solution Phase 0 → merge + patch release** — branch
-   `fix/solid-solution-phase-0` implements worklist S1–S5, **#91** (`sod_actions`
+2. **Solid-solution Phase 0 → merge + tag 0.3.1** — PR #100 already bumps
+   VERSION to **0.3.1** and implements worklist S1–S5, **#91** (`sod_actions`
    normalizing writer), holder-based last full-access / lockout guards, cascade
    audit safety, and expanded `MUTATING_ACTION_NAMES` (destroy_all/update_all
-   warn). Merge via PR, then parent bumps patch (do not publish from this
-   branch's merge commit alone without the version bump).
+   warn). After merge to main: tag `v0.3.1` and publish (VERSION is already on
+   this branch — no second parent-only version bump required).
 3. **#90 — orphaned scoped grants render as real access in the console.**
    Inert on listed reads since #65 (destroyed record ⇒ empty list ⇒ deny),
    but the console still shows them as live grants. UI honesty fix — needs

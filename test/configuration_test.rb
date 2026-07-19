@@ -259,10 +259,11 @@ class ConfigurationTest < ActiveSupport::TestCase
       "the previous list stands, like the keyed-member raise"
   end
 
+  # Phase 0 (solid-solution S1 area): MUTATING_ACTION_NAMES includes
+  # destroy_all/update_all so the docs' #49 escalation examples cannot re-enter
+  # via config with no signal. Custom names still evade the partial blocklist.
+  # (main's 0.3.0 pin expected destroy_all silent; Phase 0 deliberately widens.)
   test "destroy_all and update_all warn like the canonical write verbs" do
-    # Expanded from create/update/destroy so the docs' escalation examples
-    # cannot reintroduce #49 via config with no signal. Custom names still
-    # evade the partial blocklist.
     config = CurrentScope::Configuration.new
     out = capture_rails_log { config.collection_read_actions = %w[index destroy_all] }
     assert_equal [ "index", "destroy_all" ], config.collection_read_actions

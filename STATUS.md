@@ -33,10 +33,27 @@ controllers, views, and ViewComponents.
 - Showcase app: **[davidteren/current_scope_showcase](https://github.com/davidteren/current_scope_showcase)**
   (own repo; consumes the published gem — no longer vendored)
 
-Version `0.3.0` on `main` (`lib/current_scope/version.rb`; not yet tagged on
-RubyGems as of 2026-07-19). `v0.2.0` remains the last published gem; the
-showcase still consumes `~> 0.2.0` until 0.3.0 is tagged and pushed. Not
-production-ready; see the README banner.
+Version `0.3.0`, **published to RubyGems** (tag `v0.3.0` + GitHub Release,
+2026-07-19) — the showcase consumes it as an ordinary `gem "current_scope"`
+(`~> 0.3.0`). Not production-ready; see the README banner.
+
+**0.3.0 shipped 2026-07-19.** The release gate (dte-deep-reviewer +
+dte-test-auditor + /security-review; records in `docs/reviews/`) passed with
+no blocker; its findings became PR #93 (writer element validation, the
+`:model_invalid` label + nudge, test pins incl. the mutation-audit FrozenError
+survivor, rails-html-sanitizer bump). Post-release shakedown: the showcase and
+all six `current_scope_test_scenarios` apps re-pinned and green against the
+published gem, zero regressions — and the shakedown caught #85's
+`role_assignment` → `role_assignments` route rename as upgrade-breaking and
+unlisted, now CHANGELOG errata (PR #95) and in the Release notes. Workflow
+rule added to AGENTS.md the same day (2026-07-19): every PR review comment
+gets a reply before its thread resolves.
+
+**Solid-solution Phase 0 (this branch `fix/solid-solution-phase-0`, post-0.3.0):**
+implements worklist S1–S5 / #91 and related lockout guards (holder-based
+full-access guards, cascade audit safety, expanded mutating-name warnings on
+`collection_read_actions`, `sod_actions` normalizing writer). Not yet on
+`main` / not yet released — parent will bump patch after this merges.
 
 ## Done (all committed on `main`)
 
@@ -542,24 +559,53 @@ quickstart, production checklist) + tests T1–T4.
 
 ## Next
 
-1. **0.3.0 tag gate** — #50 + #65 are **on main** (PRs #88 / #89). Version is
-   already `0.3.0`. Phase 0 solid-solution items (S1–S5, lockout guards, related
-   tests/UI) are implemented on branch `fix/solid-solution-phase-0` (not yet
-   PR'd). Merge that + pre-tag branch into main, re-run gate as needed, then
-   CHANGELOG `[Unreleased]` → `[0.3.0]`, tag, `gem push`, bump showcase.
-2. **Solid-solution worklist Phase 1+** — follow
+1. ~~**0.3.0 — #50 (plan 029) + #65 together.**~~ — **SHIPPED 2026-07-19**
+   (PRs #88/#89, release-gate fixes PR #93, CHANGELOG errata PR #95; see the
+   shipped note at the top of this file).
+2. **Solid-solution Phase 0 → merge + patch release** — branch
+   `fix/solid-solution-phase-0` implements worklist S1–S5, **#91** (`sod_actions`
+   normalizing writer), holder-based last full-access / lockout guards, cascade
+   audit safety, and expanded `MUTATING_ACTION_NAMES` (destroy_all/update_all
+   warn). Merge via PR, then parent bumps patch (do not publish from this
+   branch's merge commit alone without the version bump).
+3. **#90 — orphaned scoped grants render as real access in the console.**
+   Inert on listed reads since #65 (destroyed record ⇒ empty list ⇒ deny),
+   but the console still shows them as live grants. UI honesty fix — needs
+   real-browser verification before merge (unit tests render without layout).
+4. **#98 — docs workstream (maintainer priority, 2026-07-19): the SoD
+   anti-fraud story + a real doc site.** Grow the GitHub Pages site into a
+   typical doc site with committed source (that step IS #33's core), centered
+   on the SoD guide: initiator-cannot-approve in business terms, **opt-in
+   stated loudly** (`config.sod_actions` empty by default — the veto never
+   runs until the host names actions), break-glass + audit trail, and
+   copy-pasteable **agentic-coding prompts** per guide (plus `llms.txt`).
+   Folds in #33 (site source/drift), feeds #34 (README→guides) and #32
+   (security checklist page).
+5. **Solid-solution worklist Phase 1+** — follow
    [08-solid-solution-worklist.md](docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md).
-   Still open high-value tickets: **#40**, **#30**, **#73**, **#74**, **#90**,
-   **#91** (code for #91 is on the phase-0 branch — close when merged).
-3. **Docs cluster (Phase 2)** — **#34** README restructure (plan 016), **#25**
-   canonical quickstart, **#33** docs site, **#32** production checklist,
-   **#27** UPGRADING, **#24** denial guide, **#28** config reference.
-4. **#45 (parked)** — migration tooling; Action-Policy-first first adapter;
-   after 0.3.0 semantics stabilize. Comment + plan 027 already record this.
-5. **#96 / #97** — API abilities payload + Inertia shared props (after core
-   solid bar, or parallel if capacity).
-6. ~~**Publish v0.2.0**~~ — **done.** Next publish is **0.3.0** (step 1).
-7. Open design questions (DESIGN.md §9): resource hierarchy/cascade,
+   Still open high-value tickets: **#40**, **#30**, **#73**, **#74**.
+6. ~~**PR #69 review → implement plan 030**~~ — **done** (PR #79, #62 closed).
+7. **#45 — UNPARKED by the 0.3.0 release.** — delivery split already settled: parity
+   harness ships in the gem, analyzer ships as a skill. First-PR scope answered
+   by the audit (2026-07-16): **Action-Policy-first for the first adapter** —
+   Pundit-first has no recorded rationale anywhere, while #45 calls AP the
+   "closest cousin", RESEARCH.md modeled the API on it, and the run's lens was
+   an AP host. Sequencing: after #50/#65 land as 0.3.0 (migration tooling must
+   not certify hosts against semantics about to change). Note: the parking +
+   delivery split exist only in this file — ~~record them on issue #45~~ (done,
+   2026-07-16 comment) and plan 027 is amended (PR #78).
+8. Then the docs cluster: **#30, #28, #27, #24** (plan 006 is "relocate and
+   complete", not "write"); also **#34**, **#25**, **#33**, **#32**.
+9. ~~**Publish to RubyGems**~~ — **done; current release is `v0.3.0`**
+   (2026-07-19; `v0.2.0` was the first published version). The release recipe,
+   proven twice now: bump `lib/current_scope/version.rb` + CHANGELOG heading,
+   run the release gate, tag + GitHub Release, `gem push`, then bump the
+   showcase's `gem "current_scope"` pin. Next publish is the Phase 0 patch.
+10. **#96 / #97** — API abilities payload + Inertia shared props (after core
+    solid bar, or parallel if capacity).
+11. **README screenshots** — the UI is clean and verified; capture the dashboard,
+    permission grid, subjects, members, events when convenient.
+12. Open design questions (DESIGN.md §9): resource hierarchy/cascade,
    multiple org-wide roles, scoped-role capability restriction.
 
 ## Still to be done (open design questions — DESIGN.md §9)

@@ -1,0 +1,23 @@
+README.md
+  s_78450d8eb59756::t_e408611d9b0e3a 774-775
+lib/current_scope/guard.rb
+  s_78450d8eb59756::t_33dba4daf002a0 455-468,471
+  s_78450d8eb59756::t_d598ffba31b48f 155
+  s_78450d8eb59756::t_570e0a1d1cd08c 428
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "e8f93de16c58b6a74e1d1e24f5477521f7899116",
+  "prompts": {},
+  "sessions": {
+    "s_78450d8eb59756": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f912de4a-ca6e-45c8-905f-dcd49b32058b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

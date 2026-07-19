@@ -1,0 +1,27 @@
+STATUS.md
+  s_25fc844c62da78::t_f7f2212b0eb370 58-64
+docs/reviews/grok-whole-app-2026-07-19/06-recommended-actions.md
+  s_25fc844c62da78::t_007a0cc5d584f3 7-8,20-33
+docs/reviews/grok-whole-app-2026-07-19/07-issues-caching-docs-investigation.md
+  s_25fc844c62da78::t_cd6d6b0b61a5a2 8-11
+docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md
+  s_25fc844c62da78::t_4344bd4c506823 4-8,31,39-43,52,61,77-78,91-92,95,106,108-110,122,130,166-169,171-173,177-178,182,201-215,223,225,237
+docs/reviews/grok-whole-app-2026-07-19/TLDR.md
+  s_25fc844c62da78::t_1b0e6cdde7aac1 5-6,11-16,18,28,30-31,33,35,39,41,43,45-49,51,53-77,80-87,90-92,115,117,132-133,141,145,147-148,154-158
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "00a45c3f920a68c8d6e7cabd7474446effd1c2fd",
+  "prompts": {},
+  "sessions": {
+    "s_25fc844c62da78": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e1c51bf6-4657-4e3e-a50e-aa23cb8ddb7e",
+        "model": "unknown"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

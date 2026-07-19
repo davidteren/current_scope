@@ -4,9 +4,8 @@ _2026-07-19 · Synthesized from all lenses. Prefer small PRs; each row is indepe
 
 ## P0 — before 0.3.0 tag (security / silent fraud-control)
 
-> **Status 2026-07-19:** items 1–5 landed on `fix/solid-solution-phase-0` /
-> PR #100 as **0.3.1**. Treat this section as historical / verification, not a
-> to-do list.
+> **Status 2026-07-19:** items 1–5 landed on `main` via PR #100 as **0.3.1**.
+> Treat this section as historical / verification, not a to-do list.
 
 | # | Action | Files | Why | Status |
 |---|---|---|---|---|
@@ -18,17 +17,20 @@ _2026-07-19 · Synthesized from all lenses. Prefer small PRs; each row is indepe
 
 ## P1 — soon after tag (still high ROI)
 
-| # | Action | Why |
-|---|---|---|
-| 6 | Role delete confirm with holder counts + danger button | Operators wipe grants blindly |
-| 7 | Picker `label_tag` / `for=` associations | a11y |
-| 8 | Subjects row aria-labels for Set controls | a11y |
-| 9 | Empty states for Roles / Events / Subjects | first-run DX |
-| 10 | `private :ambient_collection_model` | accidental public API |
-| 11 | Reword Guard purity comment | doc accuracy |
-| 12 | Integration empty-list deny GET | request-path pin |
-| 13 | Non-admin mutation POST tests | self-escalation regression |
-| 14 | Org-role uniqueness model test | schema-only today |
+> Several rows here shipped with Phase 0 / PR #100. Open remainder aligns with
+> worklist Phase 1+ (see `08-solid-solution-worklist.md`).
+
+| # | Action | Why | Status |
+|---|---|---|---|
+| 6 | Role delete confirm with holder counts + danger button | Operators wipe grants blindly | **Done** 0.3.1 |
+| 7 | Picker `label_tag` / `for=` associations | a11y | **Done** 0.3.1 |
+| 8 | Subjects row aria-labels for Set controls | a11y | **Done** 0.3.1 |
+| 9 | Empty states for Roles / Events / Subjects | first-run DX | Open |
+| 10 | `private :ambient_collection_model` | accidental public API | **Done** 0.3.1 |
+| 11 | Reword Guard purity comment | doc accuracy | **Done** 0.3.1 |
+| 12 | Integration empty-list deny GET | request-path pin | Open (worklist T2) |
+| 13 | Non-admin mutation POST tests | self-escalation regression | **Done** 0.3.1 |
+| 14 | Org-role uniqueness model test | schema-only today | **Done** 0.3.1 |
 
 ## P2 — product / docs / deferred architecture
 

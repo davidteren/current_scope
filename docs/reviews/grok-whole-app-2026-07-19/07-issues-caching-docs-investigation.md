@@ -5,7 +5,10 @@ how the gem must run — recommendations for hosts + product direction._
 
 ## 1. Open GitHub issues (27) as review context
 
-Source: `GET /repos/davidteren/current_scope/issues?state=open` (27 open).
+Source: `GET /repos/davidteren/current_scope/issues?state=open` (27 open at
+write time, including #91). **Post-Phase-0 note (same day):** #91 closed by
+PR #100; open count remains 27 with **#98** in the set. Canonical status:
+[08-solid-solution-worklist.md](08-solid-solution-worklist.md).
 
 ### Already identified on GitHub (overlap with deep review)
 

@@ -55,8 +55,13 @@ gets a reply before its thread resolves.
 **Solid-solution Phase 0 — SHIPPED as `0.3.1` (PR #100, 2026-07-19):**
 implements worklist S1–S5 / #91 and related lockout guards (holder-based
 full-access guards, cascade audit safety, expanded mutating-name warnings on
-`collection_read_actions`, `sod_actions` normalizing writer). Merged to
-`main`, tagged `v0.3.1`, GitHub Release created, gem pushed to RubyGems.
+`collection_read_actions`, `sod_actions` normalizing writer), plus O2 / U1–U2 /
+E1–E2 / T1·T3·T4. Merged to `main`, tagged `v0.3.1`, GitHub Release created,
+gem pushed to RubyGems.
+
+**Next (Phase 1):** #40 → #30 → #74 → #73 → #90 (loud misconfig + audit/console
+honesty). Worklist + TLDR refreshed 2026-07-19: Done labels point at `main` /
+PR #100; open-issue map includes **#98** (D11); counts ~13 done / ~50 open.
 
 ## Done (all committed on `main`)
 

@@ -234,5 +234,5 @@ Call the product **solid** (still versioned carefully) when:
 | [TLDR.md](TLDR.md) | Short start |
 | [01-deep-review-main.md](01-deep-review-main.md) | Severity-ranked findings |
 | [06-recommended-actions.md](06-recommended-actions.md) | Earlier short action stack |
-| [07-issues-caching-docs-investigation.md](07-issues-caching-docs-investigation.md) | Issues + cache + docs IA detail (snapshot — prefer this file + GH for status) |
-| This file | **Master checklist for solid** |
+| [07-issues-caching-docs-investigation.md](07-issues-caching-docs-investigation.md) | Point-in-time issues/cache/docs investigation — **not** live status |
+| This file | **Master checklist for solid** (prefer this + GitHub issues for status) |

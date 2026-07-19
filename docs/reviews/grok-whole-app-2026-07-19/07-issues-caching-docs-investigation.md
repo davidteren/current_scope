@@ -157,17 +157,20 @@ For hosts that **measure** hot paths and accept explicit invalidation:
 **Invalidation sketch (if a host opts in):**
 
 ```
-# Do NOT key only on role_permissions.updated_at — that table has no updated_at,
-# and scoped assignment changes would be invisible. Prefer an explicit counter
-# (or max of Role/RoleAssignment/ScopedRoleAssignment timestamps + permission
-# row presence) bumped on every grant-graph write.
-version = CurrentScope.grants_version_for(subject)
+# Safe version tokens MUST change on every insert/update/delete across
+# Role, RolePermission, RoleAssignment, and ScopedRoleAssignment.
+# Do NOT use max(updated_at) alone: RolePermission has no updated_at, and
+# deleting the newest assignment can leave the max timestamp unchanged
+# (stale cache key). Prefer a monotonic counter or content digest.
+version = CurrentScope.grants_version_for(subject)  # host-owned counter/digest
 Rails.cache.fetch(["cs", subject.to_gid, "keys", version], expires_in: 5.minutes) do
   # load permission keys + full_access flag as primitives
 end
 ```
 
-Bust version on Role / RolePermission / RoleAssignment / ScopedRoleAssignment writes (host callbacks or engine hooks if we ever add optional `ActiveSupport::Notifications` events).
+Bump that counter/digest on Role / RolePermission / RoleAssignment /
+ScopedRoleAssignment writes (host callbacks or engine hooks if we ever add
+optional `ActiveSupport::Notifications` events).
 
 **Solid Cache + Postgres primary (recommended host topology for Rails 8 apps):**
 

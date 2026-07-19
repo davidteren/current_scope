@@ -28,8 +28,8 @@ _2026-07-19 · Builds on `docs/reviews/test-audit-0.3.0-release-gate-2026-07-19.
 | Last full-access **demote / clear holder** | COVERED (0.3.1 / PR #100) |
 | Symbol `sod_actions` still enforces | COVERED (writer + resolver pins, 0.3.1) |
 | Empty-list deny after destroy via GET | UNIT-ONLY |
-| Non-admin mutation POSTs | COVERED (member POST escalate refused) |
-| One org-role uniqueness | COVERED (integration + schema unique index) |
+| Non-admin role-assignment/role-update escalation | COVERED (member POST + PATCH); `roles#create` / `scoped_role_assignments#create` as member still open |
+| One org-role uniqueness | COVERED (model + schema unique index; no request-level pin on `#create`) |
 
 ## Quality smells
 

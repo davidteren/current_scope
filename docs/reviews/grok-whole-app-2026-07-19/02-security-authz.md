@@ -30,7 +30,7 @@ Source: `lib/current_scope/resolver.rb:47-75`.
 | Query-string `?id=` on collection | Hooks must use `path_parameters`; regression-tested |
 | Non-record hook return (String) | Not record-less → scoped branch closed |
 | Cross-type scoped grant on #create | Denied without matching `current_scope_model` type (#50) |
-| Scoped full_access on **record-less** non-list action | Barred (`roles_ticking` excludes full_access); **per-record** non-list on the granted resource is still allowed |
+| Scoped full_access on **record-less** action **not** in `collection_read_actions` | Barred (`roles_ticking` excludes full_access). Listed reads use `roles_granting` / `scope_for` (scoped FA can open lists of granted records). A host that adds a mutating action name to `collection_read_actions` re-opens that residual. **Per-record** non-list on the granted resource remains allowed |
 | Mass-assignment of permissions | Catalog validation; unknown keys rejected |
 | Crafted subject GID of wrong class | `locate_subjects` filters `is_a?(subject_class)` |
 | Arbitrary resource_type constantize | Scopeable registry only |

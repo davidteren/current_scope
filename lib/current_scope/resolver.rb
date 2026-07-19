@@ -63,9 +63,13 @@ module CurrentScope
       # key of that type. Without the distinct reason it is indistinguishable
       # from an ordinary :no_grant, and the dev nudge that explains it is
       # dev/test-only — so the production host who most needs the cause
-      # (403s after an upgrade) would be the one who cannot see it.
+      # (403s after an upgrade) would be the one who cannot see it. Two labels
+      # for the two ways the declaration can be wrong: absent
+      # (:model_undeclared) vs present-but-unusable (:model_invalid — a
+      # String, PORO, or abstract class the shape guard refused). Same cell,
+      # different fix, so the label says which.
       if record_less_denied_for_unknown_type?(subject: subject, permission: permission, record: record, model: model)
-        return [ false, :model_undeclared ]
+        return [ false, model.nil? ? :model_undeclared : :model_invalid ]
       end
 
       [ false, :no_grant ]
@@ -394,7 +398,7 @@ module CurrentScope
       # scope_for would raise TableNotSpecified where the ticking arm's
       # resource_type match simply found nothing. An abstract class stores no
       # rows, so no scoped grant can name it — deny, don't 500.
-      return false unless type.is_a?(Class) && type < ActiveRecord::Base && !type.abstract_class?
+      return false unless collection_type?(type)
 
       if collection_read_action?(permission)
         scope_for(subject: subject, model: type, permission: permission).exists?
@@ -405,13 +409,24 @@ module CurrentScope
       end
     end
 
-    # Would declaring current_scope_model have given this record-less deny a
-    # chance? True only for the exact cell the #50 fail-closed default created:
-    # a DECLARED collection action (record nil — the class form always carries
-    # its type, so it never lands here), no declared model, not an SoD action
-    # (those are refused whatever the type), and a scoped grant EXPLICITLY
-    # ticking the key exists. Pure — reads only; decide labels the deny
-    # :model_undeclared off this, changing no allow/deny.
+    # A usable collection type: an actual concrete ActiveRecord subclass —
+    # the one shape whose base_class/where the two record-less arms may call.
+    # The full rationale lives on the shape guard in record_less_scoped_grant?
+    # above; this predicate exists so the diagnostic labeler below refuses the
+    # exact same shapes the gate refused, and cannot drift from it.
+    def collection_type?(type)
+      type.is_a?(Class) && type < ActiveRecord::Base && !type.abstract_class?
+    end
+
+    # Would a (correct) current_scope_model declaration have given this
+    # record-less deny a chance? True only for the exact cell the #50
+    # fail-closed default created: a DECLARED collection action (record nil —
+    # the class form always carries its type, so it never lands here), no
+    # USABLE declared model — absent, or present but refused by the shape
+    # guard (a String, PORO, or abstract class) — not an SoD action (those
+    # are refused whatever the type), and a scoped grant EXPLICITLY ticking
+    # the key exists. Pure — reads only; decide labels the deny
+    # :model_undeclared / :model_invalid off this, changing no allow/deny.
     #
     # The role set follows the arm the deny came from (#65): a listed read
     # matches a full_access-INCLUSIVE set, because a declared type would honor
@@ -425,7 +440,7 @@ module CurrentScope
     # this allows" false, which is why the nudge says "may fix", never
     # promises.
     def record_less_denied_for_unknown_type?(subject:, permission:, record:, model:)
-      return false unless record.nil? && model.nil?
+      return false unless record.nil? && !collection_type?(model)
       return false if sod_action?(permission)
 
       roles = collection_read_action?(permission) ? roles_granting(permission) : roles_ticking(permission)

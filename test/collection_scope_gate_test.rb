@@ -462,6 +462,52 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
     assert_equal :no_grant, reason
   end
 
+  # --- :model_invalid (0.3.0 release gate): declared-but-unusable types get their own label ---
+  #
+  # A declared current_scope_model the shape guard refuses (String, instance,
+  # PORO, abstract class) used to deny as plain :no_grant — byte-identical to
+  # "never granted", pointing nowhere near the bad declaration. Same cell as
+  # :model_undeclared, different fix, so a different label. Still label-only:
+  # every case below was already a deny.
+
+  test "a declared-but-invalid model with a ticking grant is :model_invalid, not :no_grant" do
+    scope_grant(@alice, role("Editor", "reports#index"), @report)
+
+    [ "Report", :Report, Report.new, Struct.new(:id) ].each do |bad_type|
+      allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index", record: nil, model: bad_type)
+      assert_not allowed, "#{bad_type.inspect} must not open the gate — the label changes no decision"
+      assert_equal :model_invalid, reason,
+        "#{bad_type.inspect} was declared and refused — say so, not :no_grant"
+    end
+  end
+
+  test "an ABSTRACT declared model is :model_invalid too" do
+    scope_grant(@alice, role("Editor", "reports#index"), @report)
+
+    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index", record: nil, model: ApplicationRecord)
+    assert_not allowed
+    assert_equal :model_invalid, reason,
+      "abstract classes store no rows — refused by the same shape guard, same label"
+  end
+
+  test ":model_invalid needs a grant, like :model_undeclared — otherwise plain :no_grant" do
+    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index", record: nil, model: "Report")
+    assert_not allowed
+    assert_equal :no_grant, reason,
+      "with nothing granted, fixing the declaration would change nothing — the label would lie"
+  end
+
+  test "the class form stays :no_grant for a non-AR argument — nothing was declared" do
+    # allowed_to?(:index, SomePORO) carries its type as the RECORD, so it
+    # never lands in the declared-model cell; the pre-#50 boolean contract
+    # (plain false) holds and the label stays out of it.
+    scope_grant(@alice, role("Editor", "reports#index"), @report)
+
+    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index", record: Struct.new(:id), model: nil)
+    assert_not allowed
+    assert_equal :no_grant, reason
+  end
+
   # --- #65: listed collection reads derive from the scoped list ---
   #
   # The gate asks scope_for(...).exists? — the same id-narrowed query the list

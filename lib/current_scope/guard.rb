@@ -152,7 +152,7 @@ module CurrentScope
         # grant against. This is the line that says why. Log-only either way, so
         # it cannot affect the branch below. (#37/#41 interaction)
         nudge_on_inert_scoped_grant(permission, record, reason)
-        nudge_on_undeclared_collection_model(permission, record, reason)
+        nudge_on_undeclared_collection_model(permission, record, reason, model)
 
         return report_would_deny(permission, record) if report_only_denial?(reason, permission, record)
 
@@ -425,25 +425,42 @@ module CurrentScope
     # record/grants would be the drifting second copy KTD-5 warns about.
     # `record` is taken to mirror its sibling's call shape, not consulted.
     # Log-only; the reason rides X-Current-Scope-Reason with or without this.
-    def nudge_on_undeclared_collection_model(permission, _record, reason)
+    def nudge_on_undeclared_collection_model(permission, _record, reason, model = nil)
       return unless CurrentScope.config.warn_on_undeclared_collection_model
-      return unless reason == :model_undeclared
 
-      # The grant is known to satisfy the key on SOME record of SOME type — a
-      # tick, or (on a listed read, #65) a full_access role, which ticks
-      # nothing. The missing declaration is exactly why the gate couldn't
-      # check which, and it also can't check record liveness — so the fix is
-      # named as "may fix", never promised. (#61 wording precedent; the
-      # resolver's label-predicate comment relies on this hedge.)
-      Rails.logger&.warn(
-        "[CurrentScope] denied \"#{permission}\" (model_undeclared) — this is a declared " \
-        "collection action (current_scope_record returned nil) and the subject holds a scoped " \
-        "grant that satisfies the key, but #{controller_path} declares no current_scope_model, " \
-        "so the gate had no type to bind it to and failed closed. Declaring the type this " \
-        "collection deals in (`def current_scope_model = TheType`) may fix this — the grant " \
-        "must be of that type, and for a listed read its record must still be in the model's " \
-        "default scope."
-      )
+      # Both labels are the same cell — a scoped grant satisfies the key but
+      # the gate had no usable type to bind it to — with different fixes, so
+      # each gets its own sentence. :model_invalid names the actual value the
+      # hook returned, because "declares no current_scope_model" would be a
+      # lie to the host that DID declare one and typo'd it (the release-gate
+      # finding this branch exists for).
+      case reason
+      when :model_undeclared
+        # The grant is known to satisfy the key on SOME record of SOME type — a
+        # tick, or (on a listed read, #65) a full_access role, which ticks
+        # nothing. The missing declaration is exactly why the gate couldn't
+        # check which, and it also can't check record liveness — so the fix is
+        # named as "may fix", never promised. (#61 wording precedent; the
+        # resolver's label-predicate comment relies on this hedge.)
+        Rails.logger&.warn(
+          "[CurrentScope] denied \"#{permission}\" (model_undeclared) — this is a declared " \
+          "collection action (current_scope_record returned nil) and the subject holds a scoped " \
+          "grant that satisfies the key, but #{controller_path} declares no current_scope_model, " \
+          "so the gate had no type to bind it to and failed closed. Declaring the type this " \
+          "collection deals in (`def current_scope_model = TheType`) may fix this — the grant " \
+          "must be of that type, and for a listed read its record must still be in the model's " \
+          "default scope."
+        )
+      when :model_invalid
+        Rails.logger&.warn(
+          "[CurrentScope] denied \"#{permission}\" (model_invalid) — #{controller_path}'s " \
+          "current_scope_model returned #{model.inspect}, which is not a concrete " \
+          "ActiveRecord model class, so the gate could not bind the record-less check to it " \
+          "and failed closed. Return the AR class this collection lists " \
+          "(`def current_scope_model = TheType`) — a String, instance, or abstract class " \
+          "cannot be matched against scoped grants."
+        )
+      end
     end
 
     def nudge_on_nil_sod_record(permission, record)

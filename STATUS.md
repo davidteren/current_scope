@@ -1,11 +1,15 @@
 # STATUS
 
-> Last updated: 2026-07-16
+> Last updated: 2026-07-19
 >
 > **If you are a fresh session asked to audit this work, start at
 > [Verification brief](#verification-brief--for-a-fresh-session).**
 > It names what to distrust and why, and it is more useful than reading this
 > file top-to-bottom.
+>
+> **Solid-solution worklist (current):**  
+> [docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md](docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md)  
+> TL;DR: [docs/reviews/grok-whole-app-2026-07-19/TLDR.md](docs/reviews/grok-whole-app-2026-07-19/TLDR.md)
 
 ## What this is
 
@@ -29,9 +33,10 @@ controllers, views, and ViewComponents.
 - Showcase app: **[davidteren/current_scope_showcase](https://github.com/davidteren/current_scope_showcase)**
   (own repo; consumes the published gem — no longer vendored)
 
-Version `0.2.0`, **published to RubyGems** (tag `v0.2.0`) — the showcase consumes
-it as an ordinary `gem "current_scope"`. Not production-ready; see the README
-banner.
+Version `0.3.0` on `main` (`lib/current_scope/version.rb`; not yet tagged on
+RubyGems as of 2026-07-19). `v0.2.0` remains the last published gem; the
+showcase still consumes `~> 0.2.0` until 0.3.0 is tagged and pushed. Not
+production-ready; see the README banner.
 
 ## Done (all committed on `main`)
 
@@ -497,38 +502,63 @@ confident, well-argued, wrong.
 
 ---
 
+## Reviews (2026-07-19)
+
+### 0.3.0 release gate (diff `102de5d..main`, PRs #88 / #89 / #92)
+
+| Doc | Role |
+|---|---|
+| [docs/reviews/deep-review-0.3.0-release-gate-2026-07-19.md](docs/reviews/deep-review-0.3.0-release-gate-2026-07-19.md) | Multi-lens deep review of the release delta |
+| [docs/reviews/security-review-0.3.0-release-gate-2026-07-19.md](docs/reviews/security-review-0.3.0-release-gate-2026-07-19.md) | Security review — PASS, no blockers |
+| [docs/reviews/test-audit-0.3.0-release-gate-2026-07-19.md](docs/reviews/test-audit-0.3.0-release-gate-2026-07-19.md) | Test audit — STRONG (A-) |
+
+**Gate verdict:** releasable for the #50/#65 surface; health ~8.5/10. Core
+fail-closed order intact. Pre-tag fixes for writer element validation and
+`:model_invalid` landed on `chore/0.3.0-pre-tag-fixes` (not yet all on main).
+
+### Whole-app Grok deep review + solid-solution worklist
+
+Multi-lens whole-codebase review (authz, architecture, UX, tests) plus open
+GitHub issues (27), caching/DX investigation, and a master worklist.
+
+| Doc | Role |
+|---|---|
+| **[docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md](docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md)** | **Master checklist** (~62 items, all open issues mapped, phases 0–6) |
+| [docs/reviews/grok-whole-app-2026-07-19/TLDR.md](docs/reviews/grok-whole-app-2026-07-19/TLDR.md) | Short start + P0 list |
+| [docs/reviews/grok-whole-app-2026-07-19/README.md](docs/reviews/grok-whole-app-2026-07-19/README.md) | Pack index |
+| [docs/reviews/grok-whole-app-2026-07-19/01-deep-review-main.md](docs/reviews/grok-whole-app-2026-07-19/01-deep-review-main.md) | Severity-ranked findings |
+| [docs/reviews/grok-whole-app-2026-07-19/07-issues-caching-docs-investigation.md](docs/reviews/grok-whole-app-2026-07-19/07-issues-caching-docs-investigation.md) | Issues + caching/Solid Cache + docs IA |
+
+**Whole-app verdict:** fail-closed core trustworthy; overall health **8.3/10**.
+No non-admin bypass found. Residual risk is silent host-config footguns, admin
+self-lockout paths, docs overload, and multi-frontend surfaces (#96/#97).
+
+**Solid v1 DoD (from worklist):** Phase 0 (silent security + lockout) + Phase 1
+(loud misconfig/audit honesty) + minimum Phase 2 docs (README→guides, one
+quickstart, production checklist) + tests T1–T4.
+
+> Note: `wip/` remains gitignored. Review artifacts that must be durable live
+> under `docs/reviews/` (this pack), not under `wip/`.
+
 ## Next
 
-1. **0.3.0 — IN PROGRESS: #50 (plan 029) + #65 together.** Both change the
-   record-less resolver branch, so they ship as one minor release: a
-   `~> 0.2.0` pin must not pick up an authorization-semantics change on a
-   routine `bundle update`. Plan 029 is merged and reviewed. #65 is planned
-   (plan `docs/plans/2026-07-17-001-feat-bounded-full-access-collection-reads-plan.md`)
-   and implemented on its PR branch: the fix narrows to granted record **ids**
-   by asking `scope_for(...).exists?` for actions in the new
-   `config.collection_read_actions` (default `["index"]`, on by default,
-   `[]` opts out) — the one shape `resolver.rb`'s roles_granting safety
-   comment (now four callers) names as safe. Remaining for 0.3.0: merge the
-   #65 PR, then the release gate (dte-deep-reviewer + dte-test-auditor +
-   /security-review) before tagging.
-2. ~~**PR #69 review → implement plan 030**~~ — **done** (PR #79, #62 closed).
-3. **#45 (parked by the maintainer)** — delivery split already settled: parity
-   harness ships in the gem, analyzer ships as a skill. First-PR scope answered
-   by the audit (2026-07-16): **Action-Policy-first for the first adapter** —
-   Pundit-first has no recorded rationale anywhere, while #45 calls AP the
-   "closest cousin", RESEARCH.md modeled the API on it, and the run's lens was
-   an AP host. Sequencing: after #50/#65 land as 0.3.0 (migration tooling must
-   not certify hosts against semantics about to change). Note: the parking +
-   delivery split exist only in this file — ~~record them on issue #45~~ (done,
-   2026-07-16 comment) and plan 027 is amended (PR #78).
-4. Then the docs cluster: **#30, #28, #27, #24** (plan 006 is "relocate and
-   complete", not "write").
-5. ~~**Publish to RubyGems**~~ — **done.** `v0.2.0` is on RubyGems and the
-   showcase consumes it as a normal gem dependency. Releasing now means: bump
-   `lib/current_scope/version.rb` + CHANGELOG, tag, `gem push`, then bump the
-   showcase's `gem "current_scope"`.
-6. **README screenshots** — the UI is clean and verified; capture the dashboard,
-   permission grid, subjects, members, events when convenient.
+1. **0.3.0 tag gate** — #50 + #65 are **on main** (PRs #88 / #89). Version is
+   already `0.3.0`. Before tag: land remaining pre-tag fixes (worklist Phase 0:
+   **#91** sod_actions writer, last full-access demote/clear guards, mutating
+   collection_read warn expansion) + re-run / confirm release gate as needed.
+   Then CHANGELOG `[Unreleased]` → `[0.3.0]`, tag, `gem push`, bump showcase.
+2. **Solid-solution worklist Phase 0–1** — follow
+   [08-solid-solution-worklist.md](docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md).
+   Priority tickets already open: **#91**, **#40**, **#30**, **#73**, **#74**,
+   **#90**. File last-full-access demote/clear if still unfiled.
+3. **Docs cluster (Phase 2)** — **#34** README restructure (plan 016), **#25**
+   canonical quickstart, **#33** docs site, **#32** production checklist,
+   **#27** UPGRADING, **#24** denial guide, **#28** config reference.
+4. **#45 (parked)** — migration tooling; Action-Policy-first first adapter;
+   after 0.3.0 semantics stabilize. Comment + plan 027 already record this.
+5. **#96 / #97** — API abilities payload + Inertia shared props (after core
+   solid bar, or parallel if capacity).
+6. ~~**Publish v0.2.0**~~ — **done.** Next publish is **0.3.0** (step 1).
 7. Open design questions (DESIGN.md §9): resource hierarchy/cascade,
    multiple org-wide roles, scoped-role capability restriction.
 

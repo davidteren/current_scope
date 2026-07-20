@@ -57,7 +57,7 @@ Items below are what still stand between “good engine” and that bar.
 
 | ID | Item | Why | Source | Status |
 |---|---|---|---|---|
-| **O1** | Orphaned scoped grants: label / cleanup / reap | Inert since #65 but look like real access | **#90** | **Done** — label + revoke on `fix/orphaned-scoped-grants-90` |
+| **O1** | Orphaned scoped grants: label / cleanup / reap | Inert since #65 but look like real access | **#90** | **Done** — PR #104 (label + revoke; Subjects no longer preloads :resource) |
 | **O2** | Role delete confirm with holder counts + danger button | Cascade wipes all holders; confirm understates | R UX | **Done** — `main` / PR #100 / 0.3.1 |
 | **O3** | `current_scope_skip_gate!(reason:)` + grid shows declared vs bare skip | Unexplained skips must stay alarming | **#76** | Open |
 | **O4** | Flag catalog rows whose controller does not resolve | Phantom grants → 500 on hit | **#43** | Open |
@@ -171,8 +171,8 @@ Shipped: **PR #100** → `main`, gem **0.3.1** (closes **#91**).
 ### Phase 1 — Loud misconfig + audit honesty · **IN PROGRESS**
 **S6–S9, S7, O1, O3–O6, E5** · tests **T2, T5**  
 Suggested order: **#40** → **#30** → **#74** → **#73** → **#90**, then **#39 / #43 / #44 / #76**.  
-**Landed:** **S6/#40**, **S7/#30**, **S8/#74** (PR #102) · **S9/#73** (this branch).  
-Still open: **O1/#90**, O3–O6, E5, T2/T5.  
+**Landed:** **S6/#40**, **S7/#30**, **S8/#74** (PR #102) · **S9/#73** (PR #103) · **O1/#90** (PR #104).  
+Still open: O3–O6, E5, T2/T5.  
 *Outcome:* diagnostics tell the truth; ledger and console match reality.
 
 ### Phase 2 — Docs solid (adoptable)

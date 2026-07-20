@@ -20,6 +20,9 @@ module CurrentScope
     def orphaned_resource?
       return false if resource_id.blank?
 
+      # Reset so a resource deleted after this row was loaded is not still
+      # cached as present (console would miss the inert state) — PR #104.
+      association(:resource).reset
       resource.nil?
     rescue NameError, ActiveRecord::RecordNotFound
       true

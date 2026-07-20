@@ -19,8 +19,12 @@ module CurrentScope
       @roles = Role.order(:name)
       @assignments = RoleAssignment.where(subject: @subjects)
                                    .index_by { |a| [ a.subject_type, a.subject_id ] }
+      # No includes(:resource): a stale/renamed resource_type raises NameError
+      # at preload and 500s the whole page. Lazy-load per row via the holder
+      # helper (same as role Members) so unresolvable types render as inert
+      # (#90 / PR #104).
       @scoped = ScopedRoleAssignment.where(subject: @subjects)
-                                    .includes(:role, :resource)
+                                    .includes(:role)
                                     .group_by { |a| [ a.subject_type, a.subject_id ] }
     end
 

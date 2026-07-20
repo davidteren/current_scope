@@ -38,8 +38,8 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
     get current_scope.members_role_url(@role), headers: as(@owner)
     assert_response :success
     assert_match(/RemovedModel ##{folder.id}/, response.body)
-    assert_match(/record gone — inert/, response.body)
-    assert_select "#scoped_holder_#{sra.id}.cs-row--inert"
+    assert_match(/unavailable — inert/, response.body)
+    assert_select "#scoped_holder_#{sra.id}.cs-scoped-holder.cs-row--inert"
     assert_match(/Remove inert/, response.body)
     assert_select "#scoped_revoke_#{sra.id}"
   end
@@ -53,8 +53,8 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
 
     get current_scope.members_role_url(@role), headers: as(@owner)
     assert_response :success
-    assert_match(/record gone — inert/, response.body)
-    assert_select ".cs-badge--warn", text: "inert"
+    assert_match(/unavailable — inert/, response.body)
+    assert_select ".cs-inert-badge", text: "inert"
     assert_select "#scoped_revoke_#{sra.id}"
 
     assert_difference -> { CurrentScope::ScopedRoleAssignment.count }, -1 do

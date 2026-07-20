@@ -136,6 +136,48 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
     assert_equal "no_grant", response.headers["X-Current-Scope-Reason"]
   end
 
+  # #73: the blind-spot 403 must not be silent in report mode — log + distinct
+  # ledger event (not access.would_deny — granting will not fix this).
+  test "report mode logs and records a blind-spot SoD 403 (#73)" do
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[approve]
+    CurrentScope::Event.delete_all
+
+    io = StringIO.new
+    original = Rails.logger
+    Rails.logger = ActiveSupport::Logger.new(io)
+
+    assert_difference -> { CurrentScope::Event.where(event: "access.sod_blind_spot").count }, 1 do
+      assert_no_difference -> { CurrentScope::Event.where(event: "access.would_deny").count } do
+        post "/sod_nil/approve", headers: sign_in(@bob)
+      end
+    end
+
+    assert_response :forbidden
+    logs = io.string
+    assert_match "report-only: DENIED", logs
+    assert_match "separation-of-duties veto could not run", logs
+    assert_match "current_scope_record", logs
+    assert_match "sod_nil#approve", logs
+
+    event = CurrentScope::Event.where(event: "access.sod_blind_spot").last
+    assert_equal true, event.details["blind_spot"] || event.details[:blind_spot]
+    assert_equal "sod_nil#approve", event.details["permission"] || event.details[:permission]
+  ensure
+    Rails.logger = original
+  end
+
+  test "enforce mode blind-spot 403 is unchanged — no sod_blind_spot diagnosis (#73)" do
+    CurrentScope.config.enforcement = :enforce
+    CurrentScope.config.sod_actions = %w[approve]
+    CurrentScope::Event.delete_all
+
+    assert_no_difference -> { CurrentScope::Event.where(event: "access.sod_blind_spot").count } do
+      post "/sod_nil/approve", headers: sign_in(@bob)
+    end
+    assert_response :forbidden
+  end
+
   test "report mode still reports ordinary would-be denials on non-SoD actions" do
     CurrentScope.config.enforcement = :report
     CurrentScope.config.sod_actions = %w[approve]

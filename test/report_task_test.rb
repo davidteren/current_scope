@@ -29,7 +29,20 @@ class ReportTaskTest < ActiveSupport::TestCase
     end
   end
 
-  def run_task = capture_io { Rake::Task["current_scope:report"].invoke }.first
+  def sod_blind_spot(subject, permission, count: 1)
+    count.times do
+      CurrentScope::Event.create!(
+        event: "access.sod_blind_spot", subject: subject.to_gid.to_s, actor: subject.to_gid.to_s,
+        target: subject.to_gid.to_s, target_label: subject.name,
+        details: { "permission" => permission, "reason" => "no_grant", "blind_spot" => true }
+      )
+    end
+  end
+
+  def run_task
+    Rake::Task["current_scope:report"].reenable
+    capture_io { Rake::Task["current_scope:report"].invoke }.first
+  end
 
   test "counts each subject's would-be denials, most-denied first" do
     would_deny(@alice, "reports#index", count: 5)
@@ -104,6 +117,32 @@ class ReportTaskTest < ActiveSupport::TestCase
     assert_match(/no would-be denials/i, output)
     assert_match "enforcement", output, "the likeliest cause is report mode never being on"
     assert_match "audit", output, "the other likely cause is the ledger being off"
+  end
+
+  # #73: blind-spot 403s are not grantable — list them separately so the survey
+  # does not bury the mis-declared SoD hook under would_deny.
+  test "lists SoD blind-spot denials separately from grantable would_deny rows" do
+    would_deny(@alice, "reports#index", count: 2)
+    sod_blind_spot(@bob, "sod_nil#approve", count: 3)
+
+    output = run_task
+
+    assert_match "Would-be denials", output
+    assert_match(/2x\s+reports#index/, output)
+    assert_match "SoD blind-spot denials", output
+    assert_match(/3x\s+sod_nil#approve/, output)
+    assert_match "NOT fixed by granting", output
+    assert_match "current_scope_record", output
+  end
+
+  test "blind-spot only ledger still surfaces the section without would_deny" do
+    sod_blind_spot(@alice, "sod_nil#approve")
+
+    output = run_task
+
+    assert_no_match(/Would-be denials/, output)
+    assert_match "SoD blind-spot denials", output
+    assert_match "sod_nil#approve", output
   end
 
   # A host that turned report mode on without running the migration gets nothing

@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- **Report-mode SoD blind-spot 403 is diagnosed (#73).** Report mode still
+  refuses to downgrade a `:no_grant` where the SoD veto never ran (fail-closed),
+  but now logs a warning naming the cause/fix and records a distinct
+  `access.sod_blind_spot` ledger event (never `access.would_deny` — granting
+  will not clear the 403). `rails current_scope:report` lists these separately.
 - **Boot-validate `sod_bypass_permission` ∉ `sod_actions` (#40).** The recursion
   guard previously only raised at decision time behind three break-glass
   preconditions — a colliding config could deploy clean and 500 on the first

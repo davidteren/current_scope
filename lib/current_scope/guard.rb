@@ -158,6 +158,11 @@ module CurrentScope
 
         return report_would_deny(permission, record) if report_only_denial?(reason, permission, record)
 
+        # Report mode still 403s the SoD blind spot (correct, fail-closed) but
+        # used to do so silently — no log, no ledger, invisible to
+        # current_scope:report. Diagnose before the raise so a retrofit host
+        # sees the mis-declared record hook they must fix (#73).
+        diagnose_report_sod_blind_spot(permission, record, reason)
 
         raise CurrentScope::AccessDenied.new(permission, reason: reason)
       end
@@ -231,6 +236,51 @@ module CurrentScope
       )
       response.set_header("X-Current-Scope-Reason", "would_deny")
       record_would_deny_event(permission, record)
+    end
+
+    # #73: report mode refuses to *downgrade* an SoD blind-spot denial (the
+    # veto never ran), but must not 403 *silently*. Log the cause/fix and
+    # record a distinct ledger row — never access.would_deny, because granting
+    # the permission will not clear this 403 (the hook is the fix).
+    def diagnose_report_sod_blind_spot(permission, record, reason)
+      return unless CurrentScope.config.report_only?
+      return unless reason == :no_grant
+      # Ask the resolver (#74) — no second copy of the skip condition.
+      return unless sod_veto_blind_spot?(permission, record)
+
+      Rails.logger&.warn(
+        "[CurrentScope] report-only: DENIED #{permission.inspect} because the " \
+        "separation-of-duties veto could not run (no usable record for this " \
+        "action). This is NOT a missing grant — granting will not clear the 403. " \
+        "Declare current_scope_record to return the AR record on this member " \
+        "action (or remove the action from config.sod_actions if it is not " \
+        "meant to be four-eyes gated). See also rails current_scope:report " \
+        "(access.sod_blind_spot events)."
+      )
+      record_sod_blind_spot_event(permission, record)
+    end
+
+    def record_sod_blind_spot_event(permission, record)
+      subject = CurrentScope::Current.user
+      return if subject.nil?
+
+      target = record.equal?(NO_RECORD) ? nil : record
+      # Non-records (String params[:id], etc.) are not GlobalID targets.
+      target = nil unless target.respond_to?(:to_gid)
+
+      CurrentScope::Event.record!(
+        event: "access.sod_blind_spot",
+        target: target || subject,
+        details: {
+          permission: permission,
+          reason: "no_grant",
+          blind_spot: true,
+          fix: "declare current_scope_record for this SoD member action"
+        }
+      )
+    rescue StandardError => e
+      warn_ledger_failure_once(e)
+      nil
     end
 
     # R3: report mode NEVER raises — that is its whole promise, and it has to hold

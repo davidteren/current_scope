@@ -37,7 +37,29 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
 
     get current_scope.members_role_url(@role), headers: as(@owner)
     assert_response :success
-    assert_select "td", text: "RemovedModel ##{folder.id}"
+    assert_match(/RemovedModel ##{folder.id}/, response.body)
+    assert_match(/unavailable — inert/, response.body)
+    assert_select "#scoped_holder_#{sra.id}.cs-scoped-holder.cs-row--inert"
+    assert_match(/Remove inert/, response.body)
+    assert_select "#scoped_revoke_#{sra.id}"
+  end
+
+  # #90 — deleted resource leaves an inert scoped grant that must not look live.
+  test "members labels a deleted resource as inert and can revoke it" do
+    folder = Folder.create!(name: "Doomed")
+    bob = User.create!(name: "Bob")
+    sra = CurrentScope::ScopedRoleAssignment.create!(subject: bob, resource: folder, role: @role)
+    folder.destroy!
+
+    get current_scope.members_role_url(@role), headers: as(@owner)
+    assert_response :success
+    assert_match(/unavailable — inert/, response.body)
+    assert_select ".cs-inert-badge", text: "inert"
+    assert_select "#scoped_revoke_#{sra.id}"
+
+    assert_difference -> { CurrentScope::ScopedRoleAssignment.count }, -1 do
+      delete current_scope.scoped_role_assignment_url(sra), headers: as(@owner)
+    end
   end
 
   test "adding org-wide members from the role side sets the role and returns to members" do

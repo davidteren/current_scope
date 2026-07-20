@@ -55,6 +55,21 @@ class SubjectFlowsSystemTest < ApplicationSystemTestCase
     assert_selector "[data-cs-bulk]:not([hidden])"
   end
 
+  # #90 — orphaned scoped grant UI in a real browser (layout + CSS).
+  test "orphaned scoped grant shows inert badge on subjects" do
+    alice = User.create!(name: "Alice Adams")
+    folder = Folder.create!(name: "Doomed Space")
+    role = CurrentScope::Role.create!(name: "Space Editor")
+    sra = CurrentScope::ScopedRoleAssignment.create!(subject: alice, resource: folder, role: role)
+    folder.destroy!
+
+    visit "/current_scope/subjects"
+    assert_selector "#scoped_chip_#{sra.id}.cs-chip--inert"
+    assert_text "unavailable — inert"
+    # CSS text-transform: uppercase → visible text is "INERT"
+    assert_selector ".cs-inert-badge", text: /inert/i
+  end
+
   test "server-side search finds a subject that isn't on the current page" do
     55.times { |i| User.create!(name: "Filler #{format('%02d', i)}") } # push the target off page 1
     User.create!(name: "Deep Cut Persson")

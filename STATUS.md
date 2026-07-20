@@ -576,10 +576,9 @@ quickstart, production checklist) + tests T1–T4.
    **#91** (`sod_actions` normalizing writer), holder-based last full-access /
    lockout guards, cascade audit safety, expanded `MUTATING_ACTION_NAMES`
    (destroy_all/update_all warn).
-3. **#90 — orphaned scoped grants render as real access in the console.**
-   Inert on listed reads since #65 (destroyed record ⇒ empty list ⇒ deny),
-   but the console still shows them as live grants. UI honesty fix — needs
-   real-browser verification before merge (unit tests render without layout).
+3. ~~**#90 — orphaned scoped grants render as real access in the console.**~~
+   **Done** (PR #104) — console labels “unavailable — inert” + Remove inert;
+   Subjects no longer preload `:resource` (stale type no longer 500s).
 4. **#98 — docs workstream (maintainer priority, 2026-07-19): the SoD
    anti-fraud story + a real doc site.** Grow the GitHub Pages site into a
    typical doc site with committed source (that step IS #33's core), centered
@@ -591,7 +590,8 @@ quickstart, production checklist) + tests T1–T4.
    (security checklist page).
 5. **Solid-solution worklist Phase 1+** — follow
    [08-solid-solution-worklist.md](docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md).
-   Still open high-value tickets: **#40**, **#30**, **#73**, **#74**.
+   S6–S9 + O1 shipped (#40/#30/#74/#73/#90). Still open: O3–O6, remaining E5
+   gaps, T2/T5, and Phase 2 docs.
 6. ~~**PR #69 review → implement plan 030**~~ — **done** (PR #79, #62 closed).
 7. **#45 — UNPARKED by the 0.3.0 release.** — delivery split already settled: parity
    harness ships in the gem, analyzer ships as a skill. First-PR scope answered

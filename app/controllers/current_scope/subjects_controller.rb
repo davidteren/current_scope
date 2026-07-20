@@ -19,9 +19,12 @@ module CurrentScope
       @roles = Role.order(:name)
       @assignments = RoleAssignment.where(subject: @subjects)
                                    .index_by { |a| [ a.subject_type, a.subject_id ] }
-      @scoped = ScopedRoleAssignment.where(subject: @subjects)
-                                    .includes(:role, :resource)
-                                    .group_by { |a| [ a.subject_type, a.subject_id ] }
+      # Safe polymorphic resource preload (resolvable types only) — full
+      # includes(:resource) NameErrors on a stale resource_type and 500s the
+      # page; skip-unresolvable + label as inert instead (#90 / PR #104).
+      scoped_rows = ScopedRoleAssignment.where(subject: @subjects).includes(:role).to_a
+      ScopedRoleAssignment.preload_resolvable_resources!(scoped_rows)
+      @scoped = scoped_rows.group_by { |a| [ a.subject_type, a.subject_id ] }
     end
 
     private

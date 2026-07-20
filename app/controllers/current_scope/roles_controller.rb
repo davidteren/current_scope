@@ -41,11 +41,12 @@ module CurrentScope
 
     def members
       @role = Role.find(params[:id])
-      # No polymorphic includes: eager-loading a stale/renamed subject_type or
-      # resource_type raises NameError. Lazy-load per row and label defensively
-      # in the view (current_scope_holder_* helpers), like the audit ledger does.
+      # No blanket polymorphic includes: stale subject_type/resource_type
+      # NameErrors at preload. Org holders stay lazy; scoped resources use the
+      # safe per-type preload (unresolvable types stay unloaded → inert label).
       @org_holders = RoleAssignment.where(role: @role).to_a
-      @scoped_holders = ScopedRoleAssignment.where(role: @role).to_a
+      @scoped_holders = ScopedRoleAssignment.where(role: @role).includes(:role).to_a
+      ScopedRoleAssignment.preload_resolvable_resources!(@scoped_holders)
 
       # Exclude via a subquery, not a plucked Ruby array, so a role with many
       # holders doesn't build a huge NOT IN bind list.

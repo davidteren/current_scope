@@ -63,7 +63,9 @@
           <select> listing all role names, which would match every query. %>
       <% org_role_name = @roles.find { |r| r.id == @assignments[key]&.role_id }&.name %>
       <% filter_text = [ label, org_role_name,
-                         *(@scoped[key] || []).map { |sra| "#{sra.role.name} #{current_scope_label(sra.resource)}" } ].compact.join(" ") %>
+                         *(@scoped[key] || []).map { |sra|
+                           "#{sra.role.name} #{current_scope_holder_resource_label(sra)}"
+                         } ].compact.join(" ") %>
       <tr data-cs-row data-cs-filter-text="<%= filter_text %>">
         <td class="cs-select-cell">
           <input type="checkbox" data-cs-select value="<%= subject.to_gid %>"
@@ -85,14 +87,22 @@
         </td>
         <td>
           <% (@scoped[key] || []).each do |sra| %>
-            <span class="cs-chip">
-              <span class="cs-chip-label"><%= sra.role.name %> of <%= current_scope_label(sra.resource) %></span>
-              <% revoke_prompt = "Revoke #{sra.role.name} on #{current_scope_label(sra.resource)}?" %>
+            <% resource_label = current_scope_holder_resource_label(sra) %>
+            <% orphaned = sra.orphaned_resource? %>
+            <span class="cs-chip cs-scoped-chip<%= ' cs-chip--inert' if orphaned %>" id="scoped_chip_<%= sra.id %>">
+              <span class="cs-chip-label">
+                <%= sra.role.name %> of <%= resource_label %>
+                <% if orphaned %><span class="cs-inert-badge">inert</span><% end %>
+              </span>
+              <% revoke_prompt = orphaned ?
+                    "Remove inert scoped grant (#{resource_label})?" :
+                    "Revoke #{sra.role.name} on #{resource_label}?" %>
               <%= button_to "×", scoped_role_assignment_path(sra), method: :delete,
                     class: "cs-chip-remove",
-                    title: "Revoke this scoped role",
+                    id: "scoped_chip_revoke_#{sra.id}",
+                    title: (orphaned ? "Remove inert scoped grant" : "Revoke this scoped role"),
                     form: { data: { cs_confirm: revoke_prompt } },
-                    aria: { label: "Revoke #{sra.role.name} on #{current_scope_label(sra.resource)}" },
+                    aria: { label: (orphaned ? "Remove inert #{sra.role.name} grant on #{resource_label}" : "Revoke #{sra.role.name} on #{resource_label}") },
                     data: { turbo_confirm: revoke_prompt } %>
             </span>
           <% end %>

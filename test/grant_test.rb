@@ -117,7 +117,10 @@ class GrantTest < ActiveSupport::TestCase
     original_audit = CurrentScope.config.audit
     CurrentScope.config.audit = true
     original_create = CurrentScope::Event.method(:create!)
-    CurrentScope::Event.define_singleton_method(:create!) do |*|
+    # |*, **| — create! is called with keyword args; a bare |*| raises
+    # ArgumentError on Ruby 3.1+ and never exercises the missing-table path
+    # (same pattern as audit_strict_test.rb).
+    CurrentScope::Event.define_singleton_method(:create!) do |*, **|
       raise ActiveRecord::StatementInvalid, "SQLite3::SQLException: no such table: current_scope_events"
     end
 

@@ -40,6 +40,10 @@ namespace :current_scope do
     begin
       rows = CurrentScope::Event.where(event: "access.would_deny")
                                 .pluck(:subject, :target_label, :details)
+      # #73: SoD blind-spot 403s are NOT would_deny (granting won't fix them).
+      # Surface them as a separate section so the survey is complete.
+      blind_rows = CurrentScope::Event.where(event: "access.sod_blind_spot")
+                                      .pluck(:subject, :target_label, :details)
     rescue ActiveRecord::StatementInvalid => e
       # Report mode without the migration records nothing (the ledger degrades and
       # warns once). Reaching for this summary is exactly how a host discovers
@@ -50,7 +54,7 @@ namespace :current_scope do
             "Run: bin/rails current_scope:install:migrations && bin/rails db:migrate"
     end
 
-    if rows.empty?
+    if rows.empty? && blind_rows.empty?
       # "No output" is indistinguishable from "the task is broken", and the two
       # likeliest causes are both SILENT: report mode never on, or audit off.
       # Name them — this is the first thing a host runs, and an unexplained blank
@@ -69,25 +73,42 @@ namespace :current_scope do
     # ponytail: group in Ruby, not SQL. `details` is a JSON column and querying
     # into it is adapter-specific; this is a rollout aid run by hand over a
     # transitional table, so portability beats a smarter query.
-    grouped = rows.group_by { |subject, _label, _details| subject }
-
-    puts "Would-be denials — grant these to stop them (most-denied first):"
-    puts
-
-    grouped.each do |subject_gid, subject_rows|
-      label = subject_rows.first[1].presence || subject_gid
-      puts "  #{label}#{org_role_suffix.call(subject_gid)}"
-
-      subject_rows
+    #
+    # Shared tally so would_deny and sod_blind_spot sections cannot drift on
+    # ordering / unknown-permission handling (PR #103 review).
+    print_permission_counts = lambda do |event_rows|
+      event_rows
         .group_by { |_s, _l, details| details.is_a?(Hash) ? details["permission"] : nil }
         .transform_values(&:count)
         .sort_by { |permission, count| [ -count, permission.to_s ] }
         .each { |permission, count| puts "    #{count.to_s.rjust(5)}x  #{permission || '(unknown)'}" }
-
-      puts
     end
 
-    puts "Total: #{rows.count} would-be denials across #{grouped.size} subject(s)."
+    unless rows.empty?
+      grouped = rows.group_by { |subject, _label, _details| subject }
+
+      puts "Would-be denials — grant these to stop them (most-denied first):"
+      puts
+
+      grouped.each do |subject_gid, subject_rows|
+        label = subject_rows.first[1].presence || subject_gid
+        puts "  #{label}#{org_role_suffix.call(subject_gid)}"
+        print_permission_counts.call(subject_rows)
+        puts
+      end
+
+      puts "Total: #{rows.count} would-be denials across #{grouped.size} subject(s)."
+    end
+
+    unless blind_rows.empty?
+      puts if rows.any?
+      puts "SoD blind-spot denials — NOT fixed by granting (declare current_scope_record):"
+      puts
+      print_permission_counts.call(blind_rows)
+      puts
+      puts "Total: #{blind_rows.count} blind-spot 403(s). Granting these permissions will not " \
+           "clear them — fix the record hook (or remove the action from config.sod_actions)."
+    end
   end
 
   desc "Inventory the routed controllers that provably never run the gate — the static " \

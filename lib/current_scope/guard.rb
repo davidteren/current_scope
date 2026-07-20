@@ -158,6 +158,11 @@ module CurrentScope
 
         return report_would_deny(permission, record) if report_only_denial?(reason, permission, record)
 
+        # Report mode still 403s the SoD blind spot (correct, fail-closed) but
+        # used to do so silently — no log, no ledger, invisible to
+        # current_scope:report. Diagnose before the raise so a retrofit host
+        # sees the mis-declared record hook they must fix (#73).
+        diagnose_report_sod_blind_spot(permission, record, reason)
 
         raise CurrentScope::AccessDenied.new(permission, reason: reason)
       end
@@ -233,6 +238,57 @@ module CurrentScope
       record_would_deny_event(permission, record)
     end
 
+    # #73: report mode refuses to *downgrade* an SoD blind-spot denial (the
+    # veto never ran), but must not 403 *silently*. Log the cause/fix and
+    # record a distinct ledger row — never access.would_deny, because granting
+    # the permission will not clear this 403 (the hook is the fix).
+    def diagnose_report_sod_blind_spot(permission, record, reason)
+      return unless CurrentScope.config.report_only?
+      return unless reason == :no_grant
+      # Ask the resolver (#74) — no second copy of the skip condition.
+      return unless sod_veto_blind_spot?(permission, record)
+
+      Rails.logger&.warn(
+        "[CurrentScope] report-only: DENIED #{permission.inspect} because the " \
+        "separation-of-duties veto could not run (no usable record for this " \
+        "action). This is NOT a missing grant — granting will not clear the 403. " \
+        "Declare current_scope_record to return the AR record on this member " \
+        "action (or remove the action from config.sod_actions if it is not " \
+        "meant to be four-eyes gated). See also rails current_scope:report " \
+        "(access.sod_blind_spot events)."
+      )
+      record_sod_blind_spot_event(permission, record)
+    end
+
+    def record_sod_blind_spot_event(permission, record)
+      subject = CurrentScope::Current.user
+      return if subject.nil?
+
+      target = record.equal?(NO_RECORD) ? nil : record
+      # Non-records (String params[:id], etc.) are not GlobalID targets.
+      target = nil unless target.respond_to?(:to_gid)
+
+      CurrentScope::Event.record!(
+        event: "access.sod_blind_spot",
+        target: target || subject,
+        details: {
+          permission: permission,
+          reason: "no_grant",
+          blind_spot: true,
+          fix: "declare current_scope_record for this SoD member action"
+        }
+      )
+    rescue StandardError => e
+      # Blind-spot path returns 403 next — do not claim the request was allowed
+      # or that a would_deny row was lost (PR #103 review).
+      warn_ledger_failure_once(
+        e,
+        event: "access.sod_blind_spot",
+        request_outcome: "The request was DENIED (403) — only the access.sod_blind_spot row is missing."
+      )
+      nil
+    end
+
     # R3: report mode NEVER raises — that is its whole promise, and it has to hold
     # regardless of audit posture or the state of the ledger.
     #
@@ -267,7 +323,11 @@ module CurrentScope
     rescue StandardError => e
       # ponytail: swallow and warn ONCE. An unrecordable observation is a lost
       # log line; a raise here is a 500 on a request report mode promised to pass.
-      warn_ledger_failure_once(e)
+      warn_ledger_failure_once(
+        e,
+        event: "access.would_deny",
+        request_outcome: "The request WAS allowed through — only the access.would_deny row is missing."
+      )
       nil
     end
 
@@ -283,13 +343,18 @@ module CurrentScope
     # fix for a missing table and otherwise reports the real error, because
     # telling someone with a dead connection to run migrations sends them after
     # the wrong problem.
-    def warn_ledger_failure_once(error)
+    #
+    # `event` / `request_outcome` are path-specific: would_deny allows the
+    # request; sod_blind_spot still 403s — the operator-facing text must not
+    # claim the wrong outcome (PR #103).
+    def warn_ledger_failure_once(error, event:, request_outcome:)
       return if CurrentScope::Guard.ledger_warning_emitted?
 
       CurrentScope::Guard.ledger_warning_emitted!
-      Rails.logger&.warn("[CurrentScope] report-only: #{ledger_failure_hint(error)} " \
-                         "The request WAS allowed through — only the access.would_deny " \
-                         "row is missing. This warns once per process.")
+      Rails.logger&.warn(
+        "[CurrentScope] report-only: #{ledger_failure_hint(error, event: event)} " \
+        "#{request_outcome} This warns once per process."
+      )
     end
 
     # ASKS Event whether this is the un-migrated-table case rather than pattern-
@@ -298,14 +363,14 @@ module CurrentScope
     # says why: it "would point operators at the wrong fix". A looser test here
     # reintroduced exactly that, telling someone their table was missing while
     # they were looking right at it. (#59 review)
-    def ledger_failure_hint(error)
+    def ledger_failure_hint(error, event:)
       if CurrentScope::Event.missing_events_table?(error)
-        "the current_scope_events table is missing, so would-be denials are not being " \
-        "recorded and `rails current_scope:report` will be empty. Run " \
+        "the current_scope_events table is missing, so #{event} rows are not being " \
+        "recorded and `rails current_scope:report` will be incomplete. Run " \
         "`rails current_scope:install:migrations && rails db:migrate`, or set " \
         "config.audit = false if you don't want the ledger."
       else
-        "could not record a would-be denial (#{error.class}: #{error.message.to_s.truncate(120)})."
+        "could not record #{event} (#{error.class}: #{error.message.to_s.truncate(120)})."
       end
     end
 

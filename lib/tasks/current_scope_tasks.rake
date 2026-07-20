@@ -73,6 +73,17 @@ namespace :current_scope do
     # ponytail: group in Ruby, not SQL. `details` is a JSON column and querying
     # into it is adapter-specific; this is a rollout aid run by hand over a
     # transitional table, so portability beats a smarter query.
+    #
+    # Shared tally so would_deny and sod_blind_spot sections cannot drift on
+    # ordering / unknown-permission handling (PR #103 review).
+    print_permission_counts = lambda do |event_rows|
+      event_rows
+        .group_by { |_s, _l, details| details.is_a?(Hash) ? details["permission"] : nil }
+        .transform_values(&:count)
+        .sort_by { |permission, count| [ -count, permission.to_s ] }
+        .each { |permission, count| puts "    #{count.to_s.rjust(5)}x  #{permission || '(unknown)'}" }
+    end
+
     unless rows.empty?
       grouped = rows.group_by { |subject, _label, _details| subject }
 
@@ -82,13 +93,7 @@ namespace :current_scope do
       grouped.each do |subject_gid, subject_rows|
         label = subject_rows.first[1].presence || subject_gid
         puts "  #{label}#{org_role_suffix.call(subject_gid)}"
-
-        subject_rows
-          .group_by { |_s, _l, details| details.is_a?(Hash) ? details["permission"] : nil }
-          .transform_values(&:count)
-          .sort_by { |permission, count| [ -count, permission.to_s ] }
-          .each { |permission, count| puts "    #{count.to_s.rjust(5)}x  #{permission || '(unknown)'}" }
-
+        print_permission_counts.call(subject_rows)
         puts
       end
 
@@ -99,11 +104,7 @@ namespace :current_scope do
       puts if rows.any?
       puts "SoD blind-spot denials — NOT fixed by granting (declare current_scope_record):"
       puts
-      blind_rows
-        .group_by { |_s, _l, details| details.is_a?(Hash) ? details["permission"] : nil }
-        .transform_values(&:count)
-        .sort_by { |permission, count| [ -count, permission.to_s ] }
-        .each { |permission, count| puts "    #{count.to_s.rjust(5)}x  #{permission || '(unknown)'}" }
+      print_permission_counts.call(blind_rows)
       puts
       puts "Total: #{blind_rows.count} blind-spot 403(s). Granting these permissions will not " \
            "clear them — fix the record hook (or remove the action from config.sod_actions)."

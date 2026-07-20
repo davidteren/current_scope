@@ -279,7 +279,13 @@ module CurrentScope
         }
       )
     rescue StandardError => e
-      warn_ledger_failure_once(e)
+      # Blind-spot path returns 403 next — do not claim the request was allowed
+      # or that a would_deny row was lost (PR #103 review).
+      warn_ledger_failure_once(
+        e,
+        event: "access.sod_blind_spot",
+        request_outcome: "The request was DENIED (403) — only the access.sod_blind_spot row is missing."
+      )
       nil
     end
 
@@ -317,7 +323,11 @@ module CurrentScope
     rescue StandardError => e
       # ponytail: swallow and warn ONCE. An unrecordable observation is a lost
       # log line; a raise here is a 500 on a request report mode promised to pass.
-      warn_ledger_failure_once(e)
+      warn_ledger_failure_once(
+        e,
+        event: "access.would_deny",
+        request_outcome: "The request WAS allowed through — only the access.would_deny row is missing."
+      )
       nil
     end
 
@@ -333,13 +343,18 @@ module CurrentScope
     # fix for a missing table and otherwise reports the real error, because
     # telling someone with a dead connection to run migrations sends them after
     # the wrong problem.
-    def warn_ledger_failure_once(error)
+    #
+    # `event` / `request_outcome` are path-specific: would_deny allows the
+    # request; sod_blind_spot still 403s — the operator-facing text must not
+    # claim the wrong outcome (PR #103).
+    def warn_ledger_failure_once(error, event:, request_outcome:)
       return if CurrentScope::Guard.ledger_warning_emitted?
 
       CurrentScope::Guard.ledger_warning_emitted!
-      Rails.logger&.warn("[CurrentScope] report-only: #{ledger_failure_hint(error)} " \
-                         "The request WAS allowed through — only the access.would_deny " \
-                         "row is missing. This warns once per process.")
+      Rails.logger&.warn(
+        "[CurrentScope] report-only: #{ledger_failure_hint(error, event: event)} " \
+        "#{request_outcome} This warns once per process."
+      )
     end
 
     # ASKS Event whether this is the un-migrated-table case rather than pattern-
@@ -348,14 +363,14 @@ module CurrentScope
     # says why: it "would point operators at the wrong fix". A looser test here
     # reintroduced exactly that, telling someone their table was missing while
     # they were looking right at it. (#59 review)
-    def ledger_failure_hint(error)
+    def ledger_failure_hint(error, event:)
       if CurrentScope::Event.missing_events_table?(error)
-        "the current_scope_events table is missing, so would-be denials are not being " \
-        "recorded and `rails current_scope:report` will be empty. Run " \
+        "the current_scope_events table is missing, so #{event} rows are not being " \
+        "recorded and `rails current_scope:report` will be incomplete. Run " \
         "`rails current_scope:install:migrations && rails db:migrate`, or set " \
         "config.audit = false if you don't want the ledger."
       else
-        "could not record a would-be denial (#{error.class}: #{error.message.to_s.truncate(120)})."
+        "could not record #{event} (#{error.class}: #{error.message.to_s.truncate(120)})."
       end
     end
 

@@ -783,11 +783,12 @@ end
 ```
 
 Denials raise `CurrentScope::AccessDenied` with stable accessors for branded
-403 pages and error trackers (prefer these over parsing `#message`):
+403 pages and error trackers (prefer `#permission` over parsing `#message`):
 
 | Accessor | Meaning |
 |---|---|
-| `#permission` | denied `controller#action` key (stable API; `#message` still equals this key this release) |
+| `#permission` | denied `controller#action` key — the stable API. Defaults to the positional message when `permission:` is omitted |
+| `#message` | `StandardError` message. Gem raise sites pass the key as both message and permission; they can diverge if a caller passes an explicit `permission:` keyword |
 | `#reason` | machine-readable cause (also on `X-Current-Scope-Reason`) |
 | `#record` | the record under decision when the gate had one; **nil** on collection / impersonation-gate denials |
 | `#subject` | effective subject when known |
@@ -811,15 +812,20 @@ role is required, because the person reading that one is an admin looking at a
 browser.
 
 The engine also registers `CurrentScope::AccessDenied → :forbidden` in
-`ActionDispatch` rescue responses, so a denial that **escapes** Guard
-(PORO re-raise, Context-only controller) is still HTTP **403**, not 500. That
-path is status-only — no `X-Current-Scope-Reason` header and no denial log line
-unless something in your stack writes them. On the Guard path, rescued denials
-log one INFO line mirroring the header:
+`ActionDispatch` rescue responses (only if the host has not already mapped that
+class), so a denial that **escapes** Guard (PORO re-raise, Context-only
+controller) is still HTTP **403**, not 500. That path is status-only — no
+`X-Current-Scope-Reason` header and no denial log line unless something in your
+stack writes them. On the Guard path, rescued denials log one INFO line
+mirroring the header:
 
 ```
 [CurrentScope] denied reports#approve (no_grant) → 403
 ```
+
+INFO is intentional so production captures denials without raising the log
+level; high-volume anonymous probes will grow the log — filter
+`[CurrentScope] denied` if that is noise for your operators.
 
 **Branded host 403 — prefer the body seam** so the header and log stay intact:
 

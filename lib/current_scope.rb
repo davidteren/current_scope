@@ -16,8 +16,12 @@ module  CurrentScope
   # Raised when the resolver denies an action gated by Guard (or when the
   # management UI is accessed without a full-access role). Accessors:
   #
-  #   #permission — denied key (stable API for branded 403s; #message still
-  #                 equals the key this release for backward compatibility)
+  #   #permission — denied key (stable API for branded 403s). Defaults to the
+  #                 positional message when permission: is omitted so legacy
+  #                 raise sites still populate it. Prefer this over #message.
+  #   #message    — StandardError message (positional arg). Gem raise sites pass
+  #                 the key as both message and permission; they can diverge if
+  #                 a caller passes an explicit permission: keyword.
   #   #reason     — machine-readable cause (also on X-Current-Scope-Reason)
   #   #record     — the record under decision when the gate had one; nil for
   #                 collection / impersonation-gate denials

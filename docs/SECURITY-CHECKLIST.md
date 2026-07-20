@@ -119,7 +119,12 @@ Tick before you ship:
 
 See also [README denial reasons](../README.md) and issue #39:
 
-- `AccessDenied#permission`, `#reason`, `#record`, `#subject`
+- `AccessDenied#permission`, `#reason`, `#record`, `#subject` (prefer
+  `#permission` over `#message`; they match at gem raise sites but can diverge
+  if a host constructs the exception with an explicit `permission:`)
 - Engine registers `CurrentScope::AccessDenied` → HTTP **403** in
-  `rescue_responses` (escaped denials are not 500s)
-- Rescued denials log: `[CurrentScope] denied controller#action (reason) → 403`
+  `rescue_responses` only when the host has not already mapped that class
+  (escaped denials are not 500s; status-only — no reason header/log)
+- Guard-path denials log at INFO:
+  `[CurrentScope] denied controller#action (reason) → 403` — filter if volume
+  from anonymous probes is noise

@@ -590,7 +590,8 @@ quickstart, production checklist) + tests T1–T4.
    (security checklist page).
 5. **Solid-solution worklist Phase 1+** — follow
    [08-solid-solution-worklist.md](docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md).
-   S6–S9 + O1 shipped (#40/#30/#74/#73/#90). Still open: O3–O6, Phase 2 docs.
+   S6–S9 + O1 shipped (#40/#30/#74/#73/#90). Still open: O3–O6, remaining E5
+   gaps, T2/T5, and Phase 2 docs.
 6. ~~**PR #69 review → implement plan 030**~~ — **done** (PR #79, #62 closed).
 7. **#45 — UNPARKED by the 0.3.0 release.** — delivery split already settled: parity
    harness ships in the gem, analyzer ships as a skill. First-PR scope answered

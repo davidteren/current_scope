@@ -77,12 +77,22 @@
         <% @scoped_holders.each do |sra| %>
           <% who = current_scope_holder_subject_label(sra) %>
           <% what = current_scope_holder_resource_label(sra) %>
-          <tr>
+          <% orphaned = sra.orphaned_resource? %>
+          <tr id="scoped_holder_<%= sra.id %>" class="<%= 'cs-row--inert' if orphaned %>">
             <td><%= who %></td>
-            <td><%= what %></td>
             <td>
-              <% revoke_prompt = "Revoke #{@role.name} on #{what} from #{who}?" %>
-              <%= button_to "Revoke", scoped_role_assignment_path(sra), method: :delete,
+              <%= what %>
+              <% if orphaned %>
+                <span class="cs-badge cs-badge--warn" title="This record no longer exists; the grant opens nothing">inert</span>
+              <% end %>
+            </td>
+            <td>
+              <% revoke_prompt = orphaned ?
+                    "Remove inert scoped grant (record gone) for #{who}?" :
+                    "Revoke #{@role.name} on #{what} from #{who}?" %>
+              <%= button_to (orphaned ? "Remove inert" : "Revoke"),
+                    scoped_role_assignment_path(sra), method: :delete,
+                    id: "scoped_revoke_#{sra.id}",
                     class: "cs-btn", form: { data: { cs_confirm: revoke_prompt } },
                     data: { turbo_confirm: revoke_prompt } %>
             </td>

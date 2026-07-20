@@ -619,6 +619,31 @@ input[type="checkbox"], input[type="radio"] {
 .cs-chip-label { padding: 0.125rem 0.25rem 0.125rem 0.6875rem; align-self: center; }
 .cs-chip form { display: flex; margin: 0; }
 
+/* #90 — orphaned scoped grants (resource deleted) still list as chips/rows but
+   open nothing since #65. Mark them so operators do not trust the grant. */
+.cs-chip--inert {
+  border-style: dashed;
+  opacity: 0.85;
+  background: var(--cs-surface-2);
+}
+.cs-row--inert td { color: var(--cs-muted); }
+.cs-badge {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.25rem;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+}
+.cs-badge--warn {
+  color: var(--cs-danger, oklch(0.45 0.14 25));
+  background: color-mix(in oklch, var(--cs-danger, oklch(0.55 0.18 25)) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--cs-danger, oklch(0.55 0.18 25)) 35%, transparent);
+}
+
 /* Revoke control — a clear, labeled × with a divider so it reads as a button. */
 .cs-chip-remove {
   border: none;

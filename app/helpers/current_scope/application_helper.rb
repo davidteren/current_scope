@@ -89,9 +89,13 @@ module CurrentScope
     end
 
     def current_scope_holder_resource_label(scoped_assignment)
+      if scoped_assignment.respond_to?(:orphaned_resource?) && scoped_assignment.orphaned_resource?
+        return "#{scoped_assignment.resource_type} ##{scoped_assignment.resource_id} (record gone — inert)"
+      end
+
       current_scope_label(scoped_assignment.resource)
     rescue NameError, ActiveRecord::RecordNotFound
-      "#{scoped_assignment.resource_type} ##{scoped_assignment.resource_id}"
+      "#{scoped_assignment.resource_type} ##{scoped_assignment.resource_id} (record gone — inert)"
     end
 
     # Best-effort label for a stored GID string (event actor/subject). Falls

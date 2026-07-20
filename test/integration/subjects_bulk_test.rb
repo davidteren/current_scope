@@ -33,6 +33,20 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
     assert_select "[data-cs-bulk] [data-cs-bulk-scoped]"
   end
 
+  # #90 — orphaned scoped grants must not look like live access.
+  test "subjects page marks a scoped grant on a deleted record as inert" do
+    alice = User.create!(name: "Alice")
+    folder = Folder.create!(name: "Gone")
+    sra = CurrentScope::ScopedRoleAssignment.create!(subject: alice, resource: folder, role: @role)
+    folder.destroy!
+
+    get current_scope.subjects_url, headers: as(@owner)
+    assert_response :success
+    assert_select "#scoped_chip_#{sra.id}.cs-chip--inert"
+    assert_match(/record gone — inert/, response.body)
+    assert_select ".cs-badge--warn", text: "inert"
+  end
+
   test "the picker renders bulk mode for multiple subject_gids" do
     alice = User.create!(name: "Alice")
     bob = User.create!(name: "Bob")

@@ -57,7 +57,7 @@ Items below are what still stand between “good engine” and that bar.
 
 | ID | Item | Why | Source | Status |
 |---|---|---|---|---|
-| **O1** | Orphaned scoped grants: label / cleanup / reap | Inert since #65 but look like real access | **#90** | Open |
+| **O1** | Orphaned scoped grants: label / cleanup / reap | Inert since #65 but look like real access | **#90** | **Done** — label + revoke on `fix/orphaned-scoped-grants-90` |
 | **O2** | Role delete confirm with holder counts + danger button | Cascade wipes all holders; confirm understates | R UX | **Done** — `main` / PR #100 / 0.3.1 |
 | **O3** | `current_scope_skip_gate!(reason:)` + grid shows declared vs bare skip | Unexplained skips must stay alarming | **#76** | Open |
 | **O4** | Flag catalog rows whose controller does not resolve | Phantom grants → 500 on hit | **#43** | Open |

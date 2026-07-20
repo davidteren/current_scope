@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- **Orphaned scoped grants labeled inert in the console (#90).** Deleted (or
+  unresolvable) resources no longer render as live scoped access on Subjects
+  and role Members — chips/rows show “record gone — inert” with an inert badge
+  and a Remove inert control. Authorization was already empty for these since
+  #65; the UI now matches that truth.
 - **Report-mode SoD blind-spot 403 is diagnosed (#73).** Report mode still
   refuses to downgrade a `:no_grant` where the SoD veto never ran (fail-closed),
   but now logs a warning naming the cause/fix and records a distinct

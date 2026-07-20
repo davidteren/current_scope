@@ -9,9 +9,11 @@ class RescueResponsesTest < ActionDispatch::IntegrationTest
   end
 
   test "an AccessDenied outside Guard rescue returns 403 not 500" do
-    # BareController includes only Context — no MutationGuard rescue_from.
+    # BareDenyController has no MutationGuard rescue_from — status only.
     get bare_deny_url
     assert_response :forbidden
     assert_not_equal 500, response.status
+    assert_nil response.headers["X-Current-Scope-Reason"],
+      "escaped denials do not run current_scope_denied"
   end
 end

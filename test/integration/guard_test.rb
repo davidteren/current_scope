@@ -56,6 +56,50 @@ class GuardTest < ActionDispatch::IntegrationTest
     assert_equal "no_grant", response.headers["X-Current-Scope-Reason"]
   end
 
+  # #39 — AccessDenied carries permission/record/subject for branded 403s.
+  test "AccessDenied on a Guard member denial carries permission, record, and subject" do
+    assign(@alice, role("Member", "reports#index")) # index yes, show no
+    captured = nil
+    ReportsController.class_eval do
+      define_method(:current_scope_denied) do |exception = nil|
+        captured = exception
+        # mirror the real method so the response stays a 403 with header
+        reason = exception.respond_to?(:reason) ? exception.reason : nil
+        response.headers["X-Current-Scope-Reason"] = reason.to_s if reason
+        head :forbidden
+      end
+    end
+
+    get report_url(@report), headers: sign_in(@alice)
+    assert_response :forbidden
+    assert_kind_of CurrentScope::AccessDenied, captured
+    assert_equal "reports#show", captured.permission
+    assert_equal "reports#show", captured.message
+    assert_equal :no_grant, captured.reason
+    assert_equal @report, captured.record
+    assert_equal @alice, captured.subject
+  ensure
+    if ReportsController.instance_methods(false).include?(:current_scope_denied)
+      ReportsController.class_eval { remove_method :current_scope_denied }
+    end
+  end
+
+  test "a Guard denial logs permission and reason" do
+    assign(@alice, role("Member", "reports#show"))
+    io = StringIO.new
+    original = Rails.logger
+    Rails.logger = ActiveSupport::Logger.new(io).tap { |l| l.level = Logger::INFO }
+
+    get reports_url, headers: sign_in(@alice)
+    assert_response :forbidden
+    assert_match(
+      /\[CurrentScope\] denied reports#index \(no_grant\) → 403/,
+      io.string
+    )
+  ensure
+    Rails.logger = original
+  end
+
   # A HOST denial stays a bodyless head :forbidden. The engine renders an
   # explanation page for its own front door (#23), and that must not leak into
   # the shared denial path — a host app would suddenly emit an engine-styled

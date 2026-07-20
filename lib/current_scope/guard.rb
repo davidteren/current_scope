@@ -115,7 +115,9 @@ module CurrentScope
         raise CurrentScope::ConfigurationError,
               "\"#{permission}\" is not in the permission catalog (excluded_controllers " \
               "or not routed). Either stop excluding it, or skip the gate here with " \
-              "skip_before_action :current_scope_check!."
+              "skip_before_action :current_scope_check!. Skipping the gate leaves this " \
+              "controller ungated by CurrentScope — protect it with your own " \
+              "authorization (e.g. require_admin!)."
       end
 
       record = resolve_current_scope_record
@@ -164,7 +166,13 @@ module CurrentScope
         # sees the mis-declared record hook they must fix (#73).
         diagnose_report_sod_blind_spot(permission, record, reason)
 
-        raise CurrentScope::AccessDenied.new(permission, reason: reason)
+        raise CurrentScope::AccessDenied.new(
+          permission,
+          reason: reason,
+          permission: permission,
+          record: (record.equal?(NO_RECORD) ? nil : record),
+          subject: CurrentScope::Current.user
+        )
       end
 
       record_sod_bypass(permission, record) if reason == :sod_bypassed

@@ -24,6 +24,7 @@ Rails.application.routes.draw do
 
   resources :webhooks, only: :create
   get "bare", to: "bare#show"
+  get "bare/deny", to: "bare_deny#deny", as: :bare_deny
   get "identity", to: "identity#show"
   get "tripwire_open", to: "tripwire_ungated#open"
   get "tripwire_public", to: "tripwire_ungated#public_action"

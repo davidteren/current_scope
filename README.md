@@ -117,6 +117,9 @@ end
 
 > **Retrofitting a real app?** There's a full guide:
 > [Adopting CurrentScope in an existing app](docs/guides/adopting-in-an-existing-app.md)
+>
+> **Shipping?** Read the [Security & production checklist](docs/SECURITY-CHECKLIST.md)
+> first — excluded controllers, the 403/404 record oracle, and the pre-ship tick list.
 > — callback ordering vs. your authentication, the Devise recipe, the
 > `skip_before_action` fail-open trap, hybrid HTML+API grants, and a rollout
 > ladder. The short version is below.
@@ -379,6 +382,13 @@ class ReportsController < ApplicationController
   end
 end
 ```
+
+The same hook has two foot-guns worth knowing before you ship: returning **nil**
+on an SoD member action silently skips the veto
+([§ Separation of duties](#separation-of-duties-opt-in)), and loading with
+`Model.find` means an unauthorized caller sees **403** for an existing id vs
+**404** for a missing one — a record-existence oracle
+([security checklist mitigation](docs/SECURITY-CHECKLIST.md#2-403-vs-404-leaks-which-records-exist)).
 
 ### Scopeable models
 
@@ -772,8 +782,15 @@ class ImpersonationsController < ApplicationController
 end
 ```
 
-Denials carry a machine-readable reason on `AccessDenied#reason`, surfaced on
-the response as the `X-Current-Scope-Reason` header:
+Denials raise `CurrentScope::AccessDenied` with stable accessors for branded
+403 pages and error trackers (prefer these over parsing `#message`):
+
+| Accessor | Meaning |
+|---|---|
+| `#permission` | denied `controller#action` key (stable API; `#message` still equals this key this release) |
+| `#reason` | machine-readable cause (also on `X-Current-Scope-Reason`) |
+| `#record` | the record under decision when the gate had one; **nil** on collection / impersonation-gate denials |
+| `#subject` | effective subject when known |
 
 | Reason | Means |
 |---|---|
@@ -790,6 +807,25 @@ the signal, and the gem won't render into your app's response contract. The
 engine's own management UI is the exception: it renders a short page saying a
 full-access role is required, because the person reading that one is an admin
 looking at a browser.
+
+The engine also registers `CurrentScope::AccessDenied → :forbidden` in
+`ActionDispatch` rescue responses, so a denial that escapes a Guard-wrapped
+controller (PORO re-raise, Context-only controller) is still HTTP **403**, not
+500. Rescued denials log one INFO line mirroring the header:
+
+```
+[CurrentScope] denied reports#approve (no_grant) → 403
+```
+
+Branded host 403 (register **after** `include CurrentScope::Guard`):
+
+```ruby
+rescue_from CurrentScope::AccessDenied do |e|
+  render "errors/forbidden",
+         status: :forbidden,
+         locals: { permission: e.permission, reason: e.reason, record: e.record }
+end
+```
 
 **View/gate disagreement is by design.** `allowed_to?` is HTTP-ignorant: it
 still returns `true` for a permission the subject genuinely holds, even though

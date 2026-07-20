@@ -106,6 +106,8 @@ module CurrentScope
     # controllers out of the permission grid. An excluded controller cannot be
     # granted, so it must also skip the gate
     # (skip_before_action :current_scope_check!) — Guard raises otherwise.
+    # Skipping the gate leaves the controller ungated by CurrentScope — protect
+    # it with your own authorization (e.g. require_admin!). See docs/SECURITY-CHECKLIST.md.
     attr_accessor :excluded_controllers
 
     # Class the management UI's controllers inherit from, so they pick up the

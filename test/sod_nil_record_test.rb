@@ -86,4 +86,18 @@ class SodNilRecordNudgeTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_no_match(/separation-of-duties action but was gated/, logs)
   end
+
+  # #74 — a hook returning params[:id] (String) skips the veto; the nudge must
+  # fire via resolver.sod_veto_skipped?, not a private nil/NO_RECORD copy.
+  test "nudge fires when the record hook returns a String (params[:id] shape)" do
+    CurrentScope.config.warn_on_nil_sod_record = true
+    role = CurrentScope::Role.find_by!(name: "Approver")
+    role.role_permissions.find_or_create_by!(permission_key: "sod_string#approve")
+
+    logs = capture_logs { post "/sod_string/approve", headers: sign_in(@user) }
+    assert_response :success
+    assert_match "separation-of-duties action but was gated", logs
+    assert_match "non-record", logs
+    assert_match "String", logs
+  end
 end

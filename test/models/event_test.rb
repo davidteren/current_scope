@@ -35,6 +35,31 @@ class EventTest < ActiveSupport::TestCase
     end
   end
 
+  test "record! accepts explicit actor without ambient context (#30)" do
+    role = CurrentScope::Role.create!(name: "Owner")
+    CurrentScope::Current.reset
+
+    event = CurrentScope::Event.record!(
+      event: "role.created", target: role, actor: @alice, subject: @alice
+    )
+    assert_equal @alice.to_gid.to_s, event.actor
+    assert_equal @alice.to_gid.to_s, event.subject
+  end
+
+  test "explicit actor and subject beat ambient user (self-attribution guard)" do
+    role = CurrentScope::Role.create!(name: "Owner")
+    CurrentScope::Current.user = @admin
+    CurrentScope::Current.actor = @admin
+
+    event = CurrentScope::Event.record!(
+      event: "role.created", target: role, actor: @alice, subject: @alice
+    )
+    assert_equal @alice.to_gid.to_s, event.actor
+    assert_equal @alice.to_gid.to_s, event.subject
+  ensure
+    CurrentScope::Current.reset
+  end
+
   # --- actor / subject capture ---------------------------------------------
 
   test "record! captures actor and subject; subject == actor when not impersonating" do

@@ -29,6 +29,7 @@ Rails.application.routes.draw do
   get "tripwire_public", to: "tripwire_ungated#public_action"
   get "tripwire_gated", to: "tripwire_gated#show"
   post "sod_nil/approve", to: "sod_nil#approve"
+  post "sod_string/approve", to: "sod_string#approve"
   # A member route whose controller declares no current_scope_record hook.
   resources :hookless_member, only: :show
   # Same, but with custom member params — neither may read as a collection.

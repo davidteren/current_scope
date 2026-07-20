@@ -41,9 +41,9 @@ Items below are what still stand between “good engine” and that bar.
 | **S3** | Refuse clearing last full_access org holder | Same lockout via Subjects clear/destroy | R P0 | **Done** — `main` / PR #100 / 0.3.1 (no separate issue) |
 | **S4** | `collection_read_actions=` raise on Hash / non-String/Symbol | Silent un-fix of #65 | R P0 · gate | **Done** — pre-tag / #93 + PR #100 |
 | **S5** | Warn on `destroy_all` / `update_all` in collection_read list | #49 shape via config | R P0 · gate | **Done** — `main` / PR #100 / 0.3.1 |
-| **S6** | Boot-validate `sod_bypass_permission` ∉ `sod_actions` | Forbidden misconfig only 500s mid-request | **#40** | Open |
-| **S7** | Audit non-UI grants (`grant!`, seeds, rake) + honest `request_id` | Ledger gaps; silent Owner replace via rake | **#30** (bug) | Open |
-| **S8** | SoD nil-record nudge: ask `resolver.sod_veto_skipped?`; cover `params[:id]` | Diagnostic silent on common mistake | **#74** | Open |
+| **S6** | Boot-validate `sod_bypass_permission` ∉ `sod_actions` | Forbidden misconfig only 500s mid-request | **#40** | **Done** — `fix/solid-solution-phase-1` |
+| **S7** | Audit non-UI grants (`grant!`, seeds, rake) + honest `request_id` | Ledger gaps; silent Owner replace via rake | **#30** (bug) | **Done** — `fix/solid-solution-phase-1` |
+| **S8** | SoD nil-record nudge: ask `resolver.sod_veto_skipped?`; cover `params[:id]` | Diagnostic silent on common mistake | **#74** | **Done** — `fix/solid-solution-phase-1` |
 | **S9** | Report-mode SoD blind-spot 403: log (+ optional distinct ledger signal) | Survey mode hides the gap it must surface | **#73** | Open |
 | **S10** | Document (or soft-warn) 0.1→0.2 `sod_actions` default flip | Upgraders silently lose SoD | **#27** | Open (docs) |
 | **S11** | Document collection actions in `sod_actions` are no-ops + full_access holds bypass | Silent bulk self-approval hole if misunderstood | **#29** | Open (docs) |
@@ -168,9 +168,11 @@ Document these; do not treat as defects to loosen.
 Shipped: **PR #100** → `main`, gem **0.3.1** (closes **#91**).  
 *Outcome met:* no silent SoD death from symbol lists; no admin console lockout footguns on demote/clear; collection_read knobs loud; cascade delete confirm honest.
 
-### Phase 1 — Loud misconfig + audit honesty · **NEXT**
+### Phase 1 — Loud misconfig + audit honesty · **IN PROGRESS**
 **S6–S9, S7, O1, O3–O6, E5** · tests **T2, T5**  
 Suggested order: **#40** → **#30** → **#74** → **#73** → **#90**, then **#39 / #43 / #44 / #76**.  
+**Landed on `fix/solid-solution-phase-1`:** **S6/#40**, **S7/#30**, **S8/#74**.  
+Still open: **S9/#73**, **O1/#90**, O3–O6, E5, T2/T5.  
 *Outcome:* diagnostics tell the truth; ledger and console match reality.
 
 ### Phase 2 — Docs solid (adoptable)

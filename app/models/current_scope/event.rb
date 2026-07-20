@@ -33,30 +33,45 @@ module CurrentScope
       #                               details: { name: "Owner" })
       #
       # Raises ConfigurationError (loud, matching the SoD posture) when there is
-      # no ambient actor. Silent no-op (returns nil) when config.audit is false.
-      def record!(event:, target:, details: nil)
+      # no ambient actor and no explicit actor: override. Silent no-op (returns
+      # nil) when config.audit is false.
+      #
+      # Optional actor:/subject: overrides (#30): when non-nil they replace the
+      # ambient reads so bootstrap paths (grant!, rake, seeds) can self-attribute
+      # without a controller. Omit both for byte-for-byte ambient behavior.
+      # Pin BOTH on a self-attributed grant so an ambient Current.user cannot
+      # leak into subject and mis-record the row as impersonation.
+      def record!(event:, target:, details: nil, actor: nil, subject: nil)
         return unless CurrentScope.config.audit
 
-        actor = CurrentScope::Current.actor
+        actor ||= CurrentScope::Current.actor
         if actor.nil?
           raise CurrentScope::ConfigurationError,
                 "CurrentScope::Event.record! has no actor — CurrentScope::Current.actor is nil. " \
                 "Set the ambient context (the controller hook, or with_current_user in tests) before recording."
         end
 
-        # Current.user is the effective subject; fall back to actor so subject
-        # is never nil (it equals actor whenever not impersonating).
-        subject = CurrentScope::Current.user || actor
+        # Explicit subject wins; else Current.user; else actor (never nil when
+        # actor is set, equals actor when not impersonating).
+        subject ||= CurrentScope::Current.user || actor
 
-        create!(
-          event: event.to_s,
-          actor: actor.to_gid.to_s,
-          subject: subject.to_gid.to_s,
-          target: target.to_gid.to_s,
-          target_label: label_for(target),
-          details: details,
-          request_id: CurrentScope::Current.request_id
-        )
+        # requires_new: on PostgreSQL a StatementInvalid aborts the *whole*
+        # open transaction even if rescued — so a missing events table would
+        # poison grant!/controller mutation transactions that wrap record!.
+        # A savepoint isolates the audit write: default audit=true degrades
+        # and the assignment commits; :strict re-raises and rolls the outer
+        # mutation back (PR #102 review).
+        Event.transaction(requires_new: true) do
+          create!(
+            event: event.to_s,
+            actor: actor.to_gid.to_s,
+            subject: subject.to_gid.to_s,
+            target: target.to_gid.to_s,
+            target_label: label_for(target),
+            details: details,
+            request_id: CurrentScope::Current.request_id
+          )
+        end
       rescue ActiveRecord::StatementInvalid => e
         raise unless missing_events_table?(e)
 

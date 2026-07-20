@@ -190,12 +190,43 @@ module  CurrentScope
     # Seeds the default Owner/Member roles ONLY on the default path — the name
     # promises "assign a role", so a caller granting an explicit role must not
     # get a full-access Owner row created in their roles table as a side effect.
+    #
+    # Audit (#30): when the org role actually changes, records one
+    # `org_role.assigned` / `org_role.changed` event, self-attributed to the
+    # grantee with `details.source = "bootstrap"`. Same-role re-grants are a
+    # no-op event-wise. Direct model writes and TestHelpers do not go through
+    # this path and are not recorded (documented intentionally).
     def grant!(subject, role: nil)
       role ||= begin
         seed_defaults!
         Role.find_by!(name: "Owner")
       end
-      RoleAssignment.find_or_initialize_by(subject: subject).tap { |a| a.update!(role: role) }
+
+      RoleAssignment.transaction do
+        assignment = RoleAssignment.find_or_initialize_by(subject: subject)
+        prior_role = assignment.persisted? ? assignment.role : nil
+        assignment.update!(role: role)
+
+        if prior_role.nil?
+          Event.record!(
+            event: "org_role.assigned",
+            target: subject,
+            details: { role: role.name, source: "bootstrap" },
+            actor: subject,
+            subject: subject
+          )
+        elsif prior_role.id != role.id
+          Event.record!(
+            event: "org_role.changed",
+            target: subject,
+            details: { from: prior_role.name, to: role.name, source: "bootstrap" },
+            actor: subject,
+            subject: subject
+          )
+        end
+
+        assignment
+      end
     end
 
     private

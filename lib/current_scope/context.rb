@@ -23,6 +23,11 @@ module CurrentScope
       # falls back to the subject. Only resolve when the host opts in.
       actor_method = CurrentScope.config.actor_method
       CurrentScope::Current.actor = resolve_current_scope_subject(actor_method) if actor_method
+
+      # Correlation for the audit ledger (#30). ActionDispatch::RequestId runs
+      # ahead of app before_actions; job/console contexts never enter this hook
+      # and leave request_id nil by design.
+      CurrentScope::Current.request_id = request.request_id
     end
 
     def resolve_current_scope_subject(method)

@@ -62,6 +62,7 @@ gem pushed to RubyGems.
 **Next (Phase 1):** #40 → #30 → #74 → #73 → #90 (loud misconfig + audit/console
 honesty). Worklist + TLDR refreshed 2026-07-19: Done labels point at `main` /
 PR #100; open-issue map includes **#98** (D11); counts ~13 done / ~50 open.
+**In flight on `fix/solid-solution-phase-1`:** #40, #30, #74 (see worklist).
 
 ## Done (all committed on `main`)
 

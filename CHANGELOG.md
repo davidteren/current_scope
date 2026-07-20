@@ -6,6 +6,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **Boot-validate `sod_bypass_permission` ∉ `sod_actions` (#40).** The recursion
+  guard previously only raised at decision time behind three break-glass
+  preconditions — a colliding config could deploy clean and 500 on the first
+  real self-approval bypass. `Configuration#validate!` now runs from
+  `Engine` `after_initialize` (always, regardless of `allow_sod_bypass`); the
+  resolver still raises via the same shared predicate for runtime-mutated
+  config.
+- **Audit ledger bootstrap + `request_id` (#30).** `CurrentScope.grant!` now
+  records `org_role.assigned` / `org_role.changed` (self-attributed,
+  `source: "bootstrap"`) when the org role actually changes; the rake task
+  warns on replacing a different role; `Context` stamps `request.request_id`
+  onto `Current.request_id` so UI ledger rows correlate with app logs.
+  Docs no longer claim unqualified "every authorization change."
+- **SoD nil-record nudge asks the resolver (#74).** No more private
+  nil/`NO_RECORD` re-derivation — `sod_veto_skipped?` covers a hook that returns
+  `params[:id]` (String). Inert-grant diagnostic DB errors are rescued so they
+  cannot 500 a request.
+
 ## [0.3.1] - 2026-07-19
 
 Post-`0.3.0` patch: silent-security footguns and management-console lockout

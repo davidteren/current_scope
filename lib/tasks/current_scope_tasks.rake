@@ -9,6 +9,14 @@ namespace :current_scope do
     subject = klass.find_by(id: id)
     abort "No #{klass} with id=#{id}" if subject.nil?
 
+    # grant! seeds Owner on the default path — warn on replacement even when
+    # the Owner row does not exist yet (first-time Owner creation).
+    prior = CurrentScope::RoleAssignment.find_by(subject: subject)&.role
+    if prior && prior.name != "Owner"
+      warn "WARNING: #{klass}##{subject.id} already held the #{prior.name.inspect} role — " \
+           "replacing it with full-access Owner."
+    end
+
     CurrentScope.grant!(subject)
     puts "Granted the full-access Owner role to #{klass}##{subject.id}."
   end

@@ -49,7 +49,7 @@ jobs:
       # rewrite, so a new relative-link style breaks CI instead of shipping a 404.
       - name: Assert no unrewritten relative links remain
         run: |
-          if grep -nE '\]\(' docs/site/security-checklist.md | grep -vE '\]\((https?://|#|mailto:)'; then
+          if grep -oE '\]\([^)]*\)' docs/site/security-checklist.md | grep -vE '^\]\((https?://|#|mailto:)'; then
             echo "::error::docs/SECURITY-CHECKLIST.md has a relative link the sed rewrite does not cover — extend the rewrite step."
             exit 1
           fi

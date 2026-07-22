@@ -1,0 +1,33 @@
+.github/workflows/pages.yml
+  s_e49ad5b2662b90::t_2f0c97b70e8083 47-55
+  s_e49ad5b2662b90::t_88ce66ae3a41a0 10-16,24-25,27-28
+  s_e49ad5b2662b90::t_0b67f5b3b39b36 64
+docs/site/concepts.md
+  s_e49ad5b2662b90::t_665f8c561d770b 39
+docs/site/_includes/resolver-order.md
+  s_e49ad5b2662b90::t_a0e364f649834e 1-7
+docs/site/separation-of-duties.md
+  s_e49ad5b2662b90::t_13944e615d9d0b 16
+docs/site/index.html
+  s_e49ad5b2662b90::t_ceb3642fcbb11e 48
+  s_e49ad5b2662b90::t_835685138fc904 601
+  s_e49ad5b2662b90::t_c3efc073702bcb 687
+docs/site/configuration.md
+  s_e49ad5b2662b90::t_dd7cae070946c7 55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "fdd384bbc3f0b6656eecba72656d071ec24821e0",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

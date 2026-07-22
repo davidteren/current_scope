@@ -1,0 +1,21 @@
+docs/site/quickstart.md
+  s_e49ad5b2662b90::t_c8e75c2f5d28b5 98
+docs/site/separation-of-duties.md
+  s_e49ad5b2662b90::t_468f561f9f6746 24-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "0674fc0a7f8b17ddbb361ac315bbcf283d2f3dcf",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,56 @@
+README.md
+  s_e49ad5b2662b90::t_bbbfe99db2a048 169-171
+docs/site/separation-of-duties.md
+  s_e49ad5b2662b90::t_4f7636000dec0b 22-24
+  s_e49ad5b2662b90::t_93c2c1dd29637d 42-43,58-72
+docs/site/quickstart.md
+  s_e49ad5b2662b90::t_0ebc6c6e1d34ce 38-44
+  s_e49ad5b2662b90::t_f6bbde62286cb3 80-83
+  s_e49ad5b2662b90::t_08daaa8d7fdc60 97-98,104-106
+docs/site/configuration.md
+  s_e49ad5b2662b90::t_31c0c1e68fd906 67
+  s_e49ad5b2662b90::t_e0b7228fab8718 42
+  s_e49ad5b2662b90::t_48c0d3253ef3a9 49
+  s_e49ad5b2662b90::t_8f41cafb02771e 23
+  s_e49ad5b2662b90::t_1168c64b6765cf 29
+  s_e49ad5b2662b90::t_f94bafd3841eda 30
+  s_e49ad5b2662b90::t_4ffd7cef25db12 65
+docs/site/_includes/resolver-order.md
+  s_e49ad5b2662b90::t_f9509287cdda80 8-13
+docs/site/llms.txt
+  s_e49ad5b2662b90::t_2f58b26ebf98ea 3
+STATUS.md
+  s_e49ad5b2662b90::t_6164e3b1ac1170 62-65
+docs/site/upgrading.md
+  s_e49ad5b2662b90::t_f2c4e5b6f623ed 10-12,14
+  s_e49ad5b2662b90::t_bbdc109fad12c7 28
+docs/site/_config.yml
+  s_e49ad5b2662b90::t_e77a2774d88644 22-23
+docs/site/concepts.md
+  s_e49ad5b2662b90::t_4c2afacf9edcb6 30-35
+docs/site/ai-agents.md
+  s_e49ad5b2662b90::t_5863287e56b275 20,26-29,34-39,43-47,49-51,55-58
+  s_e49ad5b2662b90::t_09cddcada456d5 92-95
+docs/site/index.html
+  s_e49ad5b2662b90::t_f1e6c7c600fd72 554-557,559
+  s_e49ad5b2662b90::t_458e20d5f04142 569,580,591
+.github/workflows/pages.yml
+  s_e49ad5b2662b90::t_a938ebf5f5c96e 61-64
+  s_e49ad5b2662b90::t_af5610d4f185b4 60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "2ed05b6343f3ec7fb085f9f3e2d5d4332a1565f3",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

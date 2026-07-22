@@ -1,0 +1,35 @@
+# Jekyll source for https://davidteren.github.io/current_scope/
+# Built by .github/workflows/pages.yml (actions/jekyll-build-pages, the
+# github-pages gem). index.html has no front matter, so Jekyll passes it
+# through untouched — the landing page stays hand-authored HTML.
+title: CurrentScope
+description: >-
+  A mountable Rails engine for authorization: permissions auto-derived from
+  routes, roles as editable data, per-record scoped roles, a
+  separation-of-duties veto, and one ambient context so allowed_to? works
+  identically in controllers, views, and components.
+url: https://davidteren.github.io
+baseurl: /current_scope
+
+remote_theme: just-the-docs/just-the-docs
+plugins:
+  - jekyll-remote-theme
+  - jekyll-seo-tag
+  - jekyll-sitemap
+  - jekyll-relative-links
+
+color_scheme: dark
+search_enabled: true
+heading_anchors: true
+
+aux_links:
+  GitHub: https://github.com/davidteren/current_scope
+  RubyGems: https://rubygems.org/gems/current_scope
+
+# All Markdown pages get the theme layout; index.html (no front matter) is
+# static passthrough and unaffected.
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default

@@ -64,8 +64,11 @@ honesty). Worklist + TLDR refreshed 2026-07-19: Done labels point at `main` /
 PR #100; open-issue map includes **#98** (D11).
 **Initial Phase 1 stack landed on `main`:** #40/#30/#74 (PR #102), #73 (PR #103),
 #90 (PR #104). Other Phase 1 worklist items remain open.
-**In flight:** #32 (security checklist) + #39 (denial ergonomics) on
-`feat/security-checklist-and-denial-ergonomics`.
+**Landed 2026-07-22:** #32 (security checklist) + #39 (denial ergonomics),
+PR #105 merged to `main`.
+**In flight:** #98 (docs site: committed source, SoD guide, agentic prompts)
+on `feat/docs-site-sod-story-98`. After merge, switch Pages from the legacy
+`gh-pages` branch to the workflow build (`.github/workflows/pages.yml`).
 
 ## Done (all committed on `main`)
 

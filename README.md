@@ -23,7 +23,12 @@
 > Kick the tyres, build a spike, tell us what breaks. Don't put it in front of
 > real users yet.
 
-**Website:** [davidteren.github.io/current_scope](https://davidteren.github.io/current_scope/) — overview, the resolver, and quickstart at a glance.
+**Website:** [davidteren.github.io/current_scope](https://davidteren.github.io/current_scope/) —
+overview, quickstart, the
+[separation-of-duties guide](https://davidteren.github.io/current_scope/separation-of-duties.html),
+the security checklist, and
+[copy-paste prompts for AI agents](https://davidteren.github.io/current_scope/ai-agents.html).
+Source lives in [`docs/site/`](docs/site/).
 
 **Authorization as data you edit in a UI, not rules you hardcode and redeploy —
 with one ambient context that makes `allowed_to?` work identically in

@@ -1,0 +1,53 @@
+name: docs-site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/site/**"
+      - "docs/SECURITY-CHECKLIST.md"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # The security checklist has ONE canonical source: docs/SECURITY-CHECKLIST.md.
+      # Copy it into the site at build time (front matter prepended, repo-relative
+      # links rewritten to GitHub URLs) so the site page can never drift from it.
+      # docs/site/security-checklist.md is gitignored for the same reason.
+      - name: Generate security checklist page from the canonical doc
+        run: |
+          {
+            printf -- '---\ntitle: Security & production checklist\nnav_order: 5\n---\n\n'
+            sed -e 's|(\.\./README\.md|(https://github.com/davidteren/current_scope/blob/main/README.md|g' \
+                -e 's|(guides/|(https://github.com/davidteren/current_scope/blob/main/docs/guides/|g' \
+                docs/SECURITY-CHECKLIST.md
+          } > docs/site/security-checklist.md
+      - uses: actions/configure-pages@v5
+      - uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./docs/site
+          destination: ./_site
+      - uses: actions/upload-pages-artifact@v4
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

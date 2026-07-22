@@ -1,0 +1,13 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="CurrentScope">
+  <defs>
+    <linearGradient id="csGlow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6b93ff"/>
+      <stop offset="1" stop-color="#4d7cfe"/>
+    </linearGradient>
+  </defs>
+  <!-- permission grid: four cells, the "current scope" cell lit -->
+  <rect x="3"  y="3"  width="11" height="11" rx="2.5" fill="url(#csGlow)"/>
+  <rect x="18" y="3"  width="11" height="11" rx="2.5" fill="#4d7cfe" opacity="0.28"/>
+  <rect x="3"  y="18" width="11" height="11" rx="2.5" fill="#4d7cfe" opacity="0.28"/>
+  <rect x="18" y="18" width="11" height="11" rx="2.5" fill="#4d7cfe" opacity="0.55"/>
+</svg>

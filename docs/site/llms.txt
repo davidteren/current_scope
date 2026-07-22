@@ -1,0 +1,36 @@
+# CurrentScope
+
+> A mountable Rails engine (Rails >= 8.1) for authorization: permissions
+> auto-derived from controller#action routes, roles as editable data,
+> per-record scoped roles, an opt-in separation-of-duties veto (initiator
+> can never approve their own record), and one ambient context so
+> allowed_to? works identically in controllers, views, and components.
+> Fail-closed: no grant means denied. Status: not production-ready yet —
+> ready for experimentation and spiking.
+
+Key facts agents get wrong without reading:
+- The gate covers EVERY action; skip it on sessions/webhooks with
+  skip_before_action :current_scope_check! or sign-in breaks.
+- Separation of duties is OFF by default (config.sod_actions = []).
+- An SoD member action must return its record from current_scope_record,
+  or the veto is silently skipped.
+- config.actor_method is security-critical the moment the host impersonates.
+- Retrofit existing apps through config.enforcement = :report first.
+
+## Docs
+
+- [Quickstart](https://davidteren.github.io/current_scope/quickstart.html): install, gate skip, report mode, bootstrap admin
+- [Concepts](https://davidteren.github.io/current_scope/concepts.html): resolver order, permissions from routes, ambient context
+- [Separation of duties](https://davidteren.github.io/current_scope/separation-of-duties.html): the anti-fraud veto — opt-in, how to enable, verify, break-glass
+- [Security & production checklist](https://davidteren.github.io/current_scope/security-checklist.html): excluded controllers, 403/404 record oracle, pre-ship list
+- [Configuration](https://davidteren.github.io/current_scope/configuration.html): every knob with defaults
+- [Upgrading](https://davidteren.github.io/current_scope/upgrading.html): posture-changing upgrades
+- [For AI agents](https://davidteren.github.io/current_scope/ai-agents.html): copy-paste integration prompts
+
+## Source (canonical, deepest detail)
+
+- [README](https://raw.githubusercontent.com/davidteren/current_scope/main/README.md): the full reference
+- [Adoption guide](https://raw.githubusercontent.com/davidteren/current_scope/main/docs/guides/adopting-in-an-existing-app.md): retrofit an existing app
+- [Security checklist](https://raw.githubusercontent.com/davidteren/current_scope/main/docs/SECURITY-CHECKLIST.md)
+- [CHANGELOG](https://raw.githubusercontent.com/davidteren/current_scope/main/CHANGELOG.md)
+- [Issues](https://github.com/davidteren/current_scope/issues)

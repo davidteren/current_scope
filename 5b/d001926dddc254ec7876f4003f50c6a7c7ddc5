@@ -1,0 +1,32 @@
+README.md
+  s_e49ad5b2662b90::t_1bb6d9a2b4ad12 844-846
+  s_e49ad5b2662b90::t_39b0f862f29858 806-810
+STATUS.md
+  s_e49ad5b2662b90::t_0ecc153cffbe33 65-66
+  s_e49ad5b2662b90::t_7c8e45005df09b 3
+docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md
+  s_e49ad5b2662b90::t_1e3fba70b58089 205-206,210,212
+docs/SECURITY-CHECKLIST.md
+  s_e49ad5b2662b90::t_ccf3bd3097154b 15-20
+  s_e49ad5b2662b90::t_40606922ea28f6 50
+  s_e49ad5b2662b90::t_ed083fd95b875d 52-55
+  s_e49ad5b2662b90::t_64a2a028f60469 51
+lib/generators/current_scope/install/templates/initializer.rb
+  s_e49ad5b2662b90::t_dac99236cff790 165-166
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "5bd001926dddc254ec7876f4003f50c6a7c7ddc5",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

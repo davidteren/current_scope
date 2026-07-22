@@ -7,10 +7,11 @@ nav_order: 7
 
 The [CHANGELOG](https://github.com/davidteren/current_scope/blob/main/CHANGELOG.md)
 is the canonical record of every release — read it top-down for the versions
-you are crossing. Two changes deserve to be impossible to miss, because both
-can change your **security posture silently**:
+you are crossing. Two changes deserve to be impossible to miss: one changes
+your **security posture silently**, the other breaks programmatic callers
+**loudly** (a 404):
 
-## 0.1 → 0.2: separation of duties became opt-in
+## 0.1 → 0.2: separation of duties became opt-in (silent)
 
 `config.sod_actions` now defaults to `[]` — empty means
 [the SoD veto](separation-of-duties.md) never runs. A 0.1 host that relied
@@ -24,7 +25,7 @@ config.sod_actions = %w[approve]
 Tracked as [#27](https://github.com/davidteren/current_scope/issues/27)
 (a dedicated UPGRADING.md is planned).
 
-## 0.2 → 0.3: management-UI route rename (programmatic callers)
+## 0.2 → 0.3: management-UI route rename (loud — programmatic callers 404)
 
 Org-wide role assignment is now `resources :role_assignments` (plural).
 A host that POSTs `/current_scope/role_assignment` (singular) or uses the

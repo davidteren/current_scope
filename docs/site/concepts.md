@@ -27,9 +27,12 @@ time, not an unexplained 403 later.
 
 The same role, attached to one specific record: "Editor of Project #7"
 grants nothing on Project #8. The list-side companion is `scope_for` — it
-answers "*which* records may I act on?" from the same roles and grants the
-gate reads, so an index page and the per-record gate stay one source of
-truth.
+answers the row-membership question ("*which* records can this subject
+reach?") from the same roles and grants the gate reads, so an index page and
+the per-record gate stay one source of truth. Row membership is not
+per-action authorization: the SoD veto applies to record-targeted *actions*,
+not list membership, so drive per-row affordances through
+`allowed_to?(action, record)`.
 
 ## The resolver order is fixed
 

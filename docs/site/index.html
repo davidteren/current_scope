@@ -551,12 +551,12 @@ allowed_to?<span class="tk-p">(</span><span class="tk-sym">:approve</span><span 
   </div>
   <div class="reveal">
     <div class="tabs" role="tablist" aria-label="Code examples">
-      <button class="tab" role="tab" aria-selected="true" data-tab="t1">allowed_to?</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="t2">ViewComponent</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="t3">scope_for</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="t4">the gate</button>
+      <button class="tab" role="tab" id="tab-t1" aria-controls="t1" aria-selected="true" data-tab="t1">allowed_to?</button>
+      <button class="tab" role="tab" id="tab-t2" aria-controls="t2" aria-selected="false" data-tab="t2">ViewComponent</button>
+      <button class="tab" role="tab" id="tab-t3" aria-controls="t3" aria-selected="false" data-tab="t3">scope_for</button>
+      <button class="tab" role="tab" id="tab-t4" aria-controls="t4" aria-selected="false" data-tab="t4">the gate</button>
     </div>
-    <div class="panel-code active" id="t1" role="tabpanel">
+    <div class="panel-code active" id="t1" role="tabpanel" aria-labelledby="tab-t1">
 <pre><span class="tk-com"># key derived from the record → reports#approve</span>
 allowed_to?<span class="tk-p">(</span><span class="tk-sym">:approve</span><span class="tk-p">,</span> report<span class="tk-p">)</span>
 
@@ -566,7 +566,7 @@ allowed_to?<span class="tk-p">(</span><span class="tk-sym">:create</span><span c
 <span class="tk-com"># explicit key when you need it</span>
 allowed_to?<span class="tk-p">(</span><span class="tk-str">"admin/reports#approve"</span><span class="tk-p">)</span></pre>
     </div>
-    <div class="panel-code" id="t2" role="tabpanel">
+    <div class="panel-code" id="t2" role="tabpanel" aria-labelledby="tab-t2">
 <pre><span class="tk-key">class</span> <span class="tk-const">ApproveButtonComponent</span> <span class="tk-p">&lt;</span> <span class="tk-const">ViewComponent::Base</span>
   <span class="tk-key">include</span> <span class="tk-const">CurrentScope::Permissions</span>
 
@@ -577,7 +577,7 @@ allowed_to?<span class="tk-p">(</span><span class="tk-str">"admin/reports#approv
 
 <span class="tk-com"># the button literally can't render when the gate would refuse</span></pre>
     </div>
-    <div class="panel-code" id="t3" role="tabpanel">
+    <div class="panel-code" id="t3" role="tabpanel" aria-labelledby="tab-t3">
 <pre><span class="tk-com"># allowed_to? answers "may I act on THIS record?"</span>
 <span class="tk-com"># scope_for answers "WHICH records may I act on?"</span>
 <span class="tk-com"># — from the same roles, permissions, and scoped grants.</span>
@@ -588,7 +588,7 @@ allowed_to?<span class="tk-p">(</span><span class="tk-str">"admin/reports#approv
 
 <span class="tk-com"># the list and the per-record gate stay one source of truth</span></pre>
     </div>
-    <div class="panel-code" id="t4" role="tabpanel">
+    <div class="panel-code" id="t4" role="tabpanel" aria-labelledby="tab-t4">
 <pre><span class="tk-key">class</span> <span class="tk-const">ApplicationController</span> <span class="tk-p">&lt;</span> <span class="tk-const">ActionController::Base</span>
   <span class="tk-key">include</span> <span class="tk-const">CurrentScope::Context</span>   <span class="tk-com"># ambient subject from current_user</span>
   <span class="tk-key">include</span> <span class="tk-const">CurrentScope::Guard</span>     <span class="tk-com"># fail-closed gate on every action</span>

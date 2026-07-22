@@ -20,14 +20,14 @@ a mismatch cannot hide from. This page is the map.
 | `user_method` | `:current_user` | Host method that returns the effective subject. A controller that doesn't respond to it raises (never a silent 403-everything). |
 | `actor_method` | `nil` | Host method returning the **real** actor behind an impersonated session. **Security-critical the moment you impersonate** — unset, the mutation guard and SoD `:either` are inert and audit rows attribute to the impersonated subject. `record_impersonation_started!` raises if it's unset. |
 | `subject_class` | `"User"` | The model that holds roles. |
-| `subject_label` | `nil` | How the management UI names a subject: a Symbol (method), a Proc, or nil for best-effort (email → name → first+last → label). A label that raises degrades to the default chain and logs — it never breaks the page. |
+| `subject_label` | `nil` | How the management UI names a subject: a Symbol (method), a Proc, or nil for best-effort (email → email_address → name → first+last → label). A label that raises degrades to the default chain and logs — it never breaks the page. |
 
 ## Enforcement
 
 | Knob | Default | What it does |
 |---|---|---|
-| `enforcement` | `:enforce` | `:enforce` = a denial is a 403, the only production posture. `:report` = log missing grants and let requests through (`access.would_deny` ledger rows; the adoption ramp). Relaxes *only* "no grant" — SoD, the console, and the impersonation gate still refuse. Unknown value raises at boot. |
-| `collection_read_actions` | `["index"]` | Record-less actions whose gate derives its answer from the scoped list (`scope_for`), so gate and list cannot disagree. Read-only names only — a full key raises; a mutating name warns loudly. |
+| `enforcement` | `:enforce` | `:enforce` = a denial is a 403, the only production posture. `:report` = log missing grants and let requests through, recording `access.would_deny` ledger rows (audit must be enabled for the rows; the adoption ramp). Relaxes *only* "no grant" — SoD, the console, and the impersonation gate still refuse. Unknown value raises at boot. |
+| `collection_read_actions` | `["index"]` | Record-less actions whose gate derives its answer from the scoped list (`scope_for`), so gate and list cannot disagree. Read-only names only — a full key raises; a **canonical** mutating name (`create`/`update`/`destroy`) warns loudly (a custom mutator name is not detected — do not add one). |
 | `excluded_controllers` | rails/active_storage/action_mailbox/turbo/current_scope internals | Regexps excluded from the permission grid. Excluded controllers can't be granted, so they must also skip the gate — and are then **unprotected by CurrentScope** ([checklist § 1](security-checklist.md#1-excluded--skipped--unprotected)). |
 | `parent_controller` | `"::ApplicationController"` | What the management UI inherits from (host auth and before_actions). |
 
@@ -39,14 +39,14 @@ Covered in depth in the [SoD guide](separation-of-duties.md).
 |---|---|---|
 | `sod_actions` | `[]` | The opt-in switch. Empty = the veto never runs. Action names only (matched on the action segment); full keys raise. |
 | `sod_identity` | `:either` | Which identities the veto weighs: `:either` = subject *and* real actor (impersonation can't launder an approval), `:subject` = effective subject only. |
-| `allow_sod_bypass` | `false` | Break-glass. Off = the veto is absolute. On = liftable per record via three live-checked conditions, always audited (`sod.bypassed`). |
+| `allow_sod_bypass` | `false` | Break-glass. Off = the veto is absolute. On = liftable per record via three live-checked conditions, audited as `sod.bypassed` whenever `audit` is enabled (use `:strict` if an unaudited bypass must be impossible). |
 | `sod_bypass_permission` | `"bypass_sod"` | The grantable break-glass permission. Must not appear in `sod_actions` — the engine raises at boot if it does. |
 
 ## Impersonation
 
 | Knob | Default | What it does |
 |---|---|---|
-| `allow_mutations_while_impersonating` | `false` | Impersonated sessions are read-only: non-GET/HEAD denied while actor ≠ subject. Setting `true` **raises at boot in production** unless `CURRENT_SCOPE_ALLOW_PROD_IMPERSONATION_MUTATIONS` is set. |
+| `allow_mutations_while_impersonating` | `false` | Impersonated sessions are read-only: non-GET/HEAD denied while actor ≠ subject. Setting `true` **raises at boot in production** unless `CURRENT_SCOPE_ALLOW_PROD_IMPERSONATION_MUTATIONS` is set to a truthy value (`"1"`/`"true"` — `"false"`, `"0"`, and empty mean not opted in). |
 
 ## Audit
 
@@ -62,9 +62,9 @@ change a decision, header, or audit row:
 | Knob | Fires when |
 |---|---|
 | `warn_on_nil_sod_record` | An SoD action was allowed while the gate had no record — the veto was skipped. |
-| `warn_on_inert_scoped_grant` | Denied `no_grant` while the subject holds a scoped grant that would satisfy it, but the controller declares no `current_scope_record`. |
+| `warn_on_inert_scoped_grant` | Denied `no_grant` while the subject holds a scoped grant ticking the key on *some* record (not necessarily the one this request targeted), and the controller declares no `current_scope_record` — the 403 looks like "never granted" while the likely fix is the controller hook. |
 | `warn_on_cross_controller_derivation` | Short-form `allowed_to?` derived a different key than this controller's gate enforces. |
-| `warn_on_undeclared_collection_model` | A request was denied `model_undeclared` — a record-less action whose controller names no `current_scope_model` while the subject holds a scoped grant ticking the key; the fix is one line in the controller. The same knob gates the `model_invalid` nudge. |
+| `warn_on_undeclared_collection_model` | A request was denied `model_undeclared` — a record-less action whose controller names no `current_scope_model` while the subject holds a scoped grant that could open it (an explicit tick, or scoped `full_access` for a listed read whose type and live records match). Declaring the model is the usual one-line fix. The same knob gates the `model_invalid` nudge. |
 
 | Knob | Default | What it does |
 |---|---|---|

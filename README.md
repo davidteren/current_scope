@@ -166,8 +166,9 @@ Total: 457 would-be denials across 2 subject(s).
 
 That *is* your grant-seeding work, in the shape of the role grid you need to
 build: every subject who'd have been refused, what they were missing, and how
-badly. Seed the roles it names, watch the list empty out, then flip to
-`:enforce`. Each step is one line back, and nobody gets a 403 while you learn.
+badly. Seed the roles it names, re-exercise, and flip to `:enforce` once newly
+exercised requests stop adding rows (the report reads the append-only
+ledger, so historical rows do not clear). Each step is one line back, and nobody gets a 403 while you learn.
 
 The rows are ordinary ledger events, so query them directly if you want
 something the task doesn't show:

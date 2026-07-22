@@ -57,8 +57,11 @@ jobs:
             exit 1
           fi
           # Reference-style definitions ([label]: target) bypass the inline
-          # check above — hold them to the same bar.
-          if grep -nE '^\[[^]]+\]:' docs/site/security-checklist.md | grep -vE '\]:[[:space:]]*(https?://|#|mailto:)'; then
+          # check above — hold them to the same bar. kramdown allows up to
+          # three leading spaces and <angle-bracket> destinations; '^ *'
+          # supersets the space rule (portable across BSD/GNU grep — BSD
+          # mishandles an interval next to a negated bracket class).
+          if grep -nE '^ *\[[^]]+\]:' docs/site/security-checklist.md | grep -vE '\]:[[:space:]]*<?(https?://|#|mailto:)'; then
             echo "::error::docs/SECURITY-CHECKLIST.md has a relative reference-style link — extend the rewrite step."
             exit 1
           fi

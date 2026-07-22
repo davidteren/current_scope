@@ -5,3 +5,9 @@
 4. scoped role     → a role held on THIS record           ALLOW
 5. otherwise       → default deny
 ```
+
+One nuance the diagram folds into step 4: a **record-less** check (a
+collection action like `index`) can be opened by a scoped grant too — listed
+read actions derive their answer from the scoped list (`scope_for`). The
+[README's record-less rules](https://github.com/davidteren/current_scope/blob/main/README.md#scoping-a-list-scope_for)
+are the full treatment.

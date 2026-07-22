@@ -19,7 +19,9 @@ Because the veto outranks everything, **a `full_access` admin still cannot
 self-approve**. No role, no grant, and no tick in the management UI can lift
 it. It is not editable in the permission grid. That is deliberate: a fraud
 control that a sufficiently privileged person can switch off for themselves
-is not a control. It is a structural guarantee, not a preference.
+is not a control. It is a structural guarantee, not a preference. (The one
+deliberate exception is [break-glass](#break-glass-the-audited-override),
+below — off by default, and a deploy-time decision, never a UI toggle.)
 
 ## It is OFF by default — you must opt in
 
@@ -37,8 +39,8 @@ shipped it on by default, so if you upgraded from 0.1 without setting
 
 ## Turning it on
 
-Two declarations. First, list the actions an initiator may never perform on
-their own record:
+Three declarations. First, list the actions an initiator may never perform
+on their own record:
 
 ```ruby
 # config/initializers/current_scope.rb
@@ -53,7 +55,21 @@ class Report < ApplicationRecord
 end
 ```
 
-That's it. From here, when *any* subject whose identity matches the record's
+Third — and this one is load-bearing — the controller's
+`current_scope_record` hook **must return the record on the SoD member
+action** (the veto is skipped when the gate has no record; see the asymmetry
+below):
+
+```ruby
+class ReportsController < ApplicationController
+  private
+
+  def set_report = @report ||= Report.find(params.expect(:id))
+  def current_scope_record = (set_report if request.path_parameters[:id])
+end
+```
+
+From here, when *any* subject whose identity matches the record's
 initiator hits `reports#approve`, the resolver answers **deny** with reason
 `sod_veto` — a 403 carrying `X-Current-Scope-Reason: sod_veto`.
 

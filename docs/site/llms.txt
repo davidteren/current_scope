@@ -1,6 +1,6 @@
 # CurrentScope
 
-> A mountable Rails engine (Rails >= 8.1) for authorization: permissions
+> A mountable Rails engine (Rails >= 8.1, < 9) for authorization: permissions
 > auto-derived from controller#action routes, roles as editable data,
 > per-record scoped roles, an opt-in separation-of-duties veto (initiator
 > can never approve their own record), and one ambient context so

@@ -35,6 +35,13 @@ class ApplicationController < ActionController::Base
 end
 ```
 
+Your authentication must run **before** these concerns do — `Context` reads
+`current_user` when its callback fires. If your auth is set up in a concern
+or callback registered *after* these includes, the gate runs first, sees no
+subject, and denies. The
+[adoption guide](https://github.com/davidteren/current_scope/blob/main/docs/guides/adopting-in-an-existing-app.md)
+covers callback ordering against Devise and friends.
+
 ## 3. Skip the gate where authorization doesn't apply
 
 **Do not skip this step.** The gate is fail-closed and covers *everything*,
@@ -70,7 +77,10 @@ your grant-seeding worklist:
 bin/rails current_scope:report
 ```
 
-Seed the roles it names, watch the list empty, then flip back to `:enforce`.
+Seed the roles it names, re-exercise the app, and flip back to `:enforce`
+once newly exercised requests stop adding `access.would_deny` rows (the
+report reads the append-only ledger, so historical rows do not clear) and
+any `access.sod_blind_spot` entries are resolved.
 Report mode is an adoption ramp, not an off switch: the SoD veto, the
 management console, and the impersonation gate all still refuse. Retrofitting
 a real app? There is a
@@ -84,14 +94,16 @@ The management UI only admits full-access subjects, so the first grant can't
 happen in the UI:
 
 ```bash
-bin/rails current_scope:grant SUBJECT_ID=1   # grants the full-access Owner role
+# The id must exist on your configured subject_class ("User" by default).
+bin/rails current_scope:grant SUBJECT_ID=<your-user-id>
 ```
 
 or in `db/seeds.rb`:
 
 ```ruby
-CurrentScope.seed_defaults!       # Owner (full_access) + Member
-CurrentScope.grant!(User.first)   # give the first user the Owner role
+# Creates the default Owner (full_access) + Member roles if missing, then
+# grants Owner. Member starts with zero permissions until you edit it.
+CurrentScope.grant!(User.first)
 ```
 
 ## 6. Manage everything at `/current_scope`

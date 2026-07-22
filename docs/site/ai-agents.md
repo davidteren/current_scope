@@ -17,30 +17,45 @@ depth.
 ## Install CurrentScope in this app
 
 ```text
-Add the current_scope gem to this Rails app (Rails >= 8.1 required).
+Add the current_scope gem to this Rails app (Rails >= 8.1, < 9 required).
 
 1. Add `gem "current_scope"` to the Gemfile, then run:
    bin/rails generate current_scope:install
    bin/rails current_scope:install:migrations && bin/rails db:migrate
 2. In ApplicationController, include CurrentScope::Context and
-   CurrentScope::Guard (in that order).
+   CurrentScope::Guard (in that order). Authentication must be wired
+   BEFORE these concerns run — Context reads current_user when its
+   callback fires, so an auth callback registered after these includes
+   means the gate denies before authentication happens.
 3. The gate is fail-closed and covers EVERY action. You MUST add
    `skip_before_action :current_scope_check!` to controllers where
    authorization does not apply — sign-in/sessions (or nobody can log in),
    webhooks, health checks. A skipped controller is unprotected by the
-   permission gate: keep or add the app's own auth there.
+   permission gate: keep or add the app's own auth there. If the app has
+   act-as/impersonation, ALSO add
+   `skip_before_action :current_scope_mutation_guard!` on sign-in,
+   sign-out, and the stop-impersonation action — that guard is a separate
+   callback that survives the gate skip, and without its skip an
+   impersonating admin cannot sign out or stop impersonating.
 4. If this app already has users and traffic, set
    `config.enforcement = :report` in the initializer BEFORE deploying,
    run the test suite, then run `bin/rails current_scope:report` and seed
-   the roles it names. Only flip back to :enforce when the report is empty.
-   Report mode must not be the final state.
+   the roles it names. Flip back to :enforce only when re-exercising the
+   app adds no NEW access.would_deny rows (the report reads the
+   append-only ledger — historical rows never clear) and any
+   access.sod_blind_spot rows are resolved. Report mode must not be the
+   final state.
 5. Bootstrap the first admin (the management UI only admits full-access
-   subjects): `bin/rails current_scope:grant SUBJECT_ID=<id>` or
-   CurrentScope.seed_defaults! + CurrentScope.grant!(user) in seeds.
+   subjects): `bin/rails current_scope:grant SUBJECT_ID=<id>` — or, in
+   seeds, `CurrentScope.grant!(user)` (it creates the default
+   Owner/Member roles if missing; Member starts with zero permissions).
 6. Declare record hooks as PRIVATE controller methods. For member actions:
    `def current_scope_record = (set_thing if request.path_parameters[:id])`
    — key off request.path_parameters, never params, so a ?id= query string
-   cannot smuggle a record into collection actions.
+   cannot smuggle a record into collection actions. Use the route's actual
+   member key: a route declared with a custom param (e.g. :slug) must
+   check request.path_parameters[:slug], or the hook returns nil and the
+   SoD veto is silently skipped on that action.
 7. Run the full test suite. Expect controller tests to 403 until grants are
    seeded — use the test helpers (grant_role!/grant_scoped_role!) from
    current_scope/test_helpers, not stubs.
@@ -74,8 +89,10 @@ veto never runs.
    If the reason is "no_grant" instead, SoD is not examining this action.
 5. Do NOT add bypass logic unless explicitly asked. If a conditional
    self-approval is a real requirement, use the engine's break-glass
-   (allow_sod_bypass) — never a hand-rolled branch, because break-glass is
-   the path that cannot forget the audit event.
+   (allow_sod_bypass) — never a hand-rolled branch, because break-glass
+   records the sod.bypassed audit event a hand-rolled branch forgets.
+   That recording requires config.audit enabled (the default); if an
+   unaudited bypass must be impossible, set config.audit = :strict.
 ```
 
 ## Debug a CurrentScope 403

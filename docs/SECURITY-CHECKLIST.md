@@ -12,8 +12,12 @@ solid-solution worklist (S13).
 ## 1. Excluded + skipped = unprotected
 
 **After `skip_before_action :current_scope_check!` on an excluded controller,
-CurrentScope enforces nothing on that controller.** The host must supply its
-own authorization (`require_admin!`, Devise `authenticate_admin!`, etc.).
+CurrentScope's permission gate enforces nothing on that controller.** The host
+must supply its own authorization (`require_admin!`, Devise
+`authenticate_admin!`, etc.). The impersonation `MutationGuard` is a separate
+`before_action` and still blocks non-GET/HEAD requests while impersonating,
+unless you also skip `current_scope_mutation_guard!` — do not read the gate
+skip as removing every CurrentScope safeguard, or the guard as authorization.
 
 ### How people get there
 
@@ -43,7 +47,12 @@ scoped roles and SoD need the record. Side effect:
 | Request | Unauthorized / no-grant caller sees |
 |---|---|
 | Member action, id exists | **403** (`no_grant`) — hook loaded the row, gate denied |
-| Member action, id missing | **404** — `RecordNotFound` inside the hook, before decide |
+| Member action, id missing (hook uses `find`) | **404** — `RecordNotFound` inside the hook, before decide |
+
+The missing-id row describes the `Model.find(params[:id])` hook shape. The
+host owns `current_scope_record` — a hook that uses `find_by` (nil) or rescues
+the lookup changes what a missing id returns; the engine does not guarantee
+the 404.
 
 An unauthorized caller can probe which ids exist. Anonymous requests also
 trigger real DB loads for those ids.

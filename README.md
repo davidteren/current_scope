@@ -803,8 +803,11 @@ Denials raise `CurrentScope::AccessDenied` with stable accessors for branded
 | `not_full_access` | the management UI, which only full-access subjects enter |
 
 Guard and MutationGuard denials route through one method
-(`current_scope_denied`), so a refusal on a Guard-wrapped controller always
-gets its reason header (and the denial log line below). A **host** denial is a
+(`current_scope_denied`), so by default a refusal on a Guard-wrapped controller
+gets its reason header (and the denial log line below). "By default" matters: a
+host `rescue_from CurrentScope::AccessDenied` registered after the include
+**replaces** that method, and with it the header and the log line (see the last
+example in this section). A **host** denial is a
 bodyless `403` by default — the reason header is the signal, and the gem won't
 render into your app's response contract. The engine's own management UI is the
 exception: it overrides the body seam to render a short page saying a full-access
@@ -838,7 +841,9 @@ end
 
 Need `#permission` / `#record` / `#subject` on the page? A host `rescue_from`
 registered **after** `include CurrentScope::Guard` wins and **replaces**
-`current_scope_denied` — set the header yourself (or you lose it):
+`current_scope_denied` — set the header yourself (or you lose it), and note
+this example restores only the header; write your own log line if you need
+the denial telemetry:
 
 ```ruby
 rescue_from CurrentScope::AccessDenied do |e|

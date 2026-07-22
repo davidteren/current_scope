@@ -1,6 +1,6 @@
 # STATUS
 
-> Last updated: 2026-07-19
+> Last updated: 2026-07-22
 >
 > **If you are a fresh session asked to audit this work, start at
 > [Verification brief](#verification-brief--for-a-fresh-session).**
@@ -62,7 +62,8 @@ gem pushed to RubyGems.
 **Next (Phase 1):** #40 → #30 → #74 → #73 → #90 (loud misconfig + audit/console
 honesty). Worklist + TLDR refreshed 2026-07-19: Done labels point at `main` /
 PR #100; open-issue map includes **#98** (D11).
-**Phase 1 landed on `main`:** #40/#30/#74 (PR #102), #73 (PR #103), #90 (PR #104).
+**Initial Phase 1 stack landed on `main`:** #40/#30/#74 (PR #102), #73 (PR #103),
+#90 (PR #104). Other Phase 1 worklist items remain open.
 **In flight:** #32 (security checklist) + #39 (denial ergonomics) on
 `feat/security-checklist-and-denial-ergonomics`.
 

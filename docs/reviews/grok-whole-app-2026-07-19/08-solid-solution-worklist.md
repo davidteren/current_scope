@@ -202,14 +202,14 @@ Minimum for banner consideration: **D2** (one quickstart) + **D9/S13** (producti
 
 | Track | Rows | Done | Still open-ish |
 |---|---|---|---|
-| 1 Security / config | 14 | 5 | 9 |
-| 2 Operator honesty | 10 | 1 | 9 |
+| 1 Security / config | 14 | 10 | 4 (incl. S14 document-only) |
+| 2 Operator honesty | 10 | 3 | 7 |
 | 3 A11y / UI polish | 7 | 2 | 5 |
 | 4 Engine API | 8 | 2 | 6 (incl. Partial/Defer) |
 | 5 Tests | 7 | 3 | 4 |
-| 6 Docs | 11 | 0 | 11 (incl. Partial) |
+| 6 Docs | 11 | 1 | 10 (incl. Partial) |
 | 7 Adoption / FE | 6 | 0 | 6 (incl. Ongoing) |
-| **Total** | **63** | **13** | **~50** |
+| **Total** | **63** | **21** | **~42** |
 | Explicit non-goals | 8 residuals | — | document, don’t loosen |
 
 **Open GitHub issues (27):** all mapped above — docs/adoption tracks cover **#24–#46** (minus closed), **#73/#74/#76/#90/#96/#97/#98**.  

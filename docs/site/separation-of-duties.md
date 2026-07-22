@@ -21,7 +21,10 @@ it. It is not editable in the permission grid. That is deliberate: a fraud
 control that a sufficiently privileged person can switch off for themselves
 is not a control. It is a structural guarantee, not a preference. (The one
 deliberate exception is [break-glass](#break-glass-the-audited-override),
-below — off by default, and a deploy-time decision, never a UI toggle.)
+below — off by default, and a deploy-time decision, never a UI toggle. The
+guarantee also assumes the defaults: `sod_identity = :either` and read-only
+impersonation — weakening either is a deploy-time decision too, covered
+under [impersonation](#impersonation-cannot-launder-an-approval).)
 
 ## It is OFF by default — you must opt in
 

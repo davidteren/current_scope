@@ -95,7 +95,7 @@ happen in the UI:
 
 ```bash
 # The id must exist on your configured subject_class ("User" by default).
-bin/rails current_scope:grant SUBJECT_ID=<your-user-id>
+bin/rails current_scope:grant SUBJECT_ID=YOUR_USER_ID
 ```
 
 or in `db/seeds.rb`:

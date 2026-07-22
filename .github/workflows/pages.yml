@@ -16,10 +16,10 @@ on:
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
+# Least privilege: PR builds get read-only; only the deploy job (main-gated)
+# mints an OIDC token and writes to Pages.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # Cancel superseded PR builds, but let production deploys finish and queue
 # (GitHub's Pages template: never cancel an in-progress deployment).
@@ -30,6 +30,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
     steps:
       - uses: actions/checkout@v7
       # The security checklist has ONE canonical source: docs/SECURITY-CHECKLIST.md.
@@ -53,6 +56,12 @@ jobs:
             echo "::error::docs/SECURITY-CHECKLIST.md has a relative link the sed rewrite does not cover — extend the rewrite step."
             exit 1
           fi
+          # Reference-style definitions ([label]: target) bypass the inline
+          # check above — hold them to the same bar.
+          if grep -nE '^\[[^]]+\]:' docs/site/security-checklist.md | grep -vE '\]:[[:space:]]*(https?://|#|mailto:)'; then
+            echo "::error::docs/SECURITY-CHECKLIST.md has a relative reference-style link — extend the rewrite step."
+            exit 1
+          fi
       - uses: actions/configure-pages@v5
       - uses: actions/jekyll-build-pages@v1
         with:
@@ -66,6 +75,10 @@ jobs:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

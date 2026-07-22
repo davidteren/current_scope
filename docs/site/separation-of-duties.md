@@ -13,13 +13,7 @@ a contract cannot also sign it off.
 CurrentScope enforces this as a **veto at step 1 of the resolver** — before
 any role or grant is even consulted:
 
-```
-1. SoD veto        → initiator? (opt-in, off by default)  DENY (overrides all)
-2. full_access     → role grants everything, forever      ALLOW
-3. org-wide role   → role's permission set includes it    ALLOW
-4. scoped role     → a role held on THIS record           ALLOW
-5. otherwise       → default deny
-```
+{% include resolver-order.md %}
 
 Because the veto outranks everything, **a `full_access` admin still cannot
 self-approve**. No role, no grant, and no tick in the management UI can lift

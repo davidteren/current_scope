@@ -52,7 +52,7 @@ Covered in depth in the [SoD guide](separation-of-duties.md).
 
 | Knob | Default | What it does |
 |---|---|---|
-| `audit` | `true` | Tri-state `false | true | :strict`. `true` records authorization changes (management UI, impersonation boundary, `grant!`) and degrades warn-once if the events table is missing; `:strict` raises instead, rolling the mutation back — the audit-mandatory posture. |
+| `audit` | `true` | Tri-state `false` \| `true` \| `:strict`. `true` records authorization changes (management UI, impersonation boundary, `grant!`) and degrades warn-once if the events table is missing; `:strict` raises instead, rolling the mutation back — the audit-mandatory posture. |
 
 ## Diagnostics (log-only, dev/test on by default)
 

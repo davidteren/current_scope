@@ -7,6 +7,13 @@ on:
       - "docs/site/**"
       - "docs/SECURITY-CHECKLIST.md"
       - ".github/workflows/pages.yml"
+  # PRs get the build (never the deploy) so a broken site fails the PR,
+  # not the post-merge deploy.
+  pull_request:
+    paths:
+      - "docs/site/**"
+      - "docs/SECURITY-CHECKLIST.md"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -14,9 +21,11 @@ permissions:
   pages: write
   id-token: write
 
+# Cancel superseded PR builds, but let production deploys finish and queue
+# (GitHub's Pages template: never cancel an in-progress deployment).
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: pages-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -35,6 +44,15 @@ jobs:
                 -e 's|(guides/|(https://github.com/davidteren/current_scope/blob/main/docs/guides/|g' \
                 docs/SECURITY-CHECKLIST.md
           } > docs/site/security-checklist.md
+      # The sed rules above only know today's link shapes. Fail the build if
+      # any repo-relative markdown link survived the rewrite, so a new link
+      # style in the checklist breaks CI instead of shipping a 404.
+      - name: Assert no unrewritten relative links remain
+        run: |
+          if grep -nE '\]\((\.\./|\./|guides/|docs/)' docs/site/security-checklist.md; then
+            echo "::error::docs/SECURITY-CHECKLIST.md has a relative link the sed rewrite does not cover — extend the rewrite step."
+            exit 1
+          fi
       - uses: actions/configure-pages@v5
       - uses: actions/jekyll-build-pages@v1
         with:
@@ -43,6 +61,7 @@ jobs:
       - uses: actions/upload-pages-artifact@v4
 
   deploy:
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     environment:

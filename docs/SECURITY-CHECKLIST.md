@@ -15,9 +15,11 @@ solid-solution worklist (S13).
 CurrentScope's permission gate enforces nothing on that controller.** The host
 must supply its own authorization (`require_admin!`, Devise
 `authenticate_admin!`, etc.). The impersonation `MutationGuard` is a separate
-`before_action` and still blocks non-GET/HEAD requests while impersonating,
-unless you also skip `current_scope_mutation_guard!` — do not read the gate
-skip as removing every CurrentScope safeguard, or the guard as authorization.
+`before_action` and survives the gate skip: it still blocks non-GET/HEAD
+requests while impersonating — provided `actor_method` is set (so impersonation
+is detectable), `allow_mutations_while_impersonating` is false, and you have
+not also skipped `current_scope_mutation_guard!`. Do not read the gate skip as
+removing every CurrentScope safeguard, or the guard as authorization.
 
 ### How people get there
 

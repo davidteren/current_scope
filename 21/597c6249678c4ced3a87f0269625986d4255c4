@@ -1,0 +1,22 @@
+.github/workflows/pages.yml
+  s_e49ad5b2662b90::t_ce692c93888867 78-81
+  s_e49ad5b2662b90::t_3cae67c431f451 59-64
+  s_e49ad5b2662b90::t_243b89bd3c8e31 19-20
+  s_e49ad5b2662b90::t_4e5051a2af7cca 33-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "21597c6249678c4ced3a87f0269625986d4255c4",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -45,11 +45,11 @@ jobs:
                 docs/SECURITY-CHECKLIST.md
           } > docs/site/security-checklist.md
       # The sed rules above only know today's link shapes. Fail the build if
-      # any repo-relative markdown link survived the rewrite, so a new link
-      # style in the checklist breaks CI instead of shipping a 404.
+      # any link target that is not absolute or an in-page anchor survived the
+      # rewrite, so a new relative-link style breaks CI instead of shipping a 404.
       - name: Assert no unrewritten relative links remain
         run: |
-          if grep -nE '\]\((\.\./|\./|guides/|docs/)' docs/site/security-checklist.md; then
+          if grep -nE '\]\(' docs/site/security-checklist.md | grep -vE '\]\((https?://|#|mailto:)'; then
             echo "::error::docs/SECURITY-CHECKLIST.md has a relative link the sed rewrite does not cover — extend the rewrite step."
             exit 1
           fi
@@ -61,7 +61,9 @@ jobs:
       - uses: actions/upload-pages-artifact@v4
 
   deploy:
-    if: github.event_name != 'pull_request'
+    # Deploys come only from main (push or dispatch); PR runs and dispatches
+    # from other branches stop after the build job.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     environment:

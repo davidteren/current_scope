@@ -2,6 +2,14 @@
 # Built by .github/workflows/pages.yml (actions/jekyll-build-pages, the
 # github-pages gem). index.html has no front matter, so Jekyll passes it
 # through untouched — the landing page stays hand-authored HTML.
+#
+# NOTE for local preview: security-checklist.md is NOT committed — the
+# workflow generates it from docs/SECURITY-CHECKLIST.md. To get it locally,
+# run (from the repo root):
+#   { printf -- '---\ntitle: Security & production checklist\nnav_order: 5\n---\n\n'; \
+#     sed -e 's|(\.\./README\.md|(https://github.com/davidteren/current_scope/blob/main/README.md|g' \
+#         -e 's|(guides/|(https://github.com/davidteren/current_scope/blob/main/docs/guides/|g' \
+#         docs/SECURITY-CHECKLIST.md; } > docs/site/security-checklist.md
 title: CurrentScope
 description: >-
   A mountable Rails engine for authorization: permissions auto-derived from

@@ -57,12 +57,6 @@
     </g>
   </g>
 
-  <!-- version pill -->
-  <g transform="translate(1010,80)">
-    <rect x="0" y="0" width="112" height="40" rx="20" fill="#101725" stroke="#2a3446"/>
-    <circle cx="24" cy="20" r="5" fill="#34d399"/>
-    <text x="40" y="26" font-family="'SF Mono',monospace" font-size="18" fill="#c7cddb">v0.2.0</text>
-  </g>
 
   <!-- rubygems-ish tag -->
   <text x="1120" y="590" text-anchor="end" font-family="'SF Mono',monospace" font-size="20" fill="#6b7488">gem "current_scope"</text>

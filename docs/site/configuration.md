@@ -28,7 +28,7 @@ a mismatch cannot hide from. This page is the map.
 |---|---|---|
 | `enforcement` | `:enforce` | `:enforce` = a denial is a 403, the only production posture. `:report` = log missing grants and let requests through (`access.would_deny` ledger rows; the adoption ramp). Relaxes *only* "no grant" — SoD, the console, and the impersonation gate still refuse. Unknown value raises at boot. |
 | `collection_read_actions` | `["index"]` | Record-less actions whose gate derives its answer from the scoped list (`scope_for`), so gate and list cannot disagree. Read-only names only — a full key raises; a mutating name warns loudly. |
-| `excluded_controllers` | rails/active_storage/action_mailbox/turbo/current_scope internals | Regexps excluded from the permission grid. Excluded controllers can't be granted, so they must also skip the gate — and are then **unprotected by CurrentScope** ([checklist § 1](security-checklist.md)). |
+| `excluded_controllers` | rails/active_storage/action_mailbox/turbo/current_scope internals | Regexps excluded from the permission grid. Excluded controllers can't be granted, so they must also skip the gate — and are then **unprotected by CurrentScope** ([checklist § 1](security-checklist.md#1-excluded--skipped--unprotected)). |
 | `parent_controller` | `"::ApplicationController"` | What the management UI inherits from (host auth and before_actions). |
 
 ## Separation of duties

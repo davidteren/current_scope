@@ -361,6 +361,11 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
       </button>
     </div>
+    <p style="margin-top:14px;font-size:13.5px;color:var(--dim)">
+      <strong style="color:#e8955c">Not production-ready yet</strong> — ready for experimentation and
+      spiking. Security-relevant work is still open:
+      <a href="https://github.com/davidteren/current_scope/issues" rel="noopener">issue tracker</a>.
+    </p>
   </div>
 
   <!-- signature interactive permission grid -->
@@ -635,7 +640,7 @@ bin/rails current_scope:install:migrations &amp;&amp; bin/rails db:migrate</pre>
     </div></div>
   </div>
   <p class="reveal" style="margin-top:26px;color:var(--dim);font-size:14px">
-    Adding this to an app that already has users? Run <a href="quickstart.html">report mode</a> before enforcing —
+    Adding this to an app that already has users? Run <a href="quickstart.html#4-existing-app-run-report-mode-first">report mode</a> before enforcing —
     and read the <a href="security-checklist.html">security &amp; production checklist</a> before you ship.
   </p>
 </div></section>

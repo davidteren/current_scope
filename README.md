@@ -120,6 +120,9 @@ end
 > — callback ordering vs. your authentication, the Devise recipe, the
 > `skip_before_action` fail-open trap, hybrid HTML+API grants, and a rollout
 > ladder. The short version is below.
+>
+> **Shipping?** Read the [Security & production checklist](docs/SECURITY-CHECKLIST.md)
+> first — excluded controllers, the 403/404 record oracle, and the pre-ship tick list.
 
 
 The gate is fail-closed, so the line you just added denies **everything** until
@@ -379,6 +382,13 @@ class ReportsController < ApplicationController
   end
 end
 ```
+
+The same hook has two foot-guns worth knowing before you ship: returning **nil**
+on an SoD member action silently skips the veto
+([§ Separation of duties](#separation-of-duties-opt-in)), and loading with
+`Model.find` means an unauthorized caller sees **403** for an existing id vs
+**404** for a missing one — a record-existence oracle
+([security checklist mitigation](docs/SECURITY-CHECKLIST.md#2-403-vs-404-leaks-which-records-exist)).
 
 ### Scopeable models
 
@@ -772,8 +782,16 @@ class ImpersonationsController < ApplicationController
 end
 ```
 
-Denials carry a machine-readable reason on `AccessDenied#reason`, surfaced on
-the response as the `X-Current-Scope-Reason` header:
+Denials raise `CurrentScope::AccessDenied` with stable accessors for branded
+403 pages and error trackers (prefer `#permission` over parsing `#message`):
+
+| Accessor | Meaning |
+|---|---|
+| `#permission` | denied `controller#action` key — the stable API. Defaults to the positional message when `permission:` is omitted |
+| `#message` | `StandardError` message. Gem raise sites pass the key as both message and permission; they can diverge if a caller passes an explicit `permission:` keyword |
+| `#reason` | machine-readable cause (also on `X-Current-Scope-Reason`) |
+| `#record` | the record under decision when the gate had one; **nil** on collection / impersonation-gate denials |
+| `#subject` | effective subject when known |
 
 | Reason | Means |
 |---|---|
@@ -784,12 +802,57 @@ the response as the `X-Current-Scope-Reason` header:
 | `impersonation_gate` | a mutation while impersonating, which is read-only |
 | `not_full_access` | the management UI, which only full-access subjects enter |
 
-Every denial routes through one method, so a refusal can't reach a client
-without its reason. A **host** denial is a bodyless `403` — the reason header is
-the signal, and the gem won't render into your app's response contract. The
-engine's own management UI is the exception: it renders a short page saying a
-full-access role is required, because the person reading that one is an admin
-looking at a browser.
+Guard and MutationGuard denials route through one method
+(`current_scope_denied`), so by default a refusal on a Guard-wrapped controller
+gets its reason header (and the denial log line below). "By default" matters: a
+host `rescue_from CurrentScope::AccessDenied` registered after the include
+**replaces** that method, and with it the header and the log line (see the last
+example in this section). A **host** denial is a
+bodyless `403` by default — the reason header is the signal, and the gem won't
+render into your app's response contract. The engine's own management UI is the
+exception: it overrides the body seam to render a short page saying a full-access
+role is required, because the person reading that one is an admin looking at a
+browser.
+
+The engine also registers `CurrentScope::AccessDenied → :forbidden` in
+`ActionDispatch` rescue responses (only if the host has not already mapped that
+class), so a denial that **escapes** Guard (PORO re-raise, Context-only
+controller) is still HTTP **403**, not 500. That path is status-only — no
+`X-Current-Scope-Reason` header and no denial log line unless something in your
+stack writes them. On the Guard path, rescued denials log one INFO line
+mirroring the header:
+
+```
+[CurrentScope] denied reports#approve (no_grant) → 403
+```
+
+INFO is intentional so production captures denials without raising the log
+level; high-volume anonymous probes will grow the log — filter
+`[CurrentScope] denied` if that is noise for your operators.
+
+**Branded host 403 — prefer the body seam** so the header and log stay intact:
+
+```ruby
+# Keeps X-Current-Scope-Reason + the denial log; only the body changes.
+def current_scope_render_denied(reason)
+  render "errors/forbidden", status: :forbidden, locals: { reason: reason }
+end
+```
+
+Need `#permission` / `#record` / `#subject` on the page? A host `rescue_from`
+registered **after** `include CurrentScope::Guard` wins and **replaces**
+`current_scope_denied` — set the header yourself (or you lose it), and note
+this example restores only the header; write your own log line if you need
+the denial telemetry:
+
+```ruby
+rescue_from CurrentScope::AccessDenied do |e|
+  response.headers["X-Current-Scope-Reason"] = e.reason.to_s if e.reason
+  render "errors/forbidden",
+         status: :forbidden,
+         locals: { permission: e.permission, reason: e.reason, record: e.record }
+end
+```
 
 **View/gate disagreement is by design.** `allowed_to?` is HTTP-ignorant: it
 still returns `true` for a permission the subject genuinely holds, even though

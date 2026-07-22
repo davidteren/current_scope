@@ -14,9 +14,20 @@ require "current_scope/engine"
 
 module  CurrentScope
   # Raised when the resolver denies an action gated by Guard (or when the
-  # management UI is accessed without a full-access role). Carries an optional
-  # machine-readable reason, surfaced on the response as X-Current-Scope-Reason
-  # by current_scope_denied:
+  # management UI is accessed without a full-access role). Accessors:
+  #
+  #   #permission — denied key (stable API for branded 403s). Defaults to the
+  #                 positional message when permission: is omitted so legacy
+  #                 raise sites still populate it. Prefer this over #message.
+  #   #message    — StandardError message (positional arg). Gem raise sites pass
+  #                 the key as both message and permission; they can diverge if
+  #                 a caller passes an explicit permission: keyword.
+  #   #reason     — machine-readable cause (also on X-Current-Scope-Reason)
+  #   #record     — the record under decision when the gate had one; nil for
+  #                 collection / impersonation-gate denials
+  #   #subject    — effective subject when known; nil if none was in scope
+  #
+  # Reasons surfaced by current_scope_denied:
   #
   #   :sod_veto           — the record's initiator can't perform an SoD action on it
   #   :no_grant           — nothing granted the permission (the default deny)
@@ -34,11 +45,16 @@ module  CurrentScope
   # denial cannot exist that forgets its reason. (:sod_bypassed is the one
   # audited ALLOW, so it is set by the Guard rather than raised here.)
   class AccessDenied < StandardError
-    attr_reader :reason
+    attr_reader :reason, :permission, :record, :subject
 
-    def initialize(message = nil, reason: nil)
+    def initialize(message = nil, reason: nil, permission: nil, record: nil, subject: nil)
       super(message)
       @reason = reason
+      # permission defaults to message so older raise sites and branded-403
+      # recipes that only pass the key positionally still populate #permission.
+      @permission = permission || message
+      @record = record
+      @subject = subject
     end
   end
 

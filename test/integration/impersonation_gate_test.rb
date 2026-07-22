@@ -45,6 +45,48 @@ class ImpersonationGateTest < ActionDispatch::IntegrationTest
     assert_equal "impersonation_gate", response.headers["X-Current-Scope-Reason"]
   end
 
+  # #39 — impersonation gate is verb-based; #record stays nil, #subject is set.
+  test "AccessDenied on the impersonation gate has nil record and the effective subject" do
+    assign(@member, role("Owner", full_access: true))
+    captured = nil
+    ReportsController.class_eval do
+      define_method(:current_scope_denied) do |exception = nil|
+        captured = exception
+        reason = exception.respond_to?(:reason) ? exception.reason : nil
+        response.headers["X-Current-Scope-Reason"] = reason.to_s if reason
+        head :forbidden
+      end
+    end
+
+    post approve_report_url(@report), headers: acting_as(subject: @member, actor: @admin)
+    assert_response :forbidden
+    assert_kind_of CurrentScope::AccessDenied, captured
+    assert_equal "reports#approve", captured.permission
+    assert_equal :impersonation_gate, captured.reason
+    assert_nil captured.record, "impersonation gate loads no record"
+    assert_equal @member, captured.subject
+  ensure
+    if ReportsController.instance_methods(false).include?(:current_scope_denied)
+      ReportsController.class_eval { remove_method :current_scope_denied }
+    end
+  end
+
+  test "an impersonation-gate denial logs permission and reason" do
+    assign(@member, role("Owner", full_access: true))
+    io = StringIO.new
+    original = Rails.logger
+    Rails.logger = ActiveSupport::Logger.new(io).tap { |l| l.level = Logger::INFO }
+
+    post approve_report_url(@report), headers: acting_as(subject: @member, actor: @admin)
+    assert_response :forbidden
+    assert_match(
+      /\[CurrentScope\] denied reports#approve \(impersonation_gate\) → 403/,
+      io.string
+    )
+  ensure
+    Rails.logger = original
+  end
+
   test "a GET while impersonating is allowed (reads stay open)" do
     assign(@member, role("Owner", full_access: true))
     get reports_url, headers: acting_as(subject: @member, actor: @admin)

@@ -48,7 +48,7 @@ Items below are what still stand between “good engine” and that bar.
 | **S10** | Document (or soft-warn) 0.1→0.2 `sod_actions` default flip | Upgraders silently lose SoD | **#27** | Open (docs) |
 | **S11** | Document collection actions in `sod_actions` are no-ops + full_access holds bypass | Silent bulk self-approval hole if misunderstood | **#29** | Open (docs) |
 | **S12** | Document advisory `allowed_to?` never consults catalog | Typo keys silent deny/allow asymmetry vs Guard | **#36** | Open (docs) |
-| **S13** | Security & production checklist page | excluded=unprotected, 403/404 oracle, deploy footguns | **#32** · R residual A2/A4/A6 | Open |
+| **S13** | Security & production checklist page | excluded=unprotected, 403/404 oracle, deploy footguns | **#32** · R residual A2/A4/A6 | **Done** — `feat/security-checklist-and-denial-ergonomics` |
 | **S14** | Dependency hygiene: hosts on sanitizer ≥1.7.1 | Engine lock has 1.7.1; hosts resolve own tree | R security gate | Document (host checklist) |
 
 ---
@@ -62,7 +62,7 @@ Items below are what still stand between “good engine” and that bar.
 | **O3** | `current_scope_skip_gate!(reason:)` + grid shows declared vs bare skip | Unexplained skips must stay alarming | **#76** | Open |
 | **O4** | Flag catalog rows whose controller does not resolve | Phantom grants → 500 on hit | **#43** | Open |
 | **O5** | Error polish: double org-grant message; excluded regex named | Cryptic failures send people to source | **#44** | Open |
-| **O6** | Denial ergonomics: `AccessDenied#permission`, rescue_responses, reason in logs | Operable denials for hosts + APIs | **#39** | Open |
+| **O6** | Denial ergonomics: `AccessDenied#permission`, rescue_responses, reason in logs | Operable denials for hosts + APIs | **#39** | **Done** — `feat/security-checklist-and-denial-ergonomics` |
 | **O7** | Empty states: Roles / Events / Subjects | First-run silent blank tables | R UX | Open |
 | **O8** | Access-denied page: return link to host | Dead-end 403 | R UX | Open |
 | **O9** | Permission grid at scale (groups, namespaces, descriptions) | God controllers unusable | **#38** | Open |
@@ -125,7 +125,7 @@ Items below are what still stand between “good engine” and that bar.
 | **D6** | Testing guide: denials, `actor:`, RSpec | Incomplete host testing story | **#35** | Open |
 | **D7** | UPGRADING.md (0.1→0.2 and 0.2→0.3) | Silent posture changes | **#27** · R release notes | Open |
 | **D8** | Guide: performance & caching (request memo + host Solid Cache recipe) | Log noise + “how do we cache?” unanswered | C · new | Open — **file or fold into #34** |
-| **D9** | Guide: security & production (may merge with S13/#32) | Operable production | **#32** | Open |
+| **D9** | Guide: security & production (may merge with S13/#32) | Operable production | **#32** | **Done** — same as S13 (`docs/SECURITY-CHECKLIST.md`) |
 | **D10** | Document intentional residuals (A5, A2, A6, trusted model, report×model_undeclared) | Solid means honest limits | R residuals | Partial in README; centralize |
 | **D11** | Docs site: SoD anti-fraud story, real docs surface, agentic-coding prompts | Public site still thin; agents need copy-paste playbooks | **#98** | Open |
 
@@ -171,13 +171,13 @@ Shipped: **PR #100** → `main`, gem **0.3.1** (closes **#91**).
 ### Phase 1 — Loud misconfig + audit honesty · **IN PROGRESS**
 **S6–S9, S7, O1, O3–O6, E5** · tests **T2, T5**  
 Suggested order: **#40** → **#30** → **#74** → **#73** → **#90**, then **#39 / #43 / #44 / #76**.  
-**Landed:** **S6/#40**, **S7/#30**, **S8/#74** (PR #102) · **S9/#73** (PR #103) · **O1/#90** (PR #104).  
-Still open: O3–O6, E5, T2/T5.  
+**Landed:** **S6/#40**, **S7/#30**, **S8/#74** (PR #102) · **S9/#73** (PR #103) · **O1/#90** (PR #104) · **O6/#39** (+ **S13/D9/#32** checklist).  
+Still open: O3–O5, E5, T2/T5.  
 *Outcome:* diagnostics tell the truth; ledger and console match reality.
 
 ### Phase 2 — Docs solid (adoptable)
 **D1–D7, D9–D11, S10–S14**  
-Minimum for banner consideration: **D2** (one quickstart) + **D9/S13** (production checklist) + **D1** start. **D11/#98** grows the public docs site.  
+Minimum for banner consideration: **D2** (one quickstart) + **D9/S13** (production checklist — **done**) + **D1** start. **D11/#98** grows the public docs site.  
 *Outcome:* thin README, one quickstart, production checklist, residuals documented.
 
 ### Phase 3 — Console quality
@@ -202,14 +202,14 @@ Minimum for banner consideration: **D2** (one quickstart) + **D9/S13** (producti
 
 | Track | Rows | Done | Still open-ish |
 |---|---|---|---|
-| 1 Security / config | 14 | 5 | 9 |
-| 2 Operator honesty | 10 | 1 | 9 |
+| 1 Security / config | 14 | 10 | 4 (incl. S14 document-only) |
+| 2 Operator honesty | 10 | 3 | 7 |
 | 3 A11y / UI polish | 7 | 2 | 5 |
 | 4 Engine API | 8 | 2 | 6 (incl. Partial/Defer) |
 | 5 Tests | 7 | 3 | 4 |
-| 6 Docs | 11 | 0 | 11 (incl. Partial) |
+| 6 Docs | 11 | 1 | 10 (incl. Partial) |
 | 7 Adoption / FE | 6 | 0 | 6 (incl. Ongoing) |
-| **Total** | **63** | **13** | **~50** |
+| **Total** | **63** | **21** | **~42** |
 | Explicit non-goals | 8 residuals | — | document, don’t loosen |
 
 **Open GitHub issues (27):** all mapped above — docs/adoption tracks cover **#24–#46** (minus closed), **#73/#74/#76/#90/#96/#97/#98**.  

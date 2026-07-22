@@ -6,6 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Denial ergonomics (#39).** `AccessDenied` exposes `#permission`, `#record`,
+  and `#subject` (in addition to `#reason`) so branded 403 pages and trackers
+  need not parse `#message`. The engine registers
+  `CurrentScope::AccessDenied → :forbidden` in `rescue_responses` so an
+  escaped denial is HTTP 403, not 500. Rescued denials log
+  `[CurrentScope] denied controller#action (reason) → 403`.
+- **Security & production checklist (#32).** New
+  [docs/SECURITY-CHECKLIST.md](docs/SECURITY-CHECKLIST.md): excluded + skip =
+  ungated consequence, 403/404 record-existence oracle + opt-in mitigation,
+  foot-gun index, and a going-to-production tick list. The
+  `ConfigurationError` for gating an excluded controller (and the
+  `excluded_controllers` comments) now name the BYO-auth consequence.
+
 ### Fixed
 - **Orphaned scoped grants labeled inert in the console (#90).** Deleted or
   unresolvable resources no longer render as live scoped access on Subjects

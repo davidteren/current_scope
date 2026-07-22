@@ -1,6 +1,6 @@
 # STATUS
 
-> Last updated: 2026-07-19
+> Last updated: 2026-07-22
 >
 > **If you are a fresh session asked to audit this work, start at
 > [Verification brief](#verification-brief--for-a-fresh-session).**
@@ -61,8 +61,11 @@ gem pushed to RubyGems.
 
 **Next (Phase 1):** #40 → #30 → #74 → #73 → #90 (loud misconfig + audit/console
 honesty). Worklist + TLDR refreshed 2026-07-19: Done labels point at `main` /
-PR #100; open-issue map includes **#98** (D11); counts ~13 done / ~50 open.
-**In flight on `fix/solid-solution-phase-1`:** #40, #30, #74 (see worklist).
+PR #100; open-issue map includes **#98** (D11).
+**Initial Phase 1 stack landed on `main`:** #40/#30/#74 (PR #102), #73 (PR #103),
+#90 (PR #104). Other Phase 1 worklist items remain open.
+**In flight:** #32 (security checklist) + #39 (denial ergonomics) on
+`feat/security-checklist-and-denial-ergonomics`.
 
 ## Done (all committed on `main`)
 
@@ -590,8 +593,9 @@ quickstart, production checklist) + tests T1–T4.
    (security checklist page).
 5. **Solid-solution worklist Phase 1+** — follow
    [08-solid-solution-worklist.md](docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md).
-   S6–S9 + O1 shipped (#40/#30/#74/#73/#90). Still open: O3–O6, remaining E5
-   gaps, T2/T5, and Phase 2 docs.
+   S6–S9 + O1 shipped (#40/#30/#74/#73/#90); O6/#39 + S13/D9/#32 in flight on
+   `feat/security-checklist-and-denial-ergonomics`. Still open: O3–O5, remaining
+   E5 gaps, T2/T5, and remaining Phase 2 docs (D9 checklist done with #32).
 6. ~~**PR #69 review → implement plan 030**~~ — **done** (PR #79, #62 closed).
 7. **#45 — UNPARKED by the 0.3.0 release.** — delivery split already settled: parity
    harness ships in the gem, analyzer ships as a skill. First-PR scope answered

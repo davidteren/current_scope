@@ -2,6 +2,27 @@ module CurrentScope
   class Engine < ::Rails::Engine
     isolate_namespace CurrentScope
 
+    # An AccessDenied that escapes any Guard rescue (PORO, Context-only
+    # controller, re-raise) must 403, not 500. Never turns a deny into an
+    # allow — the exception already blocked the action (#39).
+    #
+    # ||= so a host that already set this mapping (e.g. :not_found to hide
+    # existence) in config/application.rb is not clobbered. before:
+    # action_dispatch.configure so ExceptionWrapper.rescue_responses picks the
+    # entry up when it merge!s the config hash.
+    initializer "current_scope.rescue_responses", before: "action_dispatch.configure" do |app|
+      app.config.action_dispatch.rescue_responses["CurrentScope::AccessDenied"] ||= :forbidden
+    end
+
+    # Belt for Rails upgrades: if action_dispatch.configure is renamed/reordered
+    # and the config merge is missed, still pin the class map. Use key? — the
+    # ExceptionWrapper hash defaults missing keys to :internal_server_error
+    # (truthy), so ||= would never write.
+    initializer "current_scope.rescue_responses_apply", after: "action_dispatch.configure" do
+      map = ActionDispatch::ExceptionWrapper.rescue_responses
+      map["CurrentScope::AccessDenied"] = :forbidden unless map.key?("CurrentScope::AccessDenied")
+    end
+
     # Cross-field config invariants (e.g. bypass permission ∉ sod_actions) must
     # run AFTER the host initializer has assigned every field — a writer on
     # either attr alone is order-dependent. once, not on to_prepare (config

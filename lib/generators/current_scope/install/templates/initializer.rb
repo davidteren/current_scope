@@ -161,6 +161,9 @@ CurrentScope.configure do |config|
   # Controller paths (regexps) excluded from the permission grid. Excluded
   # controllers can't be granted, so they must also skip the gate with
   # skip_before_action :current_scope_check! — Guard raises otherwise.
+  # Skipping the gate leaves the controller ungated by CurrentScope — protect
+  # it with your own authorization (e.g. require_admin!). See
+  # https://github.com/davidteren/current_scope/blob/main/docs/SECURITY-CHECKLIST.md
   # config.excluded_controllers += [%r{\Awebhooks/}]
 
   # Controller the management UI inherits from (for host auth + before_actions).

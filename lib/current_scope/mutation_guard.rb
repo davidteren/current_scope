@@ -31,8 +31,12 @@ module CurrentScope
       return if CurrentScope.config.allow_mutations_while_impersonating
       return unless current_scope_impersonating?
 
+      key = "#{controller_path}##{action_name}"
       raise CurrentScope::AccessDenied.new(
-        "#{controller_path}##{action_name}", reason: :impersonation_gate
+        key,
+        reason: :impersonation_gate,
+        permission: key,
+        subject: CurrentScope::Current.user
       )
     end
 
@@ -55,6 +59,12 @@ module CurrentScope
     def current_scope_denied(exception = nil)
       reason = exception.respond_to?(:reason) ? exception.reason : nil
       response.headers["X-Current-Scope-Reason"] = reason.to_s if reason
+      # Mirror the header into the server log so log-based triage can distinguish
+      # no_grant from sod_veto without reading response headers (#39).
+      permission = exception.respond_to?(:permission) ? exception.permission : nil
+      Rails.logger&.info(
+        "[CurrentScope] denied #{permission || '(unknown)'} (#{reason || 'unknown'}) → 403"
+      )
       current_scope_render_denied(reason)
     end
 

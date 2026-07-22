@@ -32,8 +32,12 @@ module CurrentScope
     def require_full_access!
       return if CurrentScope.resolver.full_access?(CurrentScope::Current.user)
 
+      key = "#{controller_path}##{action_name}"
       raise CurrentScope::AccessDenied.new(
-        "#{controller_path}##{action_name}", reason: :not_full_access
+        key,
+        reason: :not_full_access,
+        permission: key,
+        subject: CurrentScope::Current.user
       )
     end
 

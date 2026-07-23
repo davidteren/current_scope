@@ -1,0 +1,27 @@
+.claude/skills/current-scope-migrate/templates/backfill_rolify.rb.tt
+  s_e49ad5b2662b90::t_f7f08723f576f8 41-42,45
+  s_e49ad5b2662b90::t_646e4d504a5e5c 34-40,43-44,46-50
+.claude/skills/current-scope-migrate/templates/backfill_enum_roles.rb.tt
+  s_e49ad5b2662b90::t_646e4d504a5e5c 27-33,37-38,40-44
+  s_e49ad5b2662b90::t_f7f08723f576f8 34-36,39
+.claude/skills/current-scope-migrate/scripts/callsite_rewrite.rb
+  s_e49ad5b2662b90::t_97bec56948c2eb 37,44-48,56,58
+  s_e49ad5b2662b90::t_7e67659eb33e5b 83,85
+  s_e49ad5b2662b90::t_485851251a1b82 105,107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "fc32e3cac84e8b6483bc47ac390b03584cb4d11c",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

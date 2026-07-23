@@ -1,6 +1,9 @@
-# Exemplar manifest for the current_scope parity harness (#45 MVP).
+# Exemplar manifest for the current_scope parity harness (#45).
 # The parity run is only as good as this matrix: one subject per role,
 # one record per model that has record-conditioned rules.
+
+# Which system is being migrated FROM: pundit | cancancan | action_policy
+old_system: pundit
 subjects:
   # role_label: a Ruby expression returning that subject (evaluated in-app).
   # admin:  'User.find_by!(email: "admin@example.com")'

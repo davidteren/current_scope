@@ -83,6 +83,11 @@ module CurrentScopeMigrate
       constant_path.respond_to?(:full_name) ? constant_path.full_name : constant_path.slice
     end
 
+    # Action Policy class-level DSL calls: constructs a grid mapping cannot
+    # represent mechanically — each is reported for a human. relation_scope
+    # is handled separately (it IS classifiable).
+    AP_DSL = %i[pre_check alias_rule default_rule authorize scope_matcher].freeze
+
     def inventory_class(class_node, class_name, path, source)
       body = class_node.body
       return [] unless body.respond_to?(:body)
@@ -92,7 +97,56 @@ module CurrentScopeMigrate
       predicate_results = defs.select { |d| d.name.end_with?("?") }.map do |d|
         classify_predicate(d, defs, class_name, path, source)
       end
-      predicate_results + scope_results.compact
+      predicate_results + scope_results.compact +
+        action_policy_dsl(body, class_name, path, source) +
+        relation_scopes(body, class_name, path, source)
+    end
+
+    # Action Policy `relation_scope do |relation| ... end` — the AP analogue
+    # of a Pundit Scope#resolve; classify its block body the same way, with
+    # the block parameter standing in for `scope`.
+    def relation_scopes(class_body, class_name, path, source)
+      class_body.body.grep(Prism::CallNode).select { |c| c.name == :relation_scope && c.block }.map do |call|
+        block = call.block
+        param = block.respond_to?(:parameters) &&
+                block.parameters&.parameters&.requireds&.first&.name
+        body = block.body.is_a?(Prism::StatementsNode) && block.body.body.size == 1 ? block.body.body.first : nil
+        bucket, detail =
+          if param.nil? || body.nil?
+            [ "unparseable", "relation_scope body not provable" ]
+          elsif body.is_a?(Prism::CallNode) && body.name == :all && rooted_at?(body.receiver, param)
+            [ "pure_role", "#{param}.all — org-wide visibility, matches an org-wide grant" ]
+          elsif body.is_a?(Prism::CallNode) && body.name == :where && rooted_at?(body.receiver, param) &&
+                user_bound_hash?(body.arguments&.arguments&.first)
+            [ "ownership", "#{param}.where(<fk>: user...) — matches scope_for over scoped grants" ]
+          else
+            [ "unparseable", "relation_scope body not provable" ]
+          end
+        Result.new(file: path, policy_class: class_name, method: "relation_scope",
+                   line: call.location.start_line, bucket: bucket,
+                   source: slice(call, source), detail: detail)
+      end
+    end
+
+    def rooted_at?(node, param_name)
+      bare_call?(node, param_name&.to_sym) ||
+        (node.is_a?(Prism::LocalVariableReadNode) && node.name == param_name)
+    end
+
+    def user_bound_hash?(kwargs)
+      return false unless kwargs.is_a?(Prism::KeywordHashNode) || kwargs.is_a?(Prism::HashNode)
+
+      kwargs.elements.all? { |a| a.is_a?(Prism::AssocNode) && user_chain?(a.value) }
+    end
+
+    def action_policy_dsl(class_body, class_name, path, source)
+      class_body.body.grep(Prism::CallNode).select { |c| c.receiver.nil? && AP_DSL.include?(c.name) }.map do |call|
+        Result.new(file: path, policy_class: class_name, method: call.name.to_s,
+                   line: call.location.start_line, bucket: "unparseable",
+                   source: slice(call, source),
+                   detail: "Action Policy #{call.name} — no mechanical grid equivalent; " \
+                           "fold its effect into each affected predicate's mapping by hand")
+      end
     end
 
     def scope_class(class_body)
@@ -347,6 +401,21 @@ if ARGV.first == "--self-test"
         end
       end
     end
+
+    class NotePolicy < ApplicationPolicy
+      pre_check :allow_admins
+      alias_rule :edit?, to: :update?
+
+      relation_scope do |relation|
+        relation.where(owner_id: user.id)
+      end
+    end
+
+    class WidePolicy < ApplicationPolicy
+      relation_scope do |relation|
+        relation.all
+      end
+    end
   RUBY
 
   BROKEN = "class BrokenPolicy < ApplicationPolicy\n  def oops? = (\nend\n"
@@ -379,6 +448,18 @@ if ARGV.first == "--self-test"
       "CommentPolicy::Scope" => "unparseable", # string-SQL where — not provable
       "ThingPolicy::Scope" => "unparseable"    # conditional body — must not crash
     }
+    # Action Policy constructs: relation_scope classifies; DSL calls flag.
+    ap_expected = [
+      [ "NotePolicy", "relation_scope", "ownership" ],
+      [ "WidePolicy", "relation_scope", "pure_role" ],
+      [ "NotePolicy", "pre_check", "unparseable" ],
+      [ "NotePolicy", "alias_rule", "unparseable" ]
+    ]
+    ap_expected.each do |klass, meth, bucket|
+      next if rows.any? { |r| r[:policy_class] == klass && r[:method] == meth && r[:bucket] == bucket }
+
+      failures["#{klass}##{meth}"] = bucket
+    end
     failures = failures.to_h.merge(scope_expected.reject { |klass, bucket|
       rows.any? { |r| r[:policy_class] == klass && r[:method] == "resolve" && r[:bucket] == bucket }
     })

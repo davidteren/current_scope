@@ -72,8 +72,10 @@ at davidteren.github.io/current_scope, Pages now builds from `main` via
 `.github/workflows/pages.yml` (the `gh-pages` branch is deleted).
 **Landed 2026-07-23 (later):** #45 phase 1 (Pundit MVP migration skill,
 report-only), PR #107 merged.
-**In flight:** #45 phase 2 (backfill migration templates + `--write`
-call-site rewriter) on `feat/migrate-skill-45-phase2`.
+**Landed 2026-07-23:** #45 phase 2 (backfill templates + rewriter,
+PR #109).
+**In flight:** #45 phase 3 (CanCanCan + Action Policy — completes #45) on
+`feat/migrate-skill-45-phase3`.
 
 ## Done (all committed on `main`)
 

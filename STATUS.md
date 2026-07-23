@@ -59,13 +59,17 @@ full-access guards, cascade audit safety, expanded mutating-name warnings on
 E1–E2 / T1·T3·T4. Merged to `main`, tagged `v0.3.1`, GitHub Release created,
 gem pushed to RubyGems.
 
-**Next (Phase 1):** #40 → #30 → #74 → #73 → #90 (loud misconfig + audit/console
-honesty). Worklist + TLDR refreshed 2026-07-19: Done labels point at `main` /
-PR #100; open-issue map includes **#98** (D11).
+**Phase 1 order was:** #40 → #30 → #74 → #73 → #90 (loud misconfig +
+audit/console honesty) — all landed below. Worklist + TLDR refreshed
+2026-07-19: Done labels point at `main` / PR #100; open-issue map includes
+**#98** (D11).
 **Initial Phase 1 stack landed on `main`:** #40/#30/#74 (PR #102), #73 (PR #103),
 #90 (PR #104). Other Phase 1 worklist items remain open.
-**In flight:** #32 (security checklist) + #39 (denial ergonomics) on
-`feat/security-checklist-and-denial-ergonomics`.
+**Landed 2026-07-22:** #32 (security checklist) + #39 (denial ergonomics),
+PR #105 merged to `main`.
+**In flight:** #98 (docs site: committed source, SoD guide, agentic prompts)
+on `feat/docs-site-sod-story-98`. After merge, switch Pages from the legacy
+`gh-pages` branch to the workflow build (`.github/workflows/pages.yml`).
 
 ## Done (all committed on `main`)
 

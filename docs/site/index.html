@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CurrentScope — Authorization as data you edit in a UI, for Rails</title>
+<meta name="description" content="CurrentScope is a mountable Rails engine: permissions auto-derived from your routes, roles as editable data, per-record scoped roles, a separation-of-duties veto, and one ambient context that makes allowed_to? work identically in controllers, views, and components.">
+<meta name="theme-color" content="#080a10" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<link rel="canonical" href="https://davidteren.github.io/current_scope/">
+<meta name="color-scheme" content="dark light">
+
+<!-- icons -->
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="mask-icon" href="favicon.svg" color="#4d7cfe">
+<link rel="apple-touch-icon" href="favicon.svg">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CurrentScope">
+<meta property="og:title" content="CurrentScope — Authorization as data you edit in a UI">
+<meta property="og:description" content="A mountable Rails engine. Permissions auto-derived from routes, roles as editable data, scoped roles, a separation-of-duties veto, and one ambient context so allowed_to? works everywhere.">
+<meta property="og:url" content="https://davidteren.github.io/current_scope/">
+<meta property="og:image" content="https://davidteren.github.io/current_scope/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="CurrentScope: authorization as data you edit in a UI, not rules you hardcode and redeploy.">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="CurrentScope — Authorization as data you edit in a UI">
+<meta name="twitter:description" content="A mountable Rails engine. Permissions from routes, roles as editable data, scoped roles, an SoD veto, and one ambient allowed_to?.">
+<meta name="twitter:image" content="https://davidteren.github.io/current_scope/assets/og.png">
+
+<!-- SEO structured data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  "name": "CurrentScope",
+  "description": "A mountable Rails engine for authorization: permissions auto-derived from controller actions, roles as editable data, per-record scoped roles, a separation-of-duties veto, and an ambient authorization context that makes allowed_to? work identically in controllers, views, and components.",
+  "codeRepository": "https://github.com/davidteren/current_scope",
+  "programmingLanguage": "Ruby",
+  "runtimePlatform": "Ruby on Rails",
+  "license": "https://opensource.org/licenses/MIT",
+  "author": { "@type": "Person", "name": "David Teren" },
+  "keywords": "Rails authorization, RBAC, Ruby gem, permissions, roles, separation of duties, Pundit alternative, CanCanCan alternative",
+  "url": "https://davidteren.github.io/current_scope/"
+}
+</script>
+
+<style>
+  :root{
+    --bg:#080a10; --bg2:#0b0f18; --panel:#0f1420; --panel2:#131a28;
+    --border:#1c2434; --border2:#2a3446; --hair:#141b28;
+    --txt:#e8ebf2; --dim:#98a1b3; --faint:#6b7488;
+    --accent:#4d7cfe; --accent2:#6b93ff; --glow:rgba(77,124,254,.55);
+    --allow:#34d399; --deny:#f2555a; --amber:#ffd479;
+    --tk-key:#c58fff; --tk-str:#7ee0a0; --tk-com:#5f6b80; --tk-meth:#6b93ff;
+    --tk-const:#ffd479; --tk-sym:#4dd0e1; --tk-punct:#8b93a4;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Fira Code",Menlo,Consolas,monospace;
+    --maxw:1120px; --r:14px;
+    --shadow:0 1px 0 rgba(255,255,255,.02) inset, 0 20px 50px -20px rgba(0,0,0,.7);
+  }
+  :root[data-theme="light"]{
+    --bg:#f7f8fb; --bg2:#ffffff; --panel:#ffffff; --panel2:#f2f4f9;
+    --border:#e3e7ef; --border2:#d3d9e6; --hair:#eef1f6;
+    --txt:#111826; --dim:#4d5666; --faint:#7c8598;
+    --accent:#2f5fe0; --accent2:#3f6fee; --glow:rgba(47,95,224,.35);
+    --allow:#0f9d63; --deny:#d23b41; --amber:#a5720a;
+    --tk-key:#7c3aed; --tk-str:#0a7d43; --tk-com:#8a93a6; --tk-meth:#2f5fe0;
+    --tk-const:#9a6a05; --tk-sym:#0e7490; --tk-punct:#6b7488;
+    --shadow:0 1px 2px rgba(20,30,50,.06), 0 24px 48px -28px rgba(20,30,50,.28);
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{
+    margin:0; background:var(--bg); color:var(--txt);
+    font-family:var(--sans); font-size:16px; line-height:1.6;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+  a{color:inherit; text-decoration:none}
+  ::selection{background:var(--glow); color:#fff}
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
+  h1,h2,h3{margin:0; letter-spacing:-.02em; text-wrap:balance}
+  p{text-wrap:pretty}
+  code{font-family:var(--mono)}
+  .mono{font-family:var(--mono)}
+  .skip{position:absolute;left:-999px;top:0;background:var(--accent);color:#fff;padding:10px 16px;border-radius:8px;z-index:100}
+  .skip:focus{left:12px;top:12px}
+  :focus-visible{outline:2px solid var(--accent2); outline-offset:3px; border-radius:6px}
+
+  /* ---- ambient background glow ---- */
+  .bgfx{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+  .bgfx::before{content:"";position:absolute;top:-10%;right:-5%;width:60vw;height:60vw;
+    background:radial-gradient(circle,var(--glow),transparent 62%);opacity:.5;filter:blur(20px)}
+  .bgfx .grid{position:absolute;inset:0;
+    background-image:linear-gradient(var(--hair) 1px,transparent 1px),linear-gradient(90deg,var(--hair) 1px,transparent 1px);
+    background-size:52px 52px; -webkit-mask-image:radial-gradient(circle at 70% 12%,#000,transparent 68%);
+    mask-image:radial-gradient(circle at 70% 12%,#000,transparent 68%); opacity:.6}
+
+  /* ---- header ---- */
+  header{position:sticky;top:0;z-index:50;backdrop-filter:blur(12px);
+    background:color-mix(in srgb,var(--bg) 72%,transparent);border-bottom:1px solid var(--border)}
+  .nav{display:flex;align-items:center;gap:22px;height:62px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;letter-spacing:-.01em}
+  .brand svg{display:block}
+  .nav .links{display:flex;gap:22px;margin-left:14px}
+  .nav .links a{color:var(--dim);font-size:14.5px;font-weight:500;transition:color .15s}
+  .nav .links a:hover{color:var(--txt)}
+  .nav .right{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .ghbtn{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--dim);
+    border:1px solid var(--border2);padding:7px 13px;border-radius:9px;transition:.15s}
+  .ghbtn:hover{color:var(--txt);border-color:var(--accent);background:var(--panel)}
+  .icobtn{display:inline-grid;place-items:center;width:36px;height:36px;border-radius:9px;
+    border:1px solid var(--border2);color:var(--dim);background:transparent;cursor:pointer;transition:.15s}
+  .icobtn:hover{color:var(--txt);border-color:var(--accent)}
+  @media(max-width:820px){.nav .links{display:none}}
+
+  /* ---- hero ---- */
+  .hero{padding:74px 0 40px;position:relative}
+  .eyebrow{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12.5px;
+    letter-spacing:.04em;color:var(--dim);border:1px solid var(--border2);background:var(--panel);
+    padding:6px 12px;border-radius:999px;margin-bottom:26px}
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--allow);box-shadow:0 0 10px var(--allow)}
+  .hero h1{font-size:clamp(38px,6vw,64px);font-weight:800;line-height:1.04;max-width:16ch}
+  .hero h1 .hl{color:var(--accent2);position:relative;white-space:nowrap}
+  .hero .sub{margin-top:22px;font-size:clamp(17px,2.1vw,20px);color:var(--dim);max-width:60ch}
+  .hero .sub code{color:var(--txt);background:var(--panel);border:1px solid var(--border);padding:1px 7px;border-radius:6px;font-size:.88em}
+  .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:34px;align-items:center}
+  .btn{display:inline-flex;align-items:center;gap:9px;font-weight:600;font-size:15px;
+    padding:12px 20px;border-radius:11px;border:1px solid transparent;transition:.16s;cursor:pointer}
+  .btn.primary{background:var(--accent);color:#fff;box-shadow:0 8px 24px -8px var(--glow)}
+  .btn.primary:hover{background:var(--accent2);transform:translateY(-1px)}
+  .btn.ghost{border-color:var(--border2);color:var(--txt);background:var(--panel)}
+  .btn.ghost:hover{border-color:var(--accent);background:var(--panel2)}
+
+  /* copy install */
+  .install{margin-top:26px;display:inline-flex;align-items:center;gap:14px;
+    background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:12px 12px 12px 18px;
+    font-family:var(--mono);font-size:14.5px}
+  .install .pmt{color:var(--faint)}
+  .install .cmd{color:var(--txt)} .install .cmd .s{color:var(--tk-str)}
+  .copy{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:8px;border:1px solid var(--border2);
+    background:transparent;color:var(--dim);cursor:pointer;transition:.15s}
+  .copy:hover{color:var(--txt);border-color:var(--accent)}
+  .copy.ok{color:var(--allow);border-color:var(--allow)}
+
+  /* hero grid layout */
+  .herogrid{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center}
+  @media(max-width:900px){.herogrid{grid-template-columns:1fr;gap:44px}}
+
+  /* ---- signature permission grid ---- */
+  .pgwrap{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);
+    box-shadow:var(--shadow);overflow:hidden}
+  .pgtop{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border);background:var(--panel2)}
+  .pgtop .tl{display:flex;gap:6px}
+  .pgtop .tl i{width:11px;height:11px;border-radius:50%;background:var(--border2);display:block}
+  .pgtop .ttl{margin-left:8px;font-family:var(--mono);font-size:12.5px;color:var(--dim)}
+  .pgtop .badge{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--allow);
+    border:1px solid color-mix(in srgb,var(--allow) 40%,transparent);border-radius:999px;padding:2px 9px}
+  .pgbody{padding:14px}
+  table.pg{border-collapse:separate;border-spacing:0;width:100%;font-family:var(--mono);font-size:12px}
+  table.pg th{color:var(--faint);font-weight:500;text-transform:uppercase;letter-spacing:.05em;
+    font-size:10px;text-align:center;padding:6px 2px}
+  table.pg th.ctrl{text-align:left;padding-left:6px}
+  table.pg td{text-align:center;padding:3px}
+  table.pg td.ctrl{text-align:left;color:var(--dim);padding-left:6px;white-space:nowrap}
+  .cell{width:30px;height:26px;margin:0 auto;border-radius:6px;border:1px solid var(--border2);
+    background:var(--bg2);position:relative;cursor:pointer;transition:.22s;display:grid;place-items:center}
+  .cell.void{border-color:transparent;background:transparent;cursor:default}
+  .cell.void::after{content:"·";color:var(--faint)}
+  .cell.on{background:var(--accent);border-color:var(--accent2);box-shadow:0 0 0 1px var(--glow),0 0 16px -2px var(--glow)}
+  .cell.on::after{content:"";width:10px;height:6px;border-left:2px solid #fff;border-bottom:2px solid #fff;
+    transform:rotate(-45deg) translateY(-1px)}
+  .cell:not(.void):not(.on):hover{border-color:var(--accent);background:var(--panel2)}
+  .pgcap{font-family:var(--mono);font-size:11.5px;color:var(--faint);text-align:center;padding:10px 14px 14px}
+  .pgcap b{color:var(--dim);font-weight:600}
+
+  /* ---- section scaffold ---- */
+  section{padding:72px 0;position:relative}
+  .kicker{font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent2);margin-bottom:14px}
+  .h2{font-size:clamp(27px,3.6vw,38px);font-weight:800;line-height:1.1;max-width:20ch}
+  .lead{margin-top:16px;color:var(--dim);font-size:18px;max-width:62ch}
+  .sechead{margin-bottom:44px}
+
+  /* before / after */
+  .cmp{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media(max-width:820px){.cmp{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:22px}
+  .card.bad{border-color:color-mix(in srgb,var(--deny) 26%,var(--border))}
+  .card.good{border-color:color-mix(in srgb,var(--accent) 30%,var(--border))}
+  .cardtag{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;margin-bottom:14px}
+  .cardtag.bad{color:var(--deny)} .cardtag.good{color:var(--accent2)}
+  .card h3{font-size:16px;margin-bottom:6px}
+  .card p{color:var(--dim);font-size:14.5px;margin:0 0 14px}
+
+  /* code */
+  pre{margin:0;background:var(--bg2);border:1px solid var(--border);border-radius:11px;
+    padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.7}
+  pre.plain{color:var(--dim)}
+  .tk-key{color:var(--tk-key)} .tk-str{color:var(--tk-str)} .tk-com{color:var(--tk-com);font-style:italic}
+  .tk-meth{color:var(--tk-meth)} .tk-const{color:var(--tk-const)} .tk-sym{color:var(--tk-sym)} .tk-p{color:var(--tk-punct)}
+
+  /* features */
+  .feats{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  @media(max-width:900px){.feats{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:600px){.feats{grid-template-columns:1fr}}
+  .feat{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:24px;
+    transition:.18s;position:relative;overflow:hidden}
+  .feat:hover{border-color:var(--border2);transform:translateY(-2px)}
+  .feat .ico{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;margin-bottom:16px;
+    background:color-mix(in srgb,var(--accent) 14%,transparent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);color:var(--accent2)}
+  .feat h3{font-size:16.5px;margin-bottom:8px}
+  .feat p{color:var(--dim);font-size:14.5px;margin:0}
+  .feat p code{font-family:var(--mono);font-size:.86em;color:var(--txt);background:var(--bg2);padding:1px 5px;border-radius:5px}
+
+  /* resolver */
+  .resolver{display:grid;grid-template-columns:1.1fr 1fr;gap:44px;align-items:start}
+  @media(max-width:860px){.resolver{grid-template-columns:1fr;gap:32px}}
+  .steps{display:flex;flex-direction:column;gap:10px}
+  .step{display:flex;align-items:center;gap:16px;background:var(--panel);border:1px solid var(--border);
+    border-radius:12px;padding:15px 18px}
+  .step .n{flex:none;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;
+    font-family:var(--mono);font-size:13px;font-weight:600;background:var(--bg2);border:1px solid var(--border2);color:var(--dim)}
+  .step .body{flex:1;min-width:0}
+  .step .t{font-family:var(--mono);font-size:14px;color:var(--txt)}
+  .step .d{font-size:13px;color:var(--dim);margin-top:2px}
+  .step .verdict{flex:none;font-family:var(--mono);font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px}
+  .v-deny{color:var(--deny);border:1px solid color-mix(in srgb,var(--deny) 40%,transparent);background:color-mix(in srgb,var(--deny) 10%,transparent)}
+  .v-allow{color:var(--allow);border:1px solid color-mix(in srgb,var(--allow) 40%,transparent);background:color-mix(in srgb,var(--allow) 10%,transparent)}
+  .step.veto{border-color:color-mix(in srgb,var(--deny) 34%,var(--border))}
+  .step.veto .n{background:color-mix(in srgb,var(--deny) 16%,transparent);border-color:color-mix(in srgb,var(--deny) 40%,transparent);color:var(--deny)}
+  .resnote{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:22px}
+  .resnote h3{font-size:16px;margin-bottom:10px}
+  .resnote p{color:var(--dim);font-size:14.5px;margin:0 0 14px}
+  .resnote p:last-child{margin:0}
+
+  /* screens */
+  .shots{display:grid;grid-template-columns:1.5fr 1fr;gap:22px}
+  @media(max-width:820px){.shots{grid-template-columns:1fr}}
+  .shot{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
+  .shot .bar{display:flex;align-items:center;gap:7px;padding:10px 13px;border-bottom:1px solid var(--border);background:var(--panel2)}
+  .shot .bar i{width:10px;height:10px;border-radius:50%;background:var(--border2);display:block}
+  .shot .bar span{margin-left:6px;font-family:var(--mono);font-size:12px;color:var(--faint)}
+  .shot img{display:block;width:100%;height:auto;background:#0b0e14}
+  .shot .cap{padding:14px 16px;font-size:13.5px;color:var(--dim)}
+  .shot .cap b{color:var(--txt);font-weight:600}
+  .shotrow{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:22px}
+  @media(max-width:820px){.shotrow{grid-template-columns:1fr}}
+
+  /* code peek tabs */
+  .tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+  .tab{font-family:var(--mono);font-size:13px;color:var(--dim);background:var(--panel);
+    border:1px solid var(--border);padding:8px 14px;border-radius:9px;cursor:pointer;transition:.15s}
+  .tab[aria-selected="true"]{color:var(--txt);border-color:var(--accent);background:var(--panel2)}
+  .panel-code{display:none} .panel-code.active{display:block}
+
+  /* quickstart */
+  .qs{counter-reset:qs;display:flex;flex-direction:column;gap:16px}
+  .qstep{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:start}
+  .qstep .num{counter-increment:qs;flex:none;width:34px;height:34px;border-radius:50%;
+    display:grid;place-items:center;font-family:var(--mono);font-weight:600;font-size:14px;
+    background:var(--panel);border:1px solid var(--border2);color:var(--accent2)}
+  .qstep .num::before{content:counter(qs)}
+  .qstep .qc{min-width:0;flex:1}
+  .qstep .qt{font-size:15px;margin-bottom:8px} .qstep .qt b{font-weight:600}
+  .qstep .qt code{font-family:var(--mono);font-size:.9em;background:var(--bg2);padding:1px 6px;border-radius:5px;color:var(--txt)}
+
+  /* cta band */
+  .band{text-align:center;background:
+    radial-gradient(circle at 50% -20%,var(--glow),transparent 60%),var(--panel);
+    border:1px solid var(--border);border-radius:20px;padding:56px 28px}
+  .band h2{font-size:clamp(26px,3.6vw,36px);font-weight:800}
+  .band p{color:var(--dim);margin:16px auto 0;max-width:52ch;font-size:17px}
+  .band .cta{justify-content:center}
+
+  /* footer */
+  footer{border-top:1px solid var(--border);padding:52px 0 60px;margin-top:20px}
+  .foot{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:32px}
+  @media(max-width:720px){.foot{grid-template-columns:1fr 1fr}}
+  .foot .about{max-width:34ch}
+  .foot .about p{color:var(--dim);font-size:14px;margin:14px 0 0}
+  .foot h4{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin:0 0 14px}
+  .foot ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+  .foot a{color:var(--dim);font-size:14px;transition:color .15s}
+  .foot a:hover{color:var(--txt)}
+  .foot .legal{grid-column:1/-1;margin-top:36px;padding-top:24px;border-top:1px solid var(--border);
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;color:var(--faint);font-size:13px}
+  .foot .legal .mono{font-family:var(--mono)}
+
+  /* reveal is a progressive enhancement: hidden only when JS is active */
+  .js .reveal{opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .6s ease}
+  .reveal.in{opacity:1;transform:none}
+  @media(prefers-reduced-motion:reduce){.js .reveal{opacity:1;transform:none;transition:none}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="bgfx"><div class="grid"></div></div>
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="#top" aria-label="CurrentScope home">
+      <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="3" y="3" width="11" height="11" rx="2.5" fill="#6b93ff"/>
+        <rect x="18" y="3" width="11" height="11" rx="2.5" fill="#4d7cfe" opacity=".28"/>
+        <rect x="3" y="18" width="11" height="11" rx="2.5" fill="#4d7cfe" opacity=".28"/>
+        <rect x="18" y="18" width="11" height="11" rx="2.5" fill="#4d7cfe" opacity=".55"/>
+      </svg>
+      CurrentScope
+    </a>
+    <nav class="links" aria-label="Primary">
+      <a href="#idea">The idea</a>
+      <a href="#features">Features</a>
+      <a href="#resolver">Resolver</a>
+      <a href="#screens">Screens</a>
+      <a href="#quickstart">Quickstart</a>
+      <a href="separation-of-duties.html">SoD</a>
+      <a href="quickstart.html">Docs</a>
+    </nav>
+    <div class="right">
+      <a class="ghbtn" href="https://rubygems.org/gems/current_scope" rel="noopener">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5Zm0 2.3 6.8 3.8L12 11.9 5.2 8.1 12 4.3ZM5 9.4l6 3.4v7.1l-6-3.3V9.4Zm8 10.5v-7.1l6-3.4v7.2l-6 3.3Z"/></svg>
+        <span data-gem-version>v0.3.1</span>
+      </a>
+      <a class="ghbtn" href="https://github.com/davidteren/current_scope" rel="noopener" aria-label="GitHub repository">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      </a>
+      <button class="icobtn" id="theme" aria-label="Toggle color theme" title="Toggle theme">
+        <svg class="i-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+        <svg class="i-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+<a id="top"></a>
+
+<!-- HERO -->
+<div class="hero"><div class="wrap herogrid">
+  <div>
+    <span class="eyebrow"><span class="dot"></span> Mountable Rails engine · authorization</span>
+    <h1>Authorization as data you <span class="hl">edit in a&nbsp;UI</span> — not rules you hardcode.</h1>
+    <p class="sub">Permissions auto-derived from your routes. Roles as editable rows. Per-record scoped grants. One ambient context so <code>allowed_to?</code> gives the same answer in controllers, views, and components.</p>
+    <div class="cta">
+      <a class="btn primary" href="#quickstart">Get started
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <a class="btn ghost" href="https://github.com/davidteren/current_scope" rel="noopener">View on GitHub</a>
+    </div>
+    <div class="install">
+      <span class="pmt">$</span>
+      <span class="cmd" id="installcmd">bundle add <span class="s">current_scope</span></span>
+      <button class="copy" id="copybtn" aria-label="Copy install command">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      </button>
+    </div>
+    <p style="margin-top:14px;font-size:13.5px;color:var(--dim)">
+      <strong style="color:#e8955c">Not production-ready yet</strong> — ready for experimentation and
+      spiking. Security-relevant work is still open:
+      <a href="https://github.com/davidteren/current_scope/issues" rel="noopener">issue tracker</a>.
+    </p>
+  </div>
+
+  <!-- signature interactive permission grid -->
+  <div class="pgwrap reveal" aria-hidden="true">
+    <div class="pgtop">
+      <div class="tl"><i></i><i></i><i></i></div>
+      <span class="ttl">/current_scope · Role: Reviewer</span>
+      <span class="badge">editable</span>
+    </div>
+    <div class="pgbody">
+      <table class="pg" id="pgrid">
+        <thead><tr>
+          <th class="ctrl">controller</th><th>read</th><th>create</th><th>update</th><th>destroy</th><th>approve</th>
+        </tr></thead>
+        <tbody><!-- filled by JS --></tbody>
+      </table>
+    </div>
+    <div class="pgcap"><b>A role is ticked cells on a grid.</b> Click one. That's a deploy you didn't ship.</div>
+  </div>
+</div></div>
+
+<!-- THE IDEA / before-after -->
+<section id="idea"><div class="wrap">
+  <div class="sechead reveal">
+    <div class="kicker">The idea</div>
+    <h2 class="h2">Stop scattering <code style="font-family:var(--mono);font-size:.8em">if&nbsp;user.admin?</code> across the codebase.</h2>
+    <p class="lead">Hardcoded checks drift, hide in views, and need a deploy to change. CurrentScope moves the policy into data your team edits in a UI — and reads it back the same way everywhere.</p>
+  </div>
+  <div class="cmp reveal">
+    <div class="card bad">
+      <div class="cardtag bad">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+        The usual way
+      </div>
+      <h3>Rules compiled into the app</h3>
+      <p>Every rule is code. Changing what “Reviewer” means is a pull request, a review, and a deploy. The view and the controller can silently disagree.</p>
+<pre><span class="tk-com"># scattered, and a deploy to change</span>
+<span class="tk-key">if</span> user.admin? <span class="tk-key">||</span> user.role <span class="tk-p">==</span> <span class="tk-str">"reviewer"</span>
+  approve!(report)
+<span class="tk-key">end</span>
+<span class="tk-com"># …and did the view remember to hide the button?</span></pre>
+    </div>
+    <div class="card good">
+      <div class="cardtag good">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>
+        With CurrentScope
+      </div>
+      <h3>Policy is data, read one way</h3>
+      <p>Roles are editable rows in the mounted UI. Controller, view, and component ask the same resolver — one ambient context, no <code>current_user</code> threading.</p>
+<pre><span class="tk-com"># same answer in controller, view, component</span>
+allowed_to?<span class="tk-p">(</span><span class="tk-sym">:approve</span><span class="tk-p">,</span> report<span class="tk-p">)</span>
+
+<span class="tk-com"># change "Reviewer" in the UI — no deploy</span></pre>
+    </div>
+  </div>
+</div></section>
+
+<!-- FEATURES -->
+<section id="features"><div class="wrap">
+  <div class="sechead reveal">
+    <div class="kicker">What you get</div>
+    <h2 class="h2">Add the gem, run the generator, and it’s wired.</h2>
+  </div>
+  <div class="feats">
+    <div class="feat reveal">
+      <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="1.4" fill="currentColor"/><circle cx="14" cy="12" r="1.4" fill="currentColor"/><circle cx="10" cy="18" r="1.4" fill="currentColor"/></svg></div>
+      <h3>Permissions from your routes</h3>
+      <p>Every <code>controller#action</code> pair <em>is</em> a permission. Add an <code>OrdersController</code> and its actions appear in the grid — zero wiring.</p>
+    </div>
+    <div class="feat reveal">
+      <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="18" height="4" rx="1"/></svg></div>
+      <h3>Roles as rows, not classes</h3>
+      <p>A role is a named, editable bundle of ticked cells on a controller × action grid. Change what “Reviewer” means without a deploy.</p>
+    </div>
+    <div class="feat reveal">
+      <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 2l8 4v6c0 5-3.4 8-8 10-4.6-2-8-5-8-10V6l8-4Z"/><path d="M9 12l2 2 4-4"/></svg></div>
+      <h3>Scoped roles</h3>
+      <p>The same role on one specific record. “Editor of Project #7” grants nothing on Project #8 — enforced by the same resolver.</p>
+    </div>
+    <div class="feat reveal">
+      <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v18M3 8h18M3 16h18"/><circle cx="12" cy="12" r="9"/></svg></div>
+      <h3>Separation-of-duties veto</h3>
+      <p>Opt in by listing actions. Once on, whoever initiated a record can never approve it — not grantable, not clickable, overriding even full access. A structural guarantee. <a href="separation-of-duties.html">The full anti-fraud story →</a></p>
+    </div>
+    <div class="feat reveal">
+      <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+      <h3>Fail-closed by default</h3>
+      <p>No grant means denied. Everything is a permission — even the baseline actions every signed-in user can do. Nothing is implicitly allowed.</p>
+    </div>
+    <div class="feat reveal">
+      <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></div>
+      <h3>One ambient context</h3>
+      <p>The subject flows through <code>CurrentAttributes</code> from the gate to the smallest ViewComponent. The view can’t disagree with the gate — no <code>current_user</code> threading, ever.</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- RESOLVER -->
+<section id="resolver"><div class="wrap">
+  <div class="sechead reveal">
+    <div class="kicker">The resolver</div>
+    <h2 class="h2">One fixed decision order. Every check, everywhere.</h2>
+    <p class="lead">There is exactly one path from “who is this and what do they want” to allow or deny. Controllers, views, and components all walk it — so they can never drift apart.</p>
+  </div>
+  <div class="resolver">
+    <div class="steps reveal">
+      <div class="step veto">
+        <div class="n">1</div>
+        <div class="body"><div class="t">SoD veto</div><div class="d">Initiator of this record? (opt-in) — overrides everything</div></div>
+        <span class="verdict v-deny">DENY</span>
+      </div>
+      <div class="step">
+        <div class="n">2</div>
+        <div class="body"><div class="t">full_access</div><div class="d">Role grants everything, present and future</div></div>
+        <span class="verdict v-allow">ALLOW</span>
+      </div>
+      <div class="step">
+        <div class="n">3</div>
+        <div class="body"><div class="t">org-wide role</div><div class="d">Role’s permission set includes this action</div></div>
+        <span class="verdict v-allow">ALLOW</span>
+      </div>
+      <div class="step">
+        <div class="n">4</div>
+        <div class="body"><div class="t">scoped role</div><div class="d">A role held on <em>this</em> record</div></div>
+        <span class="verdict v-allow">ALLOW</span>
+      </div>
+      <div class="step">
+        <div class="n">5</div>
+        <div class="body"><div class="t">otherwise</div><div class="d">Nothing matched</div></div>
+        <span class="verdict v-deny">DENY</span>
+      </div>
+    </div>
+    <div class="resnote reveal">
+      <h3>Why the order matters</h3>
+      <p>The <b style="color:var(--deny)">veto sits first on purpose</b>. Separation of duties isn’t a permission you can out-rank — a full-access owner who filed a report still can’t approve their own. It’s not configurable in the UI, because it’s a control, not a preference.</p>
+      <p>Everything below is additive: full access short-circuits, then org-wide, then per-record. Miss all of them and you’re denied. <b>There is no implicit allow.</b></p>
+      <p>The veto is <b>off by default</b> — <a href="separation-of-duties.html">how to enable it, verify it’s live, and when to break the glass</a>.</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- SCREENS -->
+<section id="screens"><div class="wrap">
+  <div class="sechead reveal">
+    <div class="kicker">The management UI</div>
+    <h2 class="h2">Mounted at <code style="font-family:var(--mono);font-size:.72em">/current_scope</code>. Self-contained, light &amp; dark.</h2>
+    <p class="lead">No web fonts, no build step, CSP-safe. The people who own the policy edit it here — developers never become a ticketing queue for “can you give Dana approve rights?”.</p>
+  </div>
+  <div class="shots reveal">
+    <div class="shot">
+      <div class="bar"><i></i><i></i><i></i><span>permission grid · Reviewer</span></div>
+      <img src="screenshots/permission-grid.png" width="1360" height="1000" loading="lazy" decoding="async" alt="The permission grid: one row per controller, action columns (read, create, update, destroy, approve), with ticked cells glowing blue and a partial group shown indeterminate.">
+      <div class="cap"><b>Permission grid.</b> One row per controller, action groups derived from routes. Ticked cells glow; a partial group reads as indeterminate.</div>
+    </div>
+    <div class="shot">
+      <div class="bar"><i></i><i></i><i></i><span>subjects · search</span></div>
+      <img src="screenshots/subjects.png" width="1360" height="1000" loading="lazy" decoding="async" alt="The subjects page: everyone who can hold a role, their single org-wide role in a dropdown, and per-record scoped roles as chips, with a server-side search box.">
+      <div class="cap"><b>Subjects.</b> Everyone who can hold a role, their org-wide role, and per-record scoped grants. Server-side search across all of them.</div>
+    </div>
+  </div>
+  <div class="shotrow reveal">
+    <div class="shot">
+      <div class="bar"><i></i><i></i><i></i><span>roles</span></div>
+      <img src="screenshots/roles.png" width="1360" height="1000" loading="lazy" decoding="async" alt="The roles index listing editable roles.">
+    </div>
+    <div class="shot">
+      <div class="bar"><i></i><i></i><i></i><span>members</span></div>
+      <img src="screenshots/members.png" width="1360" height="1000" loading="lazy" decoding="async" alt="The members view showing who holds a given role.">
+    </div>
+    <div class="shot">
+      <div class="bar"><i></i><i></i><i></i><span>events</span></div>
+      <img src="screenshots/events.png" width="1360" height="1000" loading="lazy" decoding="async" alt="The append-only events ledger of authorization changes.">
+    </div>
+  </div>
+</div></section>
+
+<!-- CODE PEEK -->
+<section id="code"><div class="wrap">
+  <div class="sechead reveal">
+    <div class="kicker">In your code</div>
+    <h2 class="h2">Ask once. The same answer, anywhere.</h2>
+    <p class="lead"><code>allowed_to?</code> lives in controllers and views via one concern, and in any PORO or ViewComponent by mixing in <code>CurrentScope::Permissions</code>. The list-side question has an answer too.</p>
+  </div>
+  <div class="reveal">
+    <div class="tabs" role="tablist" aria-label="Code examples">
+      <button class="tab" role="tab" id="tab-t1" aria-controls="t1" aria-selected="true" data-tab="t1">allowed_to?</button>
+      <button class="tab" role="tab" id="tab-t2" aria-controls="t2" aria-selected="false" data-tab="t2">ViewComponent</button>
+      <button class="tab" role="tab" id="tab-t3" aria-controls="t3" aria-selected="false" data-tab="t3">scope_for</button>
+      <button class="tab" role="tab" id="tab-t4" aria-controls="t4" aria-selected="false" data-tab="t4">the gate</button>
+    </div>
+    <div class="panel-code active" id="t1" role="tabpanel" aria-labelledby="tab-t1">
+<pre><span class="tk-com"># key derived from the record → reports#approve</span>
+allowed_to?<span class="tk-p">(</span><span class="tk-sym">:approve</span><span class="tk-p">,</span> report<span class="tk-p">)</span>
+
+<span class="tk-com"># class form for collection actions</span>
+allowed_to?<span class="tk-p">(</span><span class="tk-sym">:create</span><span class="tk-p">,</span> <span class="tk-const">Report</span><span class="tk-p">)</span>
+
+<span class="tk-com"># explicit key when you need it</span>
+allowed_to?<span class="tk-p">(</span><span class="tk-str">"admin/reports#approve"</span><span class="tk-p">)</span></pre>
+    </div>
+    <div class="panel-code" id="t2" role="tabpanel" aria-labelledby="tab-t2">
+<pre><span class="tk-key">class</span> <span class="tk-const">ApproveButtonComponent</span> <span class="tk-p">&lt;</span> <span class="tk-const">ViewComponent::Base</span>
+  <span class="tk-key">include</span> <span class="tk-const">CurrentScope::Permissions</span>
+
+  <span class="tk-key">def</span> <span class="tk-meth">render?</span>
+    <span class="tk-p">!</span>report.approved? <span class="tk-key">&amp;&amp;</span> allowed_to?<span class="tk-p">(</span><span class="tk-sym">:approve</span><span class="tk-p">,</span> report<span class="tk-p">)</span>
+  <span class="tk-key">end</span>
+<span class="tk-key">end</span>
+
+<span class="tk-com"># the button literally can't render when the gate would refuse</span></pre>
+    </div>
+    <div class="panel-code" id="t3" role="tabpanel" aria-labelledby="tab-t3">
+<pre><span class="tk-com"># allowed_to? answers "may I act on THIS record?"</span>
+<span class="tk-com"># scope_for answers "WHICH records may I act on?"</span>
+<span class="tk-com"># — from the same roles, permissions, and scoped grants.</span>
+
+<span class="tk-key">def</span> <span class="tk-meth">index</span>
+  <span class="tk-p">@</span>projects <span class="tk-p">=</span> scope_for<span class="tk-p">(</span><span class="tk-const">Project</span><span class="tk-p">)</span>
+<span class="tk-key">end</span>
+
+<span class="tk-com"># the list and the per-record gate stay one source of truth</span></pre>
+    </div>
+    <div class="panel-code" id="t4" role="tabpanel" aria-labelledby="tab-t4">
+<pre><span class="tk-key">class</span> <span class="tk-const">ApplicationController</span> <span class="tk-p">&lt;</span> <span class="tk-const">ActionController::Base</span>
+  <span class="tk-key">include</span> <span class="tk-const">CurrentScope::Context</span>   <span class="tk-com"># ambient subject from current_user</span>
+  <span class="tk-key">include</span> <span class="tk-const">CurrentScope::Guard</span>     <span class="tk-com"># fail-closed gate on every action</span>
+<span class="tk-key">end</span>
+
+<span class="tk-com"># opt out only where authz doesn't apply (sign-in, webhooks)</span>
+<span class="tk-key">class</span> <span class="tk-const">SessionsController</span> <span class="tk-p">&lt;</span> <span class="tk-const">ApplicationController</span>
+  skip_before_action <span class="tk-sym">:current_scope_check!</span>
+<span class="tk-key">end</span></pre>
+    </div>
+  </div>
+</div></section>
+
+<!-- QUICKSTART -->
+<!-- Mirror of quickstart.md (steps + commands) — a change to either must update both. -->
+<section id="quickstart"><div class="wrap">
+  <div class="sechead reveal">
+    <div class="kicker">Quickstart</div>
+    <h2 class="h2">Mounted and gating in six steps.</h2>
+  </div>
+  <div class="qs reveal">
+    <div class="qstep"><div class="num"></div><div class="qc">
+      <div class="qt"><b>Add the gem</b> and install the engine.</div>
+<pre class="plain"><span class="tk-com"># Gemfile</span>
+<span class="tk-meth">gem</span> <span class="tk-str">"current_scope"</span></pre>
+    </div></div>
+    <div class="qstep"><div class="num"></div><div class="qc">
+      <div class="qt">Run the generator and migrations.</div>
+<pre class="plain">bin/rails generate current_scope:install
+bin/rails current_scope:install:migrations &amp;&amp; bin/rails db:migrate</pre>
+    </div></div>
+    <div class="qstep"><div class="num"></div><div class="qc">
+      <div class="qt">Include the concerns in <code>ApplicationController</code>.</div>
+<pre><span class="tk-key">include</span> <span class="tk-const">CurrentScope::Context</span>   <span class="tk-com"># sets Current.user from current_user</span>
+<span class="tk-key">include</span> <span class="tk-const">CurrentScope::Guard</span>     <span class="tk-com"># fail-closed gate on every action</span></pre>
+    </div></div>
+    <div class="qstep"><div class="num"></div><div class="qc">
+      <div class="qt"><b>Skip the gate where authorization doesn’t apply</b> — sign-in first, or nobody can log in. A skipped controller is unprotected: bring your own auth there.</div>
+<pre><span class="tk-key">class</span> <span class="tk-const">SessionsController</span> &lt; <span class="tk-const">ApplicationController</span>
+  skip_before_action <span class="tk-sym">:current_scope_check!</span>
+<span class="tk-key">end</span></pre>
+    </div></div>
+    <div class="qstep"><div class="num"></div><div class="qc">
+      <div class="qt">Bootstrap the first full-access admin (the UI needs one to enter).</div>
+<pre class="plain">bin/rails current_scope:grant SUBJECT_ID=1</pre>
+    </div></div>
+    <div class="qstep"><div class="num"></div><div class="qc">
+      <div class="qt">Manage everything at <code>/current_scope</code> — the role grid, org-wide assignments, scoped grants.</div>
+    </div></div>
+  </div>
+  <p class="reveal" style="margin-top:26px;color:var(--dim);font-size:14px">
+    Adding this to an app that already has users? Run <a href="quickstart.html#4-existing-app-run-report-mode-first">report mode</a> before enforcing —
+    and read the <a href="security-checklist.html">security &amp; production checklist</a> before you ship.
+  </p>
+</div></section>
+
+<!-- CTA BAND -->
+<section><div class="wrap">
+  <div class="band reveal">
+    <h2>Authorization your team can read.</h2>
+    <p>A structural guarantee where you need one, an editable grid everywhere else. Add it to a real Rails app in minutes.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://rubygems.org/gems/current_scope" rel="noopener">Install from RubyGems</a>
+      <a class="btn ghost" href="quickstart.html">Read the docs</a>
+    </div>
+  </div>
+</div></section>
+</main>
+
+<footer><div class="wrap foot">
+  <div class="about">
+    <a class="brand" href="#top" aria-label="CurrentScope">
+      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="3" y="3" width="11" height="11" rx="2.5" fill="#6b93ff"/>
+        <rect x="18" y="3" width="11" height="11" rx="2.5" fill="#4d7cfe" opacity=".28"/>
+        <rect x="3" y="18" width="11" height="11" rx="2.5" fill="#4d7cfe" opacity=".28"/>
+        <rect x="18" y="18" width="11" height="11" rx="2.5" fill="#4d7cfe" opacity=".55"/>
+      </svg>
+      CurrentScope
+    </a>
+    <p>A mountable Rails engine for data-driven authorization, with an ambient current-user context. MIT licensed.</p>
+  </div>
+  <div>
+    <h4>Project</h4>
+    <ul>
+      <li><a href="https://github.com/davidteren/current_scope" rel="noopener">GitHub</a></li>
+      <li><a href="https://rubygems.org/gems/current_scope" rel="noopener">RubyGems</a></li>
+      <li><a href="https://github.com/davidteren/current_scope/blob/main/CHANGELOG.md" rel="noopener">Changelog</a></li>
+      <li><a href="https://github.com/davidteren/current_scope/blob/main/MIT-LICENSE" rel="noopener">License</a></li>
+    </ul>
+  </div>
+  <div>
+    <h4>Learn</h4>
+    <ul>
+      <li><a href="quickstart.html">Quickstart</a></li>
+      <li><a href="concepts.html">Concepts</a></li>
+      <li><a href="separation-of-duties.html">Separation of duties</a></li>
+      <li><a href="security-checklist.html">Security checklist</a></li>
+      <li><a href="configuration.html">Configuration</a></li>
+      <li><a href="ai-agents.html">For AI agents</a></li>
+      <li><a href="llms.txt">llms.txt</a></li>
+      <li><a href="https://github.com/davidteren/current_scope_showcase" rel="noopener">Showcase app</a></li>
+    </ul>
+  </div>
+  <div class="legal">
+    <span>© 2026 David Teren · MIT</span>
+    <span class="mono">gem "current_scope", "~&gt; <span data-gem-requirement>0.3.1</span>"</span>
+  </div>
+</div></footer>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  root.classList.add('js'); // enable reveal-on-scroll only when JS runs
+  // theme
+  var saved=null; try{saved=localStorage.getItem('cs-theme')}catch(e){}
+  if(saved){root.setAttribute('data-theme',saved)}
+  else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches){root.setAttribute('data-theme','light')}
+  function syncIcons(){
+    var light=root.getAttribute('data-theme')==='light';
+    var m=document.querySelector('.i-moon'),s=document.querySelector('.i-sun');
+    if(m&&s){m.style.display=light?'none':'block';s.style.display=light?'block':'none'}
+  }
+  syncIcons();
+  var tb=document.getElementById('theme');
+  tb&&tb.addEventListener('click',function(){
+    var next=root.getAttribute('data-theme')==='light'?'dark':'light';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('cs-theme',next)}catch(e){}
+    syncIcons();
+  });
+
+  // copy install
+  var cb=document.getElementById('copybtn');
+  cb&&cb.addEventListener('click',function(){
+    var txt='bundle add current_scope';
+    navigator.clipboard&&navigator.clipboard.writeText(txt).then(function(){
+      cb.classList.add('ok');
+      var old=cb.innerHTML;
+      cb.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>';
+      setTimeout(function(){cb.classList.remove('ok');cb.innerHTML=old},1400);
+    });
+  });
+
+  // permission grid — rows: controller + 5 action states (1=on,0=off,-1=not routed)
+  var rows=[
+    ['orders',    [1,1,1,0,-1]],
+    ['reports',   [1,0,0,-1,1]],
+    ['invoices',  [1,1,0,0,-1]],
+    ['projects',  [1,0,-1,-1,-1]],
+    ['expenses',  [1,1,1,0,1]]
+  ];
+  var tb2=document.querySelector('#pgrid tbody');
+  if(tb2){
+    var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var delay=0;
+    rows.forEach(function(r){
+      var tr=document.createElement('tr');
+      var td=document.createElement('td');td.className='ctrl';td.textContent=r[0];tr.appendChild(td);
+      r[1].forEach(function(st){
+        var c=document.createElement('td');
+        var d=document.createElement('div');
+        d.className='cell'+(st===-1?' void':'');
+        if(st!==-1){
+          d.setAttribute('role','button');d.setAttribute('tabindex','-1');
+          d.addEventListener('click',function(){d.classList.toggle('on')});
+          if(st===1){
+            if(reduce){d.classList.add('on')}
+            else{ (function(dd,dl){setTimeout(function(){dd.classList.add('on')},260+dl)})(d,delay); delay+=90 }
+          }
+        }
+        c.appendChild(d);tr.appendChild(c);
+      });
+      tb2.appendChild(tr);
+    });
+  }
+
+  // tabs
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.addEventListener('click',function(){
+      document.querySelectorAll('.tab').forEach(function(x){x.setAttribute('aria-selected','false')});
+      document.querySelectorAll('.panel-code').forEach(function(p){p.classList.remove('active')});
+      t.setAttribute('aria-selected','true');
+      var el=document.getElementById(t.dataset.tab); el&&el.classList.add('active');
+    });
+  });
+
+  // reveal on scroll
+  function revealAll(){document.querySelectorAll('.reveal').forEach(function(el){el.classList.add('in')})}
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(en){
+      en.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})
+    },{rootMargin:'0px 0px -8% 0px',threshold:.08});
+    document.querySelectorAll('.reveal').forEach(function(el){io.observe(el)});
+    // safety net: never leave content hidden if the observer never fires
+    setTimeout(revealAll,2600);
+  }else{revealAll()}
+
+  // live gem version — the markup ships the last-known version as a fallback,
+  // so a failed/blocked fetch just leaves the page as-authored.
+  if(window.fetch){
+    fetch('https://rubygems.org/api/v1/gems/current_scope.json')
+      .then(function(r){return r.ok?r.json():null})
+      .then(function(d){
+        if(!d||!/^\d+\.\d+\.\d+/.test(d.version||''))return;
+        document.querySelectorAll('[data-gem-version]').forEach(function(el){el.textContent='v'+d.version});
+        document.querySelectorAll('[data-gem-requirement]').forEach(function(el){el.textContent=d.version});
+      })
+      .catch(function(){});
+  }
+})();
+</script>
+</body>
+</html>

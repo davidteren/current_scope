@@ -35,18 +35,22 @@ module CurrentScopeMigrate
 
     def self.rewrite_all!(dir)
       all_edits = []
-      reviews = []
+      all_reviews = []
       MAX_PASSES.times do
         rw = new(dir).scan
-        reviews = rw.reviews
+        all_reviews.concat(rw.reviews)
         break if rw.edits.empty?
 
         rw.apply!
         all_edits.concat(rw.edits)
       end
-      # Honest convergence claim: a fresh scan must find nothing left.
-      converged = new(dir).scan.edits.empty?
+      # Honest convergence claim: a fresh scan must find nothing left. Its
+      # reviews join the union too — no pass may drop a human-review item.
+      final = new(dir).scan
+      all_reviews.concat(final.reviews)
+      converged = final.edits.empty?
       deduped = all_edits.uniq { |e| [ e.file, e.line, e.original, e.kind ] }
+      reviews = all_reviews.uniq { |r| [ r.file, r.line, r.kind, r.note ] }
       { rewrites: deduped.map { |e| e.to_h.except(:start_offset, :end_offset) },
         reviews: reviews.map(&:to_h),
         counts: { rewrites: deduped.size, reviews: reviews.size },

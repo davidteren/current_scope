@@ -28,6 +28,14 @@ namespace :current_scope_migrate do
     manifest = YAML.safe_load_file(manifest_path, aliases: true) || {}
     accepted_path = Rails.root.join("docs/current_scope_migration/accepted_diffs.yml")
     accepted = accepted_path.exist? ? (YAML.safe_load_file(accepted_path) || []) : []
+    # The audit contract: every accepted divergence carries a reviewable
+    # reason. A reason-less entry could silently wave through a privilege
+    # change, so it aborts instead of indexing.
+    reasonless = accepted.reject { |d| d["reason"].to_s.strip.length.positive? }
+    if reasonless.any?
+      abort "accepted_diffs.yml entries missing a reason: " \
+            "#{reasonless.map { |d| d.slice('subject', 'key', 'record', 'scope').compact.to_json }.join('; ')}"
+    end
     accepted_index = accepted.to_set do |d|
       if d["scope"] # an accepted scope divergence: {subject:, scope: ModelName}
         [ d["subject"], "scope:#{d['scope']}" ].join("|")
@@ -103,7 +111,12 @@ namespace :current_scope_migrate do
       record = model && records[model.name]
       subjects.each do |role_label, subject|
         old_answer = pundit_answer.call(subject, key, record)
-        new_answer = CurrentScope.allowed?(key, subject: subject, record: record)
+        # Record-less cells pass the resolved model so the check represents
+        # the TYPED collection gate — the migrated controller will declare
+        # current_scope_model per the decision report; omitting it here would
+        # fail every scoped collection grant closed and fake a divergence.
+        new_answer = CurrentScope.allowed?(key, subject: subject, record: record,
+                                           model: record ? nil : model)
         unless [ true, false ].include?(old_answer)
           # A cell Pundit cannot answer is ZERO coverage, not parity — it must
           # be visible, never dropped. And when current_scope ALLOWS such a
@@ -147,16 +160,36 @@ namespace :current_scope_migrate do
         scope_unverified << "#{model_name} (no routed #index key resolves to it)"
         next []
       end
+      # Same namespaced lookup as pundit_answer: an admin/posts index must
+      # diff against Admin::PostPolicy::Scope, not silently fall back to
+      # PostPolicy::Scope and fake parity.
+      namespace = key.split("#").first.split("/")[0..-2].map(&:to_sym)
+      scope_target = namespace.empty? ? model : namespace + [ model ]
+      old_scope = lambda do |subject|
+        Pundit.policy_scope!(subject, scope_target)
+      rescue Pundit::NotDefinedError
+        namespace.empty? ? raise : Pundit.policy_scope!(subject, model)
+      end
       begin
-        Pundit.policy_scope!(subjects.values.first, model)
+        old_scope.call(subjects.values.first)
       rescue Pundit::NotDefinedError
         # No Pundit scope = zero old-side coverage for this model — visible,
         # not a silent skip.
         scope_unverified << "#{model_name} (no Pundit policy_scope)"
         next []
+      rescue StandardError => e
+        # A resolve needing request context (or otherwise raising) is
+        # uncovered, not a crashed run.
+        scope_unverified << "#{model_name} (policy_scope raised #{e.class}: #{e.message})"
+        next []
       end
       subjects.filter_map do |role_label, subject|
-        old_ids = Pundit.policy_scope!(subject, model).pluck(:id).sort
+        old_ids = begin
+          old_scope.call(subject).pluck(:id).sort
+        rescue StandardError => e
+          scope_unverified << "#{model_name} × #{role_label} (raised #{e.class})"
+          next
+        end
         new_ids = CurrentScope.scope_for(subject: subject, model: model, permission: key)
                               .pluck(:id).sort
         next if old_ids == new_ids

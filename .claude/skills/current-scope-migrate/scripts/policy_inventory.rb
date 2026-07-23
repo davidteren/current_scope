@@ -53,10 +53,15 @@ module CurrentScopeMigrate
 
     private
 
+    # A syntax error is fail-closed AND reviewable: cite the real error line
+    # and quote it, honoring the file:line + verbatim-source contract.
     def error_result(path, parse)
-      Result.new(file: path, policy_class: nil, method: nil, line: 1,
-                 bucket: "unparseable", source: nil,
-                 detail: "syntax error: #{parse.errors.first&.message}")
+      err = parse.errors.first
+      line = err&.location&.start_line || 1
+      source_line = parse.source.source.lines[line - 1]&.strip
+      Result.new(file: path, policy_class: nil, method: nil, line: line,
+                 bucket: "unparseable", source: source_line,
+                 detail: "syntax error: #{err&.message}")
     end
 
     # [[class_node, "Admin::PostPolicy"], ...] — walks module nesting.

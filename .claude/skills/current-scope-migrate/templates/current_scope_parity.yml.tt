@@ -15,9 +15,10 @@ records:
 # reported as "scope UNVERIFIED" — visible, never silently green.
 scope_models: []
 
-# controller path or full key -> model class name, when the classify guess
-# is wrong (e.g. "admin/reports": "Report" is guessed fine, but a
-# DashboardController rendering Reports is not).
+# controller path or full key -> model class name, for controllers whose
+# path does not name their model. "admin/reports" classifies to Report on
+# its own; a DashboardController rendering Reports does not — declare it:
+#   "dashboard": "Report"
 key_models: {}
 
 # Keys whose policies need request context and cannot be replayed

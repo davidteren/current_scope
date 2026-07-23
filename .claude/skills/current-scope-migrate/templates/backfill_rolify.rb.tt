@@ -31,6 +31,23 @@ class BackfillCurrentScopeRolesFromRolify < ActiveRecord::Migration[8.1]
   # --------------------------------------------------------------------------
 
   def up
+    # Explicit transaction: adapters without transactional migrations (MySQL)
+    # would otherwise keep roles created before a fail-loud abort fired.
+    ActiveRecord::Base.transaction do
+      run_backfill
+    end
+  end
+
+  # Deliberately irreversible: the rolify tables are untouched, so
+  # re-cutover to the old system needs no down.
+  def down
+    raise ActiveRecord::IrreversibleMigration,
+          "role data was copied, not moved — the rolify tables are intact"
+  end
+
+  private
+
+  def run_backfill
     subjects = SUBJECT_CLASS.constantize
 
     class_scoped = ::Role.where.not(resource_type: nil).where(resource_id: nil)
@@ -114,13 +131,6 @@ class BackfillCurrentScopeRolesFromRolify < ActiveRecord::Migration[8.1]
       end
     end
   end
-
-  def down
-    raise ActiveRecord::IrreversibleMigration,
-          "role data was copied, not moved — the rolify tables are intact"
-  end
-
-  private
 
   def role_name(value) = ROLE_NAMES.fetch(value, value)
 

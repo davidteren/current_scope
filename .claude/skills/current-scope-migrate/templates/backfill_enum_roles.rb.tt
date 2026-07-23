@@ -24,6 +24,24 @@ class BackfillCurrentScopeRolesFromEnum < ActiveRecord::Migration[8.1]
   # --------------------------------------------------------------------------
 
   def up
+    # Explicit transaction: adapters without transactional migrations (MySQL)
+    # would otherwise keep roles created before a fail-loud abort fired.
+    ActiveRecord::Base.transaction do
+      run_backfill
+    end
+  end
+
+  # Deliberately irreversible: by rollback time the roles may carry grid
+  # ticks and hand-made assignments this migration didn't create. The source
+  # column is untouched, so re-cutover to the old system needs no down.
+  def down
+    raise ActiveRecord::IrreversibleMigration,
+          "role data was copied, not moved — the #{ROLE_COLUMN} column is intact"
+  end
+
+  private
+
+  def run_backfill
     subjects = SUBJECT_CLASS.constantize
     # A declared Rails enum casts pluck/[] to its LABELS ("admin"), which is
     # what we want. Blank labels behave like NULL: no role (Role name has a
@@ -97,17 +115,6 @@ class BackfillCurrentScopeRolesFromEnum < ActiveRecord::Migration[8.1]
       CurrentScope.grant!(subject, role: role)
     end
   end
-
-  def down
-    # Deliberately irreversible: by the time anyone wants to roll back, the
-    # roles may carry grid ticks and hand-made assignments this migration
-    # didn't create — deleting by role name would destroy real data. The
-    # enum column is untouched, so re-cutover to the old system needs no down.
-    raise ActiveRecord::IrreversibleMigration,
-          "role data was copied, not moved — the #{ROLE_COLUMN} column is intact"
-  end
-
-  private
 
   def role_name(value) = ROLE_NAMES.fetch(value, value)
 end

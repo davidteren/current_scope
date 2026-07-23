@@ -34,26 +34,28 @@ module CurrentScopeMigrate
     MAX_PASSES = 5 # nesting depth bound for the scan-apply fixpoint
 
     def self.rewrite_all!(dir)
-      all_edits = []
+      applied_edits = []
       all_reviews = []
       MAX_PASSES.times do
         rw = new(dir).scan
         all_reviews.concat(rw.reviews)
         break if rw.edits.empty?
 
-        rw.apply!
-        all_edits.concat(rw.edits)
+        # Collect exactly what each pass APPLIED (the outermost subset) — the
+        # report then needs no dedup heuristics: same-line duplicates stay
+        # distinct rows, and skipped-nested edits appear once, on the pass
+        # that actually applied them.
+        applied_edits.concat(rw.apply!)
       end
       # Honest convergence claim: a fresh scan must find nothing left. Its
       # reviews join the union too — no pass may drop a human-review item.
       final = new(dir).scan
       all_reviews.concat(final.reviews)
       converged = final.edits.empty?
-      deduped = all_edits.uniq { |e| [ e.file, e.line, e.original, e.kind ] }
       reviews = all_reviews.uniq { |r| [ r.file, r.line, r.kind, r.note ] }
-      { rewrites: deduped.map { |e| e.to_h.except(:start_offset, :end_offset) },
+      { rewrites: applied_edits.map { |e| e.to_h.except(:start_offset, :end_offset) },
         reviews: reviews.map(&:to_h),
-        counts: { rewrites: deduped.size, reviews: reviews.size },
+        counts: { rewrites: applied_edits.size, reviews: reviews.size },
         applied: true, converged: converged }
     end
 
@@ -78,7 +80,9 @@ module CurrentScopeMigrate
     # outer replacement is built from the original source, so applying both
     # corrupts the file). Callers rescan until no edits remain (see --write),
     # which picks up rewrites that were nested on the previous pass.
+    # Returns the edits actually applied.
     def apply!
+      applied = []
       edits.group_by(&:file).each do |file, file_edits|
         source = File.read(file)
         outermost = file_edits.reject do |e|
@@ -98,8 +102,9 @@ module CurrentScopeMigrate
             e.replacement.dup.force_encoding(Encoding::BINARY)
         end
         File.write(file, bytes.force_encoding(encoding))
+        applied.concat(outermost)
       end
-      self
+      applied
     end
 
     def report

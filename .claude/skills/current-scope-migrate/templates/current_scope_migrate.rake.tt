@@ -83,6 +83,8 @@ namespace :current_scope_migrate do
     # Pundit: namespaced lookup ("admin/posts" asks Admin::PostPolicy first,
     # falling back to PostPolicy) — the un-namespaced policy would fake parity.
     pundit_answer = lambda do |subject, key, record|
+      next "Pundit not loaded (check old_system: in the manifest)" unless defined?(Pundit)
+
       action = aliases.fetch(key.split("#").last, key.split("#").last)
       model = model_for.call(key)
       target = record || model
@@ -139,6 +141,8 @@ namespace :current_scope_migrate do
         .uniq.filter_map { |name| name.safe_constantize }.first
     end
     action_policy_answer = lambda do |subject, key, record|
+      next "ActionPolicy not loaded (check old_system: in the manifest)" unless defined?(ActionPolicy)
+
       action = aliases.fetch(key.split("#").last, key.split("#").last)
       model = model_for.call(key)
       target = record || model

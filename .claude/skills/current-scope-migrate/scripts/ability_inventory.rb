@@ -48,9 +48,39 @@ module CurrentScopeMigrate
 
       @source = parse.source.source
       rules = []
-      each_ability_method(parse.value) do |def_node|
-        walk_method(def_node.body, def_node.name.to_s, [], rules)
+      methods = []
+      each_ability_method(parse.value) { |def_node| methods << def_node }
+      method_names = methods.to_set { |d| d.name.to_s }
+
+      # Pass 1: classify every rule AND record the guard chain at each
+      # intra-class helper CALL SITE (`admin_rules(user) if user.admin?`).
+      @call_site_guards = Hash.new { |h, k| h[k] = [] }
+      methods.each do |def_node|
+        walk_method(def_node.body, def_node.name.to_s, [], rules, method_names)
       end
+
+      # Pass 2: a helper's rules inherit its callers' guards. One call site
+      # -> prepend those guards; several call sites (or none provable) with
+      # DIFFERENT guard chains -> not provable which applies (fail closed).
+      rules.each do |rule|
+        sites = @call_site_guards[rule.method]
+        next if rule.method == "initialize" || sites.empty?
+
+        chains = sites.uniq
+        if chains.size == 1
+          rule.guards = chains.first.map { |g| g[:source] } + rule.guards
+          if chains.first.any? { |g| !g[:user_only] } && rule.bucket != "unparseable"
+            rule.bucket = "unparseable"
+            rule.detail = "called under a guard that is not provably user-only " \
+                          "(#{chains.first.reject { |g| g[:user_only] }.map { |g| g[:source] }.join('; ')})"
+          end
+        else
+          rule.bucket = "unparseable"
+          rule.detail = "helper invoked from #{chains.size} call sites with differing " \
+                        "guard chains — decide which audience applies by hand"
+        end
+      end
+
       { rules: rules.map(&:to_h) }
     end
 
@@ -82,7 +112,7 @@ module CurrentScopeMigrate
     # Depth-first with the enclosing conditional chain carried along. Only
     # if/unless conditions are tracked; any other container (case, rescue,
     # loops) makes rules inside it unprovable.
-    def walk_method(node, method_name, guards, rules)
+    def walk_method(node, method_name, guards, rules, method_names)
       case node
       when nil then nil
       when Prism::StatementsNode
@@ -93,7 +123,7 @@ module CurrentScopeMigrate
         # fail closed).
         implicit = []
         node.body.each do |stmt|
-          walk_method(stmt, method_name, guards + implicit, rules)
+          walk_method(stmt, method_name, guards + implicit, rules, method_names)
           implicit += implicit_guards_from(stmt)
         end
       when Prism::IfNode, Prism::UnlessNode
@@ -108,23 +138,32 @@ module CurrentScopeMigrate
         positive = { source: pred_src, user_only: inner_ok, negated: false }
         negative = { source: "!(#{pred_src})", user_only: inner_ok, negated: true }
         body_guard, arm_guard = node.is_a?(Prism::UnlessNode) ? [ negative, positive ] : [ positive, negative ]
-        walk_method(node.statements, method_name, guards + [ body_guard ], rules)
+        walk_method(node.statements, method_name, guards + [ body_guard ], rules, method_names)
         if (arm = else_arm(node))
-          walk_method(arm, method_name, guards + [ arm_guard ], rules)
+          walk_method(arm, method_name, guards + [ arm_guard ], rules, method_names)
         end
       when Prism::CallNode
         if node.receiver.nil? && %i[can cannot].include?(node.name)
           rules << classify_rule(node, method_name, guards)
+        elsif node.receiver.nil? && node.name == :alias_action
+          rules << Result.new(file: @path, method: method_name, line: node.location.start_line,
+                              bucket: "unparseable", source: slice(node),
+                              guards: guards.map { |g| g[:source] },
+                              detail: "custom alias_action — expand affected rules' actions " \
+                                      "through this alias by hand when mapping keys")
+        elsif node.receiver.nil? && method_names.include?(node.name.to_s)
+          # Intra-class helper call: its rules inherit THESE guards (pass 2).
+          @call_site_guards[node.name.to_s] << guards
         end
-        node.child_nodes.compact.each { |c| walk_method(c, method_name, guards, rules) }
+        node.child_nodes.compact.each { |c| walk_method(c, method_name, guards, rules, method_names) }
       when Prism::CaseNode, Prism::CaseMatchNode, Prism::WhileNode, Prism::UntilNode,
            Prism::RescueNode, Prism::BeginNode
         # Containers whose conditions we do not model: everything inside is
         # guarded by something unprovable.
         poison = { source: "(#{node.class.name.split('::').last} container)", user_only: false, negated: false }
-        node.child_nodes.compact.each { |c| walk_method(c, method_name, guards + [ poison ], rules) }
+        node.child_nodes.compact.each { |c| walk_method(c, method_name, guards + [ poison ], rules, method_names) }
       else
-        node.child_nodes.compact.each { |c| walk_method(c, method_name, guards, rules) } if node.respond_to?(:child_nodes)
+        node.child_nodes.compact.each { |c| walk_method(c, method_name, guards, rules, method_names) } if node.respond_to?(:child_nodes)
       end
     end
 
@@ -284,9 +323,6 @@ module CurrentScopeMigrate
         (receiver_root(node) == :user || (node.receiver.nil? && node.name == :user))
     end
 
-    # Walks to the chain's root; names it for CallNode and local-variable
-    # roots alike (`user.posts.count` and `user` the parameter both root at
-    # :user).
 
 
     def slice(node)
@@ -320,6 +356,9 @@ if ARGV.first == "--self-test"
         when "pro" then can :export, Report
         end
         member_rules(user)
+        admin_extra(user) if user.admin?
+        shared_rules(user) if user.admin?
+        shared_rules(user) if user.billing?
       end
 
       def member_rules(user)
@@ -338,6 +377,14 @@ if ARGV.first == "--self-test"
 
       def guest_rules(user)
         can :browse, Post unless user.guest?
+      end
+
+      def admin_extra(user)
+        can :configure, Report
+      end
+
+      def shared_rules(user)
+        can :share, Report
       end
 
       def audited_rules(user)
@@ -373,7 +420,11 @@ if ARGV.first == "--self-test"
       "can :browse, Post" => "pure_role",
       # a side-effect line before the guard-clause return must not drop the
       # guard (the arm still terminates)
-      "can :audit, Report" => "pure_role"
+      "can :audit, Report" => "pure_role",
+      # helper called under ONE guard inherits it; helper called from two
+      # sites with differing guards is not provable (fail closed)
+      "can :configure, Report" => "pure_role",
+      "can :share, Report" => "unparseable"
     }
     failures = expected.reject { |frag, bucket| find.call(frag)&.dig(:bucket) == bucket }
     # The full_access shape must be called out, and guards captured.
@@ -391,6 +442,8 @@ if ARGV.first == "--self-test"
       find.call("can :browse, Post")&.dig(:guards)&.include?("!(user.guest?)")
     failures["side-effect guard clause captured"] = true unless
       find.call("can :audit, Report")&.dig(:guards)&.include?("user.staff?")
+    failures["helper call-site guard inherited"] = true unless
+      find.call("can :configure, Report")&.dig(:guards)&.include?("user.admin?")
     if failures.empty?
       puts "self-test OK (#{expected.size} classifications)"
     else

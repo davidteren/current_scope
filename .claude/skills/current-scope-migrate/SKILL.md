@@ -54,7 +54,8 @@ blocks, `cannot` (subtractive), attribute conditions, non-user guards —
 lands in `unparseable` verbatim. When expanding CanCanCan actions to keys,
 use its alias chain: `:read` → index/show, `:create` → new/create,
 `:update` → edit/update, `:manage` → every routed action of the matching
-controllers. Do not re-classify `pure_role`
+controllers. A custom `alias_action` appears as its own inventory row —
+expand the affected rules' actions through it by hand. Do not re-classify `pure_role`
 or `ownership` by reading the code — the script's determinism is the point.
 `sod_shape` is different: the AST proves the *shape* (a negated ownership
 comparison on an approve-like name), not the *intent* — treat it as a
@@ -148,7 +149,9 @@ cp -n $SKILL_DIR/templates/accepted_diffs.yml.tt docs/current_scope_migration/ac
 ```
 
 Fill the manifest from what you learned: `old_system:` (pundit | cancancan |
-action_policy), one subject exemplar per proposed
+action_policy — parity replays ONE system per run; a host running two
+systems runs parity once per system, swapping the knob), one subject
+exemplar per proposed
 role (§6.2), one record exemplar per model with `ownership` rules,
 `scope_models:` = every model whose policy defines `Scope#resolve` (from
 §2's inventory — a listed model without an exemplar shows as "scope

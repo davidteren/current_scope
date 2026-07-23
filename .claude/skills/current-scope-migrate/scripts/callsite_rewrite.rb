@@ -269,10 +269,13 @@ module CurrentScopeMigrate
         return
       end
 
-      bang = node.name == :cannot? ? "!" : ""
+      # cannot? negates; parenthesized so precedence survives any expression
+      # position the original call sat in.
+      replacement = "allowed_to?(:#{args.first.unescaped}, #{slice(args.last, source)})"
+      replacement = "(!#{replacement})" if node.name == :cannot?
       @edits << Edit.new(file: path, line: node.location.start_line, kind: "can_predicate",
                          original: slice(node, source),
-                         replacement: "#{bang}allowed_to?(:#{args.first.unescaped}, #{slice(args.last, source)})",
+                         replacement: replacement,
                          start_offset: node.location.start_offset,
                          end_offset: node.location.end_offset)
     end
@@ -282,7 +285,16 @@ module CurrentScopeMigrate
     # AP convention; without it the call is already engine-shaped (skip).
     def classify_ap_allowed_to(node, path, source)
       args = node.arguments&.arguments || []
-      return unless args.first.is_a?(Prism::SymbolNode) && args.first.unescaped.end_with?("?")
+      unless args.first.is_a?(Prism::SymbolNode)
+        # A dynamic rule name may carry Action Policy's trailing ? at
+        # runtime — the engine form would not match it. Say so.
+        @reviews << Review.new(file: path, line: node.location.start_line, kind: "ap_allowed_to",
+                               source: slice(node, source),
+                               note: "dynamic rule name — if it carries Action Policy's trailing ?, " \
+                                     "the engine form will not match; verify by hand")
+        return
+      end
+      return unless args.first.unescaped.end_with?("?")
 
       # AP options (with:, context:) have no engine equivalent — carrying
       # them across verbatim would produce an invalid call. Review instead.
@@ -739,7 +751,7 @@ if ARGV.first == "--self-test"
     tickets = File.read(File.join(dir, "tickets_controller.rb"))
     failures << "cancan authorize! not deleted" if tickets.include?("authorize! :update")
     failures << "can? not rewritten" unless tickets.include?("head :ok if allowed_to?(:close, @ticket)")
-    failures << "cannot? not rewritten" unless tickets.include?("head :ok if !allowed_to?(:reopen, @ticket)")
+    failures << "cannot? not rewritten" unless tickets.include?("head :ok if (!allowed_to?(:reopen, @ticket))")
     failures << "accessible_by not rewritten" unless tickets.include?("@tickets = scope_for(Ticket).order(:id)")
     failures << "load_and_authorize_resource wrongly touched" unless tickets.include?("load_and_authorize_resource")
     invoices = File.read(File.join(dir, "invoices_controller.rb"))

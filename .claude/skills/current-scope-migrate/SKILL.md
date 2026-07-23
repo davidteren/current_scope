@@ -229,7 +229,10 @@ report: `policy(@x).edit?`/`new?` rewrites keep those action names — the
 gate enforces `edit`/`new` as their own keys, unlike Pundit's alias
 convention, so check the decision report's key mapping for those; deleting
 `authorize` relies on the controller being Guard-gated — confirm with
-`bin/rails current_scope:ungated` first.
+`bin/rails current_scope:ungated` first — and on the record hook loading
+the SAME record the action targets (a file-local `current_scope_record`
+is checked mechanically; hooks on a base controller are your assumption
+to verify).
 
 ## 10. Role backfill migration (phase 2 — generated, reviewed, then run)
 

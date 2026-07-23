@@ -250,9 +250,13 @@ namespace :current_scope_migrate do
                         .apply_scope(model.all, type: :active_record_relation)
           end
         end
+      # Pundit::NotDefinedError can only be referenced when Pundit is loaded —
+      # naming it in a rescue on a CanCanCan/AP host would itself NameError.
+      scope_missing = [ NameError ]
+      scope_missing << Pundit::NotDefinedError if defined?(Pundit)
       begin
         old_scope.call(subjects.values.first)
-      rescue Pundit::NotDefinedError, NameError => e
+      rescue *scope_missing => e
         # No old-side scope = zero coverage for this model — visible,
         # not a silent skip.
         scope_unverified << "#{model_name} (no #{old_label} scope: #{e.class})"

@@ -2,8 +2,10 @@
 # The parity run is only as good as this matrix: one subject per role,
 # one record per model that has record-conditioned rules.
 
-# Which system is being migrated FROM: pundit | cancancan | action_policy
-old_system: pundit
+# Which system is being migrated FROM: pundit | cancancan | action_policy.
+# Deliberately invalid until you choose — a wrong system produces a
+# deny-everything run that can read as false parity.
+old_system: change_me
 subjects:
   # role_label: a Ruby expression returning that subject (evaluated in-app).
   # admin:  'User.find_by!(email: "admin@example.com")'

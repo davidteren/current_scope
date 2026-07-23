@@ -38,15 +38,19 @@ ruby $SKILL_DIR/scripts/policy_inventory.rb app/policies > /tmp/cs_inventory.jso
 ruby $SKILL_DIR/scripts/ability_inventory.rb app/models/ability.rb > /tmp/cs_ability.json
 ```
 
-An Ability composed across files (merged abilities, included modules) needs
-one run per file — the script takes any path; report the composition in the
-decision report so nothing reads as a complete single-file inventory.
+An Ability composed across files — merged abilities, or `include SomeRules`
+modules whose files define further `can` rules — needs one run per file
+(the script takes any path; a module file works when its class/module name
+ends in `Ability`, otherwise wrap or inventory it by hand). Report the
+composition in the decision report so nothing reads as a complete
+single-file inventory.
 
 `policy_inventory.rb` buckets every policy predicate, Scope#resolve, and
 Action Policy `relation_scope` by what the AST
 **proves**: `pure_role` / `ownership` / `sod_shape` / `unparseable` (its
 `--self-test` documents the exact shapes), and flags Action Policy DSL
-(`pre_check`, `alias_rule`, `default_rule`) for human folding.
+(`pre_check`, `alias_rule`, `default_rule`, `authorize`, `scope_matcher`)
+for human folding.
 `ability_inventory.rb` does the same for `can`/`cannot` rules: user-only
 guards + no condition = `pure_role` (`can :manage, :all` = the full_access
 shape), a record-column-vs-user hash = `ownership`, and everything else —
@@ -184,13 +188,30 @@ Run report-only FIRST and put the JSON in the decision report:
 ruby $SKILL_DIR/scripts/callsite_rewrite.rb app > /tmp/cs_rewrites.json
 ```
 
-The rewriter changes only three provable shapes: `authorize @x` deleted
+The rewriter's Pundit shapes: `authorize @x` deleted
 **only** when every proof holds — statement position in a straight-line
 def/block body, a side-effect-free argument (bare var/ivar/no-arg call),
 alone on its line, not the file of a gate skip, and not a return value
 (the last expression of anything except a public controller action);
 `policy(@x).update?` → `allowed_to?(:update, @x)`; and
-`policy_scope(X)` → `scope_for(X)`. Everything failing any proof —
+`policy_scope(X)` → `scope_for(X)`.
+
+CanCanCan shapes: `can?(:action, x)` / `cannot?(:action, x)` →
+`allowed_to?` / parenthesized negation (except `:read`/`:manage`, which
+span multiple keys and are reviews); `authorize! :action, @x` deletes under
+the same proofs PLUS the action naming the enclosing def (a cross-action
+check is a review — deleting it would widen authorization);
+`Model.accessible_by(current_ability)` → `scope_for(Model)` (any other
+ability argument is a review — the subject may differ); controller macros
+(`load_and_authorize_resource` etc.) are reviews pointing at the record
+hook.
+
+Action Policy shapes: `allowed_to?(:rule?, x)` strips the rule suffix
+(options/extra args are reviews); `authorize! @x, to: :rule?` deletes under
+the same proofs and enclosing-action match; `authorized_scope(X.all)` →
+`scope_for(X)`.
+
+Everything failing any proof —
 value-used/conditional/side-effect-arg `authorize`, custom query args,
 `permitted_attributes`, every view-template occurrence
 (ERB/Haml/Slim/jbuilder) — lands in `reviews` with `file:line` for a

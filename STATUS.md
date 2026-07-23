@@ -75,7 +75,7 @@ report-only), PR #107 merged.
 **Landed 2026-07-23:** #45 phase 2 (backfill templates + rewriter,
 PR #109).
 **In flight:** #45 phase 3 (CanCanCan + Action Policy — completes #45) on
-`feat/migrate-skill-45-phase3`.
+PR #110; the docs/worklist "Done" rows land with that PR's merge.
 
 ## Done (all committed on `main`)
 

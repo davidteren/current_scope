@@ -11,6 +11,7 @@ module CurrentScopeMigrate
     def literal?(node)
       case node
       when Prism::StringNode, Prism::SymbolNode, Prism::IntegerNode,
+           Prism::FloatNode, Prism::RationalNode, Prism::ImaginaryNode,
            Prism::TrueNode, Prism::FalseNode, Prism::NilNode
         true
       when Prism::ArrayNode
@@ -22,16 +23,27 @@ module CurrentScopeMigrate
 
     # The name at the root of a receiver chain — a no-arg call (`user` the
     # attr_reader) or a local variable (`user` the parameter) alike.
+    # UNPROVABLE (nil) if ANY link carries arguments or a block:
+    # `user.lookup(params[:id])` must never root as a plain user chain —
+    # its result depends on more than the user.
     def receiver_root(node)
       current = node
-      current = current.receiver while current.is_a?(Prism::CallNode) && current.receiver
+      while current.is_a?(Prism::CallNode)
+        return nil if current.arguments || current.block
+        break if current.receiver.nil?
+
+        current = current.receiver
+      end
       case current
       when Prism::CallNode, Prism::LocalVariableReadNode then current.name
       end
     end
 
+    # A receiverless, argument-less, block-less call — nothing else counts
+    # as "bare" (a call with args/blocks is a computation, not a reference).
     def bare_call?(node, name)
-      node.is_a?(Prism::CallNode) && node.receiver.nil? && node.name == name
+      node.is_a?(Prism::CallNode) && node.receiver.nil? && node.name == name &&
+        node.arguments.nil? && node.block.nil?
     end
   end
 end

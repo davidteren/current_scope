@@ -138,8 +138,13 @@ module CurrentScopeMigrate
 
     def user_bound_hash?(kwargs)
       return false unless kwargs.is_a?(Prism::KeywordHashNode) || kwargs.is_a?(Prism::HashNode)
+      # An EMPTY where({}) is an unfiltered relation — org-wide reach, not a
+      # user-scoped grant. At least one user-bound pair is required.
+      return false if kwargs.elements.empty?
 
-      kwargs.elements.all? { |a| a.is_a?(Prism::AssocNode) && user_chain?(a.value) }
+      kwargs.elements.all? do |a|
+        a.is_a?(Prism::AssocNode) && user_chain?(a.value) && user_only?(a.value)
+      end
     end
 
     def action_policy_dsl(class_body, class_name, path, source)

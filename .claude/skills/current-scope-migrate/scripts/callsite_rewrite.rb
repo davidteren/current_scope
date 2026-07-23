@@ -217,7 +217,7 @@ module CurrentScopeMigrate
     # here — report occurrences, never rewrite.
     def scan_template(path)
       File.foreach(path).with_index(1) do |text, lineno|
-        next unless text =~ /\b(policy_scope|policy|authorize!?|permitted_attributes|can\?|cannot\?|accessible_by|authorized_scope|allowed_to\?)\b/
+        next unless text =~ /\b(policy_scope|policy|authorize|permitted_attributes|accessible_by|authorized_scope)\b|\bcan\?|\bcannot\?|\ballowed_to\?/
 
         @reviews << Review.new(file: path, line: lineno, kind: "template", source: text.strip,
                                note: "view template — rewrite by hand " \
@@ -260,12 +260,25 @@ module CurrentScopeMigrate
 
     # can?(:update, @post) -> allowed_to?(:update, @post)
     # cannot?(:update, @post) -> !allowed_to?(:update, @post)
+    IDENTIFIER_SYMBOL = /\A[a-z_][a-zA-Z0-9_]*\z/
+    # CanCanCan aliases that expand to SEVERAL actions/keys — a direct
+    # allowed_to?(:read, x) would consult a key the app never routes.
+    CANCAN_MULTI_ALIASES = %w[read manage].freeze
+
     def classify_can(node, path, source)
       args = node.arguments&.arguments || []
-      unless args.size == 2 && args.first.is_a?(Prism::SymbolNode) && node.block.nil?
+      unless args.size == 2 && args.first.is_a?(Prism::SymbolNode) &&
+             args.first.unescaped.match?(IDENTIFIER_SYMBOL) && node.block.nil?
         @reviews << Review.new(file: path, line: node.location.start_line, kind: "can",
                                source: slice(node, source),
                                note: "not a plain can?/cannot?(:action, target) — rewrite by hand")
+        return
+      end
+      if CANCAN_MULTI_ALIASES.include?(args.first.unescaped)
+        @reviews << Review.new(file: path, line: node.location.start_line, kind: "can",
+                               source: slice(node, source),
+                               note: "CanCanCan alias :#{args.first.unescaped} spans multiple keys " \
+                                     "(read=index+show, manage=all) — expand against the catalog by hand")
         return
       end
 
@@ -296,13 +309,16 @@ module CurrentScopeMigrate
       end
       return unless args.first.unescaped.end_with?("?")
 
-      # AP options (with:, context:) have no engine equivalent — carrying
-      # them across verbatim would produce an invalid call. Review instead.
-      if args.any? { |a| a.is_a?(Prism::KeywordHashNode) }
+      # Exactly (:rule?, target) with an identifier-shaped rule: options
+      # (with:/context:), positional hashes, extra args, or exotic symbols
+      # have no engine equivalent — carrying them across would be invalid.
+      rule = args.first.unescaped.delete_suffix("?")
+      unless args.size <= 2 && rule.match?(IDENTIFIER_SYMBOL) &&
+             args[1..].none? { |a| a.is_a?(Prism::KeywordHashNode) || a.is_a?(Prism::HashNode) }
         @reviews << Review.new(file: path, line: node.location.start_line, kind: "ap_allowed_to",
                                source: slice(node, source),
-                               note: "Action Policy allowed_to? with options (with:/context:) — " \
-                                     "the engine form takes no policy override; rewrite by hand")
+                               note: "Action Policy allowed_to? beyond (:rule?, target) — options/" \
+                                     "extra args have no engine equivalent; rewrite by hand")
         return
       end
       rest = args[1..].map { |a| slice(a, source) }
@@ -320,6 +336,7 @@ module CurrentScopeMigrate
       args = node.arguments&.arguments || []
       arg = args.first
       if args.size == 1 && arg.is_a?(Prism::CallNode) && arg.name == :all &&
+         arg.arguments.nil? && arg.block.nil? &&
          (arg.receiver.is_a?(Prism::ConstantReadNode) || arg.receiver.is_a?(Prism::ConstantPathNode))
         @edits << Edit.new(file: path, line: node.location.start_line, kind: "authorized_scope",
                            original: slice(node, source),
@@ -335,7 +352,7 @@ module CurrentScopeMigrate
 
     def classify_accessible_by(node, path, source)
       args = node.arguments&.arguments || []
-      if args.size == 1 && node.block.nil?
+      if args.size == 1 && node.block.nil? && bare_call?(args.first, :current_ability)
         @edits << Edit.new(file: path, line: node.location.start_line, kind: "accessible_by",
                            original: slice(node, source),
                            replacement: "scope_for(#{slice(node.receiver, source)})",
@@ -344,7 +361,8 @@ module CurrentScopeMigrate
       else
         @reviews << Review.new(file: path, line: node.location.start_line, kind: "accessible_by",
                                source: slice(node, source),
-                               note: "accessible_by with extra arguments — map to scope_for by hand")
+                               note: "accessible_by with a non-ambient ability (or extra args) — the " \
+                                     "subject may differ from current_scope's; map to scope_for by hand")
       end
     end
 
@@ -365,8 +383,15 @@ module CurrentScopeMigrate
       straight_line = grandparent.is_a?(Prism::DefNode) ||
                       grandparent.is_a?(Prism::BlockNode) ||
                       grandparent.is_a?(Prism::LambdaNode)
+      # An EXPLICIT action (authorize! :update, @x — or @x, to: :update?)
+      # is only redundant when it names the enclosing action: the Guard
+      # enforces controller#<def name>, so deleting a cross-action check
+      # (an update authorization inside show) would widen authorization.
+      explicit = explicit_authorize_action(args)
+      action_matches = explicit.nil? ||
+                       (grandparent.is_a?(Prism::DefNode) && explicit == grandparent.name.to_s)
       if provable_authorize_args?(args) && node.block.nil? && parent.is_a?(Prism::StatementsNode) &&
-         straight_line &&
+         straight_line && action_matches &&
          !last_expression?(node, parent, grandparent) && alone_on_line?(node, source)
         del = full_line_span(node, source)
         @edits << Edit.new(file: path, line: line, kind: "delete_authorize",
@@ -388,8 +413,13 @@ module CurrentScopeMigrate
       positional = args.reject { |a| a.is_a?(Prism::KeywordHashNode) }
       kwargs = args.grep(Prism::KeywordHashNode)
       return false unless kwargs.size <= 1
+      # Only the `to:` rule keyword is understood; any other option
+      # (context:, with:) changes semantics the deletion would lose.
       return false unless kwargs.all? { |kw|
-        kw.elements.all? { |el| el.is_a?(Prism::AssocNode) && (literal?(el.value) || simple_ref?(el.value)) }
+        kw.elements.all? do |el|
+          el.is_a?(Prism::AssocNode) && el.key.is_a?(Prism::SymbolNode) &&
+            el.key.unescaped == "to" && el.value.is_a?(Prism::SymbolNode)
+        end
       }
 
       case positional.size
@@ -399,7 +429,31 @@ module CurrentScopeMigrate
       end
     end
 
+    # The explicitly-named action, when the call carries one:
+    #   authorize! :update, @x   -> "update"
+    #   authorize! @x, to: :update? -> "update"
+    def explicit_authorize_action(args)
+      positional = args.reject { |a| a.is_a?(Prism::KeywordHashNode) }
+      return positional.first.unescaped if positional.first.is_a?(Prism::SymbolNode)
+
+      args.grep(Prism::KeywordHashNode).each do |kw|
+        kw.elements.each do |el|
+          next unless el.is_a?(Prism::AssocNode) && el.key.is_a?(Prism::SymbolNode) &&
+                      el.key.unescaped == "to" && el.value.is_a?(Prism::SymbolNode)
+
+          return el.value.unescaped.delete_suffix("?")
+        end
+      end
+      nil
+    end
+
     def authorize_review_note(node, args, parent, grandparent)
+      explicit = explicit_authorize_action(args)
+      if provable_authorize_args?(args) && explicit &&
+         !(grandparent.is_a?(Prism::DefNode) && explicit == grandparent.name.to_s)
+        return "authorizes :#{explicit} inside ##{grandparent.is_a?(Prism::DefNode) ? grandparent.name : '?'} — " \
+               "the Guard enforces the enclosing action's key; deleting would widen authorization"
+      end
       if !provable_authorize_args?(args)
         "argument shape not provable (custom query key, or a side-effecting " \
           "lookup the deletion would lose) — move lookups to the record hook " \
@@ -573,6 +627,11 @@ if ARGV.first == "--self-test"
         render :show
       end
 
+      def show_cross
+        authorize! :update, @post
+        render :show
+      end
+
       private
 
       # Private helper: its return value CAN be used by a caller, so a
@@ -681,11 +740,11 @@ if ARGV.first == "--self-test"
     failures << "expected exactly 4 delete_authorize" unless
       r[:rewrites].count { |x| x[:kind] == "delete_authorize" } == 4
     # posts: value-used, custom-query, modifier-if conditional, case/when
-    # conditional, side-effect-arg, last-expression-in-private-helper;
-    # webhooks + callbacks: gate-skipped; notas: last-expression in a
-    # symbol-form-private def = 9.
-    failures << "expected 9 authorize reviews" unless
-      r[:reviews].count { |x| x[:kind] == "authorize" } == 9
+    # conditional, side-effect-arg, cross-action authorize!,
+    # last-expression-in-private-helper; webhooks + callbacks: gate-skipped;
+    # notas: last-expression in a symbol-form-private def = 10.
+    failures << "expected 10 authorize reviews" unless
+      r[:reviews].count { |x| x[:kind] == "authorize" } == 10
     failures << "string-form skip must protect its authorize" unless
       r[:reviews].any? { |x| x[:file].end_with?("callbacks_controller.rb") && x[:note].include?("skips current_scope_check!") }
     failures << "case/when authorize must be CONDITIONAL review" unless
@@ -708,6 +767,8 @@ if ARGV.first == "--self-test"
     end
     failures << "load_and_authorize_resource must be a review" unless
       r[:reviews].any? { |x| x[:kind] == "cancancan_macro" }
+    failures << "cross-action authorize! must be a review, not deleted" unless
+      r[:reviews].any? { |x| x[:note].include?("widen authorization") }
     failures << "conditional authorize must carry the conditional note" unless
       r[:reviews].any? { |x| x[:note].include?("CONDITIONAL authorize") }
     # A gate-skipping file must NEVER have its authorize deleted — it may be

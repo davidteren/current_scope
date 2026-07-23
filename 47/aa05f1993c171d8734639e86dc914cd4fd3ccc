@@ -1,0 +1,28 @@
+.claude/skills/current-scope-migrate/scripts/ability_inventory.rb
+  s_e49ad5b2662b90::t_be991fe5d30161 115,126,141,143,148-156,158,164,166
+  s_e49ad5b2662b90::t_8980d7c55a7f8d 359-361,382-389,423-427,445-446
+  s_e49ad5b2662b90::t_aaf994e664ca36 51-59,61-83
+.claude/skills/current-scope-migrate/scripts/callsite_rewrite.rb
+  s_e49ad5b2662b90::t_ffe387217e3c49 754
+  s_e49ad5b2662b90::t_d0176a17141ea2 272-275,278,288-297
+.claude/skills/current-scope-migrate/SKILL.md
+  s_e49ad5b2662b90::t_653a16c012644f 57-58,152-154
+.claude/skills/current-scope-migrate/templates/current_scope_migrate.rake.tt
+  s_e49ad5b2662b90::t_c745571812ca38 86-87,144-145
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "47aa05f1993c171d8734639e86dc914cd4fd3ccc",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

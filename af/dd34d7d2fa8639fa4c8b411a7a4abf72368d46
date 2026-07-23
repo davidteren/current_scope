@@ -1,0 +1,23 @@
+.claude/skills/current-scope-migrate/templates/current_scope_migrate.rake.tt
+  s_e49ad5b2662b90::t_b6f04718df4162 3-4
+.claude/skills/current-scope-migrate/scripts/policy_inventory.rb
+  s_e49ad5b2662b90::t_cc8fc864d8fc16 373-375
+  s_e49ad5b2662b90::t_f03894bb582270 264-265,267,269
+  s_e49ad5b2662b90::t_4fbb4f6805d027 333-344
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "afdd34d7d2fa8639fa4c8b411a7a4abf72368d46",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

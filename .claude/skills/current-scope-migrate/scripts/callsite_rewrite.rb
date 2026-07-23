@@ -152,9 +152,15 @@ module CurrentScopeMigrate
               # visibility (public RESETS it)
               visibility = child.name
             else
-              # symbol/string form: `private :foo` (or `private def foo…`)
-              # changes the NAMED defs' visibility, not the section's
+              # `private :foo` (symbol/string) changes the NAMED defs'
+              # visibility; `public def foo … end` nests the DefNode inside
+              # the call's arguments — record it directly.
               args.each do |a|
+                if a.is_a?(Prism::DefNode)
+                  defs_by_name[a.name.to_s] = a.object_id
+                  child.name == :public ? acc << a.object_id : acc.delete(a.object_id)
+                  next
+                end
                 name = visibility_target_name(a)
                 next unless name && defs_by_name.key?(name)
 
@@ -178,7 +184,6 @@ module CurrentScopeMigrate
     def visibility_target_name(arg)
       case arg
       when Prism::SymbolNode, Prism::StringNode then arg.unescaped
-      when Prism::DefNode then arg.name.to_s # `private def foo ... end`
       end
     end
 
@@ -487,6 +492,11 @@ if ARGV.first == "--self-test"
         authorize @nota
       end
       private :tail_check
+
+      public def inline_pub
+        setup
+        authorize @nota2
+      end
     end
   RUBY
 
@@ -506,10 +516,10 @@ if ARGV.first == "--self-test"
     expect_kinds.each do |kind, bucket|
       failures << "missing #{bucket}:#{kind}" unless r[bucket].any? { |x| x[:kind] == kind }
     end
-    # The value-used authorize and the custom-query authorize must be reviews,
-    # so exactly ONE authorize is deleted (the statement-position one).
-    failures << "expected exactly 1 delete_authorize" unless
-      r[:rewrites].count { |x| x[:kind] == "delete_authorize" } == 1
+    # Deletable: posts#show's trailing authorize (public action) and notas'
+    # inline `public def` one. Everything else must be a review.
+    failures << "expected exactly 2 delete_authorize" unless
+      r[:rewrites].count { |x| x[:kind] == "delete_authorize" } == 2
     # posts: value-used, custom-query, modifier-if conditional, case/when
     # conditional, side-effect-arg, last-expression-in-private-helper;
     # webhooks + callbacks: gate-skipped; notas: last-expression in a
@@ -559,12 +569,16 @@ if ARGV.first == "--self-test"
     failures << "case/when authorize was deleted" unless out.include?('when "strict"') &&
                                                          out[/def cased.*?head :ok/m]&.include?("authorize @post")
     failures << "edit? predicate not rewritten" unless out.include?("head :ok if allowed_to?(:edit, @post)")
-    notas = File.read(File.join(dir, "notas_controller.rb"))
+    # Read as UTF-8 explicitly — under a C/US-ASCII locale the default
+    # external encoding would make the multibyte assertion itself crash.
+    notas = File.read(File.join(dir, "notas_controller.rb"), encoding: "UTF-8")
     failures << "multibyte file corrupted or policy_scope missed" unless
       notas.include?("@notas = scope_for(Nota)") && notas.include?("ünïcödé cömmént") &&
       Prism.parse(notas).success?
     failures << "symbol-form private def's trailing authorize was deleted" unless
-      notas.include?("authorize @nota")
+      notas.include?("authorize @nota\n")
+    failures << "public-def-inline trailing authorize not deleted" if
+      notas.include?("authorize @nota2")
     failures << "modifier-if authorize was wrongly touched" unless
       out.include?("authorize @post if params[:strict]")
     failures << "arity-mismatched policy_scope was wrongly touched" unless

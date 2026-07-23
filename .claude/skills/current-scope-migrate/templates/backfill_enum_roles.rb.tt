@@ -81,7 +81,7 @@ class BackfillCurrentScopeRolesFromEnum < ActiveRecord::Migration[8.1]
 
     # One query for every existing assignment (not one find_by per subject).
     current_role_by_id = CurrentScope::RoleAssignment
-                         .where(subject_type: subjects.base_class.name)
+                         .where(subject_type: subjects.base_class.polymorphic_name)
                          .joins(:role).pluck(:subject_id, "current_scope_roles.name").to_h
 
     conflicted = []

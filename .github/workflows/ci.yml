@@ -76,10 +76,13 @@ jobs:
       # pure_role silently changes who can do what) — its self-test and the
       # parity template's syntax run in CI so regressions go red here, not
       # in a host app mid-migration.
-      - name: Migrate-skill checks (classifier self-test + template syntax)
+      - name: Migrate-skill checks (self-tests + template syntax)
         run: |
           ruby .claude/skills/current-scope-migrate/scripts/policy_inventory.rb --self-test
+          ruby .claude/skills/current-scope-migrate/scripts/callsite_rewrite.rb --self-test
           ruby -c .claude/skills/current-scope-migrate/templates/current_scope_migrate.rake.tt
+          ruby -c .claude/skills/current-scope-migrate/templates/backfill_enum_roles.rb.tt
+          ruby -c .claude/skills/current-scope-migrate/templates/backfill_rolify.rb.tt
 
       - name: Keep screenshots from failed system tests
         uses: actions/upload-artifact@v7

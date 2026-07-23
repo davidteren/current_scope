@@ -70,8 +70,10 @@ PR #105 merged to `main`.
 **Landed 2026-07-23:** #98 (docs site, PR #106; also closed #33) — site live
 at davidteren.github.io/current_scope, Pages now builds from `main` via
 `.github/workflows/pages.yml` (the `gh-pages` branch is deleted).
-**In flight:** #45 phase 1 (Pundit MVP migration skill, report-only) on
-`feat/migrate-skill-45`.
+**Landed 2026-07-23 (later):** #45 phase 1 (Pundit MVP migration skill,
+report-only), PR #107 merged.
+**In flight:** #45 phase 2 (backfill migration templates + `--write`
+call-site rewriter) on `feat/migrate-skill-45-phase2`.
 
 ## Done (all committed on `main`)
 

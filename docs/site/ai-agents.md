@@ -126,8 +126,10 @@ guess or bypass the gate.
 Migrating from Pundit? The
 [`current-scope-migrate`](https://github.com/davidteren/current_scope/tree/main/.claude/skills/current-scope-migrate)
 Claude Code skill is shipped ([#45](https://github.com/davidteren/current_scope/issues/45)
-phase 1, report-only): deterministic policy inventory, decision report, and
-a parity harness. The manual path remains the
+phases 1–2): deterministic policy inventory, decision report, parity
+harness, reviewable role-backfill migrations (enum column or rolify), and
+safe mechanical call-site rewrites behind an explicit `--write`. The manual
+path remains the
 [adoption guide](https://github.com/davidteren/current_scope/blob/main/docs/guides/adopting-in-an-existing-app.md).
 
 ## Planned agent surfaces
@@ -138,5 +140,5 @@ yet:
 - Exposing the subject's abilities to a separate JS front-end (React/Next):
   [#96](https://github.com/davidteren/current_scope/issues/96), Inertia
   props: [#97](https://github.com/davidteren/current_scope/issues/97).
-- #45 phases 2–3: the data backfill, `--write` call-site rewrites, and
-  CanCanCan / Action Policy support.
+- #45 phase 3: CanCanCan and Action Policy support for the migration
+  skill.

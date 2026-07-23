@@ -1,0 +1,32 @@
+.claude/skills/current-scope-migrate/SKILL.md
+  s_e49ad5b2662b90::t_19567b9abd9b98 10
+  s_e49ad5b2662b90::t_5d4b95c3454700 3
+  s_e49ad5b2662b90::t_10c237142006fe 122-123
+.claude/skills/current-scope-migrate/templates/current_scope_migrate.rake.tt
+  s_e49ad5b2662b90::t_3801cb744241c5 17-19
+  s_e49ad5b2662b90::t_edd54f7e937852 37-40,82-90,109-112,139-153,155,188,207-213
+.github/workflows/ci.yml
+  s_e49ad5b2662b90::t_0507250c01a49c 79,82
+.claude/skills/current-scope-migrate/scripts/policy_inventory.rb
+  s_e49ad5b2662b90::t_72c1db3234fdc8 147-150,155-156
+  s_e49ad5b2662b90::t_d7780e7a0e1d94 221-227
+  s_e49ad5b2662b90::t_06fe8c120f35d6 314-315
+  s_e49ad5b2662b90::t_b27196e2032df6 350-352
+  s_e49ad5b2662b90::t_4475f1f3ad9cf7 157
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "65d10a72e5fd51db9a728238c9cdf2e38511cdbd",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

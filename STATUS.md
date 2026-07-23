@@ -33,12 +33,15 @@ controllers, views, and ViewComponents.
 - Showcase app: **[davidteren/current_scope_showcase](https://github.com/davidteren/current_scope_showcase)**
   (own repo; consumes the published gem — no longer vendored)
 
-Version **`0.3.1` published** to RubyGems (tag `v0.3.1` + GitHub Release,
-2026-07-19 — same day as 0.3.0). It is the Phase 0 post-release patch (PR
-#100): SoD config writer, last full-access lockout guards, related DX. The
-showcase's `~> 0.3.0` pin already admits 0.3.1 — a `bundle update
-current_scope` there picks it up, no pin edit needed. Not production-ready;
-see the README banner.
+Version **`0.4.0` cut 2026-07-23** (tag + GitHub Release with the merge of
+the release PR): solid-solution Phase 1, denial ergonomics + security
+checklist (#39/#32), the docs site (#98/#33), and the full migration
+toolkit (#45). **RubyGems publish pending the human `gem push` step**
+(WebAuthn MFA) — `0.3.1` (2026-07-19) stays the latest PUBLISHED version
+until that runs. The showcase's `~> 0.3.0` pin does NOT
+admit 0.4.0 (pessimistic constraint: `>= 0.3.0, < 0.4`) — bump its Gemfile
+pin to `~> 0.4.0` after publish, then `bundle update current_scope`.
+Not production-ready; see the README banner.
 
 **0.3.0 shipped 2026-07-19.** The release gate (dte-deep-reviewer +
 dte-test-auditor + /security-review; records in `docs/reviews/`) passed with
@@ -74,8 +77,12 @@ at davidteren.github.io/current_scope, Pages now builds from `main` via
 report-only), PR #107 merged.
 **Landed 2026-07-23:** #45 phase 2 (backfill templates + rewriter,
 PR #109).
-**In flight:** #45 phase 3 (CanCanCan + Action Policy — completes #45) on
-PR #110; the docs/worklist "Done" rows land with that PR's merge.
+**Landed 2026-07-23:** #45 phase 3 (PR #110 merged `e8d3826`) — **#45 is
+CLOSED**; the migrate skill covers Pundit, CanCanCan, and Action Policy.
+**Release cut:** `v0.4.0` (tag + GitHub Release on the release PR's merge;
+RubyGems publish pending the human `gem push`) — solid-solution Phase 1,
+#32/#39, the docs site (#98/#33), and the full migration toolkit (#45).
+See CHANGELOG.
 
 ## Done (all committed on `main`)
 
@@ -618,8 +625,9 @@ quickstart, production checklist) + tests T1–T4.
    2026-07-16 comment) and plan 027 is amended (PR #78).
 8. Then the docs cluster: **#30, #28, #27, #24** (plan 006 is "relocate and
    complete", not "write"); also **#34**, **#25**, **#33**, **#32**.
-9. ~~**Publish to RubyGems**~~ — **done; current release is `v0.3.1`**
-   (2026-07-19; `v0.2.0` was the first published version). The release recipe,
+9. ~~**Publish to RubyGems**~~ — **recurring; `v0.4.0` cut 2026-07-23,
+   publish pending the human `gem push`** (latest published: `v0.3.1`;
+   `v0.2.0` was the first published version). The release recipe,
    proven three times now: bump `lib/current_scope/version.rb` + CHANGELOG
    heading, run the release gate, tag + **GitHub Release** (a pushed tag alone
    does not update the Releases page — 0.3.1 stalled here), `gem push`

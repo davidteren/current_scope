@@ -1,0 +1,27 @@
+lib/current_scope/version.rb
+  s_e49ad5b2662b90::t_f01d6ade4d25cf 2
+STATUS.md
+  s_e49ad5b2662b90::t_682460f6a857b4 78-81
+  s_e49ad5b2662b90::t_296c8bc66360c8 36-42,624-626
+Gemfile.lock
+  s_e49ad5b2662b90::t_ba9cafd905d826 4
+CHANGELOG.md
+  s_e49ad5b2662b90::t_967368e72c8fb2 551-552
+  s_e49ad5b2662b90::t_a606a0012096d4 9-18,20-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "b2d40d04a60e094a4b58b34674a1e8dc09f50c4f",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

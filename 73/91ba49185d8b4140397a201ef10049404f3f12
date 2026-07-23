@@ -1,0 +1,46 @@
+.claude/skills/current-scope-migrate/SKILL.md
+  s_e49ad5b2662b90::t_89688c6e29f447 204-207
+.claude/skills/current-scope-migrate/templates/backfill_rolify.rb.tt
+  s_e49ad5b2662b90::t_a7fa78b4b3275c 47-49,52
+  s_e49ad5b2662b90::t_d0e20818fad40c 60
+  s_e49ad5b2662b90::t_46e9438c4d595d 73-83
+  s_e49ad5b2662b90::t_78a23f8b2fec26 96
+  s_e49ad5b2662b90::t_540e7046d2bb74 38-42
+  s_e49ad5b2662b90::t_efd175d08b797f 117-131
+.claude/skills/current-scope-migrate/templates/backfill_enum_roles.rb.tt
+  s_e49ad5b2662b90::t_507b81ad624b2e 57-66
+.claude/skills/current-scope-migrate/scripts/callsite_rewrite.rb
+  s_e49ad5b2662b90::t_32ac6fdc4c00f4 442
+  s_e49ad5b2662b90::t_03a5f281f23bdb 34-36,39
+  s_e49ad5b2662b90::t_fa54db789af897 435
+  s_e49ad5b2662b90::t_5da47ac5c479a2 493-497
+  s_e49ad5b2662b90::t_bc3a0663b348bf 421-430
+  s_e49ad5b2662b90::t_1e9a81be82204a 154-157
+  s_e49ad5b2662b90::t_8262ea68587167 17
+  s_e49ad5b2662b90::t_c5b61e4e004665 47-50,52-53
+  s_e49ad5b2662b90::t_62c0d79b5bd387 166-168,172-173
+  s_e49ad5b2662b90::t_d6583d9aae398d 450-460
+  s_e49ad5b2662b90::t_2f7123a75d34e1 64-65,68
+  s_e49ad5b2662b90::t_2d9e345624b318 148-153,158-160
+  s_e49ad5b2662b90::t_b066fb204d596a 231-235
+  s_e49ad5b2662b90::t_ae0cc3db7f85a7 290-300
+  s_e49ad5b2662b90::t_8ca9109f7ea996 207-213,215-216
+  s_e49ad5b2662b90::t_b224af2879718a 238
+  s_e49ad5b2662b90::t_26a0130a14e4d1 378-390
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "7391ba49185d8b4140397a201ef10049404f3f12",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

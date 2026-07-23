@@ -1,16 +1,20 @@
 ---
 name: current-scope-migrate
-description: Assisted migration from Pundit to current_scope (issue #45, MVP — report-only). Inventories the host app's Pundit policies with a deterministic AST classifier, produces a decision report mapping rules onto roles/scoped grants (with the ones only a human can decide), and generates a parity harness that diffs old vs new answers over an exemplar matrix (confidence bounded by the manifest) before cutover. Use inside a HOST app that runs Pundit and has current_scope installed, when the user asks to "migrate from Pundit", "adopt current_scope in a Pundit app", or "generate the migration report / parity harness".
+description: Assisted migration from Pundit to current_scope (issue #45, phases 1–2). Inventories the host app's Pundit policies with a deterministic AST classifier, produces a decision report mapping rules onto roles/scoped grants (with the ones only a human can decide), generates a parity harness that diffs old vs new answers over an exemplar matrix (confidence bounded by the manifest) before cutover, generates reviewable role-backfill migrations (enum column or rolify), and applies safe mechanical call-site rewrites behind an explicit --write. Use inside a HOST app that runs Pundit and has current_scope installed, when the user asks to "migrate from Pundit", "adopt current_scope in a Pundit app", "backfill roles", "rewrite Pundit call sites", or "generate the migration report / parity harness".
 ---
 
-# current-scope-migrate — Pundit → current_scope (MVP: report-only)
+# current-scope-migrate — Pundit → current_scope (phases 1–2)
 
-**Contract (do not exceed it):** this skill READS the host app and WRITES only
-new files under `docs/current_scope_migration/`, `config/current_scope_parity.yml`,
-and `lib/tasks/current_scope_migrate.rake`. It never edits existing app code,
-never writes to the database, and never guesses at a rule the AST cannot prove.
-Phases 2–3 of #45 (backfill generator, `--write` rewrites, CanCanCan / Action
-Policy) are not this skill — say so if asked.
+**Contract (do not exceed it):** by default this skill READS the host app and
+WRITES only new files under `docs/current_scope_migration/`,
+`config/current_scope_parity.yml`, `lib/tasks/current_scope_migrate.rake`,
+and (phase 2) a reviewable migration under `db/migrate/`. It never guesses at
+a rule the AST cannot prove. Two writes are **explicit opt-ins, never
+defaults**: the `--write` call-site rewriter edits app code only when the
+user asks for it (§9), and a generated backfill migration writes to the
+database only when the team reviews its decision points and runs it (§10).
+Phase 3 of #45 (CanCanCan / Action Policy) is not this skill yet — say so if
+asked.
 
 Run from the HOST app root. `$SKILL_DIR` below is this skill's directory.
 
@@ -142,10 +146,74 @@ bin/rails current_scope_migrate:parity || true   # first run WILL diverge — th
 The task fails CI on any divergence not recorded (with a reason) in
 `accepted_diffs.yml`. The team runs it from migration start until cutover.
 
-## 8. Hand off
+## 8. Hand off (phase 1)
 
 Summarize: counts per bucket, the go/no-go verdict, where the report and
 harness live, and the explicit next steps (seed the proposed roles in
 report mode, work the human-decision list, keep parity green, then cut
-over per the partial-adoption recipe). Remind that phases 2–3 of #45
-(backfill, rewrites, CanCanCan/Action Policy) are tracked on the issue.
+over per the partial-adoption recipe). Offer §9–§10 (phase 2) when the
+team is ready; phase 3 (CanCanCan / Action Policy) stays on #45.
+
+## 9. Call-site rewrites (phase 2 — `--write` is the opt-in)
+
+Run report-only FIRST and put the JSON in the decision report:
+
+```bash
+ruby $SKILL_DIR/scripts/callsite_rewrite.rb app > /tmp/cs_rewrites.json
+```
+
+The rewriter changes only three provable shapes: `authorize @x` deleted
+**only** when every proof holds — statement position in a straight-line
+def/block body, a side-effect-free argument (bare var/ivar/no-arg call),
+alone on its line, not the file of a gate skip, and not a return value
+(the last expression of anything except a public controller action);
+`policy(@x).update?` → `allowed_to?(:update, @x)`; and
+`policy_scope(X)` → `scope_for(X)`. Everything failing any proof —
+value-used/conditional/side-effect-arg `authorize`, custom query args,
+`permitted_attributes`, every view-template occurrence
+(ERB/Haml/Slim/jbuilder) — lands in `reviews` with `file:line` for a
+human. Its `--self-test` (run in CI) pins those guarantees.
+
+Only when the user explicitly asks to apply:
+
+```bash
+ruby $SKILL_DIR/scripts/callsite_rewrite.rb --write app
+```
+
+Then run the host's test suite and the parity task before committing
+anything, and walk the `reviews` list by hand. Two caveats to state in the
+report: `policy(@x).edit?`/`new?` rewrites keep those action names — the
+gate enforces `edit`/`new` as their own keys, unlike Pundit's alias
+convention, so check the decision report's key mapping for those; deleting
+`authorize` relies on the controller being Guard-gated — confirm with
+`bin/rails current_scope:ungated` first.
+
+## 10. Role backfill migration (phase 2 — generated, reviewed, then run)
+
+Detect the host's role shape (Read `db/schema.rb` and the subject model):
+
+- **Enum/string column** (`users.role`) → copy
+  `templates/backfill_enum_roles.rb.tt` into
+  `db/migrate/<timestamp>_backfill_current_scope_roles_from_enum.rb`.
+  One role per user by construction — no precedence needed.
+- **rolify** (`rolify` in Gemfile.lock, `roles`/`users_roles` tables) → copy
+  `templates/backfill_rolify.rb.tt` similarly. Its two preflights ABORT
+  before writing anything: multi-role users unresolved by `PRECEDENCE`
+  (the one-org-role-per-subject go/no-go from §5), and rolify
+  class-scoped roles (no current_scope equivalent — a human decision).
+- Any other shape (habtm role tables, JSON columns): no template — write
+  the migration by hand following the enum template's structure, and say
+  so in the report.
+
+After copying, replace the template's `ActiveRecord::Migration[8.1]` with
+the host's own version tag (match what `bin/rails generate migration` emits
+there — e.g. `[8.2]`), and name the copied file with a fresh timestamp.
+
+Fill every DECISION-POINT constant from §6's proposed roles before handing
+over. The migrations copy (never move) role data, grant through the
+audited `CurrentScope.grant!` path for org-wide roles, and are deliberately
+irreversible (the old columns/tables stay intact — rollback is "keep using
+the old system"). Grid ticks still come from §6.2 seeding, not from the
+backfill. Scoped-grant caveat: direct `ScopedRoleAssignment` writes are not
+ledger-recorded (documented engine behavior) — the scoped audit trail
+starts at cutover.

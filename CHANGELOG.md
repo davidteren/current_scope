@@ -6,7 +6,34 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-23
+
+Solid-solution Phase 1 plus the adoption surface: denial ergonomics, the
+security checklist, a real documentation site, and the complete
+Pundit / CanCanCan / Action Policy migration toolkit. No intended host API
+break. **Upgrade-visible:** a `sod_bypass_permission` listed in
+`sod_actions` now **fails at boot** (#40) instead of 500ing on the first
+real bypass — a colliding config that previously deployed silently will
+refuse to start until fixed.
+
 ### Added
+- **Documentation site with committed source (#98, #33).** The Pages site is
+  now a real doc site built from [docs/site/](docs/site/) by GitHub Actions:
+  quickstart, concepts, the **separation-of-duties guide** (opt-in stated
+  loudly, verification recipe, break-glass honesty), the security checklist
+  (generated from its single in-repo source), a config reference, upgrading
+  notes, copy-paste **prompts for AI agents**, and `llms.txt`. The landing
+  page's quickstart gained the sessions gate-skip step it was missing
+  (following it verbatim used to lock sign-in).
+- **Migration toolkit for Pundit, CanCanCan, and Action Policy (#45).** The
+  `current-scope-migrate` Claude Code skill
+  ([.claude/skills/current-scope-migrate/](.claude/skills/current-scope-migrate/),
+  ships in the repo, not the gem): deterministic AST rule inventories
+  (fail-closed — only provable shapes are auto-classified), a per-system
+  **parity harness** that diffs old vs new answers over an exemplar matrix,
+  reviewable role-backfill migrations (enum column or rolify), and a
+  proof-gated call-site rewriter behind an explicit `--write`. Three
+  self-test suites run in this repo's CI.
 - **Denial ergonomics (#39).** `AccessDenied` exposes `#permission`, `#record`,
   and `#subject` (in addition to `#reason`) so branded 403 pages and trackers
   need not parse `#message`. The engine registers
@@ -521,7 +548,8 @@ guards from the solid-solution worklist (PR #100). No intended host API break.
   so `allowed_to?` works identically in controllers, views, and ViewComponents,
   the mounted management UI, and the `current_scope:install` generator.
 
-[Unreleased]: https://github.com/davidteren/current_scope/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/davidteren/current_scope/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/davidteren/current_scope/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/davidteren/current_scope/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/davidteren/current_scope/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/davidteren/current_scope/compare/v0.1.0...v0.2.0

@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    current_scope (0.3.1)
+    current_scope (0.4.0)
       rails (>= 8.1, < 9)
 
 GEM

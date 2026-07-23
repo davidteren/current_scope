@@ -44,30 +44,39 @@ class BackfillCurrentScopeRolesFromRolify < ActiveRecord::Migration[8.1]
 
     global = ::Role.where(resource_type: nil, resource_id: nil)
 
+    # One query: every subject's global rolify role names.
+    names_by_subject = subjects.joins(:roles).merge(global)
+                               .pluck(:id, "roles.name")
+                               .group_by(&:first).transform_values { |rows| rows.map(&:last) }
+
     # ANY unranked role on a multi-role user aborts — a partial PRECEDENCE
     # list must not silently demote (e.g. [admin, member] with only "member"
     # ranked would quietly pick member).
-    unresolved = subjects.joins(:roles).merge(global).distinct.select do |subject|
-      names = subject.roles.merge(global).pluck(:name)
+    unresolved = names_by_subject.select do |_id, names|
       names.size > 1 && (names - PRECEDENCE).any?
-    end
+    end.keys
     if unresolved.any?
       raise "one org-wide role per subject: add these users' roles to PRECEDENCE " \
             "(or merge roles) first:\n" +
-            unresolved.map { |s| "  #{SUBJECT_CLASS}##{s.id}: #{s.roles.merge(global).pluck(:name).join(', ')}" }.join("\n")
+            unresolved.map { |id| "  #{SUBJECT_CLASS}##{id}: #{names_by_subject[id].join(', ')}" }.join("\n")
     end
 
     global.distinct.pluck(:name).each { |name| find_or_align_role!(name) }
 
-    winner_for = lambda do |subject|
-      names = subject.roles.merge(global).pluck(:name)
+    winner_for = lambda do |subject_id|
+      names = names_by_subject.fetch(subject_id)
       PRECEDENCE.find { |p| names.include?(p) } || names.first
     end
 
-    conflicted = subjects.joins(:roles).merge(global).distinct.filter_map do |subject|
-      current = CurrentScope::RoleAssignment.find_by(subject: subject)&.role&.name
-      wanted = role_name(winner_for.call(subject))
-      "  #{SUBJECT_CLASS}##{subject.id}: holds #{current.inspect}, rolify says #{wanted.inspect}" if
+    # One query for every existing assignment (not one find_by per subject).
+    current_role_by_id = CurrentScope::RoleAssignment
+                         .where(subject_type: subjects.base_class.name)
+                         .joins(:role).pluck(:subject_id, "current_scope_roles.name").to_h
+
+    conflicted = names_by_subject.keys.filter_map do |id|
+      current = current_role_by_id[id]
+      wanted = role_name(winner_for.call(id))
+      "  #{SUBJECT_CLASS}##{id}: holds #{current.inspect}, rolify says #{wanted.inspect}" if
         current && current != wanted
     end
     if conflicted.any?
@@ -83,8 +92,8 @@ class BackfillCurrentScopeRolesFromRolify < ActiveRecord::Migration[8.1]
       conflicted.each { |c| say c }
     end
 
-    subjects.joins(:roles).merge(global).distinct.find_each do |subject|
-      role = CurrentScope::Role.find_by!(name: role_name(winner_for.call(subject)))
+    subjects.where(id: names_by_subject.keys).find_each do |subject|
+      role = CurrentScope::Role.find_by!(name: role_name(winner_for.call(subject.id)))
       # Audited path: org_role.assigned, source: "bootstrap".
       CurrentScope.grant!(subject, role: role)
     end

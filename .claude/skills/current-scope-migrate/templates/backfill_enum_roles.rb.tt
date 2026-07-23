@@ -31,10 +31,9 @@ class BackfillCurrentScopeRolesFromEnum < ActiveRecord::Migration[8.1]
     # integer-backed enum column to "" in SQL casts unpredictably.
     with_role = subjects.where.not(ROLE_COLUMN => nil)
     values = with_role.distinct.pluck(ROLE_COLUMN).map(&:to_s).reject(&:empty?).sort
-    blank_count = subjects.count - with_role.count +
-                  with_role.count { |s| s[ROLE_COLUMN].to_s.empty? }
     say "Distinct #{ROLE_COLUMN} values: #{values.join(', ')} " \
-        "(#{blank_count} subject(s) have no value and get no role)"
+        "(#{subjects.where(ROLE_COLUMN => nil).count} NULL subject(s) get no " \
+        "role; blank-string values are skipped per record)"
 
     # A raw integer column WITHOUT a declared enum plucks numbers — roles
     # named "0", "1" would corrupt the backfill. Declare the enum on the
@@ -62,13 +61,20 @@ class BackfillCurrentScopeRolesFromEnum < ActiveRecord::Migration[8.1]
       end
     end
 
-    conflicted = with_role.filter_map do |subject|
+    # One query for every existing assignment (not one find_by per subject).
+    current_role_by_id = CurrentScope::RoleAssignment
+                         .where(subject_type: subjects.base_class.name)
+                         .joins(:role).pluck(:subject_id, "current_scope_roles.name").to_h
+
+    conflicted = []
+    with_role.find_each do |subject|
       next if subject[ROLE_COLUMN].to_s.empty?
 
-      current = CurrentScope::RoleAssignment.find_by(subject: subject)&.role&.name
+      current = current_role_by_id[subject.id]
       wanted = role_name(subject[ROLE_COLUMN].to_s)
-      "  #{SUBJECT_CLASS}##{subject.id}: holds #{current.inspect}, enum says #{wanted.inspect}" if
-        current && current != wanted
+      next unless current && current != wanted
+
+      conflicted << "  #{SUBJECT_CLASS}##{subject.id}: holds #{current.inspect}, enum says #{wanted.inspect}"
     end
     if conflicted.any?
       unless REPLACE_EXISTING_ROLES

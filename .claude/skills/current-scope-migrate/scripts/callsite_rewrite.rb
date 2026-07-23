@@ -87,11 +87,17 @@ module CurrentScopeMigrate
               e.end_offset <= other.end_offset
           end
         end
+        # Prism offsets are BYTE offsets; Ruby String indexing is by
+        # characters. Splice in binary so multibyte text before an edit
+        # cannot shift the cut points, then restore the encoding.
+        encoding = source.encoding
+        bytes = source.dup.force_encoding(Encoding::BINARY)
         # Bottom-up so earlier offsets stay valid.
         outermost.sort_by(&:start_offset).reverse_each do |e|
-          source[e.start_offset...e.end_offset] = e.replacement
+          bytes[e.start_offset...e.end_offset] =
+            e.replacement.dup.force_encoding(Encoding::BINARY)
         end
-        File.write(file, source)
+        File.write(file, bytes.force_encoding(encoding))
       end
       self
     end
@@ -129,19 +135,46 @@ module CurrentScopeMigrate
          const_name(node.constant_path).end_with?("Controller") &&
          node.body.respond_to?(:body)
         visibility = :public
+        defs_by_name = {}
         node.body.body.each do |child|
           case child
           when Prism::CallNode
-            visibility = child.name if child.receiver.nil? &&
-                                      %i[private protected].include?(child.name) &&
-                                      child.arguments.nil?
+            next unless child.receiver.nil? && %i[private protected public].include?(child.name)
+
+            args = child.arguments&.arguments
+            if args.nil?
+              # bare `private` / `protected` / `public` — flips section
+              # visibility (public RESETS it)
+              visibility = child.name
+            else
+              # symbol/string form: `private :foo` (or `private def foo…`)
+              # changes the NAMED defs' visibility, not the section's
+              args.each do |a|
+                name = visibility_target_name(a)
+                next unless name && defs_by_name.key?(name)
+
+                if child.name == :public
+                  acc << defs_by_name[name]
+                else
+                  acc.delete(defs_by_name[name])
+                end
+              end
+            end
           when Prism::DefNode
+            defs_by_name[child.name.to_s] = child.object_id
             acc << child.object_id if visibility == :public
           end
         end
       end
       node.child_nodes.compact.each { |c| collect_public_controller_defs(c, acc) } if node.respond_to?(:child_nodes)
       acc
+    end
+
+    def visibility_target_name(arg)
+      case arg
+      when Prism::SymbolNode, Prism::StringNode then arg.unescaped
+      when Prism::DefNode then arg.name.to_s # `private def foo ... end`
+      end
     end
 
     def const_name(constant_path)
@@ -320,21 +353,24 @@ module CurrentScopeMigrate
     end
 
     # The statement is the only code on its line(s): safe to remove the line.
+    # All math in BYTES to match Prism offsets.
     def alone_on_line?(node, source)
       span = full_line_span(node, source)
-      outside = source[span[0]...node.location.start_offset].to_s +
-                source[node.location.end_offset...span[1]].to_s
+      outside = source.byteslice(span[0]...node.location.start_offset).to_s +
+                source.byteslice(node.location.end_offset...span[1]).to_s
       outside.strip.empty?
     end
 
     def full_line_span(node, source)
-      from = (source.rindex("\n", node.location.start_offset) || -1) + 1
-      to = source.index("\n", node.location.end_offset)
-      [ from, to ? to + 1 : source.length ]
+      bytes = source.b
+      from = (bytes.rindex("\n", node.location.start_offset) || -1) + 1
+      to = bytes.index("\n", node.location.end_offset)
+      [ from, to ? to + 1 : bytes.length ]
     end
 
+    # Byte-offset slice (Prism locations are bytes, not characters).
     def slice(node, source)
-      source[node.location.start_offset...node.location.end_offset]
+      source.byteslice(node.location.start_offset...node.location.end_offset)
     end
   end
 end
@@ -432,11 +468,29 @@ if ARGV.first == "--self-test"
     end
   RUBY
 
+  # Multibyte text BEFORE the edits: byte-offset splicing must not shift.
+  # And `private :tail_check` (symbol form) must strip public status.
+  UNICODE_CONTROLLER = <<~RUBY
+    class NotasController < ApplicationController
+      # résumé ✓ — ünïcödé cömmént
+      def index
+        @notas = policy_scope(Nota)
+      end
+
+      def tail_check
+        setup
+        authorize @nota
+      end
+      private :tail_check
+    end
+  RUBY
+
   Dir.mktmpdir do |dir|
     file = File.join(dir, "posts_controller.rb")
     File.write(file, CONTROLLER)
     File.write(File.join(dir, "webhooks_controller.rb"), SKIPPED_CONTROLLER)
     File.write(File.join(dir, "callbacks_controller.rb"), STRING_SKIPPED_CONTROLLER)
+    File.write(File.join(dir, "notas_controller.rb"), UNICODE_CONTROLLER)
     File.write(File.join(dir, "show.html.erb"), "<%= link_to 'Edit' if policy(@post).update? %>\n")
 
     r = CurrentScopeMigrate::CallsiteRewrite.new(dir).scan.report
@@ -453,9 +507,10 @@ if ARGV.first == "--self-test"
       r[:rewrites].count { |x| x[:kind] == "delete_authorize" } == 1
     # posts: value-used, custom-query, modifier-if conditional, case/when
     # conditional, side-effect-arg, last-expression-in-private-helper;
-    # webhooks + callbacks: gate-skipped = 8.
-    failures << "expected 8 authorize reviews" unless
-      r[:reviews].count { |x| x[:kind] == "authorize" } == 8
+    # webhooks + callbacks: gate-skipped; notas: last-expression in a
+    # symbol-form-private def = 9.
+    failures << "expected 9 authorize reviews" unless
+      r[:reviews].count { |x| x[:kind] == "authorize" } == 9
     failures << "string-form skip must protect its authorize" unless
       r[:reviews].any? { |x| x[:file].end_with?("callbacks_controller.rb") && x[:note].include?("skips current_scope_check!") }
     failures << "case/when authorize must be CONDITIONAL review" unless
@@ -499,6 +554,12 @@ if ARGV.first == "--self-test"
     failures << "case/when authorize was deleted" unless out.include?('when "strict"') &&
                                                          out[/def cased.*?head :ok/m]&.include?("authorize @post")
     failures << "edit? predicate not rewritten" unless out.include?("head :ok if allowed_to?(:edit, @post)")
+    notas = File.read(File.join(dir, "notas_controller.rb"))
+    failures << "multibyte file corrupted or policy_scope missed" unless
+      notas.include?("@notas = scope_for(Nota)") && notas.include?("ünïcödé cömmént") &&
+      Prism.parse(notas).success?
+    failures << "symbol-form private def's trailing authorize was deleted" unless
+      notas.include?("authorize @nota")
     failures << "modifier-if authorize was wrongly touched" unless
       out.include?("authorize @post if params[:strict]")
     failures << "arity-mismatched policy_scope was wrongly touched" unless

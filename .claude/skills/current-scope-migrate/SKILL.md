@@ -162,13 +162,17 @@ Run report-only FIRST and put the JSON in the decision report:
 ruby $SKILL_DIR/scripts/callsite_rewrite.rb app > /tmp/cs_rewrites.json
 ```
 
-The rewriter changes only three provable shapes: statement-position
-`authorize @x` (deleted — the Guard gates the action),
-`policy(@x).update?` → `allowed_to?(:update, @x)`, and
-`policy_scope(X)` → `scope_for(X)`. Everything else — value-used
-`authorize`, custom query args, `permitted_attributes`, every ERB
-occurrence — lands in `reviews` with `file:line` for a human. Its
-`--self-test` (run in CI) pins those guarantees.
+The rewriter changes only three provable shapes: `authorize @x` deleted
+**only** when every proof holds — statement position in a straight-line
+def/block body, a side-effect-free argument (bare var/ivar/no-arg call),
+alone on its line, not the file of a gate skip, and not a return value
+(the last expression of anything except a public controller action);
+`policy(@x).update?` → `allowed_to?(:update, @x)`; and
+`policy_scope(X)` → `scope_for(X)`. Everything failing any proof —
+value-used/conditional/side-effect-arg `authorize`, custom query args,
+`permitted_attributes`, every view-template occurrence
+(ERB/Haml/Slim/jbuilder) — lands in `reviews` with `file:line` for a
+human. Its `--self-test` (run in CI) pins those guarantees.
 
 Only when the user explicitly asks to apply:
 

@@ -41,10 +41,12 @@ namespace :current_scope_migrate do
     excluded = (manifest["excluded_keys"] || []).to_set
     key_models = manifest["key_models"] || {}
 
-    # eval is deliberate and safe HERE: the expressions are developer-authored
-    # record locators in the host's own config/current_scope_parity.yml —
-    # the same trust level as the Rakefile running them. Never feed this
-    # manifest from user input.
+    # eval is deliberate. The manifest lives in the host's own repo, so anyone
+    # who can edit it can equally edit this rake file, the Gemfile, or any
+    # other Ruby that CI runs — the YAML is not a lower-privilege boundary,
+    # and locators must express factories/scopes ("FactoryBot.create(:admin)",
+    # "User.where(...).first!") that a data-only parser cannot. Never feed
+    # this manifest from user input or an untrusted source.
     subjects = (manifest["subjects"] || {}).transform_values { |expr| eval(expr) } # rubocop:disable Security/Eval
     records = (manifest["records"] || {}).transform_values { |expr| eval(expr) } # rubocop:disable Security/Eval
     abort "Manifest declares no subjects — add one exemplar per role." if subjects.empty?

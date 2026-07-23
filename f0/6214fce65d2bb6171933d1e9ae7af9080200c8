@@ -1,0 +1,19 @@
+.claude/skills/current-scope-migrate/SKILL.md
+  s_e49ad5b2662b90::t_c3695ed6eba96b 232-235
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "f06214fce65d2bb6171933d1e9ae7af9080200c8",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "unknown"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

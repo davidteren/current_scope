@@ -1,0 +1,45 @@
+.claude/skills/current-scope-migrate/templates/current_scope_migrate.rake.tt
+  s_e49ad5b2662b90::t_040dcc292cb566 253-256,259
+docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md
+  s_e49ad5b2662b90::t_040dcc292cb566 138,211-212
+  s_e49ad5b2662b90::t_39b0b9920bae44 192
+STATUS.md
+  s_e49ad5b2662b90::t_040dcc292cb566 78
+.claude/skills/current-scope-migrate/scripts/policy_inventory.rb
+  s_e49ad5b2662b90::t_03314705e0c455 141-143,145-147
+.claude/skills/current-scope-migrate/SKILL.md
+  s_e49ad5b2662b90::t_ec2746d0e02f37 41-46,52-53,191,197-214
+.claude/skills/current-scope-migrate/scripts/ability_inventory.rb
+  s_e49ad5b2662b90::t_b6eebb3c054d34 51-64,67-69,71-73,75-81,84
+  s_e49ad5b2662b90::t_be8ea274abc870 139,150,165,167,170-176,181-191,193,195-196,200,202
+  s_e49ad5b2662b90::t_19fe15b1ca261d 96-97,100,102,105-124
+  s_e49ad5b2662b90::t_03314705e0c455 301-303,361
+  s_e49ad5b2662b90::t_407d8337ccc00c 398-400,423-435,479-487,507-510
+.claude/skills/current-scope-migrate/templates/current_scope_parity.yml.tt
+  s_e49ad5b2662b90::t_040dcc292cb566 5-8
+.claude/skills/current-scope-migrate/scripts/callsite_rewrite.rb
+  s_e49ad5b2662b90::t_74c683707258e5 416-417,419-422,630-631,770-771
+  s_e49ad5b2662b90::t_addcb487ef0c4d 220,263-267,270-271,277-283,312-317,320-321,339,355,364-365
+  s_e49ad5b2662b90::t_87a420b82db71f 743-747
+  s_e49ad5b2662b90::t_96d2961ae24015 432-449,451-456,633
+  s_e49ad5b2662b90::t_258e19afc4ab87 386-392,394
+  s_e49ad5b2662b90::t_aed3b0906bfdf5 632,634
+.claude/skills/current-scope-migrate/scripts/ast_helpers.rb
+  s_e49ad5b2662b90::t_c950f0768f334f 14,26-28,31-36,42-43,45-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "a74114a394ce6b79ebf17a5bdc896c984be1c36e",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

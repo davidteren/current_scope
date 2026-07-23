@@ -143,7 +143,11 @@ namespace :current_scope_migrate do
     action_policy_answer = lambda do |subject, key, record|
       next "ActionPolicy not loaded (check old_system: in the manifest)" unless defined?(ActionPolicy)
 
-      action = aliases.fetch(key.split("#").last, key.split("#").last)
+      # RAW action, like the CanCanCan branch: apply() itself resolves
+      # alias_rule/default_rule chains, so pre-mapping edit->update here
+      # would silently answer the wrong rule for a host with a distinct
+      # edit? rule and fake parity.
+      action = key.split("#").last
       model = model_for.call(key)
       target = record || model
       next "no target model (add key_models)" unless target

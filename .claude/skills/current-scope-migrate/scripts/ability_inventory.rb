@@ -135,8 +135,8 @@ module CurrentScopeMigrate
         # `!user.admin?`.
         inner_ok = user_only?(node.predicate)
         pred_src = slice(node.predicate)
-        positive = { source: pred_src, user_only: inner_ok, negated: false }
-        negative = { source: "!(#{pred_src})", user_only: inner_ok, negated: true }
+        positive = { source: pred_src, user_only: inner_ok }
+        negative = { source: "!(#{pred_src})", user_only: inner_ok }
         body_guard, arm_guard = node.is_a?(Prism::UnlessNode) ? [ negative, positive ] : [ positive, negative ]
         walk_method(node.statements, method_name, guards + [ body_guard ], rules, method_names)
         if (arm = else_arm(node))
@@ -160,7 +160,7 @@ module CurrentScopeMigrate
            Prism::RescueNode, Prism::BeginNode
         # Containers whose conditions we do not model: everything inside is
         # guarded by something unprovable.
-        poison = { source: "(#{node.class.name.split('::').last} container)", user_only: false, negated: false }
+        poison = { source: "(#{node.class.name.split('::').last} container)", user_only: false }
         node.child_nodes.compact.each { |c| walk_method(c, method_name, guards + [ poison ], rules, method_names) }
       else
         node.child_nodes.compact.each { |c| walk_method(c, method_name, guards, rules, method_names) } if node.respond_to?(:child_nodes)
@@ -193,11 +193,11 @@ module CurrentScopeMigrate
       inner_ok = user_only?(stmt.predicate)
       if stmt.is_a?(Prism::UnlessNode)
         # `return unless P` — the rest runs when P holds.
-        [ { source: slice(stmt.predicate), user_only: inner_ok, negated: false } ]
+        [ { source: slice(stmt.predicate), user_only: inner_ok } ]
       else
         # `return if P` — the rest runs when P does NOT hold; the negation
         # of a user-only predicate is still user-only.
-        [ { source: "!(#{slice(stmt.predicate)})", user_only: inner_ok, negated: true } ]
+        [ { source: "!(#{slice(stmt.predicate)})", user_only: inner_ok } ]
       end
     end
 
@@ -322,8 +322,6 @@ module CurrentScopeMigrate
       node.is_a?(Prism::CallNode) &&
         (receiver_root(node) == :user || (node.receiver.nil? && node.name == :user))
     end
-
-
 
     def slice(node)
       @source.byteslice(node.location.start_offset...node.location.end_offset)

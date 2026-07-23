@@ -33,10 +33,5 @@ module CurrentScopeMigrate
     def bare_call?(node, name)
       node.is_a?(Prism::CallNode) && node.receiver.nil? && node.name == name
     end
-
-    # Byte-offset slice — Prism locations are bytes, not characters.
-    def byte_slice(source, node)
-      source.byteslice(node.location.start_offset...node.location.end_offset)
-    end
   end
 end

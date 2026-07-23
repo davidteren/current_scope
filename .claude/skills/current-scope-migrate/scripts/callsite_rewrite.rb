@@ -399,7 +399,6 @@ module CurrentScopeMigrate
       end
     end
 
-
     def authorize_review_note(node, args, parent, grandparent)
       if !provable_authorize_args?(args)
         "argument shape not provable (custom query key, or a side-effecting " \

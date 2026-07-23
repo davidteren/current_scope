@@ -294,9 +294,6 @@ module CurrentScopeMigrate
       end
     end
 
-
-
-
     # --- Scope#resolve classification --------------------------------------
 
     def classify_scope(scope_node, class_name, path, source)

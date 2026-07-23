@@ -1,0 +1,25 @@
+.claude/skills/current-scope-migrate/scripts/ability_inventory.rb
+  s_e49ad5b2662b90::t_939f52ec86091a 124-130,133
+  s_e49ad5b2662b90::t_13b33d98bcc5a6 358-363
+  s_e49ad5b2662b90::t_f9fa06634d8dbf 371-372
+  s_e49ad5b2662b90::t_5c08d49b6691ae 331-340
+  s_e49ad5b2662b90::t_ec785a31997816 102,104
+  s_e49ad5b2662b90::t_e33a7b3c72c61c 85-95
+  s_e49ad5b2662b90::t_8973c29c5d07c7 122-123,131-132,134-148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "d1ed94b9bc467cc9bfd18e7af9f1a6cc8665dfde",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

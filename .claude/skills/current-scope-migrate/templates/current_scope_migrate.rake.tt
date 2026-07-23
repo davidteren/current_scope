@@ -14,6 +14,9 @@
 # - Policies needing request context cannot be replayed in-process; list them
 #   under `excluded_keys:` in the manifest and verify them by hand.
 # - Confidence is only as good as the exemplar matrix in the manifest.
+# Deliberately NOT under the engine's current_scope: namespace — this file is
+# host-owned migration tooling, and squatting the engine's namespace could
+# collide with tasks a future gem version ships.
 namespace :current_scope_migrate do
   desc "Diff Pundit answers against current_scope for every manifest cell"
   task parity: :environment do
@@ -31,7 +34,10 @@ namespace :current_scope_migrate do
       end
     end
 
-    aliases = { "edit" => "update", "new" => "create" }.merge(manifest["action_aliases"] || {})
+    # Pundit's conventional aliases. This file is host-owned after copy —
+    # a host with nonstandard aliases edits this hash directly. An unmapped
+    # custom action degrades to a visible unanswerable cell, never a silent pass.
+    aliases = { "edit" => "update", "new" => "create" }
     excluded = (manifest["excluded_keys"] || []).to_set
     key_models = manifest["key_models"] || {}
 
@@ -73,8 +79,15 @@ namespace :current_scope_migrate do
         end
       end
       next "no Pundit policy" unless policy
+      next "policy lacks ##{action}?" unless policy.respond_to?("#{action}?")
 
-      policy.respond_to?("#{action}?") ? policy.public_send("#{action}?") : "policy lacks ##{action}?"
+      begin
+        policy.public_send("#{action}?")
+      rescue StandardError => e
+        # A raising policy (nil access on a class-level cell, etc.) is zero
+        # coverage for this cell — visible in the report, never a crashed run.
+        "raised #{e.class}: #{e.message}"
+      end
     end
 
     rows = []
@@ -93,9 +106,10 @@ namespace :current_scope_migrate do
           # cell, that is a potential new privilege (Pundit's missing policy /
           # method was an effective deny-by-raise): it fails the run unless
           # accepted with a reason.
-          cell_id = [ role_label, key, record ? "#{model.name}##{record.id}" : "-" ].join("|")
-          unanswerable << { subject: role_label, key: key, reason: old_answer,
-                            new: new_answer,
+          record_label = record ? "#{model.name}##{record.id}" : "-"
+          cell_id = [ role_label, key, record_label ].join("|")
+          unanswerable << { subject: role_label, key: key, record: record_label,
+                            reason: old_answer, new: new_answer,
                             accepted: accepted_index.include?(cell_id) }
           next
         end
@@ -122,16 +136,23 @@ namespace :current_scope_migrate do
       end
       model = record.class
       # Resolve the index key through the same catalog/key_models mapping as
-      # the per-cell matrix — a namespaced controller's index would otherwise
-      # diff against a key the app never routes.
-      key = CurrentScope.catalog.keys.find { |k| k.end_with?("#index") && model_for.call(k) == model } ||
-            "#{model.model_name.route_key}#index"
+      # the per-cell matrix. No routed index key = nothing to diff against —
+      # UNVERIFIED, never a diff on a fabricated key.
+      key = CurrentScope.catalog.keys.find { |k| k.end_with?("#index") && model_for.call(k) == model }
+      unless key
+        scope_unverified << "#{model_name} (no routed #index key resolves to it)"
+        next []
+      end
+      begin
+        Pundit.policy_scope!(subjects.values.first, model)
+      rescue Pundit::NotDefinedError
+        # No Pundit scope = zero old-side coverage for this model — visible,
+        # not a silent skip.
+        scope_unverified << "#{model_name} (no Pundit policy_scope)"
+        next []
+      end
       subjects.filter_map do |role_label, subject|
-        old_ids = begin
-          Pundit.policy_scope!(subject, model).pluck(:id).sort
-        rescue Pundit::NotDefinedError
-          next
-        end
+        old_ids = Pundit.policy_scope!(subject, model).pluck(:id).sort
         new_ids = CurrentScope.scope_for(subject: subject, model: model, permission: key)
                               .pluck(:id).sort
         next if old_ids == new_ids
@@ -164,7 +185,7 @@ namespace :current_scope_migrate do
       A cell current_scope ALLOWS here is a potential NEW privilege and fails
       the run until accepted with a reason.
 
-      #{unanswerable.empty? ? 'None.' : unanswerable.map { |u| "- #{u[:subject]} × `#{u[:key]}` — #{u[:reason]}; current_scope says **#{u[:new] ? 'ALLOW ⚠' : 'deny'}**#{u[:accepted] ? ' (accepted)' : u[:new] ? ' **UNEXPLAINED**' : ''}" }.join("\n")}
+      #{unanswerable.empty? ? 'None.' : unanswerable.map { |u| "- #{u[:subject]} × `#{u[:key]}` × #{u[:record]} — #{u[:reason]}; current_scope says **#{u[:new] ? 'ALLOW ⚠' : 'deny'}**#{u[:accepted] ? ' (accepted)' : u[:new] ? ' **UNEXPLAINED**' : ''}" }.join("\n")}
 
       ## Scope parity (policy_scope vs scope_for)
 
@@ -183,8 +204,12 @@ namespace :current_scope_migrate do
             "#{new_privilege.size} unanswerable cell(s) current_scope would ALLOW. " \
             "Fix the grants or record the intentional change in accepted_diffs.yml with a reason."
     end
-    warn "NOTE: #{unanswerable.size} cell(s) had zero coverage — see the report." if unanswerable.any?
-    warn "NOTE: scope unverified for: #{scope_unverified.join(', ')}" if scope_unverified.any?
-    puts "Parity OK."
+    if unanswerable.any? || scope_unverified.any?
+      puts "Parity OK — with #{unanswerable.size} uncovered cell(s) and " \
+           "#{scope_unverified.size} unverified scope(s); see the report. " \
+           "This is bounded confidence, not proof."
+    else
+      puts "Parity OK."
+    end
   end
 end

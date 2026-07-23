@@ -15,9 +15,6 @@ records:
 # reported as "scope UNVERIFIED" — visible, never silently green.
 scope_models: []
 
-# Pundit alias actions (merged over the defaults edit->update, new->create).
-action_aliases: {}
-
 # controller path or full key -> model class name, when the classify guess
 # is wrong (e.g. "admin/reports": "Report" is guessed fine, but a
 # DashboardController rendering Reports is not).

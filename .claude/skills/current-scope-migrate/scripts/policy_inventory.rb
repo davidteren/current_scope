@@ -144,9 +144,16 @@ module CurrentScopeMigrate
       [ "unparseable", "mixed condition (#{kinds})" ]
     end
 
+    # Ordering comparisons are quota / time-window conditions (ABAC), not role
+    # membership — a static grid tick would freeze a per-request condition.
+    ORDERING_OPS = %i[< > <= >= <=> =~ !~].freeze
+
     def classify_call(node, method_name, sibling_defs)
       if %i[== !=].include?(node.name) && node.arguments&.arguments&.size == 1
         return classify_comparison(node, method_name)
+      end
+      if ORDERING_OPS.include?(node.name)
+        return [ "unparseable", "ordering comparison (#{node.name}) — a quota/time condition, not a role" ]
       end
       if node.name == :! && node.receiver
         inner = classify_expression(node.receiver, method_name, sibling_defs)
@@ -211,7 +218,13 @@ module CurrentScopeMigrate
         return false unless (node.arguments&.arguments || []).all? { |a| user_only?(a) }
 
         receiver = node.receiver
-        receiver.nil? ? node.name == :user : user_only?(receiver)
+        case receiver
+        when nil then node.name == :user
+        when Prism::CallNode then user_only?(receiver)
+        # A method on a literal (30.days.ago) is a computation, not a user
+        # attribute — time/constant-dependent, so not provable as a role.
+        else false
+        end
       when nil
         false
       else
@@ -298,6 +311,8 @@ if ARGV.first == "--self-test"
       def blocked? = !user.admin?
       def safe_nav? = user&.admin?
       def both? = user.admin? && user.active?
+      def recent? = user.created_at > 30.days.ago
+      def quota? = user.posts_count < 10
       def archive?
         log_check
         user.admin?
@@ -332,7 +347,9 @@ if ARGV.first == "--self-test"
       "export?" => "pure_role", "blocked?" => "pure_role",
       "safe_nav?" => "pure_role", "both?" => "pure_role",
       # a pure_role arm ORed with an ownership arm is NOT provable as either
-      "mixed?" => "unparseable"
+      "mixed?" => "unparseable",
+      # ordering comparisons are quota/time conditions, never a role
+      "recent?" => "unparseable", "quota?" => "unparseable"
     }
     failures = expected.reject do |meth, bucket|
       rows.any? { |r| r[:method] == meth && r[:bucket] == bucket }

@@ -1,13 +1,13 @@
 ---
 name: current-scope-migrate
-description: Assisted migration from Pundit to current_scope (issue #45, MVP — report-only). Inventories the host app's Pundit policies with a deterministic AST classifier, produces a decision report mapping rules onto roles/scoped grants (with the ones only a human can decide), and generates a parity harness that proves old and new systems agree before cutover. Use inside a HOST app that runs Pundit and has current_scope installed, when the user asks to "migrate from Pundit", "adopt current_scope in a Pundit app", or "generate the migration report / parity harness".
+description: Assisted migration from Pundit to current_scope (issue #45, MVP — report-only). Inventories the host app's Pundit policies with a deterministic AST classifier, produces a decision report mapping rules onto roles/scoped grants (with the ones only a human can decide), and generates a parity harness that diffs old vs new answers over an exemplar matrix (confidence bounded by the manifest) before cutover. Use inside a HOST app that runs Pundit and has current_scope installed, when the user asks to "migrate from Pundit", "adopt current_scope in a Pundit app", or "generate the migration report / parity harness".
 ---
 
 # current-scope-migrate — Pundit → current_scope (MVP: report-only)
 
 **Contract (do not exceed it):** this skill READS the host app and WRITES only
 new files under `docs/current_scope_migration/`, `config/current_scope_parity.yml`,
-and `lib/tasks/current_scope_parity.rake`. It never edits existing app code,
+and `lib/tasks/current_scope_migrate.rake`. It never edits existing app code,
 never writes to the database, and never guesses at a rule the AST cannot prove.
 Phases 2–3 of #45 (backfill generator, `--write` rewrites, CanCanCan / Action
 Policy) are not this skill — say so if asked.
@@ -119,8 +119,8 @@ Copy the three templates (strip the `.tt` suffix). **`cp -n`, never bare
 and the accepted-diffs audit trail; if a target exists, leave it and say so:
 
 ```bash
-cp -n $SKILL_DIR/templates/current_scope_parity.rake.tt lib/tasks/current_scope_parity.rake
-cp -n $SKILL_DIR/templates/current_scope_parity.yml.tt  config/current_scope_parity.yml
+cp -n $SKILL_DIR/templates/current_scope_migrate.rake.tt lib/tasks/current_scope_migrate.rake
+cp -n $SKILL_DIR/templates/current_scope_parity.yml.tt   config/current_scope_parity.yml
 mkdir -p docs/current_scope_migration
 cp -n $SKILL_DIR/templates/accepted_diffs.yml.tt docs/current_scope_migration/accepted_diffs.yml
 ```

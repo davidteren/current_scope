@@ -38,8 +38,10 @@ the release PR): solid-solution Phase 1, denial ergonomics + security
 checklist (#39/#32), the docs site (#98/#33), and the full migration
 toolkit (#45). **RubyGems publish pending the human `gem push` step**
 (WebAuthn MFA) — `0.3.1` (2026-07-19) stays the latest PUBLISHED version
-until that runs. The showcase's `~> 0.3.0` pin admits 0.4.0 after a
-`bundle update current_scope`. Not production-ready; see the README banner.
+until that runs. The showcase's `~> 0.3.0` pin does NOT
+admit 0.4.0 (pessimistic constraint: `>= 0.3.0, < 0.4`) — bump its Gemfile
+pin to `~> 0.4.0` after publish, then `bundle update current_scope`.
+Not production-ready; see the README banner.
 
 **0.3.0 shipped 2026-07-19.** The release gate (dte-deep-reviewer +
 dte-test-auditor + /security-review; records in `docs/reviews/`) passed with

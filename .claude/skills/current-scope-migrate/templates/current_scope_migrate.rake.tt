@@ -250,10 +250,11 @@ namespace :current_scope_migrate do
                         .apply_scope(model.all, type: :active_record_relation)
           end
         end
-      # Pundit::NotDefinedError can only be referenced when Pundit is loaded —
-      # naming it in a rescue on a CanCanCan/AP host would itself NameError.
-      scope_missing = [ NameError ]
-      scope_missing << Pundit::NotDefinedError if defined?(Pundit)
+      # With Pundit loaded, only its NotDefinedError means "no scope" — a
+      # NameError then is a BROKEN policy and must surface as raised. Without
+      # Pundit (CanCanCan/AP hosts), NameError is the missing-class signal;
+      # referencing Pundit::NotDefinedError there would itself NameError.
+      scope_missing = defined?(Pundit) ? [ Pundit::NotDefinedError ] : [ NameError ]
       begin
         old_scope.call(subjects.values.first)
       rescue *scope_missing => e

@@ -1,0 +1,59 @@
+.github/workflows/ci.yml
+  s_e49ad5b2662b90::t_e365256312bffc 75-79
+.claude/skills/current-scope-migrate/templates/backfill_rolify.rb.tt
+  s_e49ad5b2662b90::t_5d01f6d91ca3f8 95-103
+  s_e49ad5b2662b90::t_07e42fb7b32059 27-30
+  s_e49ad5b2662b90::t_e729d8c8b79d94 55-64,68,70-86
+.claude/skills/current-scope-migrate/scripts/callsite_rewrite.rb
+  s_e49ad5b2662b90::t_7fc265a83da06e 407-410
+  s_e49ad5b2662b90::t_f5fa467307b2e9 401-406
+  s_e49ad5b2662b90::t_344441881c372c 163-165,168,172
+  s_e49ad5b2662b90::t_bb19d307b6102d 396
+  s_e49ad5b2662b90::t_0b2132b9c179fc 427-430
+  s_e49ad5b2662b90::t_7bc1bc21213d52 182,193,200,206-236,239,246,360
+  s_e49ad5b2662b90::t_f5267dbb94680b 422-423
+  s_e49ad5b2662b90::t_7b953a3b08e85c 31-51
+  s_e49ad5b2662b90::t_4faa667d240b4f 412
+  s_e49ad5b2662b90::t_34044625cb283b 350-358
+  s_e49ad5b2662b90::t_4116e0faebe7e5 17
+  s_e49ad5b2662b90::t_16469ad0ae379f 105-109,139-149
+  s_e49ad5b2662b90::t_43a655db8b9fb8 237-238,240-245
+  s_e49ad5b2662b90::t_69f0c3e4d7c4e9 110,112-138
+  s_e49ad5b2662b90::t_e19b63be54fe59 111
+  s_e49ad5b2662b90::t_bc90c82f95011c 66-70,74-79,81
+  s_e49ad5b2662b90::t_7500df42357308 379
+  s_e49ad5b2662b90::t_cf6ecb402b098b 391-394
+  s_e49ad5b2662b90::t_757aa6edad50c4 395,397-400
+  s_e49ad5b2662b90::t_5f6b00e2e960d2 425-426
+  s_e49ad5b2662b90::t_3872d82eb47474 334-345
+  s_e49ad5b2662b90::t_41bdde7a4f1e38 444
+  s_e49ad5b2662b90::t_119e57b5fdfd9d 185-191
+  s_e49ad5b2662b90::t_48b0c9bb05af0f 330-333
+  s_e49ad5b2662b90::t_c6bdf0c98005dc 346-349,359
+  s_e49ad5b2662b90::t_b626c790a53299 363-369,376
+  s_e49ad5b2662b90::t_c0c042e063c4c0 443,445-450
+  s_e49ad5b2662b90::t_a35afd5cd6fb9a 415-418
+  s_e49ad5b2662b90::t_9b77564df0535b 247
+  s_e49ad5b2662b90::t_3ba494e43281f0 361-362
+  s_e49ad5b2662b90::t_9b56c22280d21a 411
+.claude/skills/current-scope-migrate/templates/backfill_enum_roles.rb.tt
+  s_e49ad5b2662b90::t_1337dc69bd3e96 28-31,33
+  s_e49ad5b2662b90::t_1f6a7a22706868 51,63
+  s_e49ad5b2662b90::t_5df634eab1a7b5 20-23,36-37,39-50,52-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "137766b1bb3d6eda918bf6ca6ee3fb3aa03e848e",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

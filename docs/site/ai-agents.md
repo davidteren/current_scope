@@ -121,6 +121,15 @@ guess or bypass the gate.
    run `bin/rails current_scope:ungated` to check the gated surface.
 ```
 
+## Migration tooling (shipped)
+
+Migrating from Pundit? The
+[`current-scope-migrate`](https://github.com/davidteren/current_scope/tree/main/.claude/skills/current-scope-migrate)
+Claude Code skill is shipped ([#45](https://github.com/davidteren/current_scope/issues/45)
+phase 1, report-only): deterministic policy inventory, decision report, and
+a parity harness. The manual path remains the
+[adoption guide](https://github.com/davidteren/current_scope/blob/main/docs/guides/adopting-in-an-existing-app.md).
+
 ## Planned agent surfaces
 
 These are tracked but **not shipped** — do not prompt an agent to use them
@@ -129,7 +138,5 @@ yet:
 - Exposing the subject's abilities to a separate JS front-end (React/Next):
   [#96](https://github.com/davidteren/current_scope/issues/96), Inertia
   props: [#97](https://github.com/davidteren/current_scope/issues/97).
-- Assisted migration from Pundit / CanCanCan / Action Policy:
-  [#45](https://github.com/davidteren/current_scope/issues/45). Until then,
-  the manual path is the
-  [adoption guide](https://github.com/davidteren/current_scope/blob/main/docs/guides/adopting-in-an-existing-app.md).
+- #45 phases 2–3: the data backfill, `--write` call-site rewrites, and
+  CanCanCan / Action Policy support.

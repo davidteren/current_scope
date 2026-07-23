@@ -119,10 +119,13 @@ namespace :current_scope_migrate do
       target = record || model
       next "no target model (add key_models)" unless target
 
+      # Checked up front, not via rescue: a NameError raised INSIDE a broken
+      # Ability must surface as "raised", never masquerade as an absent class
+      # (which would zero out every cell and fake a green run).
+      next "no Ability class" unless defined?(Ability)
+
       begin
         Ability.new(subject).can?(action, target)
-      rescue NameError
-        next "no Ability class"
       rescue StandardError => e
         "raised #{e.class}: #{e.message}"
       end

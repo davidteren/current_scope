@@ -38,6 +38,10 @@ ruby $SKILL_DIR/scripts/policy_inventory.rb app/policies > /tmp/cs_inventory.jso
 ruby $SKILL_DIR/scripts/ability_inventory.rb app/models/ability.rb > /tmp/cs_ability.json
 ```
 
+An Ability composed across files (merged abilities, included modules) needs
+one run per file — the script takes any path; report the composition in the
+decision report so nothing reads as a complete single-file inventory.
+
 `policy_inventory.rb` buckets every policy predicate, Scope#resolve, and
 Action Policy `relation_scope` by what the AST
 **proves**: `pure_role` / `ownership` / `sod_shape` / `unparseable` (its

@@ -97,14 +97,20 @@ module CurrentScopeMigrate
           implicit += implicit_guards_from(stmt)
         end
       when Prism::IfNode, Prism::UnlessNode
-        guard = { source: slice(node.predicate), user_only: user_only?(node.predicate),
-                  negated: node.is_a?(Prism::UnlessNode) }
-        walk_method(node.statements, method_name, guards + [ guard ], rules)
-        # The else/elsif arm's guard is the NEGATION — not provable as a
-        # simple role predicate, so mark it un-user-only (fail closed).
+        # The guard carries its SIGN: `unless user.guest?` guards its body
+        # with !(user.guest?) — serializing the bare predicate would read as
+        # the inverted audience ("grant TO guests"). A negated user-only
+        # predicate is still user-only (the audience is defined purely from
+        # user attributes), matching the policy classifier's treatment of
+        # `!user.admin?`.
+        inner_ok = user_only?(node.predicate)
+        pred_src = slice(node.predicate)
+        positive = { source: pred_src, user_only: inner_ok, negated: false }
+        negative = { source: "!(#{pred_src})", user_only: inner_ok, negated: true }
+        body_guard, arm_guard = node.is_a?(Prism::UnlessNode) ? [ negative, positive ] : [ positive, negative ]
+        walk_method(node.statements, method_name, guards + [ body_guard ], rules)
         if (arm = else_arm(node))
-          negated = { source: "!(#{slice(node.predicate)})", user_only: false, negated: true }
-          walk_method(arm, method_name, guards + [ negated ], rules)
+          walk_method(arm, method_name, guards + [ arm_guard ], rules)
         end
       when Prism::CallNode
         if node.receiver.nil? && %i[can cannot].include?(node.name)
@@ -142,10 +148,14 @@ module CurrentScopeMigrate
       end
       return [] unless terminates
 
+      inner_ok = user_only?(stmt.predicate)
       if stmt.is_a?(Prism::UnlessNode)
-        [ { source: slice(stmt.predicate), user_only: user_only?(stmt.predicate), negated: false } ]
+        # `return unless P` — the rest runs when P holds.
+        [ { source: slice(stmt.predicate), user_only: inner_ok, negated: false } ]
       else
-        [ { source: "!(#{slice(stmt.predicate)})", user_only: false, negated: true } ]
+        # `return if P` — the rest runs when P does NOT hold; the negation
+        # of a user-only predicate is still user-only.
+        [ { source: "!(#{slice(stmt.predicate)})", user_only: inner_ok, negated: true } ]
       end
     end
 
@@ -322,6 +332,10 @@ if ARGV.first == "--self-test"
         return if user.banned?
         can :flag, Comment
       end
+
+      def guest_rules(user)
+        can :browse, Post unless user.guest?
+      end
     end
   RUBY
 
@@ -340,11 +354,12 @@ if ARGV.first == "--self-test"
       "can :read, Report" => "unparseable",     # quota guard (user.posts.count > 3)
       "can :export, Report" => "unparseable",   # case container
       "can [:read, :create]" => "pure_role",    # helper method, user-only guard
-      # guard-clause returns become implicit guards for following statements:
-      # `return unless user.moderator?` is provable; `return if user.banned?`
-      # leaves a negation, which is not a role predicate (fail closed).
+      # guard-clause returns become implicit guards for following statements;
+      # a negated user-only predicate is still user-only, with the sign kept
+      # in the serialized guard.
       "can :hide, Comment" => "pure_role",
-      "can :flag, Comment" => "unparseable"
+      "can :flag, Comment" => "pure_role",
+      "can :browse, Post" => "pure_role"
     }
     failures = expected.reject { |frag, bucket| find.call(frag)&.dig(:bucket) == bucket }
     # The full_access shape must be called out, and guards captured.
@@ -354,6 +369,12 @@ if ARGV.first == "--self-test"
       find.call("can :read, Post")&.dig(:guards)&.include?('user.role == "editor"')
     failures["guard-clause guard captured"] = true unless
       find.call("can :hide, Comment")&.dig(:guards)&.include?("user.moderator?")
+    # Guard SIGNS must be serialized — an unsigned unless-guard reads as the
+    # inverted audience.
+    failures["negated return-if guard signed"] = true unless
+      find.call("can :flag, Comment")&.dig(:guards)&.include?("!(user.banned?)")
+    failures["unless-modifier guard signed"] = true unless
+      find.call("can :browse, Post")&.dig(:guards)&.include?("!(user.guest?)")
     if failures.empty?
       puts "self-test OK (#{expected.size} classifications)"
     else

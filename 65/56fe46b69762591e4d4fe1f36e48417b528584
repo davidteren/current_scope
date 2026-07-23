@@ -1,0 +1,45 @@
+.claude/skills/current-scope-migrate/templates/current_scope_parity.yml.tt
+  s_e49ad5b2662b90::t_bbe92ad1648490 13-17
+.claude/skills/current-scope-migrate/scripts/policy_inventory.rb
+  s_e49ad5b2662b90::t_226934f384da9d 202-205,210-211
+  s_e49ad5b2662b90::t_af102b7fdeb718 143-144
+  s_e49ad5b2662b90::t_4deb449a4da555 293-296
+  s_e49ad5b2662b90::t_c34859e8ce227e 233-241
+  s_e49ad5b2662b90::t_8010483cb5262e 310-315,318
+  s_e49ad5b2662b90::t_4a46f6655b337a 328-329
+  s_e49ad5b2662b90::t_251fe1e708ec39 322,327,330-335,340-349
+  s_e49ad5b2662b90::t_55f285cfc2944d 297-300
+  s_e49ad5b2662b90::t_12eb0f3c33ae62 319
+.github/workflows/ci.yml
+  s_e49ad5b2662b90::t_d6e82d510b46ac 75-83
+.claude/skills/current-scope-migrate/templates/accepted_diffs.yml.tt
+  s_e49ad5b2662b90::t_8f30a055c865b6 11-17
+.claude/skills/current-scope-migrate/SKILL.md
+  s_e49ad5b2662b90::t_e7bee9dd669161 35-42
+  s_e49ad5b2662b90::t_7a6b1f60fb10bb 19-20
+  s_e49ad5b2662b90::t_ce93d1747b7ac3 117-119,122-123,125,129-134
+.claude/skills/current-scope-migrate/templates/current_scope_parity.rake.tt
+  s_e49ad5b2662b90::t_a47164e794377b 179-180,182-184
+  s_e49ad5b2662b90::t_7fb5d31c2ed508 55-57,62,64-67,69-73,75-77,81,90-91,100-101,104,112-122,139-141,143
+  s_e49ad5b2662b90::t_cb237fad36e91a 124-128
+  s_e49ad5b2662b90::t_0a54c0a443804a 164-165,167
+  s_e49ad5b2662b90::t_78d4ed1057ebb3 26-32
+  s_e49ad5b2662b90::t_53ef47f1a4fa23 92-99
+  s_e49ad5b2662b90::t_c612a50b22b0a6 148,152-154,160-163,166,168,171-175,186-187
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "6556fe46b69762591e4d4fe1f36e48417b528584",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

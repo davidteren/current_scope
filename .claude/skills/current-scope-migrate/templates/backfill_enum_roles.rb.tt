@@ -25,12 +25,26 @@ class BackfillCurrentScopeRolesFromEnum < ActiveRecord::Migration[8.1]
 
   def up
     subjects = SUBJECT_CLASS.constantize
-    # Blank strings behave like NULL: no role. Without this, '' reaches
-    # Role.find_or_create_by!(name: '') and dies on presence validation.
-    with_role = subjects.where.not(ROLE_COLUMN => [ nil, "" ])
-    values = with_role.distinct.pluck(ROLE_COLUMN).map(&:to_s)
-    say "Distinct #{ROLE_COLUMN} values: #{values.sort.join(', ')} " \
-        "(#{subjects.where(ROLE_COLUMN => [ nil, '' ]).count} subject(s) have no value and get no role)"
+    # A declared Rails enum casts pluck/[] to its LABELS ("admin"), which is
+    # what we want. Blank labels behave like NULL: no role (Role name has a
+    # presence validation). The filter stays Ruby-side because comparing an
+    # integer-backed enum column to "" in SQL casts unpredictably.
+    with_role = subjects.where.not(ROLE_COLUMN => nil)
+    values = with_role.distinct.pluck(ROLE_COLUMN).map(&:to_s).reject(&:empty?).sort
+    blank_count = subjects.count - with_role.count +
+                  with_role.count { |s| s[ROLE_COLUMN].to_s.empty? }
+    say "Distinct #{ROLE_COLUMN} values: #{values.join(', ')} " \
+        "(#{blank_count} subject(s) have no value and get no role)"
+
+    # A raw integer column WITHOUT a declared enum plucks numbers — roles
+    # named "0", "1" would corrupt the backfill. Declare the enum on the
+    # model, or map every number explicitly in ROLE_NAMES.
+    numeric = values.select { |v| v.match?(/\A\d+\z/) } - ROLE_NAMES.keys
+    if numeric.any?
+      raise "#{ROLE_COLUMN} values look like raw integers (#{numeric.join(', ')}) — " \
+            "declare the Rails enum on #{SUBJECT_CLASS} (so labels are used) or map " \
+            "each value in ROLE_NAMES"
+    end
 
     values.each do |value|
       role = CurrentScope::Role.find_or_create_by!(name: role_name(value)) do |r|
@@ -49,6 +63,8 @@ class BackfillCurrentScopeRolesFromEnum < ActiveRecord::Migration[8.1]
     end
 
     conflicted = with_role.filter_map do |subject|
+      next if subject[ROLE_COLUMN].to_s.empty?
+
       current = CurrentScope::RoleAssignment.find_by(subject: subject)&.role&.name
       wanted = role_name(subject[ROLE_COLUMN].to_s)
       "  #{SUBJECT_CLASS}##{subject.id}: holds #{current.inspect}, enum says #{wanted.inspect}" if
@@ -67,6 +83,8 @@ class BackfillCurrentScopeRolesFromEnum < ActiveRecord::Migration[8.1]
     end
 
     with_role.find_each do |subject|
+      next if subject[ROLE_COLUMN].to_s.empty?
+
       role = CurrentScope::Role.find_by!(name: role_name(subject[ROLE_COLUMN].to_s))
       # grant! (not a direct RoleAssignment write) so every assignment lands
       # in the audit ledger as org_role.assigned with source: "bootstrap".

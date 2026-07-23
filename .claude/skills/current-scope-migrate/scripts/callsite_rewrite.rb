@@ -512,7 +512,13 @@ else
   dir = ARGV.first || "app"
   abort "No such directory: #{dir}" unless Dir.exist?(dir)
   if write
-    puts JSON.pretty_generate(CurrentScopeMigrate::CallsiteRewrite.rewrite_all!(dir))
+    result = CurrentScopeMigrate::CallsiteRewrite.rewrite_all!(dir)
+    puts JSON.pretty_generate(result)
+    unless result[:converged]
+      warn "NOT CONVERGED: rewritable call sites remain after " \
+           "#{CurrentScopeMigrate::CallsiteRewrite::MAX_PASSES} passes — run --write again."
+      exit 1
+    end
   else
     rw = CurrentScopeMigrate::CallsiteRewrite.new(dir).scan
     out = rw.report

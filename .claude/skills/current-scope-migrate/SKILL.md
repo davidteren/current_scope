@@ -1,9 +1,9 @@
 ---
 name: current-scope-migrate
-description: Assisted migration from Pundit to current_scope (issue #45, phases 1–2). Inventories the host app's Pundit policies with a deterministic AST classifier, produces a decision report mapping rules onto roles/scoped grants (with the ones only a human can decide), generates a parity harness that diffs old vs new answers over an exemplar matrix (confidence bounded by the manifest) before cutover, generates reviewable role-backfill migrations (enum column or rolify), and applies safe mechanical call-site rewrites behind an explicit --write. Use inside a HOST app that runs Pundit and has current_scope installed, when the user asks to "migrate from Pundit", "adopt current_scope in a Pundit app", "backfill roles", "rewrite Pundit call sites", or "generate the migration report / parity harness".
+description: Assisted migration from Pundit, CanCanCan, or Action Policy to current_scope (issue #45, phases 1–3). Inventories the host app's authorization rules with deterministic AST classifiers, produces a decision report mapping rules onto roles/scoped grants (with the ones only a human can decide), generates a parity harness that diffs old vs new answers over an exemplar matrix (confidence bounded by the manifest) before cutover, generates reviewable role-backfill migrations (enum column or rolify), and applies safe mechanical call-site rewrites behind an explicit --write. Use inside a HOST app that runs Pundit, CanCanCan, or Action Policy and has current_scope installed, when the user asks to "migrate from Pundit/CanCanCan/Action Policy", "adopt current_scope", "backfill roles", "rewrite authorization call sites", or "generate the migration report / parity harness".
 ---
 
-# current-scope-migrate — Pundit → current_scope (phases 1–2)
+# current-scope-migrate — Pundit / CanCanCan / Action Policy → current_scope
 
 **Contract (do not exceed it):** by default this skill READS the host app and
 WRITES only new files under `docs/current_scope_migration/`,
@@ -13,15 +13,16 @@ a rule the AST cannot prove. Two writes are **explicit opt-ins, never
 defaults**: the `--write` call-site rewriter edits app code only when the
 user asks for it (§9), and a generated backfill migration writes to the
 database only when the team reviews its decision points and runs it (§10).
-Phase 3 of #45 (CanCanCan / Action Policy) is not this skill yet — say so if
-asked.
+All three source systems are supported (#45 phases 1–3).
 
 Run from the HOST app root. `$SKILL_DIR` below is this skill's directory.
 
 ## 1. Preflight (stop early, loudly)
 
-- Pundit present? `bundle show pundit` exits 0 (or Read `Gemfile.lock` and
-  look for a `pundit` entry) and `app/policies/` exists.
+- Which system? `bundle show pundit` / `bundle show cancancan` /
+  `bundle show action_policy` (or Read `Gemfile.lock`). Pundit and Action
+  Policy keep policies in `app/policies/`; CanCanCan keeps
+  `app/models/ability.rb`. A host can run more than one — inventory each.
 - current_scope installed? Gemfile has it, and `bin/rails runner
   'puts CurrentScope.catalog.keys.size'` prints a nonzero count (routes must
   be loaded for the catalog; a zero catalog means the engine is not mounted /
@@ -31,12 +32,34 @@ Run from the HOST app root. `$SKILL_DIR` below is this skill's directory.
 ## 2. Deterministic inventory
 
 ```bash
+# Pundit and Action Policy (per-model policy classes):
 ruby $SKILL_DIR/scripts/policy_inventory.rb app/policies > /tmp/cs_inventory.json
+# CanCanCan (the Ability class):
+ruby $SKILL_DIR/scripts/ability_inventory.rb app/models/ability.rb > /tmp/cs_ability.json
 ```
 
-The script buckets every policy predicate and Scope#resolve by what the AST
+An Ability composed across files — merged abilities, or `include SomeRules`
+modules whose files define further `can` rules — needs one run per file
+(the script takes any path; a module file works when its class/module name
+ends in `Ability`, otherwise wrap or inventory it by hand). Report the
+composition in the decision report so nothing reads as a complete
+single-file inventory.
+
+`policy_inventory.rb` buckets every policy predicate, Scope#resolve, and
+Action Policy `relation_scope` by what the AST
 **proves**: `pure_role` / `ownership` / `sod_shape` / `unparseable` (its
-`--self-test` documents the exact shapes). Do not re-classify `pure_role`
+`--self-test` documents the exact shapes), and flags Action Policy DSL
+(`pre_check`, `alias_rule`, `default_rule`, `authorize`, `scope_matcher`)
+for human folding.
+`ability_inventory.rb` does the same for `can`/`cannot` rules: user-only
+guards + no condition = `pure_role` (`can :manage, :all` = the full_access
+shape), a record-column-vs-user hash = `ownership`, and everything else —
+blocks, `cannot` (subtractive), attribute conditions, non-user guards —
+lands in `unparseable` verbatim. When expanding CanCanCan actions to keys,
+use its alias chain: `:read` → index/show, `:create` → new/create,
+`:update` → edit/update, `:manage` → every routed action of the matching
+controllers. A custom `alias_action` appears as its own inventory row —
+expand the affected rules' actions through it by hand. Do not re-classify `pure_role`
 or `ownership` by reading the code — the script's determinism is the point.
 `sod_shape` is different: the AST proves the *shape* (a negated ownership
 comparison on an approve-like name), not the *intent* — treat it as a
@@ -129,7 +152,10 @@ mkdir -p docs/current_scope_migration
 cp -n $SKILL_DIR/templates/accepted_diffs.yml.tt docs/current_scope_migration/accepted_diffs.yml
 ```
 
-Fill the manifest from what you learned: one subject exemplar per proposed
+Fill the manifest from what you learned: `old_system:` (pundit | cancancan |
+action_policy — parity replays ONE system per run; a host running two
+systems runs parity once per system, swapping the knob), one subject
+exemplar per proposed
 role (§6.2), one record exemplar per model with `ownership` rules,
 `scope_models:` = every model whose policy defines `Scope#resolve` (from
 §2's inventory — a listed model without an exemplar shows as "scope
@@ -146,13 +172,13 @@ bin/rails current_scope_migrate:parity || true   # first run WILL diverge — th
 The task fails CI on any divergence not recorded (with a reason) in
 `accepted_diffs.yml`. The team runs it from migration start until cutover.
 
-## 8. Hand off (phase 1)
+## 8. Hand off (report stage)
 
 Summarize: counts per bucket, the go/no-go verdict, where the report and
 harness live, and the explicit next steps (seed the proposed roles in
 report mode, work the human-decision list, keep parity green, then cut
-over per the partial-adoption recipe). Offer §9–§10 (phase 2) when the
-team is ready; phase 3 (CanCanCan / Action Policy) stays on #45.
+over per the partial-adoption recipe). Offer §9–§10 (rewrites and
+backfill) when the team is ready.
 
 ## 9. Call-site rewrites (phase 2 — `--write` is the opt-in)
 
@@ -162,13 +188,30 @@ Run report-only FIRST and put the JSON in the decision report:
 ruby $SKILL_DIR/scripts/callsite_rewrite.rb app > /tmp/cs_rewrites.json
 ```
 
-The rewriter changes only three provable shapes: `authorize @x` deleted
+The rewriter's Pundit shapes: `authorize @x` deleted
 **only** when every proof holds — statement position in a straight-line
 def/block body, a side-effect-free argument (bare var/ivar/no-arg call),
 alone on its line, not the file of a gate skip, and not a return value
 (the last expression of anything except a public controller action);
 `policy(@x).update?` → `allowed_to?(:update, @x)`; and
-`policy_scope(X)` → `scope_for(X)`. Everything failing any proof —
+`policy_scope(X)` → `scope_for(X)`.
+
+CanCanCan shapes: `can?(:action, x)` / `cannot?(:action, x)` →
+`allowed_to?` / parenthesized negation (except `:read`/`:manage`, which
+span multiple keys and are reviews); `authorize! :action, @x` deletes under
+the same proofs PLUS the action naming the enclosing def (a cross-action
+check is a review — deleting it would widen authorization);
+`Model.accessible_by(current_ability)` → `scope_for(Model)` (any other
+ability argument is a review — the subject may differ); controller macros
+(`load_and_authorize_resource` etc.) are reviews pointing at the record
+hook.
+
+Action Policy shapes: `allowed_to?(:rule?, x)` strips the rule suffix
+(options/extra args are reviews); `authorize! @x, to: :rule?` deletes under
+the same proofs and enclosing-action match; `authorized_scope(X.all)` →
+`scope_for(X)`.
+
+Everything failing any proof —
 value-used/conditional/side-effect-arg `authorize`, custom query args,
 `permitted_attributes`, every view-template occurrence
 (ERB/Haml/Slim/jbuilder) — lands in `reviews` with `file:line` for a
@@ -186,7 +229,10 @@ report: `policy(@x).edit?`/`new?` rewrites keep those action names — the
 gate enforces `edit`/`new` as their own keys, unlike Pundit's alias
 convention, so check the decision report's key mapping for those; deleting
 `authorize` relies on the controller being Guard-gated — confirm with
-`bin/rails current_scope:ungated` first.
+`bin/rails current_scope:ungated` first — and on the record hook loading
+the SAME record the action targets (a file-local `current_scope_record`
+is checked mechanically; hooks on a base controller are your assumption
+to verify).
 
 ## 10. Role backfill migration (phase 2 — generated, reviewed, then run)
 

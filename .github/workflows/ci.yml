@@ -80,6 +80,7 @@ jobs:
       - name: Migrate-skill checks (self-tests + template syntax)
         run: |
           ruby .claude/skills/current-scope-migrate/scripts/policy_inventory.rb --self-test
+          ruby .claude/skills/current-scope-migrate/scripts/ability_inventory.rb --self-test
           ruby .claude/skills/current-scope-migrate/scripts/callsite_rewrite.rb --self-test
           ruby -c .claude/skills/current-scope-migrate/templates/current_scope_migrate.rake.tt
           ruby -c .claude/skills/current-scope-migrate/templates/backfill_enum_roles.rb.tt

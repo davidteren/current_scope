@@ -135,7 +135,7 @@ Items below are what still stand between “good engine” and that bar.
 
 | ID | Item | Why | Source | Status |
 |---|---|---|---|---|
-| **A1** | Migration tooling Pundit/CanCan/Action Policy + parity harness | Biggest adoption blocker | **#45** | **Partial** — Pundit phases 1–2 shipped (skill: inventory, parity, backfill, rewrites); phase 3 (CanCanCan/AP) open |
+| **A1** | Migration tooling Pundit/CanCanCan/Action Policy + parity harness | Biggest adoption blocker | **#45** | **Done** — all 3 systems in the skill (inventory, parity, backfill, rewrites) |
 | **A2** | DX skills: install, doctor, add-resource, why-denied | First hour + silent gaps | **#46** | Open |
 | **A3** | API abilities payload + advisory contract + staleness | Separate JS frontends | **#96** | Open |
 | **A4** | Inertia shared props + denial handling | In-repo React/Vue path | **#97** | Open |
@@ -189,7 +189,7 @@ Minimum for banner consideration: **D2** (one quickstart) + **D9/S13** (producti
 *Outcome:* hosts know how to quiet logs and use Solid Cache without caching allows.
 
 ### Phase 5 — Expand surface (product complete for multi-stack)
-**A1–A5, E3–E4**  
+**A2–A5, E3–E4** (A1 done — the migrate skill covers all three systems)  
 *Outcome:* migrate in, ship API/Inertia with one abilities contract.
 
 ### Phase 6 — Suite maturity
@@ -208,8 +208,8 @@ Minimum for banner consideration: **D2** (one quickstart) + **D9/S13** (producti
 | 4 Engine API | 8 | 2 | 6 (incl. Partial/Defer) |
 | 5 Tests | 7 | 3 | 4 |
 | 6 Docs | 11 | 1 | 10 (incl. Partial) |
-| 7 Adoption / FE | 6 | 0 | 6 (incl. Ongoing) |
-| **Total** | **63** | **21** | **~42** |
+| 7 Adoption / FE | 6 | 1 | 5 (incl. Ongoing) |
+| **Total** | **63** | **22** | **~41** |
 | Explicit non-goals | 8 residuals | — | document, don’t loosen |
 
 **Open GitHub issues (27):** all mapped above — docs/adoption tracks cover **#24–#46** (minus closed), **#73/#74/#76/#90/#96/#97/#98**.  

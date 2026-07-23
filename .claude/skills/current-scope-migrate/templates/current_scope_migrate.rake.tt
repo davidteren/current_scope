@@ -20,7 +20,7 @@ require "set" # Enumerable#to_set — explicit so a bare boot can't NoMethodErro
 # host-owned migration tooling, and squatting the engine's namespace could
 # collide with tasks a future gem version ships.
 namespace :current_scope_migrate do
-  desc "Diff Pundit answers against current_scope for every manifest cell"
+  desc "Diff the old authorization system against current_scope for every manifest cell"
   task parity: :environment do
     manifest_path = Rails.root.join("config/current_scope_parity.yml")
     abort "Missing #{manifest_path} — the skill generates a starter." unless manifest_path.exist?
@@ -44,9 +44,16 @@ namespace :current_scope_migrate do
       end
     end
 
-    # Pundit's conventional aliases. This file is host-owned after copy —
-    # a host with nonstandard aliases edits this hash directly. An unmapped
-    # custom action degrades to a visible unanswerable cell, never a silent pass.
+    old_system = (manifest["old_system"] || "pundit").to_s
+    old_label = { "pundit" => "Pundit", "cancancan" => "CanCanCan",
+                  "action_policy" => "Action Policy" }[old_system]
+    abort "unknown old_system #{old_system.inspect} (pundit | cancancan | action_policy)" unless old_label
+
+    # Conventional edit->update / new->create aliases, applied for Pundit and
+    # Action Policy. CanCanCan resolves its own alias_action chain inside
+    # Ability#can?, so it receives the raw action. This file is host-owned
+    # after copy — a host with nonstandard aliases edits this hash directly;
+    # an unmapped custom action degrades to a visible unanswerable cell.
     aliases = { "edit" => "update", "new" => "create" }
     excluded = (manifest["excluded_keys"] || []).to_set
     key_models = manifest["key_models"] || {}
@@ -70,10 +77,14 @@ namespace :current_scope_migrate do
       key.split("#").first.split("/").last.classify.safe_constantize
     end
 
-    # Namespaced controllers use Pundit's namespaced lookup: "admin/posts" asks
-    # Admin::PostPolicy first ([:admin, target]), falling back to PostPolicy —
-    # comparing admin keys against the un-namespaced policy would fake parity.
+    # Per-system old answer. true/false = an answer; a String = zero coverage
+    # for that cell (surfaced in the report, never silently dropped).
+    #
+    # Pundit: namespaced lookup ("admin/posts" asks Admin::PostPolicy first,
+    # falling back to PostPolicy) — the un-namespaced policy would fake parity.
     pundit_answer = lambda do |subject, key, record|
+      next "Pundit not loaded (check old_system: in the manifest)" unless defined?(Pundit)
+
       action = aliases.fetch(key.split("#").last, key.split("#").last)
       model = model_for.call(key)
       target = record || model
@@ -102,40 +113,94 @@ namespace :current_scope_migrate do
       end
     end
 
+    # CanCanCan: one Ability, raw action (Ability#can? resolves its own
+    # alias_action chain — index/show->read, edit->update, new->create).
+    cancancan_answer = lambda do |subject, key, record|
+      action = key.split("#").last.to_sym
+      model = model_for.call(key)
+      target = record || model
+      next "no target model (add key_models)" unless target
+
+      # Checked up front, not via rescue: a NameError raised INSIDE a broken
+      # Ability must surface as "raised", never masquerade as an absent class
+      # (which would zero out every cell and fake a green run).
+      next "no Ability class" unless defined?(Ability)
+
+      begin
+        Ability.new(subject).can?(action, target)
+      rescue StandardError => e
+        "raised #{e.class}: #{e.message}"
+      end
+    end
+
+    # Action Policy: per-model policy, namespaced constant first; apply()
+    # resolves alias_rule/default_rule chains the class defines.
+    ap_policy_for = lambda do |key, model|
+      namespace = key.split("#").first.split("/")[0..-2].map { |seg| seg.camelize }
+      [ (namespace + [ "#{model.name}Policy" ]).join("::"), "#{model.name}Policy" ]
+        .uniq.filter_map { |name| name.safe_constantize }.first
+    end
+    action_policy_answer = lambda do |subject, key, record|
+      next "ActionPolicy not loaded (check old_system: in the manifest)" unless defined?(ActionPolicy)
+
+      # RAW action, like the CanCanCan branch: apply() itself resolves
+      # alias_rule/default_rule chains, so pre-mapping edit->update here
+      # would silently answer the wrong rule for a host with a distinct
+      # edit? rule and fake parity.
+      action = key.split("#").last
+      model = model_for.call(key)
+      target = record || model
+      next "no target model (add key_models)" unless target
+
+      policy_class = ap_policy_for.call(key, model)
+      next "no policy class" unless policy_class
+
+      begin
+        policy_class.new(target, user: subject).apply(:"#{action}?")
+      rescue StandardError => e
+        "raised #{e.class}: #{e.message}"
+      end
+    end
+
+    old_answer = { "pundit" => pundit_answer, "cancancan" => cancancan_answer,
+                   "action_policy" => action_policy_answer }.fetch(old_system)
+
     rows = []
     unanswerable = []
+    recordless_models = Set.new
     CurrentScope.catalog.keys.sort.each do |key|
       next if excluded.include?(key)
 
       model = model_for.call(key)
       record = model && records[model.name]
+      recordless_models << model.name if model && record.nil?
       subjects.each do |role_label, subject|
-        old_answer = pundit_answer.call(subject, key, record)
+        old_answer_value = old_answer.call(subject, key, record)
         # Record-less cells pass the resolved model so the check represents
         # the TYPED collection gate — the migrated controller will declare
         # current_scope_model per the decision report; omitting it here would
         # fail every scoped collection grant closed and fake a divergence.
         new_answer = CurrentScope.allowed?(key, subject: subject, record: record,
                                            model: record ? nil : model)
-        unless [ true, false ].include?(old_answer)
-          # A cell Pundit cannot answer is ZERO coverage, not parity — it must
-          # be visible, never dropped. And when current_scope ALLOWS such a
-          # cell, that is a potential new privilege (Pundit's missing policy /
-          # method was an effective deny-by-raise): it fails the run unless
+        unless [ true, false ].include?(old_answer_value)
+          # A cell the old system cannot answer is ZERO coverage, not parity —
+          # it must be visible, never dropped. And when current_scope ALLOWS
+          # such a cell, that is a potential new privilege (the missing
+          # policy/rule was an effective deny): it fails the run unless
           # accepted with a reason.
           record_label = record ? "#{model.name}##{record.id}" : "-"
           cell_id = [ role_label, key, record_label ].join("|")
           unanswerable << { subject: role_label, key: key, record: record_label,
-                            reason: old_answer, new: new_answer,
+                            reason: old_answer_value, new: new_answer,
                             accepted: accepted_index.include?(cell_id) }
           next
         end
-        next if old_answer == new_answer
+        next if old_answer_value == new_answer
 
         cell_id = [ role_label, key, record ? "#{model.name}##{record.id}" : "-" ].join("|")
         rows << { subject: role_label, key: key,
                   record: record ? "#{model.name}##{record.id}" : "-",
-                  old: old_answer, new: new_answer,
+                  old: old_answer_value, new: new_answer,
                   accepted: accepted_index.include?(cell_id) }
       end
     end
@@ -160,27 +225,47 @@ namespace :current_scope_migrate do
         scope_unverified << "#{model_name} (no routed #index key resolves to it)"
         next []
       end
-      # Same namespaced lookup as pundit_answer: an admin/posts index must
-      # diff against Admin::PostPolicy::Scope, not silently fall back to
-      # PostPolicy::Scope and fake parity.
+      # Per-system old scope. Pundit uses the same namespaced lookup as the
+      # cell matrix (Admin::PostPolicy::Scope before PostPolicy::Scope);
+      # CanCanCan uses accessible_by; Action Policy applies the policy's
+      # relation scope.
       namespace = key.split("#").first.split("/")[0..-2].map(&:to_sym)
-      scope_target = namespace.empty? ? model : namespace + [ model ]
-      old_scope = lambda do |subject|
-        Pundit.policy_scope!(subject, scope_target)
-      rescue Pundit::NotDefinedError
-        namespace.empty? ? raise : Pundit.policy_scope!(subject, model)
-      end
+      old_scope =
+        case old_system
+        when "pundit"
+          scope_target = namespace.empty? ? model : namespace + [ model ]
+          lambda do |subject|
+            Pundit.policy_scope!(subject, scope_target)
+          rescue Pundit::NotDefinedError
+            namespace.empty? ? raise : Pundit.policy_scope!(subject, model)
+          end
+        when "cancancan"
+          ->(subject) { model.accessible_by(Ability.new(subject)) }
+        when "action_policy"
+          lambda do |subject|
+            policy_class = ap_policy_for.call(key, model)
+            raise NameError, "no policy class for #{model.name}" unless policy_class
+
+            policy_class.new(model, user: subject)
+                        .apply_scope(model.all, type: :active_record_relation)
+          end
+        end
+      # With Pundit loaded, only its NotDefinedError means "no scope" — a
+      # NameError then is a BROKEN policy and must surface as raised. Without
+      # Pundit (CanCanCan/AP hosts), NameError is the missing-class signal;
+      # referencing Pundit::NotDefinedError there would itself NameError.
+      scope_missing = defined?(Pundit) ? [ Pundit::NotDefinedError ] : [ NameError ]
       begin
         old_scope.call(subjects.values.first)
-      rescue Pundit::NotDefinedError
-        # No Pundit scope = zero old-side coverage for this model — visible,
+      rescue *scope_missing => e
+        # No old-side scope = zero coverage for this model — visible,
         # not a silent skip.
-        scope_unverified << "#{model_name} (no Pundit policy_scope)"
+        scope_unverified << "#{model_name} (no #{old_label} scope: #{e.class})"
         next []
       rescue StandardError => e
-        # A resolve needing request context (or otherwise raising) is
+        # A scope needing request context (or otherwise raising) is
         # uncovered, not a crashed run.
-        scope_unverified << "#{model_name} (policy_scope raised #{e.class}: #{e.message})"
+        scope_unverified << "#{model_name} (#{old_label} scope raised #{e.class}: #{e.message})"
         next []
       end
       subjects.filter_map do |role_label, subject|
@@ -205,13 +290,13 @@ namespace :current_scope_migrate do
     unexplained = rows.reject { |r| r[:accepted] }
     scope_unexplained = scope_rows.reject { |r| r[:accepted] }
     File.write(report, <<~MD)
-      # Parity report — #{Time.current.iso8601}
+      # Parity report (#{old_label} → current_scope) — #{Time.current.iso8601}
 
       Cells diverging: #{rows.size} (accepted: #{rows.count { |r| r[:accepted] }},
       **unexplained: #{unexplained.size}**) ·
-      Cells with ZERO coverage (Pundit could not answer): #{unanswerable.size}
+      Cells with ZERO coverage (#{old_label} could not answer): #{unanswerable.size}
 
-      | Subject | Key | Record | Pundit | current_scope | Accepted |
+      | Subject | Key | Record | #{old_label} | current_scope | Accepted |
       |---|---|---|---|---|---|
       #{rows.map { |r| "| #{r[:subject]} | `#{r[:key]}` | #{r[:record]} | #{r[:old]} | #{r[:new]} | #{r[:accepted] ? 'yes' : '**NO**'} |" }.join("\n")}
 
@@ -224,13 +309,26 @@ namespace :current_scope_migrate do
 
       #{unanswerable.empty? ? 'None.' : unanswerable.map { |u| "- #{u[:subject]} × `#{u[:key]}` × #{u[:record]} — #{u[:reason]}; current_scope says **#{u[:new] ? 'ALLOW ⚠' : 'deny'}**#{u[:accepted] ? ' (accepted)' : u[:new] ? ' **UNEXPLAINED**' : ''}" }.join("\n")}
 
-      ## Scope parity (policy_scope vs scope_for)
+      ## Scope parity (#{old_label} scope vs scope_for)
 
-      #{scope_rows.empty? ? 'No divergence among covered models.' : scope_rows.map { |r| "- #{r[:subject]} / #{r[:model]}: policy_scope=#{r[:old].inspect} scope_for=#{r[:new].inspect}#{r[:accepted] ? ' (accepted)' : ' **UNEXPLAINED**'}" }.join("\n")}
+      #{scope_rows.empty? ? 'No divergence among covered models.' : scope_rows.map { |r| "- #{r[:subject]} / #{r[:model]}: old=#{r[:old].inspect} scope_for=#{r[:new].inspect}#{r[:accepted] ? ' (accepted)' : ' **UNEXPLAINED**'}" }.join("\n")}
 
       #{scope_unverified.any? ? "**Scope UNVERIFIED (no record exemplar in the manifest):** #{scope_unverified.join(', ')}" : ''}
 
       Excluded keys (verified by hand, per the manifest): #{excluded.empty? ? 'none' : excluded.to_a.sort.join(', ')}
+
+      #{if old_system == 'cancancan' && recordless_models.any?
+          "**CanCanCan caveat — record-level rules unverified for: " \
+          "#{recordless_models.to_a.sort.join(', ')}.** Class-level can? is " \
+          "OPTIMISTIC for hash-conditioned rules (it answers \"could act on " \
+          "some record\"), so these cells can read as parity while record " \
+          "cells diverge — add record exemplars to the manifest."
+        elsif old_system == 'action_policy'
+          "**Action Policy caveat:** a deny-by-default default_rule makes " \
+          "every UNMAPPED key deny on both sides — green cells prove " \
+          "agreement, not that the key was consciously mapped; check the " \
+          "decision report's coverage."
+        end}
     MD
 
     puts "Parity report: #{report}"

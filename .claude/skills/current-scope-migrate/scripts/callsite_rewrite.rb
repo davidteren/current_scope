@@ -15,6 +15,7 @@
 # human, never guessed at. Report-only is the default; --write applies.
 require "json"
 require "set"
+require_relative "ast_helpers"
 
 begin
   require "prism"
@@ -24,6 +25,8 @@ end
 
 module CurrentScopeMigrate
   class CallsiteRewrite
+    include AstHelpers
+
     Edit = Struct.new(:file, :line, :kind, :original, :replacement, :start_offset, :end_offset,
                       keyword_init: true)
     Review = Struct.new(:file, :line, :kind, :source, :note, keyword_init: true)
@@ -129,7 +132,39 @@ module CurrentScopeMigrate
       # a review: fail-closed.
       @file_gate_skipped = gate_skipped?(parse.value)
       @public_action_defs = collect_public_controller_defs(parse.value)
-      walk(parse.value, nil, nil, path, parse.source.source)
+      @record_hook_refs = collect_record_hook_refs(parse.value)
+      walk(parse.value, nil, nil, path, parse.source.source, nil)
+    end
+
+    # Per-CLASS map of the names referenced inside that class's
+    # `current_scope_record` hook (ivar/lvar/bare-call names, token-exact).
+    # Used to prove an authorize target is the record the gate will check —
+    # scoped per class so one controller's hook can never vouch for
+    # another's, and name-exact so @ticket never matches inside @tickets.
+    def collect_record_hook_refs(node, klass = nil, acc = {})
+      if node.is_a?(Prism::ClassNode)
+        klass = const_name(node.constant_path)
+      elsif node.is_a?(Prism::DefNode) && node.name == :current_scope_record && klass
+        acc[klass] = referenced_names(node.body)
+        return acc
+      end
+      return acc unless node.respond_to?(:child_nodes)
+
+      node.child_nodes.compact.each { |c| collect_record_hook_refs(c, klass, acc) }
+      acc
+    end
+
+    def referenced_names(node, acc = Set.new)
+      case node
+      when Prism::InstanceVariableReadNode, Prism::InstanceVariableWriteNode,
+           Prism::InstanceVariableOrWriteNode, Prism::LocalVariableReadNode,
+           Prism::LocalVariableWriteNode
+        acc << node.name.to_s
+      when Prism::CallNode
+        acc << node.name.to_s if node.receiver.nil? && node.arguments.nil?
+      end
+      node.child_nodes.compact.each { |c| referenced_names(c, acc) } if node.respond_to?(:child_nodes)
+      acc
     end
 
     # DefNodes that are PUBLIC members of a *Controller class — Rails ignores
@@ -214,7 +249,7 @@ module CurrentScopeMigrate
     # here — report occurrences, never rewrite.
     def scan_template(path)
       File.foreach(path).with_index(1) do |text, lineno|
-        next unless text =~ /\b(policy_scope|policy|authorize|permitted_attributes)\b/
+        next unless text =~ /\b(policy_scope|policy|authorize|permitted_attributes|accessible_by|authorized_scope)\b|\bcan\?|\bcannot\?|\ballowed_to\?/
 
         @reviews << Review.new(file: path, line: lineno, kind: "template", source: text.strip,
                                note: "view template — rewrite by hand " \
@@ -222,18 +257,33 @@ module CurrentScopeMigrate
       end
     end
 
-    def walk(node, parent, grandparent, path, source)
-      classify(node, parent, grandparent, path, source) if node.is_a?(Prism::CallNode)
-      node.child_nodes.compact.each { |c| walk(c, node, parent, path, source) }
+    def walk(node, parent, grandparent, path, source, klass = nil)
+      klass = const_name(node.constant_path) if node.is_a?(Prism::ClassNode)
+      classify(node, parent, grandparent, path, source, klass) if node.is_a?(Prism::CallNode)
+      node.child_nodes.compact.each { |c| walk(c, node, parent, path, source, klass) }
     end
 
-    def classify(node, parent, grandparent, path, source)
+    def classify(node, parent, grandparent, path, source, klass = nil)
+      # CanCanCan's Model.accessible_by(ability) is the one RECEIVER form we
+      # rewrite: a constant receiver names the model directly.
+      if node.name == :accessible_by && (node.receiver.is_a?(Prism::ConstantReadNode) ||
+                                         node.receiver.is_a?(Prism::ConstantPathNode))
+        return classify_accessible_by(node, path, source)
+      end
       return unless node.receiver.nil?
 
       case node.name
-      when :authorize then classify_authorize(node, parent, grandparent, path, source)
+      when :authorize, :authorize! then classify_authorize(node, parent, grandparent, path, source, klass)
       when :policy then classify_policy(node, parent, path, source)
       when :policy_scope then classify_policy_scope(node, path, source)
+      when :can?, :cannot? then classify_can(node, path, source)
+      when :allowed_to? then classify_ap_allowed_to(node, path, source)
+      when :authorized_scope then classify_authorized_scope(node, path, source)
+      when :load_and_authorize_resource, :check_authorization, :skip_authorization_check
+        @reviews << Review.new(file: path, line: node.location.start_line,
+                               kind: "cancancan_macro", source: slice(node, source),
+                               note: "CanCanCan controller macro — remove it and declare the " \
+                                     "current_scope_record hook instead (the Guard gates the action)")
       when :permitted_attributes
         @reviews << Review.new(file: path, line: node.location.start_line,
                                kind: "permitted_attributes", source: slice(node, source),
@@ -241,7 +291,118 @@ module CurrentScopeMigrate
       end
     end
 
-    def classify_authorize(node, parent, grandparent, path, source)
+    # can?(:update, @post) -> allowed_to?(:update, @post)
+    # cannot?(:update, @post) -> !allowed_to?(:update, @post)
+    IDENTIFIER_SYMBOL = /\A[a-z_][a-zA-Z0-9_]*\z/
+    # CanCanCan aliases that expand to SEVERAL actions/keys — a direct
+    # allowed_to?(:read, x) would consult a key the app never routes.
+    CANCAN_MULTI_ALIASES = %w[read manage delete].freeze
+
+    def classify_can(node, path, source)
+      args = node.arguments&.arguments || []
+      unless args.size == 2 && args.first.is_a?(Prism::SymbolNode) &&
+             args.first.unescaped.match?(IDENTIFIER_SYMBOL) && node.block.nil?
+        @reviews << Review.new(file: path, line: node.location.start_line, kind: "can",
+                               source: slice(node, source),
+                               note: "not a plain can?/cannot?(:action, target) — rewrite by hand")
+        return
+      end
+      if CANCAN_MULTI_ALIASES.include?(args.first.unescaped)
+        @reviews << Review.new(file: path, line: node.location.start_line, kind: "can",
+                               source: slice(node, source),
+                               note: "CanCanCan alias :#{args.first.unescaped} does not map to one " \
+                                     "routed key (read=index+show, manage=all, delete=destroy) — " \
+                                     "expand against the catalog by hand")
+        return
+      end
+
+      # cannot? negates; parenthesized so precedence survives any expression
+      # position the original call sat in.
+      replacement = "allowed_to?(:#{args.first.unescaped}, #{slice(args.last, source)})"
+      replacement = "(!#{replacement})" if node.name == :cannot?
+      @edits << Edit.new(file: path, line: node.location.start_line, kind: "can_predicate",
+                         original: slice(node, source),
+                         replacement: replacement,
+                         start_offset: node.location.start_offset,
+                         end_offset: node.location.end_offset)
+    end
+
+    # Action Policy's own allowed_to?(:update?, @post) -> engine
+    # allowed_to?(:update, @post) — the trailing ? on the rule symbol is the
+    # AP convention; without it the call is already engine-shaped (skip).
+    def classify_ap_allowed_to(node, path, source)
+      args = node.arguments&.arguments || []
+      unless args.first.is_a?(Prism::SymbolNode)
+        # A dynamic rule name may carry Action Policy's trailing ? at
+        # runtime — the engine form would not match it. Say so.
+        @reviews << Review.new(file: path, line: node.location.start_line, kind: "ap_allowed_to",
+                               source: slice(node, source),
+                               note: "dynamic rule name — if it carries Action Policy's trailing ?, " \
+                                     "the engine form will not match; verify by hand")
+        return
+      end
+      return unless args.first.unescaped.end_with?("?")
+
+      # Exactly (:rule?, target) with an identifier-shaped rule: options
+      # (with:/context:), positional hashes, extra args, or exotic symbols
+      # have no engine equivalent — carrying them across would be invalid.
+      rule = args.first.unescaped.delete_suffix("?")
+      unless args.size == 2 && rule.match?(IDENTIFIER_SYMBOL) &&
+             args[1..].none? { |a| a.is_a?(Prism::KeywordHashNode) || a.is_a?(Prism::HashNode) }
+        @reviews << Review.new(file: path, line: node.location.start_line, kind: "ap_allowed_to",
+                               source: slice(node, source),
+                               note: "Action Policy allowed_to? beyond (:rule?, target) — a targetless " \
+                                     "call resolves AP's implicit target (the engine's record-less form " \
+                                     "is a different query), and options/extra args have no engine " \
+                                     "equivalent; rewrite by hand")
+        return
+      end
+      rest = args[1..].map { |a| slice(a, source) }
+      @edits << Edit.new(file: path, line: node.location.start_line, kind: "ap_allowed_to",
+                         original: slice(node, source),
+                         replacement: "allowed_to?(:#{args.first.unescaped.delete_suffix('?')}" \
+                                      "#{rest.any? ? ", #{rest.join(', ')}" : ''})",
+                         start_offset: node.location.start_offset,
+                         end_offset: node.location.end_offset)
+    end
+
+    # authorized_scope(Post.all) -> scope_for(Post); anything fancier (type:,
+    # as:, scope_options:) needs a human.
+    def classify_authorized_scope(node, path, source)
+      args = node.arguments&.arguments || []
+      arg = args.first
+      if args.size == 1 && arg.is_a?(Prism::CallNode) && arg.name == :all &&
+         arg.arguments.nil? && arg.block.nil? &&
+         (arg.receiver.is_a?(Prism::ConstantReadNode) || arg.receiver.is_a?(Prism::ConstantPathNode))
+        @edits << Edit.new(file: path, line: node.location.start_line, kind: "authorized_scope",
+                           original: slice(node, source),
+                           replacement: "scope_for(#{slice(arg.receiver, source)})",
+                           start_offset: node.location.start_offset,
+                           end_offset: node.location.end_offset)
+      else
+        @reviews << Review.new(file: path, line: node.location.start_line, kind: "authorized_scope",
+                               source: slice(node, source),
+                               note: "not a plain authorized_scope(Model.all) — map to scope_for by hand")
+      end
+    end
+
+    def classify_accessible_by(node, path, source)
+      args = node.arguments&.arguments || []
+      if args.size == 1 && node.block.nil? && bare_call?(args.first, :current_ability)
+        @edits << Edit.new(file: path, line: node.location.start_line, kind: "accessible_by",
+                           original: slice(node, source),
+                           replacement: "scope_for(#{slice(node.receiver, source)})",
+                           start_offset: node.location.start_offset,
+                           end_offset: node.location.end_offset)
+      else
+        @reviews << Review.new(file: path, line: node.location.start_line, kind: "accessible_by",
+                               source: slice(node, source),
+                               note: "accessible_by with a non-ambient ability (or extra args) — the " \
+                                     "subject may differ from current_scope's; map to scope_for by hand")
+      end
+    end
+
+    def classify_authorize(node, parent, grandparent, path, source, klass = nil)
       args = node.arguments&.arguments || []
       line = node.location.start_line
       if @file_gate_skipped
@@ -258,23 +419,110 @@ module CurrentScopeMigrate
       straight_line = grandparent.is_a?(Prism::DefNode) ||
                       grandparent.is_a?(Prism::BlockNode) ||
                       grandparent.is_a?(Prism::LambdaNode)
-      if args.size == 1 && node.block.nil? && parent.is_a?(Prism::StatementsNode) &&
-         straight_line && simple_ref?(args.first) &&
+      # An EXPLICIT action (authorize! :update, @x — or @x, to: :update?)
+      # is only redundant when it names the enclosing action: the Guard
+      # enforces controller#<def name>, so deleting a cross-action check
+      # (an update authorization inside show) would widen authorization.
+      explicit = explicit_authorize_action(args)
+      action_matches = explicit.nil? ||
+                       (grandparent.is_a?(Prism::DefNode) && explicit == grandparent.name.to_s)
+      if provable_authorize_args?(args) && node.block.nil? && parent.is_a?(Prism::StatementsNode) &&
+         straight_line && action_matches && target_matches_record_hook?(args, klass) &&
          !last_expression?(node, parent, grandparent) && alone_on_line?(node, source)
         del = full_line_span(node, source)
         @edits << Edit.new(file: path, line: line, kind: "delete_authorize",
                            original: slice(node, source), replacement: "",
                            start_offset: del[0], end_offset: del[1])
       else
-        note = authorize_review_note(node, args, parent, grandparent)
+        note = authorize_review_note(node, args, parent, grandparent, klass)
         @reviews << Review.new(file: path, line: line, kind: "authorize",
                                source: slice(node, source), note: note)
       end
     end
 
-    def authorize_review_note(node, args, parent, grandparent)
-      if args.size != 1
-        "custom query / extra args — map to the gate key by hand"
+    # Deletable argument shapes across the three systems — each provably
+    # side-effect-free:
+    #   authorize @post                       (Pundit)
+    #   authorize! :update, @post             (CanCanCan)
+    #   authorize! @post, to: :update?        (Action Policy)
+    def provable_authorize_args?(args)
+      positional = args.reject { |a| a.is_a?(Prism::KeywordHashNode) }
+      kwargs = args.grep(Prism::KeywordHashNode)
+      return false unless kwargs.size <= 1
+      # Only a SINGLE `to:` rule keyword is understood; any other option
+      # (context:, with:) — or a duplicate to: whose later value would win at
+      # runtime — changes semantics the deletion would lose.
+      to_assocs = kwargs.flat_map(&:elements)
+      return false unless to_assocs.all? { |el|
+        el.is_a?(Prism::AssocNode) && el.key.is_a?(Prism::SymbolNode) &&
+          el.key.unescaped == "to" && el.value.is_a?(Prism::SymbolNode)
+      }
+      return false if to_assocs.size > 1
+
+      case positional.size
+      when 1 then simple_ref?(positional.first)
+      when 2 then positional.first.is_a?(Prism::SymbolNode) && simple_ref?(positional.last)
+      else false
+      end
+    end
+
+    # The explicitly-named action, when the call carries one:
+    #   authorize! :update, @x   -> "update"
+    #   authorize! @x, to: :update? -> "update"
+    def explicit_authorize_action(args)
+      positional = args.reject { |a| a.is_a?(Prism::KeywordHashNode) }
+      return positional.first.unescaped if positional.first.is_a?(Prism::SymbolNode)
+
+      args.grep(Prism::KeywordHashNode).each do |kw|
+        kw.elements.each do |el|
+          next unless el.is_a?(Prism::AssocNode) && el.key.is_a?(Prism::SymbolNode) &&
+                      el.key.unescaped == "to" && el.value.is_a?(Prism::SymbolNode)
+
+          return el.value.unescaped.delete_suffix("?")
+        end
+      end
+      nil
+    end
+
+    # When THIS controller class declares its own current_scope_record, the
+    # authorize target's name must appear among the names that hook
+    # references — otherwise the gate may check a DIFFERENT record than the
+    # one authorize guarded. Classes without a local hook keep the documented
+    # assumption (the hook lives on the base controller and loads the
+    # canonical record). Name-exact, per-class — never substring, never
+    # another controller's hook.
+    def target_matches_record_hook?(args, klass)
+      refs = klass && @record_hook_refs[klass]
+      return true if refs.nil?
+
+      target = args.reject { |a| a.is_a?(Prism::KeywordHashNode) || a.is_a?(Prism::SymbolNode) }.first
+      return true if target.nil?
+
+      name =
+        case target
+        when Prism::InstanceVariableReadNode, Prism::LocalVariableReadNode then target.name.to_s
+        when Prism::CallNode then target.receiver.nil? ? target.name.to_s : nil
+        end
+      return false if name.nil? # unrecognized target shape — fail closed
+
+      refs.include?(name)
+    end
+
+    def authorize_review_note(node, args, parent, grandparent, klass)
+      explicit = explicit_authorize_action(args)
+      if provable_authorize_args?(args) && explicit &&
+         !(grandparent.is_a?(Prism::DefNode) && explicit == grandparent.name.to_s)
+        return "authorizes :#{explicit} inside ##{grandparent.is_a?(Prism::DefNode) ? grandparent.name : '?'} — " \
+               "the Guard enforces the enclosing action's key; deleting would widen authorization"
+      end
+      unless target_matches_record_hook?(args, klass)
+        return "target does not appear in this file's current_scope_record hook — " \
+               "the gate may check a different record; align the hook, then delete by hand"
+      end
+      if !provable_authorize_args?(args)
+        "argument shape not provable (custom query key, or a side-effecting " \
+          "lookup the deletion would lose) — move lookups to the record hook " \
+          "and map the key by hand"
       elsif parent.is_a?(Prism::StatementsNode) &&
             !(grandparent.is_a?(Prism::DefNode) || grandparent.is_a?(Prism::BlockNode) ||
               grandparent.is_a?(Prism::LambdaNode))
@@ -282,9 +530,6 @@ module CurrentScopeMigrate
           "unconditionally; the condition is a policy decision, not a deletion"
       elsif !parent.is_a?(Prism::StatementsNode)
         "return value is used — assign the record instead, the Guard gates the action"
-      elsif !simple_ref?(args.first)
-        "argument has side effects (a lookup/raise the deletion would lose) — " \
-          "move the lookup to the record hook, then delete by hand"
       elsif last_expression?(node, parent, grandparent)
         "last expression of its method/block — deleting changes the return value"
       else
@@ -447,6 +692,11 @@ if ARGV.first == "--self-test"
         render :show
       end
 
+      def show_cross
+        authorize! :update, @post
+        render :show
+      end
+
       private
 
       # Private helper: its return value CAN be used by a caller, so a
@@ -500,9 +750,68 @@ if ARGV.first == "--self-test"
     end
   RUBY
 
+  CANCAN_CONTROLLER = <<~RUBY
+    class TicketsController < ApplicationController
+      load_and_authorize_resource
+
+      def update
+        authorize! :update, @ticket
+        head :ok if can? :close, @ticket
+        head :ok if cannot? :reopen, @ticket
+        head :ok if can? :delete, @ticket
+        render :form
+      end
+
+      def destroy
+        authorize! :destroy, @other_thing
+        head :ok
+      end
+
+      def index
+        @tickets = Ticket.accessible_by(current_ability).order(:id)
+      end
+
+      private
+
+      def current_scope_record = @ticket
+    end
+
+    class GadgetsController < ApplicationController
+      def update
+        authorize! :update, @gadget
+        render :form
+      end
+
+      def prune
+        authorize! :prune, @tickets_batch
+        head :ok
+      end
+
+      private
+
+      def current_scope_record = @gadget
+    end
+  RUBY
+
+  AP_CONTROLLER = <<~RUBY
+    class InvoicesController < ApplicationController
+      def update
+        authorize! @invoice, to: :update?
+        head :ok if allowed_to?(:edit?, @invoice)
+        render :form
+      end
+
+      def index
+        @invoices = authorized_scope(Invoice.all)
+      end
+    end
+  RUBY
+
   Dir.mktmpdir do |dir|
     file = File.join(dir, "posts_controller.rb")
     File.write(file, CONTROLLER)
+    File.write(File.join(dir, "tickets_controller.rb"), CANCAN_CONTROLLER)
+    File.write(File.join(dir, "invoices_controller.rb"), AP_CONTROLLER)
     File.write(File.join(dir, "webhooks_controller.rb"), SKIPPED_CONTROLLER)
     File.write(File.join(dir, "callbacks_controller.rb"), STRING_SKIPPED_CONTROLLER)
     File.write(File.join(dir, "notas_controller.rb"), UNICODE_CONTROLLER)
@@ -516,16 +825,18 @@ if ARGV.first == "--self-test"
     expect_kinds.each do |kind, bucket|
       failures << "missing #{bucket}:#{kind}" unless r[bucket].any? { |x| x[:kind] == kind }
     end
-    # Deletable: posts#show's trailing authorize (public action) and notas'
-    # inline `public def` one. Everything else must be a review.
-    failures << "expected exactly 2 delete_authorize" unless
-      r[:rewrites].count { |x| x[:kind] == "delete_authorize" } == 2
+    # Deletable: posts#show's trailing authorize (public action), notas'
+    # inline `public def` one, tickets' cancan authorize!, invoices' AP
+    # authorize!. Everything else must be a review.
+    failures << "expected exactly 5 delete_authorize" unless
+      r[:rewrites].count { |x| x[:kind] == "delete_authorize" } == 5
     # posts: value-used, custom-query, modifier-if conditional, case/when
-    # conditional, side-effect-arg, last-expression-in-private-helper;
-    # webhooks + callbacks: gate-skipped; notas: last-expression in a
-    # symbol-form-private def = 9.
-    failures << "expected 9 authorize reviews" unless
-      r[:reviews].count { |x| x[:kind] == "authorize" } == 9
+    # conditional, side-effect-arg, cross-action authorize!,
+    # last-expression-in-private-helper; webhooks + callbacks: gate-skipped;
+    # notas: last-expression in a symbol-form-private def; tickets:
+    # hook-mismatched authorize! = 11.
+    failures << "expected 12 authorize reviews" unless
+      r[:reviews].count { |x| x[:kind] == "authorize" } == 12
     failures << "string-form skip must protect its authorize" unless
       r[:reviews].any? { |x| x[:file].end_with?("callbacks_controller.rb") && x[:note].include?("skips current_scope_check!") }
     failures << "case/when authorize must be CONDITIONAL review" unless
@@ -541,7 +852,19 @@ if ARGV.first == "--self-test"
     failures << "last-expression authorize must be a review" unless
       r[:reviews].any? { |x| x[:note].include?("last expression") }
     failures << "side-effect-arg authorize must be a review" unless
-      r[:reviews].any? { |x| x[:note].include?("side effects") }
+      r[:reviews].any? { |x| x[:note].include?("side-effecting") }
+    # Phase 3 shapes
+    %w[can_predicate ap_allowed_to authorized_scope accessible_by].each do |kind|
+      failures << "missing rewrite kind #{kind}" unless r[:rewrites].any? { |x| x[:kind] == kind }
+    end
+    failures << "load_and_authorize_resource must be a review" unless
+      r[:reviews].any? { |x| x[:kind] == "cancancan_macro" }
+    failures << "cross-action authorize! must be a review, not deleted" unless
+      r[:reviews].any? { |x| x[:note].include?("widen authorization") }
+    failures << "delete alias must be a review" unless
+      r[:reviews].any? { |x| x[:kind] == "can" && x[:note].include?(":delete") }
+    failures << "record-hook-mismatched authorize! must be a review" unless
+      r[:reviews].any? { |x| x[:note].include?("current_scope_record hook") }
     failures << "conditional authorize must carry the conditional note" unless
       r[:reviews].any? { |x| x[:note].include?("CONDITIONAL authorize") }
     # A gate-skipping file must NEVER have its authorize deleted — it may be
@@ -581,6 +904,24 @@ if ARGV.first == "--self-test"
       notas.include?("authorize @nota2")
     failures << "modifier-if authorize was wrongly touched" unless
       out.include?("authorize @post if params[:strict]")
+    tickets = File.read(File.join(dir, "tickets_controller.rb"))
+    failures << "cancan authorize! not deleted" if tickets.include?("authorize! :update")
+    failures << "hook-mismatched authorize! was wrongly deleted" unless
+      tickets.include?("authorize! :destroy, @other_thing")
+    failures << "second controller's matching authorize! not deleted (per-class hooks)" if
+      tickets.include?("authorize! :update, @gadget")
+    failures << "name-prefix target (@tickets_batch vs @ticket/@gadget) wrongly deleted" unless
+      tickets.include?("authorize! :prune, @tickets_batch")
+    failures << "can? not rewritten" unless tickets.include?("head :ok if allowed_to?(:close, @ticket)")
+    failures << "cannot? not rewritten" unless tickets.include?("head :ok if (!allowed_to?(:reopen, @ticket))")
+    failures << "accessible_by not rewritten" unless tickets.include?("@tickets = scope_for(Ticket).order(:id)")
+    failures << "load_and_authorize_resource wrongly touched" unless tickets.include?("load_and_authorize_resource")
+    invoices = File.read(File.join(dir, "invoices_controller.rb"))
+    failures << "AP authorize! not deleted" if invoices.include?("authorize! @invoice")
+    failures << "AP allowed_to? not rewritten" unless invoices.include?("head :ok if allowed_to?(:edit, @invoice)")
+    failures << "authorized_scope not rewritten" unless invoices.include?("@invoices = scope_for(Invoice)")
+    failures << "rewritten cancan/AP files must reparse" unless
+      Prism.parse(tickets).success? && Prism.parse(invoices).success?
     failures << "arity-mismatched policy_scope was wrongly touched" unless
       out.include?("policy_scope(Post, policy_scope_class: CustomScope)")
 

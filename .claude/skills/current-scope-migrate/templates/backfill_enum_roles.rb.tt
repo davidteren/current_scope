@@ -17,21 +17,50 @@ class BackfillCurrentScopeRolesFromEnum < ActiveRecord::Migration[8.1]
   FULL_ACCESS_VALUES = %w[].freeze # enum values that mean "grants everything"
   # Optional pretty names; unlisted values use the raw value as the role name.
   ROLE_NAMES = {}.freeze # e.g. { "admin" => "Owner" }
+  # grant! REPLACES a subject's org role. Subjects already holding a role that
+  # differs from their enum value (a pilot / hand-made grant) ABORT the
+  # migration unless you flip this after reviewing the listed subjects.
+  REPLACE_EXISTING_ROLES = false
   # --------------------------------------------------------------------------
 
   def up
     subjects = SUBJECT_CLASS.constantize
-    values = subjects.where.not(ROLE_COLUMN => nil).distinct.pluck(ROLE_COLUMN).map(&:to_s)
+    # Blank strings behave like NULL: no role. Without this, '' reaches
+    # Role.find_or_create_by!(name: '') and dies on presence validation.
+    with_role = subjects.where.not(ROLE_COLUMN => [ nil, "" ])
+    values = with_role.distinct.pluck(ROLE_COLUMN).map(&:to_s)
     say "Distinct #{ROLE_COLUMN} values: #{values.sort.join(', ')} " \
-        "(#{subjects.where(ROLE_COLUMN => nil).count} subject(s) have no value and get no role)"
+        "(#{subjects.where(ROLE_COLUMN => [ nil, '' ]).count} subject(s) have no value and get no role)"
 
     values.each do |value|
-      CurrentScope::Role.find_or_create_by!(name: role_name(value)) do |role|
-        role.full_access = FULL_ACCESS_VALUES.include?(value)
+      role = CurrentScope::Role.find_or_create_by!(name: role_name(value)) do |r|
+        r.full_access = FULL_ACCESS_VALUES.include?(value)
+      end
+      # find_or_create_by! only runs the block on CREATE — a role seeded
+      # earlier (the normal §6.2-first workflow) would silently keep its old
+      # full_access, making the constant above a dead knob. Disagreement is a
+      # decision, so it fails loud.
+      wanted = FULL_ACCESS_VALUES.include?(value)
+      if role.full_access != wanted
+        raise "role #{role.name.inspect} already exists with " \
+              "full_access=#{role.full_access} but FULL_ACCESS_VALUES says #{wanted} — " \
+              "align the constant or the seeded role first"
       end
     end
 
-    subjects.where.not(ROLE_COLUMN => nil).find_each do |subject|
+    conflicted = with_role.filter_map do |subject|
+      current = CurrentScope::RoleAssignment.find_by(subject: subject)&.role&.name
+      wanted = role_name(subject[ROLE_COLUMN].to_s)
+      "  #{SUBJECT_CLASS}##{subject.id}: holds #{current.inspect}, enum says #{wanted.inspect}" if
+        current && current != wanted
+    end
+    if conflicted.any? && !REPLACE_EXISTING_ROLES
+      raise "these subjects already hold a DIFFERENT org role (grant! would " \
+            "replace it) — review, then set REPLACE_EXISTING_ROLES = true:\n" +
+            conflicted.join("\n")
+    end
+
+    with_role.find_each do |subject|
       role = CurrentScope::Role.find_by!(name: role_name(subject[ROLE_COLUMN].to_s))
       # grant! (not a direct RoleAssignment write) so every assignment lands
       # in the audit ledger as org_role.assigned with source: "bootstrap".

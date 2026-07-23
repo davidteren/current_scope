@@ -72,10 +72,11 @@ jobs:
           bin/rails test
           bin/rails test:system
 
-      # The migrate skill's classifier is security-relevant (a wrong
-      # pure_role silently changes who can do what) — its self-test and the
-      # parity template's syntax run in CI so regressions go red here, not
-      # in a host app mid-migration.
+      # The migrate skill's classifier and call-site rewriter are both
+      # security-relevant (a wrong pure_role, or a wrongly deleted authorize,
+      # silently changes who can do what) — their self-tests and all template
+      # syntax run in CI so regressions go red here, not in a host app
+      # mid-migration.
       - name: Migrate-skill checks (self-tests + template syntax)
         run: |
           ruby .claude/skills/current-scope-migrate/scripts/policy_inventory.rb --self-test

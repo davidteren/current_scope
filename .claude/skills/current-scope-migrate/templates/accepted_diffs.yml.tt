@@ -8,4 +8,11 @@
 #   reason: >
 #     Old policy allowed any admin; new model requires the Publisher role.
 #     Decided in DECISION-REPORT.md item 7, approved by <who> on <date>.
+#
+# An accepted SCOPE divergence uses `scope:` instead of key/record:
+# - subject: member
+#   scope: Post                    # matches the scope-parity row for Post
+#   reason: >
+#     policy_scope showed drafts to members; the scoped grants deliberately
+#     do not. Decided in DECISION-REPORT.md item 3.
 []

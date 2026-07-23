@@ -16,7 +16,8 @@ Run from the HOST app root. `$SKILL_DIR` below is this skill's directory.
 
 ## 1. Preflight (stop early, loudly)
 
-- Pundit present? `grep -q pundit Gemfile.lock` and `app/policies/` exists.
+- Pundit present? `bundle show pundit` exits 0 (or Read `Gemfile.lock` and
+  look for a `pundit` entry) and `app/policies/` exists.
 - current_scope installed? Gemfile has it, and `bin/rails runner
   'puts CurrentScope.catalog.keys.size'` prints a nonzero count (routes must
   be loaded for the catalog; a zero catalog means the engine is not mounted /
@@ -31,8 +32,14 @@ ruby $SKILL_DIR/scripts/policy_inventory.rb app/policies > /tmp/cs_inventory.jso
 
 The script buckets every policy predicate and Scope#resolve by what the AST
 **proves**: `pure_role` / `ownership` / `sod_shape` / `unparseable` (its
-`--self-test` documents the exact shapes). Do not re-classify the first three
-buckets by reading the code — the script's determinism is the point.
+`--self-test` documents the exact shapes). Do not re-classify `pure_role`
+or `ownership` by reading the code — the script's determinism is the point.
+`sod_shape` is different: the AST proves the *shape* (a negated ownership
+comparison on an approve-like name), not the *intent* — treat it as a
+proposal that always needs human confirmation in the report, and note that
+parity typically cannot verify SoD cells (they depend on the
+initiator-record pairing), so SoD behavior is verified out-of-band with the
+engine's own SoD test recipe.
 
 ## 3. Resolve models → controllers (the key-space shift)
 
@@ -107,19 +114,24 @@ Create `docs/current_scope_migration/DECISION-REPORT.md`:
 
 ## 7. Generate the parity harness
 
-Copy the three templates (strip the `.tt` suffix):
+Copy the three templates (strip the `.tt` suffix). **`cp -n`, never bare
+`cp`** — on a re-run, overwriting would wipe the team's filled-in manifest
+and the accepted-diffs audit trail; if a target exists, leave it and say so:
 
 ```bash
-cp $SKILL_DIR/templates/current_scope_parity.rake.tt lib/tasks/current_scope_parity.rake
-cp $SKILL_DIR/templates/current_scope_parity.yml.tt  config/current_scope_parity.yml
+cp -n $SKILL_DIR/templates/current_scope_parity.rake.tt lib/tasks/current_scope_parity.rake
+cp -n $SKILL_DIR/templates/current_scope_parity.yml.tt  config/current_scope_parity.yml
 mkdir -p docs/current_scope_migration
-cp $SKILL_DIR/templates/accepted_diffs.yml.tt docs/current_scope_migration/accepted_diffs.yml
+cp -n $SKILL_DIR/templates/accepted_diffs.yml.tt docs/current_scope_migration/accepted_diffs.yml
 ```
 
 Fill the manifest from what you learned: one subject exemplar per proposed
-role (§6.2), one record exemplar per model with `ownership` rules, the
-`key_models:` overrides from §3, and `excluded_keys:` for policies that need
-request context (they cannot be replayed in-process — say so in the report).
+role (§6.2), one record exemplar per model with `ownership` rules,
+`scope_models:` = every model whose policy defines `Scope#resolve` (from
+§2's inventory — a listed model without an exemplar shows as "scope
+UNVERIFIED" instead of silently passing), the `key_models:` overrides from
+§3, and `excluded_keys:` for policies that need request context (they
+cannot be replayed in-process — say so in the report).
 
 Then run it and attach the first report:
 

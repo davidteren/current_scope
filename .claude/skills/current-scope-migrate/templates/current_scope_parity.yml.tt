@@ -10,6 +10,11 @@ records:
   # ModelName: expression returning one exemplar record.
   # Post: 'Post.first!'
 
+# Models whose policies define Scope#resolve (fill from the inventory's
+# Scope rows). Any model listed here WITHOUT a record exemplar above is
+# reported as "scope UNVERIFIED" — visible, never silently green.
+scope_models: []
+
 # Pundit alias actions (merged over the defaults edit->update, new->create).
 action_aliases: {}
 

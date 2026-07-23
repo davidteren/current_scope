@@ -140,7 +140,8 @@ module CurrentScopeMigrate
       return [ "pure_role", "boolean combination of role predicates" ] if
         left[0] == "pure_role" && right[0] == "pure_role"
 
-      [ "unparseable", "mixed condition (#{left[0]} #{right[0] == left[0] ? '' : "vs #{right[0]}"})".strip ]
+      kinds = [ left[0], right[0] ].uniq.join(" vs ")
+      [ "unparseable", "mixed condition (#{kinds})" ]
     end
 
     def classify_call(node, method_name, sibling_defs)
@@ -198,11 +199,16 @@ module CurrentScopeMigrate
     end
 
     # Every leaf receiver in the call chain must be `user` (no record, no
-    # other objects). `user.admin?`, `user.role == ...` chains qualify.
+    # other objects) — AND every argument must itself be user-only or a
+    # literal, and there must be no block. Without the argument/block check,
+    # `user.widgets.include?(record)` would classify pure_role while
+    # depending on the record: a fail-open misclassification.
     def user_only?(node)
       case node
       when Prism::CallNode
         return false if node.name == :record || receiver_root(node) == :record
+        return false if node.block
+        return false unless (node.arguments&.arguments || []).all? { |a| user_only?(a) }
 
         receiver = node.receiver
         receiver.nil? ? node.name == :user : user_only?(receiver)
@@ -224,9 +230,15 @@ module CurrentScopeMigrate
     end
 
     def literal?(node)
-      node.is_a?(Prism::StringNode) || node.is_a?(Prism::SymbolNode) ||
-        node.is_a?(Prism::IntegerNode) || node.is_a?(Prism::TrueNode) ||
-        node.is_a?(Prism::FalseNode) || node.is_a?(Prism::NilNode)
+      case node
+      when Prism::StringNode, Prism::SymbolNode, Prism::IntegerNode,
+           Prism::TrueNode, Prism::FalseNode, Prism::NilNode
+        true
+      when Prism::ArrayNode
+        node.elements.all? { |e| literal?(e) }
+      else
+        false
+      end
     end
 
     # --- Scope#resolve classification --------------------------------------
@@ -278,6 +290,14 @@ if ARGV.first == "--self-test"
       def approve? = record.requested_by != user
       def destroy? = record.published_at.nil?
       def edit? = update?
+      def review? = user.widgets.include?(record)
+      def audit? = user.admin?(record.id)
+      def flag? = user.roles.any? { |r| r.name == record.owner_role }
+      def export? = user.role.in?(%w[admin editor])
+      def mixed? = user.admin? || record.owner == user
+      def blocked? = !user.admin?
+      def safe_nav? = user&.admin?
+      def both? = user.admin? && user.active?
       def archive?
         log_check
         user.admin?
@@ -287,19 +307,46 @@ if ARGV.first == "--self-test"
         def resolve = scope.where(author_id: user.id)
       end
     end
+
+    class CommentPolicy < ApplicationPolicy
+      class Scope < Scope
+        def resolve = scope.where("author_id = ?", user.id)
+      end
+    end
   RUBY
+
+  BROKEN = "class BrokenPolicy < ApplicationPolicy\n  def oops? = (\nend\n"
 
   Dir.mktmpdir do |dir|
     File.write(File.join(dir, "post_policy.rb"), FIXTURE)
+    File.write(File.join(dir, "broken_policy.rb"), BROKEN)
     rows = CurrentScopeMigrate::PolicyInventory.new(dir).run[:policies]
     expected = {
       "index?" => "pure_role", "show?" => "pure_role", "create?" => "pure_role",
       "update?" => "ownership", "approve?" => "sod_shape", "destroy?" => "unparseable",
-      "edit?" => "unparseable", "archive?" => "unparseable", "resolve" => "ownership"
+      "edit?" => "unparseable", "archive?" => "unparseable",
+      # fail-closed regressions: record smuggled through arguments or blocks
+      "review?" => "unparseable", "audit?" => "unparseable", "flag?" => "unparseable",
+      # literal-array arguments stay provable; so are !, &&, and safe-nav
+      # chains that stay user-only
+      "export?" => "pure_role", "blocked?" => "pure_role",
+      "safe_nav?" => "pure_role", "both?" => "pure_role",
+      # a pure_role arm ORed with an ownership arm is NOT provable as either
+      "mixed?" => "unparseable"
     }
     failures = expected.reject do |meth, bucket|
       rows.any? { |r| r[:method] == meth && r[:bucket] == bucket }
     end
+    # Scope classifications collide on the method name, so assert by class.
+    scope_expected = {
+      "PostPolicy::Scope" => "ownership",     # scope.where(author_id: user.id)
+      "CommentPolicy::Scope" => "unparseable" # string-SQL where — not provable
+    }
+    failures = failures.to_h.merge(scope_expected.reject { |klass, bucket|
+      rows.any? { |r| r[:policy_class] == klass && r[:method] == "resolve" && r[:bucket] == bucket }
+    })
+    failures["broken file"] = "unparseable" unless
+      rows.any? { |r| r[:bucket] == "unparseable" && r[:detail].to_s.start_with?("syntax error") }
     if failures.empty?
       puts "self-test OK (#{expected.size} classifications)"
     else

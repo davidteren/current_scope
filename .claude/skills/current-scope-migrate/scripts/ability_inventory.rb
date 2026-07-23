@@ -142,10 +142,13 @@ module CurrentScopeMigrate
                        else_arm(stmt).nil?
 
       body = stmt.statements&.body || []
-      terminates = body.any? && body.all? do |s|
-        TERMINATORS.any? { |t| s.is_a?(t) } ||
-          (s.is_a?(Prism::CallNode) && s.receiver.nil? && s.name == :raise)
-      end
+      # The arm terminates when its LAST statement does — side-effect lines
+      # before the return (logging, counters) don't change control flow, and
+      # requiring all-terminators would silently drop the guard for the
+      # statements that follow (a fail-open in the report).
+      last = body.last
+      terminates = last && (TERMINATORS.any? { |t| last.is_a?(t) } ||
+                            (last.is_a?(Prism::CallNode) && last.receiver.nil? && last.name == :raise))
       return [] unless terminates
 
       inner_ok = user_only?(stmt.predicate)
@@ -336,6 +339,14 @@ if ARGV.first == "--self-test"
       def guest_rules(user)
         can :browse, Post unless user.guest?
       end
+
+      def audited_rules(user)
+        unless user.staff?
+          Rails.logger.info("non-staff ability request")
+          return
+        end
+        can :audit, Report
+      end
     end
   RUBY
 
@@ -359,7 +370,10 @@ if ARGV.first == "--self-test"
       # in the serialized guard.
       "can :hide, Comment" => "pure_role",
       "can :flag, Comment" => "pure_role",
-      "can :browse, Post" => "pure_role"
+      "can :browse, Post" => "pure_role",
+      # a side-effect line before the guard-clause return must not drop the
+      # guard (the arm still terminates)
+      "can :audit, Report" => "pure_role"
     }
     failures = expected.reject { |frag, bucket| find.call(frag)&.dig(:bucket) == bucket }
     # The full_access shape must be called out, and guards captured.
@@ -375,6 +389,8 @@ if ARGV.first == "--self-test"
       find.call("can :flag, Comment")&.dig(:guards)&.include?("!(user.banned?)")
     failures["unless-modifier guard signed"] = true unless
       find.call("can :browse, Post")&.dig(:guards)&.include?("!(user.guest?)")
+    failures["side-effect guard clause captured"] = true unless
+      find.call("can :audit, Report")&.dig(:guards)&.include?("user.staff?")
     if failures.empty?
       puts "self-test OK (#{expected.size} classifications)"
     else

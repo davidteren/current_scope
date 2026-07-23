@@ -284,6 +284,15 @@ module CurrentScopeMigrate
       args = node.arguments&.arguments || []
       return unless args.first.is_a?(Prism::SymbolNode) && args.first.unescaped.end_with?("?")
 
+      # AP options (with:, context:) have no engine equivalent — carrying
+      # them across verbatim would produce an invalid call. Review instead.
+      if args.any? { |a| a.is_a?(Prism::KeywordHashNode) }
+        @reviews << Review.new(file: path, line: node.location.start_line, kind: "ap_allowed_to",
+                               source: slice(node, source),
+                               note: "Action Policy allowed_to? with options (with:/context:) — " \
+                                     "the engine form takes no policy override; rewrite by hand")
+        return
+      end
       rest = args[1..].map { |a| slice(a, source) }
       @edits << Edit.new(file: path, line: node.location.start_line, kind: "ap_allowed_to",
                          original: slice(node, source),

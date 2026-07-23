@@ -159,11 +159,13 @@ namespace :current_scope_migrate do
 
     rows = []
     unanswerable = []
+    recordless_models = Set.new
     CurrentScope.catalog.keys.sort.each do |key|
       next if excluded.include?(key)
 
       model = model_for.call(key)
       record = model && records[model.name]
+      recordless_models << model.name if model && record.nil?
       subjects.each do |role_label, subject|
         old_answer_value = old_answer.call(subject, key, record)
         # Record-less cells pass the resolved model so the check represents
@@ -301,6 +303,19 @@ namespace :current_scope_migrate do
       #{scope_unverified.any? ? "**Scope UNVERIFIED (no record exemplar in the manifest):** #{scope_unverified.join(', ')}" : ''}
 
       Excluded keys (verified by hand, per the manifest): #{excluded.empty? ? 'none' : excluded.to_a.sort.join(', ')}
+
+      #{if old_system == 'cancancan' && recordless_models.any?
+          "**CanCanCan caveat — record-level rules unverified for: " \
+          "#{recordless_models.to_a.sort.join(', ')}.** Class-level can? is " \
+          "OPTIMISTIC for hash-conditioned rules (it answers \"could act on " \
+          "some record\"), so these cells can read as parity while record " \
+          "cells diverge — add record exemplars to the manifest."
+        elsif old_system == 'action_policy'
+          "**Action Policy caveat:** a deny-by-default default_rule makes " \
+          "every UNMAPPED key deny on both sides — green cells prove " \
+          "agreement, not that the key was consciously mapped; check the " \
+          "decision report's coverage."
+        end}
     MD
 
     puts "Parity report: #{report}"

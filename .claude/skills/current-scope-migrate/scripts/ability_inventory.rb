@@ -82,15 +82,26 @@ module CurrentScopeMigrate
     def walk_method(node, method_name, guards, rules)
       case node
       when nil then nil
+      when Prism::StatementsNode
+        # Sequential: a guard-clause return (`return unless user.admin?`)
+        # guards every FOLLOWING statement. `unless` + return means the rest
+        # runs when the predicate is TRUE (provable as-is); `if` + return
+        # means the rest runs on the NEGATION (not provable as a role —
+        # fail closed).
+        implicit = []
+        node.body.each do |stmt|
+          walk_method(stmt, method_name, guards + implicit, rules)
+          implicit += implicit_guards_from(stmt)
+        end
       when Prism::IfNode, Prism::UnlessNode
         guard = { source: slice(node.predicate), user_only: user_only?(node.predicate),
                   negated: node.is_a?(Prism::UnlessNode) }
         walk_method(node.statements, method_name, guards + [ guard ], rules)
         # The else/elsif arm's guard is the NEGATION — not provable as a
         # simple role predicate, so mark it un-user-only (fail closed).
-        if node.respond_to?(:subsequent) && node.subsequent
+        if (arm = else_arm(node))
           negated = { source: "!(#{slice(node.predicate)})", user_only: false, negated: true }
-          walk_method(node.subsequent, method_name, guards + [ negated ], rules)
+          walk_method(arm, method_name, guards + [ negated ], rules)
         end
       when Prism::CallNode
         if node.receiver.nil? && %i[can cannot].include?(node.name)
@@ -105,6 +116,33 @@ module CurrentScopeMigrate
         node.child_nodes.compact.each { |c| walk_method(c, method_name, guards + [ poison ], rules) }
       else
         node.child_nodes.compact.each { |c| walk_method(c, method_name, guards, rules) } if node.respond_to?(:child_nodes)
+      end
+    end
+
+    TERMINATORS = [ Prism::ReturnNode, Prism::NextNode, Prism::BreakNode ].freeze
+
+    # IfNode chains via #subsequent; UnlessNode's else arm is #else_clause.
+    def else_arm(node)
+      if node.respond_to?(:subsequent) then node.subsequent
+      elsif node.respond_to?(:else_clause) then node.else_clause
+      end
+    end
+
+    def implicit_guards_from(stmt)
+      return [] unless (stmt.is_a?(Prism::IfNode) || stmt.is_a?(Prism::UnlessNode)) &&
+                       else_arm(stmt).nil?
+
+      body = stmt.statements&.body || []
+      terminates = body.any? && body.all? do |s|
+        TERMINATORS.any? { |t| s.is_a?(t) } ||
+          (s.is_a?(Prism::CallNode) && s.receiver.nil? && s.name == :raise)
+      end
+      return [] unless terminates
+
+      if stmt.is_a?(Prism::UnlessNode)
+        [ { source: slice(stmt.predicate), user_only: user_only?(stmt.predicate), negated: false } ]
+      else
+        [ { source: "!(#{slice(stmt.predicate)})", user_only: false, negated: true } ]
       end
     end
 
@@ -290,6 +328,16 @@ if ARGV.first == "--self-test"
       def member_rules(user)
         can [:read, :create], Comment if user.member?
       end
+
+      def moderator_rules(user)
+        return unless user.moderator?
+        can :hide, Comment
+      end
+
+      def visitor_rules(user)
+        return if user.banned?
+        can :flag, Comment
+      end
     end
   RUBY
 
@@ -307,7 +355,12 @@ if ARGV.first == "--self-test"
       "cannot :destroy" => "unparseable",       # subtractive
       "can :read, Report" => "unparseable",     # quota guard (user.posts.count > 3)
       "can :export, Report" => "unparseable",   # case container
-      "can [:read, :create]" => "pure_role"     # helper method, user-only guard
+      "can [:read, :create]" => "pure_role",    # helper method, user-only guard
+      # guard-clause returns become implicit guards for following statements:
+      # `return unless user.moderator?` is provable; `return if user.banned?`
+      # leaves a negation, which is not a role predicate (fail closed).
+      "can :hide, Comment" => "pure_role",
+      "can :flag, Comment" => "unparseable"
     }
     failures = expected.reject { |frag, bucket| find.call(frag)&.dig(:bucket) == bucket }
     # The full_access shape must be called out, and guards captured.
@@ -315,6 +368,8 @@ if ARGV.first == "--self-test"
       find.call("can :manage, :all")&.dig(:detail)&.include?("full_access")
     failures["editor guard"] = true unless
       find.call("can :read, Post")&.dig(:guards)&.include?('user.role == "editor"')
+    failures["guard-clause guard captured"] = true unless
+      find.call("can :hide, Comment")&.dig(:guards)&.include?("user.moderator?")
     if failures.empty?
       puts "self-test OK (#{expected.size} classifications)"
     else

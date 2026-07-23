@@ -15,6 +15,7 @@
 #                 guards, splats — reported verbatim for a human
 require "json"
 require "set"
+require_relative "ast_helpers"
 
 begin
   require "prism"
@@ -24,6 +25,8 @@ end
 
 module CurrentScopeMigrate
   class AbilityInventory
+    include AstHelpers
+
     Result = Struct.new(:file, :method, :line, :bucket, :source, :actions, :subjects,
                         :guards, :detail, keyword_init: true) do
       def to_h = super.compact
@@ -271,26 +274,7 @@ module CurrentScopeMigrate
     # Walks to the chain's root; names it for CallNode and local-variable
     # roots alike (`user.posts.count` and `user` the parameter both root at
     # :user).
-    def receiver_root(node)
-      current = node
-      current = current.receiver while current.is_a?(Prism::CallNode) && current.receiver
-      case current
-      when Prism::CallNode then current.name
-      when Prism::LocalVariableReadNode then current.name
-      end
-    end
 
-    def literal?(node)
-      case node
-      when Prism::StringNode, Prism::SymbolNode, Prism::IntegerNode,
-           Prism::TrueNode, Prism::FalseNode, Prism::NilNode
-        true
-      when Prism::ArrayNode
-        node.elements.all? { |e| literal?(e) }
-      else
-        false
-      end
-    end
 
     def slice(node)
       @source.byteslice(node.location.start_offset...node.location.end_offset)

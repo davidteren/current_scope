@@ -15,6 +15,7 @@
 # human, never guessed at. Report-only is the default; --write applies.
 require "json"
 require "set"
+require_relative "ast_helpers"
 
 begin
   require "prism"
@@ -24,6 +25,8 @@ end
 
 module CurrentScopeMigrate
   class CallsiteRewrite
+    include AstHelpers
+
     Edit = Struct.new(:file, :line, :kind, :original, :replacement, :start_offset, :end_offset,
                       keyword_init: true)
     Review = Struct.new(:file, :line, :kind, :source, :note, keyword_init: true)
@@ -375,11 +378,6 @@ module CurrentScopeMigrate
       end
     end
 
-    def literal?(node)
-      node.is_a?(Prism::SymbolNode) || node.is_a?(Prism::StringNode) ||
-        node.is_a?(Prism::IntegerNode) || node.is_a?(Prism::TrueNode) ||
-        node.is_a?(Prism::FalseNode) || node.is_a?(Prism::NilNode)
-    end
 
     def authorize_review_note(node, args, parent, grandparent)
       if !provable_authorize_args?(args)

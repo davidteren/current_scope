@@ -13,6 +13,7 @@
 # A wrong "pure_role" silently changes who can do what; a wrong "unparseable"
 # only costs a human a minute. All ambiguity therefore lands in unparseable.
 require "json"
+require_relative "ast_helpers"
 
 begin
   require "prism"
@@ -22,6 +23,8 @@ end
 
 module CurrentScopeMigrate
   class PolicyInventory
+    include AstHelpers
+
     APPROVE_LIKE = %w[approve reject publish unpublish confirm sign_off review release].freeze
 
     Result = Struct.new(:file, :policy_class, :method, :line, :bucket, :source, :detail,
@@ -291,27 +294,8 @@ module CurrentScopeMigrate
       end
     end
 
-    def receiver_root(node)
-      current = node
-      current = current.receiver while current.is_a?(Prism::CallNode) && current.receiver
-      current.is_a?(Prism::CallNode) ? current.name : nil
-    end
 
-    def bare_call?(node, name)
-      node.is_a?(Prism::CallNode) && node.receiver.nil? && node.name == name
-    end
 
-    def literal?(node)
-      case node
-      when Prism::StringNode, Prism::SymbolNode, Prism::IntegerNode,
-           Prism::TrueNode, Prism::FalseNode, Prism::NilNode
-        true
-      when Prism::ArrayNode
-        node.elements.all? { |e| literal?(e) }
-      else
-        false
-      end
-    end
 
     # --- Scope#resolve classification --------------------------------------
 

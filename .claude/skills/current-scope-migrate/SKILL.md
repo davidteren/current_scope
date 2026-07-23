@@ -161,13 +161,13 @@ bin/rails current_scope_migrate:parity || true   # first run WILL diverge — th
 The task fails CI on any divergence not recorded (with a reason) in
 `accepted_diffs.yml`. The team runs it from migration start until cutover.
 
-## 8. Hand off (phase 1)
+## 8. Hand off (report stage)
 
 Summarize: counts per bucket, the go/no-go verdict, where the report and
 harness live, and the explicit next steps (seed the proposed roles in
 report mode, work the human-decision list, keep parity green, then cut
-over per the partial-adoption recipe). Offer §9–§10 (phase 2) when the
-team is ready; phase 3 (CanCanCan / Action Policy) stays on #45.
+over per the partial-adoption recipe). Offer §9–§10 (rewrites and
+backfill) when the team is ready.
 
 ## 9. Call-site rewrites (phase 2 — `--write` is the opt-in)
 

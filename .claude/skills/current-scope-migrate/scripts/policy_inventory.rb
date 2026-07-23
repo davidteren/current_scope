@@ -261,10 +261,12 @@ module CurrentScopeMigrate
       return nil unless resolve
 
       body = single_expression(resolve)
+      # Type check BEFORE touching .receiver — a conditional resolve body
+      # (IfNode etc.) has no receiver and must land in unparseable, not crash.
       bucket, detail =
-        if body && bare_call?(body.receiver, :scope) && body.is_a?(Prism::CallNode) && body.name == :all
+        if body.is_a?(Prism::CallNode) && body.name == :all && bare_call?(body.receiver, :scope)
           [ "pure_role", "scope.all — org-wide visibility, matches an org-wide grant" ]
-        elsif body && where_on_scope_with_user?(body)
+        elsif body.is_a?(Prism::CallNode) && where_on_scope_with_user?(body)
           [ "ownership", "scope.where(<fk>: user...) — matches scope_for over scoped grants" ]
         else
           [ "unparseable", "resolve body not provable" ]
@@ -328,6 +330,18 @@ if ARGV.first == "--self-test"
         def resolve = scope.where("author_id = ?", user.id)
       end
     end
+
+    class ThingPolicy < ApplicationPolicy
+      class Scope < Scope
+        def resolve
+          if user.admin?
+            scope.all
+          else
+            scope.where(owner_id: user.id)
+          end
+        end
+      end
+    end
   RUBY
 
   BROKEN = "class BrokenPolicy < ApplicationPolicy\n  def oops? = (\nend\n"
@@ -356,8 +370,9 @@ if ARGV.first == "--self-test"
     end
     # Scope classifications collide on the method name, so assert by class.
     scope_expected = {
-      "PostPolicy::Scope" => "ownership",     # scope.where(author_id: user.id)
-      "CommentPolicy::Scope" => "unparseable" # string-SQL where — not provable
+      "PostPolicy::Scope" => "ownership",      # scope.where(author_id: user.id)
+      "CommentPolicy::Scope" => "unparseable", # string-SQL where — not provable
+      "ThingPolicy::Scope" => "unparseable"    # conditional body — must not crash
     }
     failures = failures.to_h.merge(scope_expected.reject { |klass, bucket|
       rows.any? { |r| r[:policy_class] == klass && r[:method] == "resolve" && r[:bucket] == bucket }

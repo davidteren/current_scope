@@ -1,6 +1,6 @@
 # STATUS
 
-> Last updated: 2026-07-22
+> Last updated: 2026-07-23
 >
 > **If you are a fresh session asked to audit this work, start at
 > [Verification brief](#verification-brief--for-a-fresh-session).**
@@ -67,9 +67,11 @@ audit/console honesty) — all landed below. Worklist + TLDR refreshed
 #90 (PR #104). Other Phase 1 worklist items remain open.
 **Landed 2026-07-22:** #32 (security checklist) + #39 (denial ergonomics),
 PR #105 merged to `main`.
-**In flight:** #98 (docs site: committed source, SoD guide, agentic prompts)
-on `feat/docs-site-sod-story-98`. After merge, switch Pages from the legacy
-`gh-pages` branch to the workflow build (`.github/workflows/pages.yml`).
+**Landed 2026-07-23:** #98 (docs site, PR #106; also closed #33) — site live
+at davidteren.github.io/current_scope, Pages now builds from `main` via
+`.github/workflows/pages.yml` (the `gh-pages` branch is deleted).
+**In flight:** #45 phase 1 (Pundit MVP migration skill, report-only) on
+`feat/migrate-skill-45`.
 
 ## Done (all committed on `main`)
 

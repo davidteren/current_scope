@@ -135,7 +135,7 @@ Items below are what still stand between “good engine” and that bar.
 
 | ID | Item | Why | Source | Status |
 |---|---|---|---|---|
-| **A1** | Migration tooling Pundit/CanCan/Action Policy + parity harness | Biggest adoption blocker | **#45** | Open |
+| **A1** | Migration tooling Pundit/CanCan/Action Policy + parity harness | Biggest adoption blocker | **#45** | **Partial** — Pundit MVP skill shipped (`.claude/skills/current-scope-migrate/`); phases 2–3 open |
 | **A2** | DX skills: install, doctor, add-resource, why-denied | First hour + silent gaps | **#46** | Open |
 | **A3** | API abilities payload + advisory contract + staleness | Separate JS frontends | **#96** | Open |
 | **A4** | Inertia shared props + denial handling | In-repo React/Vue path | **#97** | Open |

@@ -1,0 +1,11 @@
+# Intentional authorization changes, accepted during the migration.
+# Each entry silences exactly one parity cell — CI keeps failing on any
+# divergence NOT listed here. Every entry needs a reason a reviewer can audit.
+#
+# - subject: admin                 # role_label from the manifest
+#   key: "posts#destroy"           # permission key
+#   record: "Post#42"              # "Model#id", or "-" for the class-level cell
+#   reason: >
+#     Old policy allowed any admin; new model requires the Publisher role.
+#     Decided in DECISION-REPORT.md item 7, approved by <who> on <date>.
+[]

@@ -1,0 +1,24 @@
+# Exemplar manifest for the current_scope parity harness (#45 MVP).
+# The parity run is only as good as this matrix: one subject per role,
+# one record per model that has record-conditioned rules.
+subjects:
+  # role_label: a Ruby expression returning that subject (evaluated in-app).
+  # admin:  'User.find_by!(email: "admin@example.com")'
+  # member: 'User.where(admin: false).first!'
+
+records:
+  # ModelName: expression returning one exemplar record.
+  # Post: 'Post.first!'
+
+# Pundit alias actions (merged over the defaults edit->update, new->create).
+action_aliases: {}
+
+# controller path or full key -> model class name, when the classify guess
+# is wrong (e.g. "admin/reports": "Report" is guessed fine, but a
+# DashboardController rendering Reports is not).
+key_models: {}
+
+# Keys whose policies need request context and cannot be replayed
+# in-process — verify these by hand and list them here so the run is honest
+# about what it skipped.
+excluded_keys: []

@@ -1,0 +1,36 @@
+.claude/skills/current-scope-migrate/scripts/callsite_rewrite.rb
+  s_e49ad5b2662b90::t_cbfb45e91480ba 1-256
+.claude/skills/current-scope-migrate/templates/backfill_rolify.rb.tt
+  s_e49ad5b2662b90::t_88e53620d758f6 1-31,33-37,39-66,68,71-89
+  s_e49ad5b2662b90::t_10a5d564273a4f 32,38,67,69-70
+.claude/skills/current-scope-migrate/SKILL.md
+  s_e49ad5b2662b90::t_a4bea7a6f24af6 3,6,8-17
+  s_e49ad5b2662b90::t_58638262931255 149,154-211
+STATUS.md
+  s_e49ad5b2662b90::t_0ad9cddafa67c0 73-76
+docs/site/ai-agents.md
+  s_e49ad5b2662b90::t_1dff9f53954b26 143-144
+  s_e49ad5b2662b90::t_9089c5168025b0 129-132
+.github/workflows/ci.yml
+  s_e49ad5b2662b90::t_7b5b81306d3c06 79,82,84-85
+docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md
+  s_e49ad5b2662b90::t_c0fa58982271d0 138
+.claude/skills/current-scope-migrate/templates/backfill_enum_roles.rb.tt
+  s_e49ad5b2662b90::t_c0037dbb2f88d7 1-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "3e434091f1afe2ff71ec6b7bd6a877d16a35cd03",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

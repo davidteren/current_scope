@@ -14,7 +14,7 @@
 # permitted_attributes, ERB templates — is REPORTED with file:line for a
 # human, never guessed at. Report-only is the default; --write applies.
 require "json"
-require "set" # rubocop:disable Lint/RedundantRequireStatement -- explicit per repo convention
+require "set"
 
 begin
   require "prism"
@@ -31,10 +31,12 @@ module CurrentScopeMigrate
     # Scan-apply to fixpoint: apply! only takes outermost edits, so nested
     # rewrites (policy(policy_scope(X)).foo?) surface on the next scan.
     # Returns the final report with all edits applied across passes.
-    def self.rewrite_all!(dir, max_passes: 5)
+    MAX_PASSES = 5 # nesting depth bound for the scan-apply fixpoint
+
+    def self.rewrite_all!(dir)
       all_edits = []
       reviews = []
-      max_passes.times do
+      MAX_PASSES.times do
         rw = new(dir).scan
         reviews = rw.reviews
         break if rw.edits.empty?
@@ -42,11 +44,13 @@ module CurrentScopeMigrate
         rw.apply!
         all_edits.concat(rw.edits)
       end
-      { rewrites: all_edits.uniq { |e| [ e.file, e.original, e.kind ] }
-                           .map { |e| e.to_h.except(:start_offset, :end_offset) },
+      # Honest convergence claim: a fresh scan must find nothing left.
+      converged = new(dir).scan.edits.empty?
+      deduped = all_edits.uniq { |e| [ e.file, e.line, e.original, e.kind ] }
+      { rewrites: deduped.map { |e| e.to_h.except(:start_offset, :end_offset) },
         reviews: reviews.map(&:to_h),
-        counts: { rewrites: all_edits.size, reviews: reviews.size },
-        applied: true }
+        counts: { rewrites: deduped.size, reviews: reviews.size },
+        applied: true, converged: converged }
     end
 
     def initialize(dir)
@@ -57,9 +61,11 @@ module CurrentScopeMigrate
 
     attr_reader :edits, :reviews
 
+    TEMPLATE_GLOB = "*.{erb,haml,slim,jbuilder}"
+
     def scan
       Dir.glob(File.join(@dir, "**", "*.rb")).sort.each { |f| scan_ruby(f) }
-      Dir.glob(File.join(@dir, "**", "*.erb")).sort.each { |f| scan_erb(f) }
+      Dir.glob(File.join(@dir, "**", TEMPLATE_GLOB)).sort.each { |f| scan_template(f) }
       self
     end
 
@@ -139,23 +145,32 @@ module CurrentScopeMigrate
     end
 
     def gate_skipped?(node)
-      if node.is_a?(Prism::CallNode) && node.name == :skip_before_action &&
-         (node.arguments&.arguments || []).any? { |a|
-           a.is_a?(Prism::SymbolNode) && a.value == "current_scope_check!"
-         }
-        return true
+      if node.is_a?(Prism::CallNode) && node.name == :skip_before_action
+        args = node.arguments&.arguments || []
+        # Fail closed: symbol OR string forms name the gate; any argument we
+        # cannot prove is NOT the gate (splat, variable, send) counts as a
+        # skip too — a missed skip means deleting a file's only auth check.
+        named = args.any? do |a|
+          case a
+          when Prism::SymbolNode, Prism::StringNode then a.unescaped == "current_scope_check!"
+          else false
+          end
+        end
+        unprovable = args.empty? || args.any? { |a| !a.is_a?(Prism::SymbolNode) && !a.is_a?(Prism::StringNode) }
+        return true if named || unprovable
       end
       node.respond_to?(:child_nodes) &&
         node.child_nodes.compact.any? { |c| gate_skipped?(c) }
     end
 
-    # ERB cannot be parsed as Ruby here — report occurrences, never rewrite.
-    def scan_erb(path)
+    # View templates (ERB/Haml/Slim/jbuilder) cannot be parsed as plain Ruby
+    # here — report occurrences, never rewrite.
+    def scan_template(path)
       File.foreach(path).with_index(1) do |text, lineno|
         next unless text =~ /\b(policy_scope|policy|authorize|permitted_attributes)\b/
 
-        @reviews << Review.new(file: path, line: lineno, kind: "erb", source: text.strip,
-                               note: "ERB template — rewrite by hand " \
+        @reviews << Review.new(file: path, line: lineno, kind: "template", source: text.strip,
+                               note: "view template — rewrite by hand " \
                                      "(policy(x).foo? -> allowed_to?(:foo, x); policy_scope(X) -> scope_for(X))")
       end
     end
@@ -189,9 +204,16 @@ module CurrentScopeMigrate
                                      "the ONLY check here; do not delete until the gate covers it")
         return
       end
+      # Deletion allowlist: the statement must sit DIRECTLY in a def/block/
+      # lambda body. Any other statements container (when/in branches, rescue
+      # bodies, if/unless arms) is conditional execution — deleting there
+      # widens authorization, because the Guard gates unconditionally.
+      straight_line = grandparent.is_a?(Prism::DefNode) ||
+                      grandparent.is_a?(Prism::BlockNode) ||
+                      grandparent.is_a?(Prism::LambdaNode)
       if args.size == 1 && node.block.nil? && parent.is_a?(Prism::StatementsNode) &&
-         simple_ref?(args.first) && !last_expression?(node, parent, grandparent) &&
-         alone_on_line?(node, source)
+         straight_line && simple_ref?(args.first) &&
+         !last_expression?(node, parent, grandparent) && alone_on_line?(node, source)
         del = full_line_span(node, source)
         @edits << Edit.new(file: path, line: line, kind: "delete_authorize",
                            original: slice(node, source), replacement: "",
@@ -206,12 +228,14 @@ module CurrentScopeMigrate
     def authorize_review_note(node, args, parent, grandparent)
       if args.size != 1
         "custom query / extra args — map to the gate key by hand"
-      elsif grandparent.is_a?(Prism::IfNode) || grandparent.is_a?(Prism::UnlessNode)
-        "CONDITIONAL authorize — the Guard gates unconditionally; the " \
-          "condition is a policy decision (grant/SoD/plain guard), not a deletion"
+      elsif parent.is_a?(Prism::StatementsNode) &&
+            !(grandparent.is_a?(Prism::DefNode) || grandparent.is_a?(Prism::BlockNode) ||
+              grandparent.is_a?(Prism::LambdaNode))
+        "CONDITIONAL authorize (if/unless/case/rescue) — the Guard gates " \
+          "unconditionally; the condition is a policy decision, not a deletion"
       elsif !parent.is_a?(Prism::StatementsNode)
         "return value is used — assign the record instead, the Guard gates the action"
-      elsif args.size == 1 && !simple_ref?(args.first)
+      elsif !simple_ref?(args.first)
         "argument has side effects (a lookup/raise the deletion would lose) — " \
           "move the lookup to the record hook, then delete by hand"
       elsif last_expression?(node, parent, grandparent)
@@ -263,6 +287,17 @@ module CurrentScopeMigrate
                          replacement: "allowed_to?(:#{action}, #{target})",
                          start_offset: parent.location.start_offset,
                          end_offset: parent.location.end_offset)
+      # Pundit convention aliases edit?->update? and new?->create?; the gate
+      # enforces edit/new as their OWN keys. The machine report must carry
+      # that shift, not just SKILL.md prose.
+      if %w[edit new].include?(action)
+        @reviews << Review.new(file: path, line: node.location.start_line,
+                               kind: "policy_predicate_alias",
+                               source: slice(parent, source),
+                               note: "rewritten to allowed_to?(:#{action}, ...) — Pundit aliased " \
+                                     "#{action}? to #{action == 'edit' ? 'update' : 'create'}?; the gate " \
+                                     "enforces #{action} as its own key — check the grid mapping")
+      end
     end
 
     def classify_policy_scope(node, path, source)
@@ -340,6 +375,19 @@ if ARGV.first == "--self-test"
         policy(@post)
       end
 
+      def edit
+        head :ok if policy(@post).edit?
+        render :edit
+      end
+
+      def cased
+        case params[:mode]
+        when "strict"
+          authorize @post
+        end
+        head :ok
+      end
+
       def scoped_with_args
         policy_scope(Post, policy_scope_class: CustomScope)
       end
@@ -370,17 +418,28 @@ if ARGV.first == "--self-test"
     end
   RUBY
 
+  STRING_SKIPPED_CONTROLLER = <<~RUBY
+    class CallbacksController < ApplicationController
+      skip_before_action "current_scope_check!"
+
+      def create
+        authorize @callback
+      end
+    end
+  RUBY
+
   Dir.mktmpdir do |dir|
     file = File.join(dir, "posts_controller.rb")
     File.write(file, CONTROLLER)
     File.write(File.join(dir, "webhooks_controller.rb"), SKIPPED_CONTROLLER)
+    File.write(File.join(dir, "callbacks_controller.rb"), STRING_SKIPPED_CONTROLLER)
     File.write(File.join(dir, "show.html.erb"), "<%= link_to 'Edit' if policy(@post).update? %>\n")
 
     r = CurrentScopeMigrate::CallsiteRewrite.new(dir).scan.report
     failures = []
     expect_kinds = { "policy_scope" => :rewrites, "delete_authorize" => :rewrites,
                      "policy_predicate" => :rewrites, "authorize" => :reviews,
-                     "permitted_attributes" => :reviews, "erb" => :reviews }
+                     "permitted_attributes" => :reviews, "template" => :reviews }
     expect_kinds.each do |kind, bucket|
       failures << "missing #{bucket}:#{kind}" unless r[bucket].any? { |x| x[:kind] == kind }
     end
@@ -388,10 +447,17 @@ if ARGV.first == "--self-test"
     # so exactly ONE authorize is deleted (the statement-position one).
     failures << "expected exactly 1 delete_authorize" unless
       r[:rewrites].count { |x| x[:kind] == "delete_authorize" } == 1
-    # posts: value-used, custom-query, conditional, side-effect-arg,
-    # last-expression-in-private-helper; webhooks: gate-skipped = 6.
-    failures << "expected 6 authorize reviews" unless
-      r[:reviews].count { |x| x[:kind] == "authorize" } == 6
+    # posts: value-used, custom-query, modifier-if conditional, case/when
+    # conditional, side-effect-arg, last-expression-in-private-helper;
+    # webhooks + callbacks: gate-skipped = 8.
+    failures << "expected 8 authorize reviews" unless
+      r[:reviews].count { |x| x[:kind] == "authorize" } == 8
+    failures << "string-form skip must protect its authorize" unless
+      r[:reviews].any? { |x| x[:file].end_with?("callbacks_controller.rb") && x[:note].include?("skips current_scope_check!") }
+    failures << "case/when authorize must be CONDITIONAL review" unless
+      r[:reviews].count { |x| x[:note].include?("CONDITIONAL") } == 2
+    failures << "edit? rewrite must carry the alias review" unless
+      r[:reviews].any? { |x| x[:kind] == "policy_predicate_alias" && x[:note].include?("edit") }
     failures << "modifier-if authorize must be a review" unless
       r[:reviews].any? { |x| x[:kind] == "authorize" && x[:note].include?("CONDITIONAL") }
     failures << "bare policy(x) must be a review" unless
@@ -424,6 +490,11 @@ if ARGV.first == "--self-test"
     failures << "file no longer parses after --write" unless Prism.parse(out).success?
     failures << "gate-skipped authorize was deleted" unless
       File.read(File.join(dir, "webhooks_controller.rb")).include?("authorize @event")
+    failures << "string-form gate-skipped authorize was deleted" unless
+      File.read(File.join(dir, "callbacks_controller.rb")).include?("authorize @callback")
+    failures << "case/when authorize was deleted" unless out.include?('when "strict"') &&
+                                                         out[/def cased.*?head :ok/m]&.include?("authorize @post")
+    failures << "edit? predicate not rewritten" unless out.include?("head :ok if allowed_to?(:edit, @post)")
     failures << "modifier-if authorize was wrongly touched" unless
       out.include?("authorize @post if params[:strict]")
     failures << "arity-mismatched policy_scope was wrongly touched" unless

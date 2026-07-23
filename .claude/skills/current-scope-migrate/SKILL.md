@@ -201,6 +201,10 @@ Detect the host's role shape (Read `db/schema.rb` and the subject model):
   the migration by hand following the enum template's structure, and say
   so in the report.
 
+After copying, replace the template's `ActiveRecord::Migration[8.1]` with
+the host's own version tag (match what `bin/rails generate migration` emits
+there — e.g. `[8.2]`), and name the copied file with a fresh timestamp.
+
 Fill every DECISION-POINT constant from §6's proposed roles before handing
 over. The migrations copy (never move) role data, grant through the
 audited `CurrentScope.grant!` path for org-wide roles, and are deliberately

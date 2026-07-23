@@ -54,10 +54,16 @@ class BackfillCurrentScopeRolesFromEnum < ActiveRecord::Migration[8.1]
       "  #{SUBJECT_CLASS}##{subject.id}: holds #{current.inspect}, enum says #{wanted.inspect}" if
         current && current != wanted
     end
-    if conflicted.any? && !REPLACE_EXISTING_ROLES
-      raise "these subjects already hold a DIFFERENT org role (grant! would " \
-            "replace it) — review, then set REPLACE_EXISTING_ROLES = true:\n" +
-            conflicted.join("\n")
+    if conflicted.any?
+      unless REPLACE_EXISTING_ROLES
+        raise "these subjects already hold a DIFFERENT org role (grant! would " \
+              "replace it) — review, then set REPLACE_EXISTING_ROLES = true:\n" +
+              conflicted.join("\n")
+      end
+      # The flag approves whatever conflicts exist AT RUN TIME — always print
+      # the replacements, never act silently.
+      say "REPLACING #{conflicted.size} existing role assignment(s):"
+      conflicted.each { |c| say c }
     end
 
     with_role.find_each do |subject|

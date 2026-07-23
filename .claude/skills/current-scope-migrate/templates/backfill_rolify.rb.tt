@@ -35,15 +35,21 @@ class BackfillCurrentScopeRolesFromRolify < ActiveRecord::Migration[8.1]
 
     class_scoped = ::Role.where.not(resource_type: nil).where(resource_id: nil)
     if class_scoped.exists?
-      raise "rolify class-scoped roles have no current_scope equivalent — decide first:\n" +
-            class_scoped.pluck(:name, :resource_type).map { |n, t| "  #{n} on #{t}" }.join("\n")
+      raise "rolify class-scoped roles have no current_scope equivalent:\n" +
+            class_scoped.pluck(:name, :resource_type).map { |n, t| "  #{n} on #{t}" }.join("\n") +
+            "\nDecide per role — promote to a global role (add it to the rolify " \
+            "data as unscoped, or grant it in §6.2 seeding) or convert to " \
+            "per-record grants — then delete this preflight and re-run."
     end
 
     global = ::Role.where(resource_type: nil, resource_id: nil)
 
+    # ANY unranked role on a multi-role user aborts — a partial PRECEDENCE
+    # list must not silently demote (e.g. [admin, member] with only "member"
+    # ranked would quietly pick member).
     unresolved = subjects.joins(:roles).merge(global).distinct.select do |subject|
       names = subject.roles.merge(global).pluck(:name)
-      names.size > 1 && (names & PRECEDENCE).empty?
+      names.size > 1 && (names - PRECEDENCE).any?
     end
     if unresolved.any?
       raise "one org-wide role per subject: add these users' roles to PRECEDENCE " \
@@ -51,19 +57,7 @@ class BackfillCurrentScopeRolesFromRolify < ActiveRecord::Migration[8.1]
             unresolved.map { |s| "  #{SUBJECT_CLASS}##{s.id}: #{s.roles.merge(global).pluck(:name).join(', ')}" }.join("\n")
     end
 
-    global.distinct.pluck(:name).each do |name|
-      role = CurrentScope::Role.find_or_create_by!(name: role_name(name)) do |r|
-        r.full_access = FULL_ACCESS_NAMES.include?(name)
-      end
-      # The block only runs on CREATE — a pre-seeded role keeping a stale
-      # full_access would make the constant a dead knob. Fail loud instead.
-      wanted = FULL_ACCESS_NAMES.include?(name)
-      if role.full_access != wanted
-        raise "role #{role.name.inspect} already exists with " \
-              "full_access=#{role.full_access} but FULL_ACCESS_NAMES says #{wanted} — " \
-              "align the constant or the seeded role first"
-      end
-    end
+    global.distinct.pluck(:name).each { |name| find_or_align_role!(name) }
 
     winner_for = lambda do |subject|
       names = subject.roles.merge(global).pluck(:name)
@@ -76,10 +70,17 @@ class BackfillCurrentScopeRolesFromRolify < ActiveRecord::Migration[8.1]
       "  #{SUBJECT_CLASS}##{subject.id}: holds #{current.inspect}, rolify says #{wanted.inspect}" if
         current && current != wanted
     end
-    if conflicted.any? && !REPLACE_EXISTING_ROLES
-      raise "these subjects already hold a DIFFERENT org role (grant! would " \
-            "replace it) — review, then set REPLACE_EXISTING_ROLES = true:\n" +
-            conflicted.join("\n")
+    if conflicted.any?
+      unless REPLACE_EXISTING_ROLES
+        raise "these subjects already hold a DIFFERENT org role (grant! would " \
+              "replace it) — review, then set REPLACE_EXISTING_ROLES = true:\n" +
+              conflicted.join("\n")
+      end
+      # The flag approves whatever conflicts exist AT RUN TIME (staging's
+      # reviewed list is not production's) — so the replacements are always
+      # printed, never silent.
+      say "REPLACING #{conflicted.size} existing role assignment(s):"
+      conflicted.each { |c| say c }
     end
 
     subjects.joins(:roles).merge(global).distinct.find_each do |subject|
@@ -92,15 +93,7 @@ class BackfillCurrentScopeRolesFromRolify < ActiveRecord::Migration[8.1]
     # ScopedRoleAssignment writes are not ledger-recorded (documented engine
     # behavior) — the audit trail for scoped grants starts at cutover.
     ::Role.where.not(resource_type: nil).where.not(resource_id: nil).find_each do |rolify_role|
-      wanted_full = FULL_ACCESS_NAMES.include?(rolify_role.name)
-      cs_role = CurrentScope::Role.find_or_create_by!(name: role_name(rolify_role.name)) do |r|
-        r.full_access = wanted_full
-      end
-      if cs_role.full_access != wanted_full
-        raise "role #{cs_role.name.inspect} already exists with " \
-              "full_access=#{cs_role.full_access} but FULL_ACCESS_NAMES says #{wanted_full} — " \
-              "align the constant or the seeded role first"
-      end
+      cs_role = find_or_align_role!(rolify_role.name)
       holders = subjects.joins(:roles).where(roles: { id: rolify_role.id }).distinct
       holders.find_each do |subject|
         resource = rolify_role.resource
@@ -121,4 +114,19 @@ class BackfillCurrentScopeRolesFromRolify < ActiveRecord::Migration[8.1]
   private
 
   def role_name(value) = ROLE_NAMES.fetch(value, value)
+
+  # find_or_create_by!'s block only runs on CREATE — a pre-seeded role keeping
+  # a stale full_access would make FULL_ACCESS_NAMES a dead knob. Fail loud.
+  def find_or_align_role!(rolify_name)
+    wanted = FULL_ACCESS_NAMES.include?(rolify_name)
+    role = CurrentScope::Role.find_or_create_by!(name: role_name(rolify_name)) do |r|
+      r.full_access = wanted
+    end
+    if role.full_access != wanted
+      raise "role #{role.name.inspect} already exists with " \
+            "full_access=#{role.full_access} but FULL_ACCESS_NAMES says #{wanted} — " \
+            "align the constant or the seeded role first"
+    end
+    role
+  end
 end

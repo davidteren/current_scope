@@ -1,0 +1,34 @@
+.claude/skills/current-scope-migrate/templates/backfill_rolify.rb.tt
+  s_e49ad5b2662b90::t_d1c8624dda090c 47-51,55,57,61,66-67,71-79,95-96
+.claude/skills/current-scope-migrate/templates/backfill_enum_roles.rb.tt
+  s_e49ad5b2662b90::t_c13e7779d1bc92 35-36
+  s_e49ad5b2662b90::t_5c82b0e2946ee2 64-70,73,75-77
+.claude/skills/current-scope-migrate/SKILL.md
+  s_e49ad5b2662b90::t_2a336a41841a75 165-175
+.claude/skills/current-scope-migrate/scripts/callsite_rewrite.rb
+  s_e49ad5b2662b90::t_0d66e76f847d31 510-513
+  s_e49ad5b2662b90::t_97b3844f83217d 356,359-360,365-368
+  s_e49ad5b2662b90::t_ad09b9f8784dc4 90-94,97-98,100
+  s_e49ad5b2662b90::t_8e5087eddecf4d 557-562
+  s_e49ad5b2662b90::t_3fe82fbcd4d032 371,373
+  s_e49ad5b2662b90::t_79ee6caf0f132e 138,142-162,164,173-177
+  s_e49ad5b2662b90::t_6f64be42acc859 493
+  s_e49ad5b2662b90::t_b4ace310ecd22f 178,471-487
+  s_e49ad5b2662b90::t_7c1f90f63ddb72 179
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "c85c8e13cc5df7c9f1aaf4fdb0abf5d1736b1d96",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

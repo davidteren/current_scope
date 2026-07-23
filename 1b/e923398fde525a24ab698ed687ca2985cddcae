@@ -1,0 +1,57 @@
+.claude/skills/current-scope-migrate/scripts/callsite_rewrite.rb
+  s_e49ad5b2662b90::t_a64c287cc8f7f2 217
+  s_e49ad5b2662b90::t_7a22510867a1b3 344-345
+  s_e49ad5b2662b90::t_8e8fe7edd7def2 325,686-692
+  s_e49ad5b2662b90::t_8c707c1dbc57db 660-664
+  s_e49ad5b2662b90::t_c3eb5727e9eb5a 386-388
+  s_e49ad5b2662b90::t_9e633108b1306f 324,611-641,645-646
+  s_e49ad5b2662b90::t_9217a28cdd1064 358-383,385
+  s_e49ad5b2662b90::t_76a483c7cff03e 732-743
+  s_e49ad5b2662b90::t_281ea2bc7c6f07 231-236,240,243-250,258-323
+  s_e49ad5b2662b90::t_02168b2e6d286b 326
+docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md
+  s_e49ad5b2662b90::t_362b2c3ccbedb8 138
+.claude/skills/current-scope-migrate/scripts/ability_inventory.rb
+  s_e49ad5b2662b90::t_647d3baf48bedb 303,308
+  s_e49ad5b2662b90::t_e9bcb09a2840c2 214,217-220,227-228,233-235,239-242
+  s_e49ad5b2662b90::t_00f626dcdbca65 317
+  s_e49ad5b2662b90::t_9cb67d1d608bef 1-213,215-216,221-226,229-232,236-238,243-302,304-307,309-316,318-329
+docs/site/ai-agents.md
+  s_e49ad5b2662b90::t_362b2c3ccbedb8 126,128-132
+.claude/skills/current-scope-migrate/SKILL.md
+  s_e49ad5b2662b90::t_86f05117d562d8 3,6,16,22-25,35,37-38,41-42,44-53,146-147
+.claude/skills/current-scope-migrate/scripts/policy_inventory.rb
+  s_e49ad5b2662b90::t_0372b38e302da3 451-462
+  s_e49ad5b2662b90::t_7b0c7499deedc1 86-90,100-148
+  s_e49ad5b2662b90::t_7e2c35aaf9c25c 149,404-418
+.claude/skills/current-scope-migrate/templates/current_scope_migrate.rake.tt
+  s_e49ad5b2662b90::t_a2231830afb3bb 172-176,181,185,190
+  s_e49ad5b2662b90::t_004ad7bfa45e30 215-218,220-239,242-243,245,248,250,275,279,281,294,296
+  s_e49ad5b2662b90::t_61de23692014b0 165
+  s_e49ad5b2662b90::t_b218ab6523faca 47-56
+  s_e49ad5b2662b90::t_d22ecd82d8af3a 23
+  s_e49ad5b2662b90::t_d43ac99044d0c0 80-84,114-155
+  s_e49ad5b2662b90::t_26bec95a040797 156
+.github/workflows/ci.yml
+  s_e49ad5b2662b90::t_3b9ed3c73071c9 83
+.claude/skills/current-scope-migrate/templates/current_scope_parity.yml.tt
+  s_e49ad5b2662b90::t_cbb2ea317b1f7d 1,4-6
+STATUS.md
+  s_e49ad5b2662b90::t_362b2c3ccbedb8 75-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "1be923398fde525a24ab698ed687ca2985cddcae",
+  "prompts": {},
+  "sessions": {
+    "s_e49ad5b2662b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a6510a2e-5dc4-412b-b4a5-8081aef93cf4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

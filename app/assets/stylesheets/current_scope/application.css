@@ -534,6 +534,23 @@ a:hover { color: var(--cs-accent-strong); }
    routed actions are inert. The badge is advisory — marking is not disabling
    (KTD-8/R5): nothing grayed, nothing disabled. It sits under the controller
    name in the sticky header, wrapping normally inside the nowrap column. */
+/* #76 — declared skip with a reason (intentional; not the unexplained warning). */
+.cs-declared-skip-badge {
+  display: block;
+  max-width: 19rem;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.4375rem;
+  border: 1px solid var(--cs-line-strong);
+  border-radius: var(--cs-radius-sm);
+  background: var(--cs-surface-2);
+  color: var(--cs-ink);
+  font-family: var(--cs-font);
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  white-space: normal;
+}
+.cs-declared-skip-badge strong { color: var(--cs-muted); }
+
 .cs-ungated-badge {
   display: block;
   max-width: 19rem;
@@ -565,7 +582,9 @@ a:hover { color: var(--cs-accent-strong); }
 .cs-grid tbody tr:has(.cs-ungated-badge) td:not(.cs-cell-bypass):has(input:checked),
 .cs-grid tbody tr:has(.cs-ungated-badge) td:not(.cs-cell-bypass):has(input[data-cs-partial="true"]),
 .cs-grid tbody tr:has(.cs-missing-controller-badge) td:not(.cs-cell-bypass):has(input:checked),
-.cs-grid tbody tr:has(.cs-missing-controller-badge) td:not(.cs-cell-bypass):has(input[data-cs-partial="true"]) {
+.cs-grid tbody tr:has(.cs-missing-controller-badge) td:not(.cs-cell-bypass):has(input[data-cs-partial="true"]),
+.cs-grid tbody tr:has(.cs-declared-skip-badge) td:not(.cs-cell-bypass):has(input:checked),
+.cs-grid tbody tr:has(.cs-declared-skip-badge) td:not(.cs-cell-bypass):has(input[data-cs-partial="true"]) {
   background: repeating-linear-gradient(-45deg,
       var(--cs-surface-2) 0 4px, var(--cs-bg) 4px 8px);
 }

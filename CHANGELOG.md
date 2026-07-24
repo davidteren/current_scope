@@ -22,6 +22,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   permission missing from the catalog now says whether the controller matched
   `config.excluded_controllers` (and which pattern(s)) or is simply not
   routed — two different host fixes.
+- **`current_scope_skip_gate!(reason:)` (#76).** Prefer this over bare
+  `skip_before_action :current_scope_check!` for deliberate skips. The role
+  grid shows **skipped — &lt;reason&gt;** instead of the unexplained "gate not
+  run" warning. Bare skips stay alarming.
 
 ## [0.4.0] - 2026-07-23
 

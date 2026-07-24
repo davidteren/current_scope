@@ -28,6 +28,7 @@ class PermissionGridTest < ActiveSupport::TestCase
     end
 
     def missing_controller?(_controller) = false
+    def declared_skip_reason(_controller) = nil
   end
 
   class SpyReflection
@@ -43,6 +44,7 @@ class PermissionGridTest < ActiveSupport::TestCase
     end
 
     def missing_controller?(_controller) = false
+    def declared_skip_reason(_controller) = nil
   end
 
   test "controllers are sorted" do

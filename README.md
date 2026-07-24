@@ -114,11 +114,14 @@ class ApplicationController < ActionController::Base
 end
 ```
 
-Skip the gate where authorization doesn't apply (sign-in, webhooks):
+Skip the gate where authorization doesn't apply (sign-in, webhooks). Prefer the
+declared form so the role grid shows **why** the gate is off:
 
 ```ruby
 class SessionsController < ApplicationController
-  skip_before_action :current_scope_check!
+  current_scope_skip_gate!(reason: "sign-in must run without a grant")
+  # bare skip_before_action :current_scope_check! still works, but the grid
+  # marks it as an unexplained "gate not run"
 end
 ```
 

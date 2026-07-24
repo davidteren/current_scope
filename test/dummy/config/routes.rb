@@ -31,6 +31,7 @@ Rails.application.routes.draw do
   end
 
   resources :webhooks, only: :create
+  get "declared_skip", to: "declared_skip#index"
   get "bare", to: "bare#show"
   get "bare/deny", to: "bare_deny#deny", as: :bare_deny
   get "identity", to: "identity#show"

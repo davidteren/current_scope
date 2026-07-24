@@ -49,6 +49,11 @@ module CurrentScope
       @gating.missing_controller?(controller)
     end
 
+    # Declared skip reason from current_scope_skip_gate!, or nil (#76).
+    def declared_skip_reason(controller)
+      @gating.declared_skip_reason(controller)
+    end
+
     # Ordered columns: config groups that apply to at least one controller (in
     # config order), then leftover actions not covered by any group (sorted).
     def columns

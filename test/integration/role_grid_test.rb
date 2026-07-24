@@ -190,6 +190,16 @@ class RoleGridTest < ActionDispatch::IntegrationTest
     CurrentScope.config.allow_sod_bypass = original_bypass
     CurrentScope.config.sod_actions = original_sod
     CurrentScope.reset_catalog!
+  # #76 — declared skip shows intent, not the unexplained warning.
+  test "a declared skip_gate reason renders the skipped badge instead of gate-not-run" do
+    get current_scope.edit_role_url(@role), headers: as(@owner)
+    assert_response :success
+
+    assert_select "th[scope=row] .cs-declared-skip-badge#cs_declared_skip_declared_skip", count: 1
+    assert_select "#cs_declared_skip_declared_skip", text: /skipped/i
+    assert_select "#cs_declared_skip_declared_skip", text: /public health-check endpoint/
+    assert_select "#cs_ungated_declared_skip", count: 0
+    assert_select "input[data-cs-row-all][aria-describedby=cs_declared_skip_declared_skip]", count: 1
   end
 
   test "the badge names the fact, scopes its claim to routed actions, and speaks the tripwire's remediation" do

@@ -52,12 +52,36 @@ module CurrentScope
   # type is never consulted. A collection controller opting scoped grants in
   # declares BOTH: `def current_scope_record = nil` plus the model.
   #
-  # Skip the gate for public endpoints with skip_before_action :current_scope_check!.
+  # Skip the gate for public endpoints with skip_before_action :current_scope_check!
+  # or, preferably, current_scope_skip_gate!(reason: "…") so the role grid can
+  # show declared intent instead of an unexplained "gate not run" badge (#76).
   # MutationGuard (included here) adds the read-only-while-impersonating gate as
   # its OWN before_action, so it runs first and survives that skip.
   module Guard
     extend ActiveSupport::Concern
     include MutationGuard
+
+    # Inheritable whole-controller skip reason from current_scope_skip_gate!.
+    # nil means no declared reason (bare skip_before_action or never included).
+    class_methods do
+      # Prefer the macro over bare skip_before_action so the grid can show
+      # "skipped: …" instead of the alarming unexplained badge (#76 / plan 030).
+      # only:/except: still perform the skip; the stored reason is the
+      # whole-controller annotation when those are absent (row-level grid today).
+      def current_scope_skip_gate!(reason:, **options)
+        text = reason.to_s.strip
+        raise ArgumentError, "current_scope_skip_gate! requires a non-blank reason:" if text.empty?
+
+        # Whole-controller only: only:/except: stays unprovable at row level
+        # (KTD-3), so we do not claim the entire controller was deliberately
+        # opened. The skip still runs.
+        if options[:only].nil? && options[:except].nil?
+          self.current_scope_gate_skip_reason = text
+        end
+
+        skip_before_action :current_scope_check!, raise: false, **options
+      end
+    end
 
     # "This controller never said whether there is a record here." Passed to the
     # resolver instead of nil when the controller declares no
@@ -98,6 +122,8 @@ module CurrentScope
     end
 
     included do
+      # class_attribute so a child inherits a parent's declared reason (#62 shape).
+      class_attribute :current_scope_gate_skip_reason, instance_accessor: false, default: nil
       before_action :current_scope_check!
     end
 

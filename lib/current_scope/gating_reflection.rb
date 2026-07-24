@@ -53,6 +53,18 @@ module CurrentScope
       true
     end
 
+    # Reason from current_scope_skip_gate!(reason:), or nil when ungated without
+    # a declaration (bare skip / never included). Meaningful when #ungated?
+    # is true (#76).
+    def declared_skip_reason(controller_path)
+      klass = controller_class_for(controller_path)
+      return nil unless klass.respond_to?(:current_scope_gate_skip_reason)
+
+      klass.current_scope_gate_skip_reason.presence
+    rescue ActionDispatch::MissingController
+      nil
+    end
+
     private
 
     # Rails owns the path→class rule — camelize, namespacing, the Controller

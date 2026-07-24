@@ -205,16 +205,16 @@ Minimum for banner consideration: **D2** (one quickstart) + **D9/S13** (producti
 | 1 Security / config | 14 | 10 | 4 (incl. S14 document-only) |
 | 2 Operator honesty | 10 | 3 | 7 |
 | 3 A11y / UI polish | 7 | 2 | 5 |
-| 4 Engine API | 8 | 2 | 6 (incl. Partial/Defer) |
-| 5 Tests | 7 | 3 | 4 |
+| 4 Engine API | 8 | 3 | 5 (incl. Defer / optional) |
+| 5 Tests | 7 | 4 | 3 |
 | 6 Docs | 11 | 1 | 10 (incl. Partial) |
 | 7 Adoption / FE | 6 | 1 | 5 (incl. Ongoing) |
-| **Total** | **63** | **22** | **~41** |
+| **Total** | **63** | **24** | **~39** |
 | Explicit non-goals | 8 residuals | — | document, don’t loosen |
 
-**Open GitHub issues (27):** all mapped above — docs/adoption tracks cover **#24–#46** (minus closed), **#73/#74/#76/#90/#96/#97/#98**.  
-**Closed since original pack:** **#91** (Phase 0). Historical refs **#49/#65** stay as rationale only.  
-**Review-only (no issue yet):** O7, O8, U3–U7, E3, E5–E8, T2, T5–T7, D8, D10, A6, S14 (document-only).
+**Open GitHub issues:** prefer GitHub + #116 for live status (worklist counts lag).  
+**Closed since original pack:** **#91** (Phase 0), **#112** (E5), **#113** (T2), plus Phase 1 stack / #32/#39/#45/#98 as STATUS records.  
+**Review-only (no issue yet):** O7, O8, U3–U7, E3, E6–E8, T5–T7, D8, D10, A6, S14 (document-only). E5/T2 have issues and are Done.
 
 ---
 
@@ -224,7 +224,7 @@ Call the product **solid** (still versioned carefully) when:
 
 1. **Phase 0** (done) **+ Phase 1** complete (no silent fraud-control / lockout / undiagnosed report gaps).  
 2. **Phase 2** complete enough that a new host has one quickstart + production checklist + structured guides (D1, D2, D9 minimum).  
-3. Core suite has **T1–T4** green (**T1/T3/T4** done; **T2** still open).  
+3. Core suite has **T1–T4** green (**all four done** — T2 closed by #113).  
 4. #96/#97 may still be open — but Limitations state SSR-first honestly until they ship.
 
 ---

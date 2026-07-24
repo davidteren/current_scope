@@ -27,7 +27,7 @@ module CurrentScope
                    skip_before_action :current_scope_check!
                  end
                  Skipping leaves that controller ungated by CurrentScope —
-                 use your own auth there (see docs/SECURITY-CHECKLIST.md).
+                 use your own auth there (see https://davidteren.github.io/current_scope/ — security checklist).
             4. Bootstrap the first admin (Member starts with zero permissions):
                  bin/rails current_scope:grant SUBJECT_ID=YOUR_USER_ID
                  # or: CurrentScope.grant!(User.first)  # upserts Owner; not RoleAssignment.create!

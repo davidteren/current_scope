@@ -67,9 +67,15 @@ module CurrentScope
     # the price of asking. Built lazily and memoized here, NEVER in initialize:
     # the role-save path constructs a GatingReflection it may never ask — any
     # failure in construction would 500 role saves. (KTD-8)
+    # Memoize path→class for the life of this reflection instance. The role
+    # editor asks ungated? and missing_controller? per row; without a cache
+    # that is two constantizes per controller (cubic P2 on #43).
     def controller_class_for(controller_path)
+      @class_for ||= {}
+      return @class_for[controller_path] if @class_for.key?(controller_path)
+
       @request ||= ActionDispatch::Request.new({})
-      @request.controller_class_for(controller_path)
+      @class_for[controller_path] = @request.controller_class_for(controller_path)
     end
   end
 end

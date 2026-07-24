@@ -8,14 +8,23 @@ module CurrentScope
 
     # One org-wide role per subject. Name the rule and the upsert alternative
     # so a double-grant is a one-line fix, not a trip through gem source (#44).
-    validates :subject_id, uniqueness: {
-      scope: :subject_type,
-      message: ->(record, _data) {
-        held = RoleAssignment.find_by(subject_type: record.subject_type, subject_id: record.subject_id)&.role
-        label = held ? %("#{held.name}") : "another role"
-        "already holds org-wide role #{label}; use CurrentScope.grant! to replace, or scoped roles for additive access"
-      }
-    }
+    # Base error (not :subject_id) so create! does not prefix "Subject id …".
+    validate :one_org_role_per_subject
+
+    def one_org_role_per_subject
+      return if subject_type.blank? || subject_id.blank?
+
+      held = RoleAssignment.where(subject_type: subject_type, subject_id: subject_id)
+      held = held.where.not(id: id) if persisted?
+      existing = held.includes(:role).first
+      return unless existing
+
+      label = existing.role ? %("#{existing.role.name}") : "another role"
+      errors.add(:base,
+        "Subject already holds org-wide role #{label}; use CurrentScope.grant! " \
+        "to replace, or scoped roles for additive access")
+    end
+    private :one_org_role_per_subject
 
     # Bust the per-request org-role memo (CurrentScope::Current) whenever an
     # assignment changes, so a grant/clear and a later gate check in the SAME

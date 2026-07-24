@@ -394,7 +394,9 @@ module CurrentScope
         %("#{permission}" is excluded by config.excluded_controllers (matched #{patterns}). #{skip_clause})
       else
         %("#{permission}" is not in the permission catalog because it is not routed. ) +
-          "Add a route for this controller#action, or skip the gate if the action is intentional."
+          "Add a route for this controller#action, or skip the gate with " \
+          "skip_before_action :current_scope_check! if the action is intentional " \
+          "(then protect it with your own authorization)."
       end
     end
 

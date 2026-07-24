@@ -346,7 +346,7 @@ authorize on the server.
 | A2 `actor_method` | Set it when you impersonate; no false auto-detect |
 | A6 audit degrade | Use `audit: :strict` when the ledger is mandatory |
 | Trusted `current_scope_model` | Wrong type can open wrong listed reads — review like the record hook |
-| Report × model_invalid | Mis-declared collection type stays hard 403 in report mode |
+| Report × model_undeclared / model_invalid | Hard 403 (reason header + dev nudge) only when a scoped grant would otherwise satisfy; plain no_grant still report-mode observes |
 | GatingTripwire opt-in | Never-included Guard stays open; include Guard + optional tripwire |
 | No parent/child cascade | Grant on Project does not open its Tasks (#108) |
 

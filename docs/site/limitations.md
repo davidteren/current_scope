@@ -1,6 +1,6 @@
 ---
 title: Limitations
-nav_order: 8
+nav_order: 9
 ---
 
 # Limitations
@@ -39,7 +39,7 @@ An org-wide grant can then allow the initiator through.
 **Host should:** always return the AR record on SoD member actions. Dev/test
 nudges (`warn_on_nil_sod_record`) and report-mode `access.sod_blind_spot`
 surface the mistake. See the
-[SoD guide](separation-of-duties.html).
+[SoD guide](separation-of-duties.md).
 
 ### A2 — `actor_method` is only loud at boundary APIs
 
@@ -48,7 +48,7 @@ Without `config.actor_method`, the engine cannot see impersonation. SoD
 Pretender (or similar) wiring — false auto-detect would be worse than silence.
 
 **Host should:** set `actor_method` when you impersonate; include the
-[security checklist](security-checklist.html) item. Doctor/DX skill (#46) may
+[security checklist](security-checklist.md) item. Doctor/DX skill (#46) may
 nudge later.
 
 ### A6 — `audit = true` degrades without the events table
@@ -69,9 +69,13 @@ wrong resource family (the #65 trade).
 
 ### Report mode hard-403s `:model_undeclared` / `:model_invalid`
 
-Report mode relaxes **only** `:no_grant`. Mis-declared collection models still
-403 with a reason header (and a dev nudge). That is deliberate — a retrofit
-must not wave through "you forgot the type hook" as an observation row.
+Report mode relaxes **only** ordinary `:no_grant`. The labels
+`:model_undeclared` / `:model_invalid` appear when a **scoped grant would
+otherwise satisfy** the record-less permission but the model hook is missing
+or unusable — those stay hard 403 (with a reason header and a dev nudge).
+With no qualifying scoped grant, the denial is plain `:no_grant` and report
+mode still observes it. Deliberate: a retrofit must not wave through "you
+forgot the type hook" when a grant is present.
 
 **Host should:** declare `current_scope_model` (and a valid AR class) on
 collection controllers that need scoped grants.
@@ -83,7 +87,7 @@ every Metal controller would surprise hosts.
 
 **Host should:** include Guard on app bases you care about, and optionally
 `GatingTripwire` / `bin/rails current_scope:ungated` for inventory. Recommended
-on the [security checklist](security-checklist.html).
+on the [security checklist](security-checklist.md).
 
 ### No parent/child cascade
 
@@ -93,7 +97,7 @@ feature.
 
 ## Related
 
-- [Security checklist](security-checklist.html) — deploy footguns
-- [Upgrading](upgrading.html) — silent posture flips between versions
+- [Security checklist](security-checklist.md) — deploy footguns
+- [Upgrading](upgrading.md) — silent posture flips between versions
 - [Solid-solution worklist Track 8](https://github.com/davidteren/current_scope/blob/main/docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md)
   — source residuals table

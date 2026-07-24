@@ -150,6 +150,23 @@ class RoleGridTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # #43 — route with no controller class is still catalogued (route mirror)
+  # but the grid flags it so admins do not grant a key that only 500s.
+  test "a routed path with no controller class carries the no-controller badge" do
+    get current_scope.edit_role_url(@role), headers: as(@owner)
+    assert_response :success
+
+    assert_select "th[scope=row] .cs-missing-controller-badge#cs_missing_controller_orphaned", count: 1
+    assert_select "#cs_missing_controller_orphaned", text: /no controller/i
+    assert_select "#cs_missing_controller_orphaned", text: /stale or typo route/i
+    assert_select "#cs_missing_controller_orphaned", text: /MissingController/
+    assert_select "input[data-cs-row-all][aria-describedby=cs_missing_controller_orphaned]", count: 1
+    # Real controllers must not get the badge.
+    assert_select "#cs_missing_controller_reports", count: 0
+    # Still grantable — catalog is a route mirror; cells stay interactive.
+    assert_select "input#perm_orphaned_read[type=checkbox]", count: 1
+  end
+
   test "the badge names the fact, scopes its claim to routed actions, and speaks the tripwire's remediation" do
     get current_scope.edit_role_url(@role), headers: as(@owner)
 

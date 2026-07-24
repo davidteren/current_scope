@@ -36,8 +36,21 @@ module CurrentScope
       # A routed path with no controller class (a scaffolding leftover, a
       # not-yet-written controller) proves nothing about gating. Silent false,
       # matching the prove-or-stay-silent discipline of
-      # warn_on_cross_controller_derivation.
+      # warn_on_cross_controller_derivation. Surface that shape via
+      # #missing_controller? instead — the grid badges it (#43).
       false
+    end
+
+    # True when the path is routed but no controller class loads (stale route /
+    # typo). Distinct from ungated?: there is nothing to gate. Hitting the
+    # route is ActionDispatch::MissingController (a 500 in production), so the
+    # role grid flags the row (#43). Uses the same Rails path→class rule as
+    # #ungated? so the two answers cannot disagree on loadability.
+    def missing_controller?(controller_path)
+      controller_class_for(controller_path)
+      false
+    rescue ActionDispatch::MissingController
+      true
     end
 
     private

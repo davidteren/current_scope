@@ -76,16 +76,26 @@
              rescue NameError
                :uninspectable
              end %>
+          <% missing = begin
+               grid.missing_controller?(controller)
+             rescue NameError
+               false
+             end unless ungated == :uninspectable %>
           <% uninspectable = ungated == :uninspectable
-             ungated = ungated == true %>
-          <% badge_id = "cs_ungated_#{controller.parameterize(separator: '_')}" if ungated %>
+             ungated = ungated == true
+             missing = !!missing && !ungated && !uninspectable %>
+          <% badge_id = if ungated
+                          "cs_ungated_#{controller.parameterize(separator: '_')}"
+                        elsif missing
+                          "cs_missing_controller_#{controller.parameterize(separator: '_')}"
+                        end %>
           <tr>
             <th scope="row">
               <%# Per-row master: enable/disable every action in this controller at once.
                   Progressive enhancement — with JS off, each cell checkbox still works. %>
               <label class="cs-row-all" title="Enable all <%= controller %> permissions">
                 <input type="checkbox" data-cs-row-all
-                       aria-label="Enable all <%= controller %> permissions"<% if ungated %>
+                       aria-label="Enable all <%= controller %> permissions"<% if badge_id %>
                        aria-describedby="<%= badge_id %>"<% end %>>
                 <span><%= controller %></span>
               </label>
@@ -96,6 +106,17 @@
                 <span class="cs-uninspectable-note" id="cs_uninspectable_<%= controller.parameterize(separator: '_') %>">
                   could not inspect — this controller raised while loading, so its
                   gate state is unknown. Fix the load error, then reload.
+                </span>
+              <% end %>
+              <% if missing %>
+                <%# #43: route exists, controller class does not. Granting still
+                    works (catalog is a route mirror); hitting the path is a
+                    MissingController 500. Flag, do not remove. %>
+                <span class="cs-missing-controller-badge" id="<%= badge_id %>">
+                  <strong>no controller</strong> — this route has no controller
+                  class (stale or typo route). Granting is allowed, but a request
+                  will 500 with <code>ActionDispatch::MissingController</code>.
+                  Remove the route or add the controller.
                 </span>
               <% end %>
               <% if ungated %>

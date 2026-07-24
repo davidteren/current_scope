@@ -42,6 +42,13 @@ module CurrentScope
       @gating.ungated?(controller)
     end
 
+    # Is this row's controller class missing (stale/typo route)? Advisory only
+    # — badge the row; do not drop the catalog key (the catalog is a route
+    # mirror). (#43)
+    def missing_controller?(controller)
+      @gating.missing_controller?(controller)
+    end
+
     # Ordered columns: config groups that apply to at least one controller (in
     # config order), then leftover actions not covered by any group (sorted).
     def columns

@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Grid badge for routes with no controller class (#43).** A stale or typo
+  route still appears in the catalog (route mirror), but the role editor now
+  marks the row "no controller" so operators do not grant a key that only
+  500s with `ActionDispatch::MissingController`. Granting stays allowed;
+  remove the route or add the controller.
+
 ### Changed
 - **Clearer double org-grant error (#44).** A second org-wide `RoleAssignment`
   for the same subject no longer raises the cryptic "Subject has already been

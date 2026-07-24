@@ -25,9 +25,13 @@ module CurrentScope
             3. Skip the gate on sign-in / public endpoints (or nobody can log in):
                  class SessionsController < ApplicationController
                    skip_before_action :current_scope_check!
+                   # If you use impersonation, also skip the mutation guard on
+                   # sign-in/out or POSTs while acting-as stay blocked:
+                   skip_before_action :current_scope_mutation_guard!
                  end
                  Skipping leaves that controller ungated by CurrentScope —
-                 use your own auth there (see https://davidteren.github.io/current_scope/ — security checklist).
+                 use your own auth there (security checklist:
+                 https://davidteren.github.io/current_scope/).
             4. Bootstrap the first admin (Member starts with zero permissions):
                  bin/rails current_scope:grant SUBJECT_ID=YOUR_USER_ID
                  # or: CurrentScope.grant!(User.first)  # upserts Owner; not RoleAssignment.create!

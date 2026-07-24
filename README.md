@@ -93,9 +93,12 @@ Screenshot regenerate command: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Installation
 
-This is the **canonical quickstart**. The same numbered path lives on the
+This is the **canonical greenfield quickstart** (new app, or install before
+users hit gated controllers). The same numbered path lives on the
 [docs site](https://davidteren.github.io/current_scope/quickstart.html) and in
-the install generator's next-steps text (#25).
+the install generator's next-steps text (#25). **Existing apps with traffic
+must use [report mode first](#retrofitting-an-app-that-already-has-users)**
+before bootstrap — do not cut over blind.
 
 ```ruby
 # Gemfile
@@ -144,8 +147,15 @@ bin/rails current_scope:grant SUBJECT_ID=YOUR_USER_ID
 # or: CurrentScope.grant!(User.first)   # upserts Owner — not RoleAssignment.create!
 ```
 
-**4. Manage roles** at `/current_scope`. A denial is HTTP 403 with
-`X-Current-Scope-Reason` (`no_grant`, `sod_veto`, …).
+`grant!` reuses an existing role named Owner without forcing `full_access`.
+On a greenfield seed that is fine (seed_defaults! creates Owner as full_access).
+If someone renamed/stripped Owner earlier, repair with
+`CurrentScope::Role.find_by!(name: "Owner").update!(full_access: true)` before
+expecting `/current_scope` to open.
+
+**4. Manage roles** at `/current_scope`. A Guard denial is HTTP 403 with
+`X-Current-Scope-Reason` (`no_grant`, `sod_veto`, …) when the default
+engine rescue runs. Host `rescue_from` handlers can replace that response.
 
 ### Retrofitting an app that already has users
 

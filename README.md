@@ -636,7 +636,7 @@ logs each ungated `controller#action` once, so a production host that included
 the mixin gets an inventory instead of 500s. There is no `:off` — not including
 the mixin is off.
 
-Three loud-by-design behaviors. A controller excluded from the catalog can't be
+Four loud-by-design behaviors. A controller excluded from the catalog can't be
 granted, so gating it is a misconfiguration — Guard raises, names the matching
 `excluded_controllers` pattern(s), and tells you to either stop excluding it or
 `skip_before_action :current_scope_check!`. An unrouted `controller#action`

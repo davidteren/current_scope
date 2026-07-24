@@ -76,10 +76,9 @@ report-only), PR #107 merged.
 PR #109).
 **Landed 2026-07-23:** #45 phase 3 (PR #110 merged `e8d3826`) — **#45 is
 CLOSED**; the migrate skill covers Pundit, CanCanCan, and Action Policy.
-**Release cut:** `v0.4.0` (tag + GitHub Release on the release PR's merge;
-RubyGems publish pending the human `gem push`) — solid-solution Phase 1,
-#32/#39, the docs site (#98/#33), and the full migration toolkit (#45).
-See CHANGELOG.
+**Release cut:** `v0.4.0` (tag + GitHub Release; **published on RubyGems
+2026-07-24**) — solid-solution Phase 1, #32/#39, the docs site (#98/#33),
+and the full migration toolkit (#45). See CHANGELOG.
 
 ## Done (all committed on `main`)
 
@@ -623,14 +622,12 @@ quickstart, production checklist) + tests T1–T4.
    2026-07-16 comment) and plan 027 is amended (PR #78).
 8. Then the docs cluster: **#30, #28, #27, #24** (plan 006 is "relocate and
    complete", not "write"); also **#34**, **#25**, **#33**, **#32**.
-9. ~~**Publish to RubyGems**~~ — **recurring; `v0.4.0` cut 2026-07-23,
-   publish pending the human `gem push`** (latest published: `v0.3.1`;
-   `v0.2.0` was the first published version). The release recipe,
-   proven three times now: bump `lib/current_scope/version.rb` + CHANGELOG
-   heading, run the release gate, tag + **GitHub Release** (a pushed tag alone
-   does not update the Releases page — 0.3.1 stalled here), `gem push`
-   (**requires interactive WebAuthn MFA — a human step, an agent can only
-   build**), then `bundle update current_scope` in the showcase.
+9. ~~**Publish to RubyGems**~~ — **`v0.4.0` is live on RubyGems (2026-07-24).**
+   Recurring recipe for the next cut: bump `lib/current_scope/version.rb` +
+   CHANGELOG heading, run the release gate, tag + **GitHub Release** (a pushed
+   tag alone does not update the Releases page), `gem push` (**requires
+   interactive WebAuthn MFA — a human step**), then `bundle update
+   current_scope` in the showcase.
 10. **#96 / #97** — API abilities payload + Inertia shared props (after core
     solid bar, or parallel if capacity).
 11. **README screenshots** — the UI is clean and verified; capture the dashboard,

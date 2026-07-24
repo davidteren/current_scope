@@ -72,7 +72,11 @@ The mounted management UI at `/current_scope` — self-contained (no web fonts, 
 build step, CSP-safe), first-class light **and** dark themes.
 
 **Permission grid** — one row per controller, CRUD action groups derived from
-your routes; ticked cells glow, a partial group reads as indeterminate.
+your routes; ticked cells glow, a partial group reads as indeterminate. A route
+whose controller class is missing (stale or typo) still appears — the catalog
+mirrors routes — but the row is badged **no controller** so you do not grant a
+key that only 500s. Remove the route or add the class;
+`excluded_controllers` can hide the row if you want it out of the grid.
 
 ![Permission grid](docs/screenshots/permission-grid.png)
 

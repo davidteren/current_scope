@@ -76,14 +76,25 @@
              rescue NameError
                :uninspectable
              end %>
-          <% missing = begin
-               grid.missing_controller?(controller)
-             rescue NameError
-               false
-             end unless ungated == :uninspectable %>
+          <%# #43: only badge missing controllers on ROUTE-backed rows.
+              Break-glass can inject a synthetic "reports" row that no path
+              routes (admin-only SoD); that row is not a 500 risk and must not
+              wear the phantom badge. Also skip the constantize when the row
+              is already proven ungated (qodo). %>
           <% uninspectable = ungated == :uninspectable
              ungated = ungated == true
-             missing = !!missing && !ungated && !uninspectable %>
+             has_routed = (grid.actions_for(controller) || []).any? { |a|
+               CurrentScope.catalog.routed?("#{controller}##{a}")
+             }
+             missing = if uninspectable || ungated || !has_routed
+                         false
+                       else
+                         begin
+                           grid.missing_controller?(controller)
+                         rescue NameError
+                           false
+                         end
+                       end %>
           <% badge_id = if ungated
                           "cs_ungated_#{controller.parameterize(separator: '_')}"
                         elsif missing

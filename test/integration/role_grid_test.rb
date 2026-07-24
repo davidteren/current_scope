@@ -167,6 +167,34 @@ class RoleGridTest < ActionDispatch::IntegrationTest
     assert_select "input#perm_orphaned_read[type=checkbox]", count: 1
   end
 
+  # Synthetic break-glass-only rows (namespace SoD injects reports#bypass_sod
+  # without a top-level route) must not be badged as MissingController 500s.
+  test "a synthetic bypass-only controller row is not badged as missing" do
+    original_bypass = CurrentScope.config.allow_sod_bypass
+    original_sod = CurrentScope.config.sod_actions
+    CurrentScope.config.allow_sod_bypass = true
+    CurrentScope.config.sod_actions = %w[approve]
+    CurrentScope.reset_catalog!
+
+    get current_scope.edit_role_url(@role), headers: as(@owner)
+    assert_response :success
+    # reports is real and routed in the dummy — not the synthetic-only case.
+    # Assert no phantom badge on any row that is only injected bypass without
+    # a routed action: if such a key appears, its badge id must not exist.
+    synthetic = CurrentScope.catalog.grouped.select { |controller, actions|
+      actions.all? { |a| !CurrentScope.catalog.routed?("#{controller}##{a}") }
+    }
+    synthetic.each_key do |controller|
+      id = "cs_missing_controller_#{controller.parameterize(separator: '_')}"
+      assert_select "##{id}", { count: 0 },
+                    "#{controller} is injection-only and must not wear the 500 badge"
+    end
+  ensure
+    CurrentScope.config.allow_sod_bypass = original_bypass
+    CurrentScope.config.sod_actions = original_sod
+    CurrentScope.reset_catalog!
+  end
+
   test "the badge names the fact, scopes its claim to routed actions, and speaks the tripwire's remediation" do
     get current_scope.edit_role_url(@role), headers: as(@owner)
 

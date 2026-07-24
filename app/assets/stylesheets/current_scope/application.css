@@ -564,8 +564,8 @@ a:hover { color: var(--cs-accent-strong); }
    granted wash from the rule above. */
 .cs-grid tbody tr:has(.cs-ungated-badge) td:not(.cs-cell-bypass):has(input:checked),
 .cs-grid tbody tr:has(.cs-ungated-badge) td:not(.cs-cell-bypass):has(input[data-cs-partial="true"]),
-.cs-grid tbody tr:has(.cs-missing-controller-badge) td:has(input:checked),
-.cs-grid tbody tr:has(.cs-missing-controller-badge) td:has(input[data-cs-partial="true"]) {
+.cs-grid tbody tr:has(.cs-missing-controller-badge) td:not(.cs-cell-bypass):has(input:checked),
+.cs-grid tbody tr:has(.cs-missing-controller-badge) td:not(.cs-cell-bypass):has(input[data-cs-partial="true"]) {
   background: repeating-linear-gradient(-45deg,
       var(--cs-surface-2) 0 4px, var(--cs-bg) 4px 8px);
 }

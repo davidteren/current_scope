@@ -120,6 +120,9 @@ declared form so the role grid shows **why** the gate is off:
 ```ruby
 class SessionsController < ApplicationController
   current_scope_skip_gate!(reason: "sign-in must run without a grant")
+  # While impersonating, sign-in/out must also clear the mutation guard or a
+  # POST that ends act-as is blocked (same as bare skip of the permission gate):
+  skip_before_action :current_scope_mutation_guard!
   # bare skip_before_action :current_scope_check! still works, but the grid
   # marks it as an unexplained "gate not run"
 end

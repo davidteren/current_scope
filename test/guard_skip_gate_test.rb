@@ -23,6 +23,23 @@ class GuardSkipGateTest < ActiveSupport::TestCase
       current_scope_skip_gate!(reason: "index is public", only: :index)
     end
     assert_nil klass.current_scope_gate_skip_reason
+
+    # Pin that only: is a real skip of the gate for that action, not a
+    # reason-storing no-op. After only: :index the gate callback is still on
+    # the chain (other actions remain gated); a whole-controller skip removes
+    # it entirely (cubic P3).
+    filters = klass._process_action_callbacks.select { |c|
+      c.kind == :before && c.filter == :current_scope_check!
+    }
+    assert filters.any?, "only: :index must leave the gate on the chain for other actions"
+
+    whole = Class.new(ApplicationController) do
+      include CurrentScope::Guard
+      current_scope_skip_gate!(reason: "public")
+    end
+    assert_empty whole._process_action_callbacks.select { |c|
+      c.kind == :before && c.filter == :current_scope_check!
+    }, "whole-controller skip must remove the gate callback"
   end
 
   test "a bare skip has no declared reason" do

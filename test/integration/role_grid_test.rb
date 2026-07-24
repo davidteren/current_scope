@@ -190,6 +190,8 @@ class RoleGridTest < ActionDispatch::IntegrationTest
     CurrentScope.config.allow_sod_bypass = original_bypass
     CurrentScope.config.sod_actions = original_sod
     CurrentScope.reset_catalog!
+  end
+
   # #76 — declared skip shows intent, not the unexplained warning.
   test "a declared skip_gate reason renders the skipped badge instead of gate-not-run" do
     get current_scope.edit_role_url(@role), headers: as(@owner)

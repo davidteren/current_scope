@@ -546,10 +546,16 @@ a:hover { color: var(--cs-accent-strong); }
   color: var(--cs-ink);
   font-family: var(--cs-font);
   font-size: 0.6875rem;
+  font-weight: 400; /* th is bold; reset so only <strong> is emphasized */
   line-height: 1.45;
   white-space: normal;
 }
-.cs-declared-skip-badge strong { color: var(--cs-muted); }
+.cs-declared-skip-badge strong {
+  color: var(--cs-muted);
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
 
 .cs-ungated-badge {
   display: block;

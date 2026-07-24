@@ -108,7 +108,7 @@ Items below are what still stand between “good engine” and that bar.
 | **T3** | Non-admin POST role/grant mutations → 403 | Self-escalation regression | T · R | **Done** — `main` / PR #100 / 0.3.1 |
 | **T4** | Org-role uniqueness regression test | Schema-only today | T | **Done** — `main` / PR #100 / 0.3.1 |
 | **T5** | Reason-trio includes `:sod_bypassed` | Order pin for break-glass (happy path already covered) | T | Open (optional order pin) |
-| **T6** | SimpleCov (± mutant) in CI | Coverage number missing | T · R | Open |
+| **T6** | SimpleCov (± mutant) in CI | Coverage number missing | T · R · **#114** | **Done** — SimpleCov + CI artifact (no minimum yet) |
 | **T7** | System tests prefer stable ids over text | AGENTS.md | T · U6 | Open |
 
 ---

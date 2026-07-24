@@ -12,6 +12,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   marks the row "no controller" so operators do not grant a key that only
   500s with `ActionDispatch::MissingController`. Granting stays allowed;
   remove the route or add the controller.
+- **SimpleCov coverage signal in CI (#114).** Suite runs under SimpleCov
+  (engine `app/` + `lib/` only); HTML report uploaded as a CI artifact.
+  No hard minimum yet — baseline from green runs first.
 
 ### Changed
 - **Clearer double org-grant error (#44).** A second org-wide `RoleAssignment`

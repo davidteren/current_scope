@@ -67,10 +67,19 @@ jobs:
         # System tests render the mounted UI in headless Chrome (preinstalled on
         # the runner; cuprite drives it over CDP, --no-sandbox set in the driver)
         # so template errors and layout regressions fail CI, not just unit gaps.
+        # Coverage (#114): distinct SIMPLECOV_COMMAND_NAME so unit+system merge.
         run: |
           bin/rails db:test:prepare
-          bin/rails test
-          bin/rails test:system
+          SIMPLECOV_COMMAND_NAME=unit bin/rails test
+          SIMPLECOV_COMMAND_NAME=system bin/rails test:system
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: ignore
 
       # The migrate skill's classifier and call-site rewriter are both
       # security-relevant (a wrong pure_role, or a wrongly deleted authorize,

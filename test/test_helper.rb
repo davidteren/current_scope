@@ -1,6 +1,23 @@
 # Configure Rails Environment
 ENV["RAILS_ENV"] = "test"
 
+# SimpleCov must start before the app is required (#114 / worklist T6).
+# Default on in CI and local; set COVERAGE=0 to skip.
+unless ENV["COVERAGE"] == "0"
+  require "simplecov"
+  # Distinct command names so unit + system runs merge into one report.
+  SimpleCov.command_name ENV.fetch("SIMPLECOV_COMMAND_NAME", "minitest-#{Process.pid}")
+  SimpleCov.start do
+    enable_coverage :branch
+    root File.expand_path("..", __dir__)
+    # SimpleCov 1.x: cover = include + track unloaded files; skip = exclude.
+    cover "{app,lib}/**/*.rb"
+    skip %r{/test/}
+    skip %r{/dummy/}
+    # No minimum_coverage until a baseline is established from CI runs.
+  end
+end
+
 require_relative "../test/dummy/config/environment"
 ActiveRecord::Migrator.migrations_paths = [ File.expand_path("../test/dummy/db/migrate", __dir__) ]
 ActiveRecord::Migrator.migrations_paths << File.expand_path("../db/migrate", __dir__)

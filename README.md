@@ -93,6 +93,10 @@ Screenshot regenerate command: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Installation
 
+This is the **canonical quickstart**. The same numbered path lives on the
+[docs site](https://davidteren.github.io/current_scope/quickstart.html) and in
+the install generator's next-steps text (#25).
+
 ```ruby
 # Gemfile
 gem "current_scope"
@@ -103,9 +107,8 @@ bin/rails generate current_scope:install
 bin/rails current_scope:install:migrations && bin/rails db:migrate
 ```
 
-Include the concerns in `ApplicationController` — `Context` populates the
-ambient subject from your authentication, `Guard` gates every action behind
-its own `controller#action` permission:
+**1. Include the concerns** in `ApplicationController` — `Context` populates
+the ambient subject from your authentication, `Guard` gates every action:
 
 ```ruby
 class ApplicationController < ActionController::Base
@@ -114,8 +117,9 @@ class ApplicationController < ActionController::Base
 end
 ```
 
-Skip the gate where authorization doesn't apply (sign-in, webhooks). Prefer the
-declared form so the role grid shows **why** the gate is off:
+**2. Skip the gate on sign-in** (and other public endpoints). **Do not skip
+this step** — the gate is fail-closed and covers *everything*, including login.
+Prefer the declared form so the role grid shows **why** the gate is off:
 
 ```ruby
 class SessionsController < ApplicationController
@@ -127,6 +131,21 @@ class SessionsController < ApplicationController
   # marks it as an unexplained "gate not run"
 end
 ```
+
+A skipped controller is unprotected by the permission gate — supply your own
+auth where that matters ([security checklist](docs/SECURITY-CHECKLIST.md)).
+
+**3. Bootstrap the first admin.** The management UI only admits full-access
+subjects; the seeded **Member** role starts with **zero** permissions until
+you edit it:
+
+```bash
+bin/rails current_scope:grant SUBJECT_ID=YOUR_USER_ID
+# or: CurrentScope.grant!(User.first)   # upserts Owner — not RoleAssignment.create!
+```
+
+**4. Manage roles** at `/current_scope`. A denial is HTTP 403 with
+`X-Current-Scope-Reason` (`no_grant`, `sod_veto`, …).
 
 ### Retrofitting an app that already has users
 

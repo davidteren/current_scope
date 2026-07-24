@@ -29,6 +29,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `skip_before_action :current_scope_check!` for deliberate skips. The role
   grid shows **skipped — &lt;reason&gt;** instead of the unexplained "gate not
   run" warning. Bare skips stay alarming.
+- **One canonical quickstart (#25).** README Installation, docs site
+  quickstart, and `current_scope:install` next-steps share the same path:
+  install → concerns → **sessions skip** (or you brick sign-in) →
+  `CurrentScope.grant!` / `current_scope:grant` (not raw
+  `RoleAssignment.create!`) → `/current_scope`. Member starts empty.
 
 ## [0.4.0] - 2026-07-23
 

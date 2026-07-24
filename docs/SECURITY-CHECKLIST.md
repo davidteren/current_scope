@@ -81,7 +81,7 @@ Cost: you lose the machine-readable 403 reason (and legitimate users may see
 where enumeration is a threat.
 
 Cross-link: nil-record SoD skip when this hook returns `nil` on an SoD member
-action — [README § Separation of duties](../README.md#separation-of-duties-opt-in).
+action — [Separation of duties guide](guides/separation-of-duties-and-break-glass.md#separation-of-duties-opt-in).
 
 ---
 
@@ -91,8 +91,8 @@ Do not re-derive these here — full treatments live in the README:
 
 | Foot-gun | Where |
 |---|---|
-| SoD member action + nil record silently skips the veto | [README § SoD](../README.md#separation-of-duties-opt-in) · report-mode diagnosis (#73) |
-| `actor_method` unset under impersonation | [README § Impersonation](../README.md#impersonation-act-as) |
+| SoD member action + nil record silently skips the veto | [SoD guide](guides/separation-of-duties-and-break-glass.md#separation-of-duties-opt-in) · report-mode diagnosis (#73) |
+| `actor_method` unset under impersonation | [Impersonation guide](guides/impersonation.md#impersonation-act-as) |
 | Short-form `allowed_to?` key drift on namespaced controllers | [README residual foot-gun](../README.md) (namespaced / custom-named controllers) |
 | Advisory `allowed_to?` never consults the catalog | Issue #36 |
 

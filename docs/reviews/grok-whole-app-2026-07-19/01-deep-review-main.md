@@ -250,7 +250,7 @@ CHANGELOG is strong on #50/#65; keep UPGRADE notes for class-form widening and
 ## What this would replace / overlap
 
 - Complements (does not replace) `docs/reviews/*-0.3.0-release-gate-2026-07-19.md`
-- Complements historical `docs/READINESS-AUDIT.md` (A1–A13 done; residuals A2/A4/A5/A6 restated with current file:lines)
+- Complements historical `docs/internal/READINESS-AUDIT.md` (A1–A13 done; residuals A2/A4/A5/A6 restated with current file:lines)
 - Does not replace production security checklist docs already in `docs/plans/` / README
 
 ## Health score rationale

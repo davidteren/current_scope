@@ -73,7 +73,7 @@ Loud only at impersonation boundary APIs, not at ambient Context resolve.
 
 ## DO NOT regress (re-verified 2026-07-19)
 
-All items under `docs/READINESS-AUDIT.md` → “Verified holding” remain true, with the refinement that “last full-access role protected” currently means **destroy only**, not demote/clear.
+All items under `docs/internal/READINESS-AUDIT.md` → “Verified holding” remain true, with the refinement that “last full-access role protected” currently means **destroy only**, not demote/clear.
 
 ## Dependency note
 

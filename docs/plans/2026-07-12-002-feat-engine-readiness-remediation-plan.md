@@ -6,7 +6,7 @@ deepened: 2026-07-12
 artifact_contract: ce-unified-plan/v1
 artifact_readiness: implementation-ready
 product_contract_source: ce-plan-bootstrap
-origin: docs/READINESS-AUDIT.md
+origin: docs/internal/READINESS-AUDIT.md
 execution: code
 ---
 
@@ -14,8 +14,8 @@ execution: code
 
 ## Goal Capsule
 
-- **Objective:** make the CurrentScope engine safely adoptable by real host apps by closing every gap in the readiness audit (`docs/READINESS-AUDIT.md`, items A1–A13, priorities P0→P4): packaging claims that don't match the code, security protections that fail **silently** on host misconfiguration, correctness bugs, and adoption ergonomics.
-- **Authority hierarchy:** this plan → `docs/READINESS-AUDIT.md` (the authoritative source; every A-item and its acceptance check is carried forward verbatim in intent) → the settled v0.1 model (`resources/DESIGN.md`, `README.md`). The audit's **"Verified holding — DO NOT regress"** invariants are immutable; every change preserves them and adds a regression test.
+- **Objective:** make the CurrentScope engine safely adoptable by real host apps by closing every gap in the readiness audit (`docs/internal/READINESS-AUDIT.md`, items A1–A13, priorities P0→P4): packaging claims that don't match the code, security protections that fail **silently** on host misconfiguration, correctness bugs, and adoption ergonomics.
+- **Authority hierarchy:** this plan → `docs/internal/READINESS-AUDIT.md` (the authoritative source; every A-item and its acceptance check is carried forward verbatim in intent) → the settled v0.1 model (`resources/DESIGN.md`, `README.md`). The audit's **"Verified holding — DO NOT regress"** invariants are immutable; every change preserves them and adds a regression test.
 - **Execution profile:** Deep, phased P0→P4. Each phase is independently shippable; units are commit-sized and roughly one-per-A-item. Test-first for the behavior-bearing units. The silent-fail-open items are **not** uniform "loud-fail revert-guards" — they differ by what the code can actually observe (validated by an intent-engineering predictability pass): **A6** delivers a clean revert-guard (strict mode raises + rolls back, test fails if reverted); **A4** ships an independent opt-in tripwire *mixin* with its own guard test; **A5** gets characterization coverage plus an opt-in dev-mode nudge (no prod behavior change); **A2** is **docs + a loud check at the impersonation-boundary API** — the permission path can't observe the misconfig, but `record_impersonation_started!` is a host declaration of intent, so a nil `actor_method` there is a crisp, non-noisy signal (see KTD-2); no unconditioned per-request warning.
 - **Definition of done signal:** engine suite green + RuboCop omakase clean per unit; a regression test added for every fix; `STATUS.md` ticked as items land; the audit's acceptance check satisfied for each A-item.
 - **Stop conditions:** stop and surface rather than guess if (a) a fix would change the resolver's fixed decision order or violate a "DO NOT regress" invariant, (b) the A1 floor decision would break the showcase or an intended host, or (c) a "loud-fail" design (A2/A4) cannot distinguish misconfiguration from legitimate use without false positives.
@@ -24,7 +24,7 @@ execution: code
 
 ## Product Contract
 
-> **Product Contract preservation:** sourced from `docs/READINESS-AUDIT.md` (an engine self-audit, not a ce-brainstorm doc). This plan enriches it into implementation units without changing its findings or acceptance criteria. No product-scope change.
+> **Product Contract preservation:** sourced from `docs/internal/READINESS-AUDIT.md` (an engine self-audit, not a ce-brainstorm doc). This plan enriches it into implementation units without changing its findings or acceptance criteria. No product-scope change.
 
 ### Summary
 
@@ -365,7 +365,7 @@ One cross-phase dependency worth calling out: **U9 (CI floor job) depends on U1*
 - A1–A13 each meet the audit's acceptance check (Requirements R1–R13), with two honest partials: **A2** meets the "signal in an impersonation setup" clause for hosts using the boundary API and is docs-only for hosts that don't (undetectable there — recorded, not overclaimed); **A12** is delivered as list pagination (U12) plus an opt-in picker search (U14). A8 is documentation + a taught default, not a code guarantee (the short form stays a labeled residual foot-gun).
 - A regression test added for every behavior-bearing fix; the runtime-protection items have revert-guards where the code can observe the failure (U6, U4), and the rest (U2 docs, U5 characterize+nudge) have the coverage their actual mechanism supports.
 - Resolver decision order and all DO-NOT-REGRESS invariants intact.
-- `STATUS.md` ticks each item as it lands; `docs/READINESS-AUDIT.md` items are addressed (the doc can be annotated done or left as the historical audit — implementer's call, but STATUS is the live tracker).
+- `STATUS.md` ticks each item as it lands; `docs/internal/READINESS-AUDIT.md` items are addressed (the doc can be annotated done or left as the historical audit — implementer's call, but STATUS is the live tracker).
 - Engine suite green + RuboCop omakase clean; CI green including the floor matrix.
 
 ---
@@ -403,7 +403,7 @@ One cross-phase dependency worth calling out: **U9 (CI floor job) depends on U1*
 
 ## Sources & Research
 
-- **Authoritative origin:** `docs/READINESS-AUDIT.md` (items A1–A13, the "Verified holding" invariants, and the per-item acceptance checks). External research intentionally skipped — the audit already grounds every item in exact `file:line` within the engine's own code, and local patterns are strong.
+- **Authoritative origin:** `docs/internal/READINESS-AUDIT.md` (items A1–A13, the "Verified holding" invariants, and the per-item acceptance checks). External research intentionally skipped — the audit already grounds every item in exact `file:line` within the engine's own code, and local patterns are strong.
 - **Reconciled against:** `docs/ROADMAP.md` (§2.3/§2.4/§2.5 deferred features; §2.1/§2.2/§2.6 already shipped), `STATUS.md` (live tracker), and the settled v0.1 model in `resources/DESIGN.md` / `README.md`.
 - **Adjacent plans:** `docs/plans/2026-07-12-001-feat-sod-bypass-breakglass-plan.md` (break-glass, separate).
 - **Validation (two passes, 2026-07-12):** revised after an **intent-engineering** plan-validation pass (predictability / simplicity / convention) and a **ce-doc-review** pass (security / adversarial / feasibility). Material changes: A6 audit config folded to tri-state `false|true|:strict`; A4 moved to an independent tripwire mixin **with its own skip API** (a `skip_before_action`-based exemption is impossible on a non-Guard controller) + a `require` line; A5 → characterize + opt-in dev-nudge **placed at the Guard seam** (not the shared resolver); U1 migration-version bump gated behind a behavior diff (FROZEN schema); U3 helpers renamed `grant_role!`/`grant_scoped_role!`; U9 names Appraisal + its CI wiring; U8 teaches the full-key form and labels the short form a residual foot-gun. **The security lens corrected the IE pass on A2:** it is *not* fully undetectable — the impersonation-boundary API (`record_impersonation_started!`) is a crisp seam, so A2 now ships a loud check there + docs (no cry-wolf per-request warning). A6's "every `record!` in a transaction" was **false** (the two boundary-event calls are bare) → the guarantee is scoped to mutation-wrapping call sites with the boundary events carved out. A12 split into U12 (list pagination) + U14 (picker search, which needs a Scopeable search hook/column — an `ILIKE` on the Ruby-computed label was infeasible). U7/U8 gained the dummy STI + namespaced fixtures their tests require.

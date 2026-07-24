@@ -187,7 +187,8 @@ population SoD usually targets. Prefer a **narrow role** that ticks only
 `bypass_sod` (and the SoD actions they need), not full access, for trusted
 break-glass holders. The README line "the veto overrides even full access"
 describes the default (break-glass off); once break-glass is on, full_access
-is an automatic bypass privilege. (#29)
+is an automatic bypass privilege. (Issue #29 covers both this full_access
+interaction and collection no-ops above.)
 
 `bypass_sod` must not appear in `sod_actions`; the engine raises at boot if
 it does. Prefer true SoD for genuine fraud control (contracts, pay runs)

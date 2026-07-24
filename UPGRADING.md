@@ -26,19 +26,23 @@ because the earliest adopters are the ones hit.
 
 ### How to check
 
-1. Search your app for `current_scope_initiator` on models.
-2. If any model defines it and `sod_actions` is empty in the initializer, you
-   almost certainly upgraded past the flip without re-enabling SoD.
-3. Re-set `sod_actions` and re-run the initiator-cannot-approve test from the
+1. Did you **intend** to keep separation of duties after upgrade?
+2. If yes: search for `current_scope_initiator` on models. If any model defines
+   it and `sod_actions` is empty, re-set `sod_actions` and re-run the
+   initiator-cannot-approve test from the
    [SoD guide](https://davidteren.github.io/current_scope/separation-of-duties.html).
+3. If no (you deliberately left SoD off): leave `sod_actions` empty. Initiator
+   hooks alone are not proof of a mistake.
 
 Also in 0.2: declared Rails floor `>= 8.1` (management UI uses `params.expect`).
 
 ## 0.2 → 0.3: management route rename (loud — 404)
 
 Org-wide role assignment routes are plural: `resources :role_assignments`.
-Direct POSTs or helpers that still use the singular path 404. Engine UI is
-fine; only programmatic callers need a path update. See CHANGELOG errata.
+Direct POSTs to the singular path **404**. Stale helper calls
+(`role_assignment_path`) can fail earlier with an **undefined helper** /
+URL-generation error. Engine UI is fine; only programmatic callers need a
+path update. See CHANGELOG errata.
 
 ## 0.3 → 0.4
 

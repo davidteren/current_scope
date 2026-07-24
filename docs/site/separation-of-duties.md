@@ -116,7 +116,8 @@ permissions, then filter each record with the **member** SoD key:
 ```ruby
 def approve_all
   scope_for(Expense, permission: "expenses#approve_all").find_each do |expense|
-    next unless allowed_to?(:approve, expense) # honors SoD veto per record
+    # Explicit member key (not short-form) so namespaced controllers match the gate.
+    next unless allowed_to?("expenses#approve", expense) # honors SoD veto per record
     expense.approve!(by: current_user)
   end
 end

@@ -22,6 +22,14 @@ Rails.application.routes.draw do
     end
   end
 
+  # SoD-only namespaced resource with no top-level "claims" routes — break-glass
+  # injects claims#bypass_sod as a synthetic catalog row (#43 grid tests).
+  namespace :ops do
+    resources :claims, only: [] do
+      post :approve, on: :member
+    end
+  end
+
   resources :webhooks, only: :create
   get "bare", to: "bare#show"
   get "bare/deny", to: "bare_deny#deny", as: :bare_deny

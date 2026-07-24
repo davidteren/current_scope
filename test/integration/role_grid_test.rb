@@ -167,8 +167,8 @@ class RoleGridTest < ActionDispatch::IntegrationTest
     assert_select "input#perm_orphaned_read[type=checkbox]", count: 1
   end
 
-  # Synthetic break-glass-only rows (namespace SoD injects reports#bypass_sod
-  # without a top-level route) must not be badged as MissingController 500s.
+  # Synthetic break-glass-only rows (ops/claims injects claims#bypass_sod with
+  # no top-level claims routes) must not be badged as MissingController 500s.
   test "a synthetic bypass-only controller row is not badged as missing" do
     original_bypass = CurrentScope.config.allow_sod_bypass
     original_sod = CurrentScope.config.sod_actions
@@ -176,19 +176,16 @@ class RoleGridTest < ActionDispatch::IntegrationTest
     CurrentScope.config.sod_actions = %w[approve]
     CurrentScope.reset_catalog!
 
+    synthetic = CurrentScope.catalog.grouped.select { |controller, actions|
+      actions.any? && actions.all? { |a| !CurrentScope.catalog.routed?("#{controller}##{a}") }
+    }
+    assert synthetic.key?("claims"),
+           "fixture: ops/claims + break-glass must inject a claims-only synthetic row, got #{synthetic.keys.inspect}"
+
     get current_scope.edit_role_url(@role), headers: as(@owner)
     assert_response :success
-    # reports is real and routed in the dummy — not the synthetic-only case.
-    # Assert no phantom badge on any row that is only injected bypass without
-    # a routed action: if such a key appears, its badge id must not exist.
-    synthetic = CurrentScope.catalog.grouped.select { |controller, actions|
-      actions.all? { |a| !CurrentScope.catalog.routed?("#{controller}##{a}") }
-    }
-    synthetic.each_key do |controller|
-      id = "cs_missing_controller_#{controller.parameterize(separator: '_')}"
-      assert_select "##{id}", { count: 0 },
-                    "#{controller} is injection-only and must not wear the 500 badge"
-    end
+    assert_select "#cs_missing_controller_claims", { count: 0 },
+                  "injection-only claims row must not wear the 500 badge"
   ensure
     CurrentScope.config.allow_sod_bypass = original_bypass
     CurrentScope.config.sod_actions = original_sod

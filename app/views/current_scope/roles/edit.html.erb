@@ -83,7 +83,7 @@
               is already proven ungated (qodo). %>
           <% uninspectable = ungated == :uninspectable
              ungated = ungated == true
-             has_routed = (grid.actions_for(controller) || []).any? { |a|
+             has_routed = grid.actions_for(controller).any? { |a|
                CurrentScope.catalog.routed?("#{controller}##{a}")
              }
              missing = if uninspectable || ungated || !has_routed

@@ -282,9 +282,25 @@ class GuardTest < ActionDispatch::IntegrationTest
   test "gating an excluded controller raises a configuration error" do
     assign(@alice, role("Owner", full_access: true))
 
-    assert_raises(CurrentScope::ConfigurationError) do
+    error = assert_raises(CurrentScope::ConfigurationError) do
       post webhooks_url, headers: sign_in(@alice)
     end
+    assert_match(/excluded by config\.excluded_controllers/, error.message)
+    assert_match(/webhooks/, error.message)
+    assert_match(/matched/, error.message)
+    assert_no_match(/or not routed/, error.message)
+  end
+
+  test "gating an unrouted permission names not-routed, not an exclusion match" do
+    # Direct call with a permission path that is neither excluded nor routed —
+    # the catalog miss must point at the missing route, not invent an exclusion.
+    controller = ReportsController.new
+    controller.define_singleton_method(:controller_path) { "ghosts" }
+    controller.define_singleton_method(:action_name) { "index" }
+    message = controller.send(:catalog_miss_message, "ghosts#index")
+
+    assert_match(/not routed/, message)
+    assert_no_match(/excluded by config\.excluded_controllers/, message)
   end
 
   test "a missing user_method raises instead of silently denying" do

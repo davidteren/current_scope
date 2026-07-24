@@ -14,9 +14,18 @@ class RoleAssignmentTest < ActiveSupport::TestCase
     second = CurrentScope::RoleAssignment.new(subject: alice, role: editor)
     assert_not second.valid?
     assert second.errors[:subject_id].any?
+    message = second.errors.full_messages.join(" ")
+    assert_match(/already holds org-wide role "Member"/, message)
+    assert_match(/CurrentScope\.grant!/, message)
+    assert_match(/scoped roles/, message)
+    assert_no_match(/has already been taken/, message)
 
-    assert_raises(ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid) do
+    error = assert_raises(ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid) do
       CurrentScope::RoleAssignment.create!(subject: alice, role: editor)
+    end
+    if error.is_a?(ActiveRecord::RecordInvalid)
+      assert_match(/already holds org-wide role "Member"/, error.message)
+      assert_match(/CurrentScope\.grant!/, error.message)
     end
   end
 end

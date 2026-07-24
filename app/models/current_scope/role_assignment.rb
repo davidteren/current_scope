@@ -6,7 +6,16 @@ module CurrentScope
     belongs_to :role
     belongs_to :subject, polymorphic: true
 
-    validates :subject_id, uniqueness: { scope: :subject_type }
+    # One org-wide role per subject. Name the rule and the upsert alternative
+    # so a double-grant is a one-line fix, not a trip through gem source (#44).
+    validates :subject_id, uniqueness: {
+      scope: :subject_type,
+      message: ->(record, _data) {
+        held = RoleAssignment.find_by(subject_type: record.subject_type, subject_id: record.subject_id)&.role
+        label = held ? %("#{held.name}") : "another role"
+        "already holds org-wide role #{label}; use CurrentScope.grant! to replace, or scoped roles for additive access"
+      }
+    }
 
     # Bust the per-request org-role memo (CurrentScope::Current) whenever an
     # assignment changes, so a grant/clear and a later gate check in the SAME

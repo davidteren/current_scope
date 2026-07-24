@@ -68,6 +68,9 @@ jobs:
         # the runner; cuprite drives it over CDP, --no-sandbox set in the driver)
         # so template errors and layout regressions fail CI, not just unit gaps.
         # Coverage (#114): distinct SIMPLECOV_COMMAND_NAME so unit+system merge.
+        # bash -e short-circuits if unit fails — system is skipped and the
+        # coverage artifact (uploaded always()) is unit-only. Intentional:
+        # fix the red unit suite before spending runner time on system.
         run: |
           bin/rails db:test:prepare
           SIMPLECOV_COMMAND_NAME=unit bin/rails test

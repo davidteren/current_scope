@@ -5,12 +5,14 @@ ENV["RAILS_ENV"] = "test"
 # Default on in CI and local; set COVERAGE=0 to skip.
 unless ENV["COVERAGE"] == "0"
   require "simplecov"
-  # Distinct command names so unit + system runs merge into one report.
-  SimpleCov.command_name ENV.fetch("SIMPLECOV_COMMAND_NAME", "minitest-#{Process.pid}")
+  # CI sets unit/system so the two runs merge. Local default is a stable
+  # name so re-runs replace the previous result instead of stacking PIDs.
+  SimpleCov.command_name ENV.fetch("SIMPLECOV_COMMAND_NAME", "minitest")
   SimpleCov.start do
     enable_coverage :branch
     root File.expand_path("..", __dir__)
-    # SimpleCov 1.x: cover = include + track unloaded files; skip = exclude.
+    # SimpleCov 1.x (pinned 1.0.2): cover = include + track unloaded files;
+    # skip = exclude. See simplecov/configuration/filters.rb.
     cover "{app,lib}/**/*.rb"
     skip %r{/test/}
     skip %r{/dummy/}

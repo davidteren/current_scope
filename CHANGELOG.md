@@ -38,6 +38,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   residuals (A5/A2/A6, trusted model hook, report-mode model_invalid, opt-in
   tripwire, no cascade) in the README and
   [docs/site/limitations.md](docs/site/limitations.md).
+- **Silent-security documentation (#27, #29, #36).** Root [UPGRADING.md](UPGRADING.md)
+  leads with the 0.1→0.2 `sod_actions` default flip. SoD guide + README document
+  collection actions in `sod_actions` as no-ops (bulk recipe), `full_access`
+  holding break-glass bypass, and that advisory `allowed_to?` never consults
+  the catalog.
 
 ## [0.4.0] - 2026-07-23
 

@@ -42,6 +42,15 @@ needs `current_scope_initiator` — the `ConfigurationError` above only fires fo
 actions that are *in* `sod_actions`. `sod_identity` is moot; roles, scoped
 roles, `scope_for`, audit, and impersonation are unaffected.
 
+> **Collection actions in `sod_actions` are no-ops.** The veto needs a record.
+> Listing `approve_all` (or any collection action) does not enforce four-eyes
+> on bulk work — the initiator can bulk-self-approve. Filter each row with
+> `allowed_to?(:approve, record)` inside the bulk action. (#29)
+>
+> **Break-glass + `full_access`.** When `allow_sod_bypass` is on, a full_access
+> role holds the bypass permission automatically. Prefer a narrow bypass role.
+> See [UPGRADING.md](../../UPGRADING.md) for the 0.1→0.2 SoD default flip.
+
 By default (`config.sod_identity = :either`) the veto weighs **two**
 identities: the effective subject *and* the real actor behind an impersonated
 session. So an admin who initiated a report can't slip past the veto by

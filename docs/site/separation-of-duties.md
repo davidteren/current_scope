@@ -101,6 +101,31 @@ logged and recorded as a distinct `access.sod_blind_spot` ledger event, and
 `bin/rails current_scope:report` lists these separately — granting a role
 will not clear that 403.
 
+### Collection actions in `sod_actions` are no-ops
+
+The veto needs a **record** (to read the initiator). A collection action
+legitimately has no record (`current_scope_record` returns `nil`), so listing
+a bulk action in `sod_actions` — e.g. `approve_all` — does **nothing**. The
+initiator can bulk-self-approve with no signal.
+
+Do **not** treat "it's in `sod_actions`" as protection for bulk endpoints.
+
+**Recipe for bulk endpoints:** gate the collection action with ordinary
+permissions, then filter each record with the **member** SoD key:
+
+```ruby
+def approve_all
+  scope_for(Expense, permission: "expenses#approve_all").find_each do |expense|
+    next unless allowed_to?(:approve, expense) # honors SoD veto per record
+    expense.approve!(by: current_user)
+  end
+end
+```
+
+Advisory `allowed_to?(:approve, expense)` consults the same veto as the gate,
+including against `full_access`. That is the only supported way to keep
+four-eyes on bulk work. (#29)
+
 ## How to verify it is live
 
 Do not trust configuration reading; test the behavior:
@@ -154,6 +179,15 @@ rests on three things, all enforced:
 - **Always audited.** Every lifted veto records exactly one append-only
   `sod.bypassed` ledger event and sets
   `X-Current-Scope-Reason: sod_bypassed` on the response.
+
+**`full_access` holds the bypass.** A `full_access` role grants every
+permission, including `sod_bypass_permission`. With break-glass on, every
+full-access subject who initiated a flagged record can self-approve — the
+population SoD usually targets. Prefer a **narrow role** that ticks only
+`bypass_sod` (and the SoD actions they need), not full access, for trusted
+break-glass holders. The README line "the veto overrides even full access"
+describes the default (break-glass off); once break-glass is on, full_access
+is an automatic bypass privilege. (#29)
 
 `bypass_sod` must not appear in `sod_actions`; the engine raises at boot if
 it does. Prefer true SoD for genuine fraud control (contracts, pay runs)

@@ -31,6 +31,14 @@ cross-resource check from a projects view resolves to `reports#approve`.
 > ambiguity. The short form is only guaranteed to match the gate when path
 > segment == route key.
 
+> **Residual foot-gun — `allowed_to?` never consults the catalog.** The Guard
+> raises if you gate an uncataloged key. Advisory `allowed_to?` does not: a
+> typo (`allowed_to?("reprots#show")`) is a silent false (button never shows);
+> a raw grant row for a removed route can make `allowed_to?` true for a key the
+> gate will never see. Fail-closed either way, but a debugging wall. Prefer
+> keys that appear in the permission grid; treat the Guard as authoritative.
+> (#36)
+
 ```ruby
 class ApproveButtonComponent < ViewComponent::Base
   include CurrentScope::Permissions

@@ -329,6 +329,27 @@ bin/setup          # bundle (resolves the engine at ../current_scope), seed the 
 bin/rails server   # http://localhost:3000
 ```
 
+## Limitations
+
+**SSR-first.** CurrentScope is for server-rendered Rails (controllers, views,
+ViewComponents, Turbo). Separate JS front-ends ([#96](https://github.com/davidteren/current_scope/issues/96))
+and Inertia ([#97](https://github.com/davidteren/current_scope/issues/97)) have
+no first-class client contract yet. API controllers that include Guard still
+authorize on the server.
+
+**Intentional residuals** (not forgotten bugs) — full write-up on the
+[Limitations page](https://davidteren.github.io/current_scope/limitations.html):
+
+| Residual | What it means for you |
+|---|---|
+| A5 SoD + nil record | Member SoD actions must return the record or the veto is skipped |
+| A2 `actor_method` | Set it when you impersonate; no false auto-detect |
+| A6 audit degrade | Use `audit: :strict` when the ledger is mandatory |
+| Trusted `current_scope_model` | Wrong type can open wrong listed reads — review like the record hook |
+| Report × model_invalid | Mis-declared collection type stays hard 403 in report mode |
+| GatingTripwire opt-in | Never-included Guard stays open; include Guard + optional tripwire |
+| No parent/child cascade | Grant on Project does not open its Tasks (#108) |
+
 ## Design notes
 
 - [`resources/DESIGN.md`](resources/DESIGN.md) — the original design-concept

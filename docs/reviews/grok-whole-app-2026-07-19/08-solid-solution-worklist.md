@@ -126,7 +126,7 @@ Items below are what still stand between “good engine” and that bar.
 | **D7** | UPGRADING.md (0.1→0.2 and 0.2→0.3) | Silent posture changes | **#27** · R release notes | Open |
 | **D8** | Guide: performance & caching (request memo + host Solid Cache recipe) | Log noise + “how do we cache?” unanswered | C · new | Open — **file or fold into #34** |
 | **D9** | Guide: security & production (may merge with S13/#32) | Operable production | **#32** | **Done** — same as S13 (`docs/SECURITY-CHECKLIST.md`) |
-| **D10** | Document intentional residuals (A5, A2, A6, trusted model, report×model_undeclared) | Solid means honest limits | R residuals | Partial in README; centralize |
+| **D10** | Document intentional residuals (A5, A2, A6, trusted model, report×model_undeclared) | Solid means honest limits | R residuals · **#115** | **Done** — README Limitations + docs/site/limitations.md |
 | **D11** | Docs site: SoD anti-fraud story, real docs surface, agentic-coding prompts | Public site still thin; agents need copy-paste playbooks | **#98** | Open |
 
 ---

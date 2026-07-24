@@ -34,6 +34,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   install → concerns → **sessions skip** (or you brick sign-in) →
   `CurrentScope.grant!` / `current_scope:grant` (not raw
   `RoleAssignment.create!`) → `/current_scope`. Member starts empty.
+- **Limitations page (#115).** Canonical SSR-first stance and intentional
+  residuals (A5/A2/A6, trusted model hook, report-mode model_invalid, opt-in
+  tripwire, no cascade) in the README and
+  [docs/site/limitations.md](docs/site/limitations.md).
 
 ## [0.4.0] - 2026-07-23
 

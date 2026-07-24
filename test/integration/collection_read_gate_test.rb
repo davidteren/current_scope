@@ -115,4 +115,36 @@ class CollectionReadGateTest < ActionDispatch::IntegrationTest
 
     assert_response :success
   end
+
+  # T2 (#113): AE4's empty-list deny is unit-pinned on the resolver; this is
+  # the request-cycle pin. A subject with ONLY a scoped grant on a live record
+  # opens the list; after destroy the same subject is refused at the gate
+  # (empty list = deny), and a member hit for the gone id is a missing-record
+  # 404 from the host find (security checklist oracle), not a silent allow.
+  # Uses its own subject so the setup's @alice/@mine grant cannot keep the
+  # index open after the doomed row is gone.
+  test "T2: after the granted record is destroyed the index denies and the member is gone" do
+    carol = User.create!(name: "Carol")
+    doomed = Report.create!(title: "Doomed", requested_by: @bob)
+    viewer = role("Viewer", "reports#index", "reports#show")
+    scope_grant(carol, viewer, doomed)
+
+    get reports_url, headers: sign_in(carol)
+    assert_response :success
+    assert_equal "Doomed", response.body
+
+    get report_url(doomed), headers: sign_in(carol)
+    assert_response :success
+    assert_equal "Doomed", response.body
+
+    dead_id = doomed.id
+    doomed.destroy!
+
+    get reports_url, headers: sign_in(carol)
+    assert_response :forbidden, "an empty scoped list is a deny through the Guard, not an empty 200"
+    assert_equal "no_grant", response.headers["X-Current-Scope-Reason"]
+
+    get report_url(dead_id), headers: sign_in(carol)
+    assert_response :not_found, "host find raises before the gate — missing id is 404, not allow"
+  end
 end

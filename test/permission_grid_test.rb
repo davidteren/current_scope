@@ -17,7 +17,7 @@ class PermissionGridTest < ActiveSupport::TestCase
   end
 
   # Stand-in reflections, mirroring the catalog stand-in above. Same duck as
-  # GatingReflection: one #ungated?(controller) predicate.
+  # GatingReflection: #ungated? and #missing_controller?.
   class MarkingReflection
     def initialize(*marked)
       @marked = marked
@@ -26,6 +26,8 @@ class PermissionGridTest < ActiveSupport::TestCase
     def ungated?(controller)
       @marked.include?(controller)
     end
+
+    def missing_controller?(_controller) = false
   end
 
   class SpyReflection
@@ -39,6 +41,8 @@ class PermissionGridTest < ActiveSupport::TestCase
       @calls += 1
       true
     end
+
+    def missing_controller?(_controller) = false
   end
 
   test "controllers are sorted" do
@@ -188,6 +192,16 @@ class PermissionGridTest < ActiveSupport::TestCase
 
     assert g.ungated?("widgets")
     assert_not g.ungated?("reports")
+  end
+
+  test "missing_controller? delegates to the injected reflection" do
+    reflection = Object.new
+    def reflection.ungated?(_) = false
+    def reflection.missing_controller?(c) = c == "ghosts"
+    g = grid(gating: reflection)
+
+    assert g.missing_controller?("ghosts")
+    assert_not g.missing_controller?("reports")
   end
 
   test "cell output is byte-identical whether or not the reflection marks the controller" do

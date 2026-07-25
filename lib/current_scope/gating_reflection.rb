@@ -36,8 +36,21 @@ module CurrentScope
       # A routed path with no controller class (a scaffolding leftover, a
       # not-yet-written controller) proves nothing about gating. Silent false,
       # matching the prove-or-stay-silent discipline of
-      # warn_on_cross_controller_derivation.
+      # warn_on_cross_controller_derivation. Surface that shape via
+      # #missing_controller? instead — the grid badges it (#43).
       false
+    end
+
+    # True when the path is routed but no controller class loads (stale route /
+    # typo). Distinct from ungated?: there is nothing to gate. Hitting the
+    # route is ActionDispatch::MissingController (a 500 in production), so the
+    # role grid flags the row (#43). Uses the same Rails path→class rule as
+    # #ungated? so the two answers cannot disagree on loadability.
+    def missing_controller?(controller_path)
+      controller_class_for(controller_path)
+      false
+    rescue ActionDispatch::MissingController
+      true
     end
 
     private
@@ -54,9 +67,15 @@ module CurrentScope
     # the price of asking. Built lazily and memoized here, NEVER in initialize:
     # the role-save path constructs a GatingReflection it may never ask — any
     # failure in construction would 500 role saves. (KTD-8)
+    # Memoize path→class for the life of this reflection instance. The role
+    # editor asks ungated? and missing_controller? per row; without a cache
+    # that is two constantizes per controller (cubic P2 on #43).
     def controller_class_for(controller_path)
+      @class_for ||= {}
+      return @class_for[controller_path] if @class_for.key?(controller_path)
+
       @request ||= ActionDispatch::Request.new({})
-      @request.controller_class_for(controller_path)
+      @class_for[controller_path] = @request.controller_class_for(controller_path)
     end
   end
 end

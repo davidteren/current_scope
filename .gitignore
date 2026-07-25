@@ -16,3 +16,4 @@ wip/
 
 # Built at Pages deploy time from docs/SECURITY-CHECKLIST.md — never commit
 docs/site/security-checklist.md
+coverage/

@@ -563,10 +563,31 @@ a:hover { color: var(--cs-accent-strong); }
    on purpose (KTD-9): that grant IS live on a marked row, so it keeps the real
    granted wash from the rule above. */
 .cs-grid tbody tr:has(.cs-ungated-badge) td:not(.cs-cell-bypass):has(input:checked),
-.cs-grid tbody tr:has(.cs-ungated-badge) td:not(.cs-cell-bypass):has(input[data-cs-partial="true"]) {
+.cs-grid tbody tr:has(.cs-ungated-badge) td:not(.cs-cell-bypass):has(input[data-cs-partial="true"]),
+.cs-grid tbody tr:has(.cs-missing-controller-badge) td:not(.cs-cell-bypass):has(input:checked),
+.cs-grid tbody tr:has(.cs-missing-controller-badge) td:not(.cs-cell-bypass):has(input[data-cs-partial="true"]) {
   background: repeating-linear-gradient(-45deg,
       var(--cs-surface-2) 0 4px, var(--cs-bg) 4px 8px);
 }
+
+/* #43 — route with no controller class (stale/typo). Advisory only: keys stay
+   grantable (catalog = routes) but the request will MissingController 500. */
+.cs-missing-controller-badge {
+  display: block;
+  max-width: 19rem;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.4375rem;
+  border: 1px solid var(--cs-warn, #b45309);
+  border-radius: var(--cs-radius-sm);
+  background: color-mix(in srgb, var(--cs-warn, #b45309) 12%, var(--cs-surface));
+  color: var(--cs-ink);
+  font-family: var(--cs-font);
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  white-space: normal;
+}
+.cs-missing-controller-badge strong { color: var(--cs-warn, #b45309); }
+.cs-missing-controller-badge code { font-family: var(--cs-mono); }
 
 /* UNINSPECTABLE: the controller raised while loading, so the gate state is
    unknown — a distinct third voice, deliberately not the danger badge (no

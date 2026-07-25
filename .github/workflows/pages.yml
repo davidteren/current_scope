@@ -65,7 +65,7 @@ jobs:
             echo "::error::docs/SECURITY-CHECKLIST.md has a relative reference-style link — extend the rewrite step."
             exit 1
           fi
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - uses: actions/jekyll-build-pages@v1
         with:
           source: ./docs/site

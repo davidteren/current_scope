@@ -282,9 +282,40 @@ class GuardTest < ActionDispatch::IntegrationTest
   test "gating an excluded controller raises a configuration error" do
     assign(@alice, role("Owner", full_access: true))
 
-    assert_raises(CurrentScope::ConfigurationError) do
+    error = assert_raises(CurrentScope::ConfigurationError) do
       post webhooks_url, headers: sign_in(@alice)
     end
+    assert_match(/excluded by config\.excluded_controllers/, error.message)
+    assert_match(/matched/, error.message)
+    # Dummy initializer uses %r{\Awebhooks\z} — pin the inspect so a rewrite
+    # cannot say "matched" without naming the pattern (#44 review).
+    assert_includes error.message, '\Awebhooks\z'
+    assert_no_match(/or not routed/, error.message)
+  end
+
+  test "excluded catalog miss lists only the matching patterns" do
+    original = CurrentScope.config.excluded_controllers
+    CurrentScope.config.excluded_controllers = original + [ /\Arails\// ]
+    controller = WebhooksController.new
+    message = controller.send(:catalog_miss_message, "webhooks#create")
+
+    assert_includes message, '\Awebhooks\z'
+    assert_no_match(/rails/, message, "a non-matching exclusion must not be blamed")
+  ensure
+    CurrentScope.config.excluded_controllers = original
+  end
+
+  test "gating an unrouted permission names not-routed, not an exclusion match" do
+    # Direct call with a permission path that is neither excluded nor routed —
+    # the catalog miss must point at the missing route, not invent an exclusion.
+    controller = ReportsController.new
+    controller.define_singleton_method(:controller_path) { "ghosts" }
+    controller.define_singleton_method(:action_name) { "index" }
+    message = controller.send(:catalog_miss_message, "ghosts#index")
+
+    assert_match(/not routed/, message)
+    assert_match(/skip_before_action :current_scope_check!/, message)
+    assert_no_match(/excluded by config\.excluded_controllers/, message)
   end
 
   test "a missing user_method raises instead of silently denying" do

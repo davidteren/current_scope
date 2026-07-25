@@ -111,13 +111,10 @@ module CurrentScope
 
       # An excluded controller can never be granted in the grid, so gating it
       # would lock it to full_access forever — a misconfiguration, not a deny.
+      # Name excluded-vs-unrouted and the matching regex so the fix is obvious
+      # (#44); "not in the catalog" alone hid which of the two was true.
       unless CurrentScope.catalog.include?(permission)
-        raise CurrentScope::ConfigurationError,
-              "\"#{permission}\" is not in the permission catalog (excluded_controllers " \
-              "or not routed). Either stop excluding it, or skip the gate here with " \
-              "skip_before_action :current_scope_check!. Skipping the gate leaves this " \
-              "controller ungated by CurrentScope — protect it with your own " \
-              "authorization (e.g. require_admin!)."
+        raise CurrentScope::ConfigurationError, catalog_miss_message(permission)
       end
 
       record = resolve_current_scope_record
@@ -379,6 +376,27 @@ module CurrentScope
         "config.audit = false if you don't want the ledger."
       else
         "could not record #{event} (#{error.class}: #{error.message.to_s.truncate(120)})."
+      end
+    end
+
+    # Why a gated permission is missing from the catalog: excluded by config
+    # (name the matching regex) vs never routed. Two different host fixes (#44).
+    def catalog_miss_message(permission)
+      matched = CurrentScope.config.excluded_controllers.select { |re| controller_path.match?(re) }
+      skip_clause =
+        "Either stop excluding it, or skip the gate here with " \
+        "skip_before_action :current_scope_check!. Skipping the gate leaves this " \
+        "controller ungated by CurrentScope — protect it with your own " \
+        "authorization (e.g. require_admin!)."
+
+      if matched.any?
+        patterns = matched.map(&:inspect).join(", ")
+        %("#{permission}" is excluded by config.excluded_controllers (matched #{patterns}). #{skip_clause})
+      else
+        %("#{permission}" is not in the permission catalog because it is not routed. ) +
+          "Add a route for this controller#action, or skip the gate with " \
+          "skip_before_action :current_scope_check! if the action is intentional " \
+          "(then protect it with your own authorization)."
       end
     end
 

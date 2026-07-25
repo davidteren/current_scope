@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **Clearer double org-grant error (#44).** A second org-wide `RoleAssignment`
+  for the same subject no longer raises the cryptic "Subject has already been
+  taken". The validation message names the role already held and points at
+  `CurrentScope.grant!` (replace) or scoped roles (additive access).
+- **Catalog-miss `ConfigurationError` names the real cause (#44).** Gating a
+  permission missing from the catalog now says whether the controller matched
+  `config.excluded_controllers` (and which pattern(s)) or is simply not
+  routed — two different host fixes.
+
 ## [0.4.0] - 2026-07-23
 
 Solid-solution Phase 1 plus the adoption surface: denial ergonomics, the

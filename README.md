@@ -636,12 +636,14 @@ logs each ungated `controller#action` once, so a production host that included
 the mixin gets an inventory instead of 500s. There is no `:off` — not including
 the mixin is off.
 
-Three loud-by-design behaviors. A controller excluded from the catalog can't be
-granted, so gating it is a misconfiguration — Guard raises and tells you to
-either stop excluding it or `skip_before_action :current_scope_check!`. A
-`user_method` that the controller doesn't respond to raises instead of
-silently turning every request into a 403. And **granting a permission key that
-isn't in the catalog makes the role invalid**, naming the key:
+Four loud-by-design behaviors. A controller excluded from the catalog can't be
+granted, so gating it is a misconfiguration — Guard raises, names the matching
+`excluded_controllers` pattern(s), and tells you to either stop excluding it or
+`skip_before_action :current_scope_check!`. An unrouted `controller#action`
+raises a different message (not-routed, not excluded). A `user_method` that the
+controller doesn't respond to raises instead of silently turning every request
+into a 403. And **granting a permission key that isn't in the catalog makes the
+role invalid**, naming the key:
 
 ```ruby
 role.permission_keys = %w[reports#aprove]   # typo
@@ -896,7 +898,9 @@ own controllers **behind the gate** in a request or system spec, seed real
 grants with `grant_role!` / `grant_scoped_role!` — they persist assignment rows
 that survive the request cycle (which `with_current_user` cannot, since
 `Context` re-resolves the subject on every real request). They seed grants only;
-your app still signs the subject in through its own auth:
+your app still signs the subject in through its own auth. A second org-wide
+`grant_role!` for the same subject raises (one org role per subject) and names
+`CurrentScope.grant!` for replace or scoped roles for additive access:
 
 ```ruby
 class ReportsAccessTest < ActionDispatch::IntegrationTest

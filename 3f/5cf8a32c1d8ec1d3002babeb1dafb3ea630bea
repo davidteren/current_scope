@@ -1,7 +1,33 @@
+CHANGELOG.md
+  s_d0b7a017cb7816::t_09a5ffbfc167c6 9-15
+test/integration/role_grid_test.rb
+  s_d0b7a017cb7816::t_39b7abc3968236 153-169
+test/gating_reflection_test.rb
+  s_d0b7a017cb7816::t_39b7abc3968236 90-95
+test/permission_grid_test.rb
+  s_d0b7a017cb7816::t_39b7abc3968236 20,29-30,44-45,197-204
+app/assets/stylesheets/current_scope/application.css
+  s_d0b7a017cb7816::t_39b7abc3968236 571-589
+lib/current_scope/permission_grid.rb
+  s_d0b7a017cb7816::t_39b7abc3968236 45-51
+lib/current_scope/gating_reflection.rb
+  s_d0b7a017cb7816::t_39b7abc3968236 39-40,43-53
+app/views/current_scope/roles/edit.html.erb
+  s_d0b7a017cb7816::t_39b7abc3968236 79-83,85-91,98,111-119
 ---
 {
   "schema_version": "authorship/3.0.0",
   "git_ai_version": "1.6.16",
   "base_commit_sha": "3f5cf8a32c1d8ec1d3002babeb1dafb3ea630bea",
-  "prompts": {}
+  "prompts": {},
+  "sessions": {
+    "s_d0b7a017cb7816": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bfd2cba0-d9a4-4473-a45d-8ca28e9d5d22",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
 }

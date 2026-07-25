@@ -49,7 +49,11 @@ including sign-in — mount it without this and nobody can log in:
 
 ```ruby
 class SessionsController < ApplicationController
-  skip_before_action :current_scope_check!
+  # Prefer the declared form so the role grid shows why the gate is off:
+  current_scope_skip_gate!(reason: "sign-in must run without a grant")
+  # bare skip_before_action :current_scope_check! still works (unexplained badge).
+  # If you use impersonation, also skip the mutation guard on sign-in/out:
+  skip_before_action :current_scope_mutation_guard!
 end
 ```
 

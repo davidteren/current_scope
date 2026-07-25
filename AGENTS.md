@@ -46,7 +46,7 @@ RubyGems; not production-ready.
 **Do not run `gh pr create` (or any skill that opens a new PR) until this
 gate has completed on the exact commit that will be the PR head.**
 
-Use skill **`/dt-pre-pr-gate`**, which runs in order:
+Use skill **`/dt-ship-pre-pr-gate`**, which runs in order:
 
 1. `/ce-code-review` — fix findings (may commit)
 2. `/ie-review` — fix findings (may commit)
@@ -55,7 +55,7 @@ Use skill **`/dt-pre-pr-gate`**, which runs in order:
    for step 3 of this gate)
 
 **Stale-gate rule:** if anything is committed after the gate finishes,
-the gate is void — re-run `/dt-pre-pr-gate` on the new `HEAD` before
+the gate is void — re-run `/dt-ship-pre-pr-gate` on the new `HEAD` before
 create. An earlier pass on an older SHA does **not** count.
 
 **Waive only if the user explicitly waives it in chat for that PR** —
@@ -75,7 +75,7 @@ Milestone / release gate (before any version bump or RubyGems tag):
    where). Never resolve silently. Confirm the fix commit is on the remote
    before resolving (see PR #64/#71).
 4. **CI green** — lint, test, and other required workflows must pass before
-   declaring ready (skills: `check-pr-comments`, `dt-address-PR-for-readiness`).
+   declaring ready (skills: `check-pr-comments`, `dt-ship-pr-readiness`).
 5. **Never merge** unless the human asks — report readiness only.
 
 ## Tool & skill playbook

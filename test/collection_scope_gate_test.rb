@@ -473,7 +473,20 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
   test "a declared-but-invalid model with a ticking grant is :model_invalid, not :no_grant" do
     scope_grant(@alice, role("Editor", "reports#index"), @report)
 
-    [ "Report", :Report, Report.new, Struct.new(:id) ].each do |bad_type|
+    # E5 (#112): every unusable shape the host can return from current_scope_model
+    # must fail closed under :model_invalid (not plain :no_grant). String is the
+    # classic typo; relation/hash/instance are the other common mistakes.
+    [
+      "Report",
+      :Report,
+      Report.new,
+      Report.all,
+      {},
+      [],
+      Struct.new(:id),
+      Class.new,
+      Enumerable
+    ].each do |bad_type|
       allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index", record: nil, model: bad_type)
       assert_not allowed, "#{bad_type.inspect} must not open the gate — the label changes no decision"
       assert_equal :model_invalid, reason,
@@ -488,6 +501,28 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
     assert_not allowed
     assert_equal :model_invalid, reason,
       "abstract classes store no rows — refused by the same shape guard, same label"
+  end
+
+  test "a concrete AR class that is simply the wrong type is :no_grant, not :model_invalid" do
+    # User is a usable collection type. The declaration is trusted (Track 8);
+    # with no matching grant the deny is ordinary no_grant — not a shape error.
+    scope_grant(@alice, role("Editor", "reports#index"), @report)
+
+    allowed, reason = @resolver.decide(subject: @alice, permission: "reports#index", record: nil, model: User)
+    assert_not allowed
+    assert_equal :no_grant, reason,
+      "a concrete wrong class is not a mis-declared shape — the host named a real model"
+  end
+
+  test "an STI subclass is a usable collection type (not :model_invalid)" do
+    # Invoice is concrete AR. Whether the grant matches is a separate question
+    # (resource_type / STI list predicate) — the shape guard must accept it.
+    invoice = Invoice.create!(title: "INV-1")
+    scope_grant(@alice, role("Editor", "documents#index"), invoice)
+
+    allowed, reason = @resolver.decide(subject: @alice, permission: "documents#index", record: nil, model: Invoice)
+    assert allowed, "STI subclass with a matching grant must open"
+    assert_nil reason
   end
 
   test ":model_invalid needs a grant, like :model_undeclared — otherwise plain :no_grant" do

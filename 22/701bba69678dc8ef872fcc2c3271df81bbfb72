@@ -1,7 +1,67 @@
+docs/guides/checking-permissions.md
+  s_d0b7a017cb7816::t_c3ba9fed624a4f 1-177
+docs/guides/concepts-and-glossary.md
+  s_d0b7a017cb7816::t_23517caa88864b 16-19,21-26
+  s_d0b7a017cb7816::t_c15d919df7a714 68-73
+  s_d0b7a017cb7816::t_c3ba9fed624a4f 1-15,20,27-67,74-111
+docs/guides/impersonation.md
+  s_d0b7a017cb7816::t_c3ba9fed624a4f 1-106,113-114,116-119,125-213
+  s_d0b7a017cb7816::t_f55d7683d31884 120-124
+  s_d0b7a017cb7816::t_180528e35665b6 107-112,115
+docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md
+  s_d0b7a017cb7816::t_c3ba9fed624a4f 120,210
+  s_d0b7a017cb7816::t_bbdf4bff248a15 212
+docs/reviews/grok-whole-app-2026-07-19/01-deep-review-main.md
+  s_d0b7a017cb7816::t_c3ba9fed624a4f 253
+docs/guides/adopting-in-an-existing-app.md
+  s_d0b7a017cb7816::t_c3ba9fed624a4f 60,314,325,360-362
+README.md
+  s_d0b7a017cb7816::t_f3dc062e8be43d 278
+  s_d0b7a017cb7816::t_3d963f6375d3ea 269-270
+  s_d0b7a017cb7816::t_c3ba9fed624a4f 92,251,253,255-263,265,267,272-277,280
+STATUS.md
+  s_d0b7a017cb7816::t_c3ba9fed624a4f 29,151
+docs/site/_includes/resolver-order.md
+  s_d0b7a017cb7816::t_daa9c46f90ecfe 12
+docs/plans/2026-07-12-002-feat-engine-readiness-remediation-plan.md
+  s_d0b7a017cb7816::t_c83d06a7eb8ab3 9,17
+  s_d0b7a017cb7816::t_ee80acb6e8e3d2 18,27,368,406
+CONTRIBUTING.md
+  s_d0b7a017cb7816::t_c3ba9fed624a4f 1-33
+docs/reviews/grok-whole-app-2026-07-19/02-security-authz.md
+  s_d0b7a017cb7816::t_c3ba9fed624a4f 76
+docs/guides/configuration-reference.md
+  s_d0b7a017cb7816::t_c3ba9fed624a4f 1-107,116-148
+  s_d0b7a017cb7816::t_91adb11e2b3159 108-115
+docs/guides/testing.md
+  s_d0b7a017cb7816::t_3cca153a4c66fa 27-29,43-47
+  s_d0b7a017cb7816::t_c3ba9fed624a4f 1-26,30-42,48-53
+AGENTS.md
+  s_d0b7a017cb7816::t_c3ba9fed624a4f 18
+docs/guides/separation-of-duties-and-break-glass.md
+  s_d0b7a017cb7816::t_c3ba9fed624a4f 1-124
+docs/site/separation-of-duties.md
+  s_d0b7a017cb7816::t_daa9c46f90ecfe 176
+docs/plans/2026-07-15-029-feat-thread-collection-model-plan.md
+  s_d0b7a017cb7816::t_c83d06a7eb8ab3 366
+docs/site/concepts.md
+  s_d0b7a017cb7816::t_daa9c46f90ecfe 71
+docs/SECURITY-CHECKLIST.md
+  s_d0b7a017cb7816::t_daa9c46f90ecfe 84,94-95
 ---
 {
   "schema_version": "authorship/3.0.0",
   "git_ai_version": "1.6.16",
   "base_commit_sha": "22701bba69678dc8ef872fcc2c3271df81bbfb72",
-  "prompts": {}
+  "prompts": {},
+  "sessions": {
+    "s_d0b7a017cb7816": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bfd2cba0-d9a4-4473-a45d-8ca28e9d5d22",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
 }

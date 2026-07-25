@@ -59,9 +59,9 @@ Items below are what still stand between “good engine” and that bar.
 |---|---|---|---|---|
 | **O1** | Orphaned scoped grants: label / cleanup / reap | Inert since #65 but look like real access | **#90** | **Done** — PR #104 (label + revoke; Subjects no longer preloads :resource) |
 | **O2** | Role delete confirm with holder counts + danger button | Cascade wipes all holders; confirm understates | R UX | **Done** — `main` / PR #100 / 0.3.1 |
-| **O3** | `current_scope_skip_gate!(reason:)` + grid shows declared vs bare skip | Unexplained skips must stay alarming | **#76** | Open |
-| **O4** | Flag catalog rows whose controller does not resolve | Phantom grants → 500 on hit | **#43** | Open |
-| **O5** | Error polish: double org-grant message; excluded regex named | Cryptic failures send people to source | **#44** | Open |
+| **O3** | `current_scope_skip_gate!(reason:)` + grid shows declared vs bare skip | Unexplained skips must stay alarming | **#76** | **Done** — declared-skip badge; bare skips stay marked |
+| **O4** | Flag catalog rows whose controller does not resolve | Phantom grants → 500 on hit | **#43** | **Done** — "no controller" badge on route-backed rows |
+| **O5** | Error polish: double org-grant message; excluded regex named | Cryptic failures send people to source | **#44** | **Done** — both messages name cause + fix |
 | **O6** | Denial ergonomics: `AccessDenied#permission`, rescue_responses, reason in logs | Operable denials for hosts + APIs | **#39** | **Done** — `feat/security-checklist-and-denial-ergonomics` |
 | **O7** | Empty states: Roles / Events / Subjects | First-run silent blank tables | R UX | Open |
 | **O8** | Access-denied page: return link to host | Dead-end 403 | R UX | Open |
@@ -108,7 +108,7 @@ Items below are what still stand between “good engine” and that bar.
 | **T3** | Non-admin POST role/grant mutations → 403 | Self-escalation regression | T · R | **Done** — `main` / PR #100 / 0.3.1 |
 | **T4** | Org-role uniqueness regression test | Schema-only today | T | **Done** — `main` / PR #100 / 0.3.1 |
 | **T5** | Reason-trio includes `:sod_bypassed` | Order pin for break-glass (happy path already covered) | T | Open (optional order pin) |
-| **T6** | SimpleCov (± mutant) in CI | Coverage number missing | T · R | Open |
+| **T6** | SimpleCov (± mutant) in CI | Coverage number missing | T · R · **#114** | **Done** — SimpleCov + CI artifact (no minimum yet) |
 | **T7** | System tests prefer stable ids over text | AGENTS.md | T · U6 | Open |
 
 ---
@@ -203,18 +203,18 @@ Minimum for banner consideration: **D2** (one quickstart) + **D9/S13** (producti
 | Track | Rows | Done | Still open-ish |
 |---|---|---|---|
 | 1 Security / config | 14 | 10 | 4 (incl. S14 document-only) |
-| 2 Operator honesty | 10 | 3 | 7 |
+| 2 Operator honesty | 10 | 6 | 4 |
 | 3 A11y / UI polish | 7 | 2 | 5 |
 | 4 Engine API | 8 | 3 | 5 (incl. Defer / optional) |
-| 5 Tests | 7 | 4 | 3 |
+| 5 Tests | 7 | 5 | 2 |
 | 6 Docs | 11 | 1 | 10 (incl. Partial) |
 | 7 Adoption / FE | 6 | 1 | 5 (incl. Ongoing) |
-| **Total** | **63** | **24** | **~39** |
+| **Total** | **63** | **28** | **~35** |
 | Explicit non-goals | 8 residuals | — | document, don’t loosen |
 
 **Open GitHub issues:** prefer GitHub + #116 for live status (worklist counts lag).  
-**Closed since original pack:** **#91** (Phase 0), **#112** (E5), **#113** (T2), plus Phase 1 stack / #32/#39/#45/#98 as STATUS records.  
-**Review-only (no issue yet):** O7, O8, U3–U7, E3, E6–E8, T5–T7, D8, D10, A6, S14 (document-only). E5/T2 have issues and are Done.
+**Closed since original pack:** **#91** (Phase 0), **#112** (E5), **#113** (T2), **#43** (O4), **#44** (O5), **#76** (O3), **#114** (T6), plus Phase 1 stack / #32/#39/#45/#98 as STATUS records.  
+**Review-only (no issue yet):** O7, O8, U3–U7, E3, E6–E8, T5, T7, D8, D10, A6, S14 (document-only). E5/T2/T6 have issues and are Done.
 
 ---
 

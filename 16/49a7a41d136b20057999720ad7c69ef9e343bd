@@ -1,7 +1,24 @@
+README.md
+  s_d0b7a017cb7816::t_5190271773732b 96-99,110-111,120,135-148
+  s_d0b7a017cb7816::t_3794ef926b65eb 121-122
+lib/generators/current_scope/install/install_generator.rb
+  s_d0b7a017cb7816::t_5190271773732b 15-16,19,25-37
+CHANGELOG.md
+  s_d0b7a017cb7816::t_5190271773732b 32-36
 ---
 {
   "schema_version": "authorship/3.0.0",
   "git_ai_version": "1.6.16",
   "base_commit_sha": "1649a7a41d136b20057999720ad7c69ef9e343bd",
-  "prompts": {}
+  "prompts": {},
+  "sessions": {
+    "s_d0b7a017cb7816": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bfd2cba0-d9a4-4473-a45d-8ca28e9d5d22",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
 }

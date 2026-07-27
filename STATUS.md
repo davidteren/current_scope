@@ -689,9 +689,10 @@ quickstart, production checklist) + tests T1–T4.
    (#76/#43/#44), E5 (#112), T2 (#113), T6 (#114), and the Phase 2 docs
    (#25/#34/#27/#29/#36/#115). Worklist now 31 done / ~32 open — see
    [08-solid-solution-worklist.md](docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md).
-   Still open and **post-banner**: O7–O10, U3–U7, E3/E4/E6–E8, T5/T7,
-   remaining Phase 2/3 docs (#28/#24/#31/#35/#38) — the same open set item 8
-   lists, verified against the tracker 2026-07-27.
+   Still open and **post-banner** (verified against the tracker 2026-07-27):
+   O7–O10, U3–U7, E3/E4/E6–E8, T5/T7; the docs cluster item 8 enumerates
+   (#28/#24/#31/#35); plus **#38** (O9, permission grid at scale — a console
+   issue, not a docs one, which is why item 8 does not list it).
 6. ~~**PR #69 review → implement plan 030**~~ — **done** (PR #79, #62 closed).
 7. **#45 — UNPARKED by the 0.3.0 release.** — delivery split already settled: parity
    harness ships in the gem, analyzer ships as a skill. First-PR scope answered

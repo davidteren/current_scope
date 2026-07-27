@@ -1,7 +1,29 @@
+docs/site/separation-of-duties.md
+  s_d0b7a017cb7816::t_b2f084d0ff2b17 104-128,183-190
+CHANGELOG.md
+  s_d0b7a017cb7816::t_b2f084d0ff2b17 41-45
+docs/site/upgrading.md
+  s_d0b7a017cb7816::t_b2f084d0ff2b17 25-32,48-67
+docs/guides/checking-permissions.md
+  s_d0b7a017cb7816::t_8aceefae65c90e 34-41
+UPGRADING.md
+  s_d0b7a017cb7816::t_b2f084d0ff2b17 1-59
+docs/guides/separation-of-duties-and-break-glass.md
+  s_d0b7a017cb7816::t_7c45181682d155 45-53
 ---
 {
   "schema_version": "authorship/3.0.0",
   "git_ai_version": "1.6.16",
   "base_commit_sha": "347383774f07edc43c29493b65f29a00c8d83338",
-  "prompts": {}
+  "prompts": {},
+  "sessions": {
+    "s_d0b7a017cb7816": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bfd2cba0-d9a4-4473-a45d-8ca28e9d5d22",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
 }

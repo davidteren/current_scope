@@ -68,7 +68,7 @@ controller whose path differs from the record's route key (a
 `DashboardController` rendering `Report`s), prefer the explicit full key —
 `allowed_to?("dashboard#show")`. The Guard stays authoritative either way,
 so a mismatch is a display bug, not a bypass. Details in the
-[README](https://github.com/davidteren/current_scope/blob/main/README.md#checking-permissions--anywhere).
+[README](https://github.com/davidteren/current_scope/blob/main/docs/guides/checking-permissions.md#checking-permissions--anywhere).
 
 ## Where the deep answers live
 

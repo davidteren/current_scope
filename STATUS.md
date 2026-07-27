@@ -26,7 +26,7 @@ controllers, views, and ViewComponents.
   on CurrentAttributes vs dry-effects vs explicit passing, Action Policy ideas
 - Usage: [README.md](README.md)
 - **What's next / gaps / proposals: [docs/ROADMAP.md](docs/ROADMAP.md)**
-- Readiness audit: [docs/READINESS-AUDIT.md](docs/READINESS-AUDIT.md) — **complete
+- Readiness audit: [docs/internal/READINESS-AUDIT.md](docs/internal/READINESS-AUDIT.md) — **complete
   (A1–A13, PR #5); historical, not a worklist.** Kept for its reasoning and for the
   "Verified holding — DO NOT regress" invariants. Current work is in the
   [issues](https://github.com/davidteren/current_scope/issues) + `docs/plans/`
@@ -148,7 +148,7 @@ and the full migration toolkit (#45). See CHANGELOG.
 
 ### Readiness remediation — A1–A13 (branch `feat/readiness-p0`, PR #5)
 
-Worked `docs/READINESS-AUDIT.md` end to end (plan:
+Worked `docs/internal/READINESS-AUDIT.md` end to end (plan:
 `docs/plans/2026-07-12-002-feat-engine-readiness-remediation-plan.md`), P0→P4,
 all test-first:
 

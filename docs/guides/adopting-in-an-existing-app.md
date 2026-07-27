@@ -57,9 +57,7 @@ in production logs a loud boot warning saying you are not enforcing
 authorization; that warning is there because the failure mode is quiet, and a
 temporary survey is exactly the kind of thing that quietly becomes permanent.
 
-See the README's [Retrofitting an app that already has
-users](../../README.md#retrofitting-an-app-that-already-has-users) for the short
-version.
+See the README's Installation section (report-mode ramp) for the short version.
 
 ---
 
@@ -313,7 +311,7 @@ during a rollout because the HTML side is usually what gets tested first.
 The same split affects short-form checks. `allowed_to?(:show, item)` derives
 `items#show` from the record's route key, which is *not* what
 `Api::V1::ItemsController`'s gate enforces. See the README's [namespaced /
-custom-named controllers foot-gun](../../README.md#checking-permissions--anywhere)
+custom-named controllers foot-gun](checking-permissions.md)
 — pass the explicit key when the two diverge:
 
 ```ruby
@@ -324,7 +322,7 @@ In development and test, `config.warn_on_cross_controller_derivation` logs a
 nudge when a derived key diverges from the gate on the current controller. It
 warns once per site, and it names both readings — asking about a different
 resource than the controller handles derives a different key too, and that's
-correct. See [Dev diagnostics](../../README.md#dev-diagnostics).
+correct. See [Dev diagnostics](configuration-reference.md#dev-diagnostics).
 
 ---
 
@@ -359,7 +357,8 @@ Roughly in order. Steps 1–3 change nothing for users.
 
 ## See also
 
-- [README — Retrofitting an app that already has users](../../README.md#retrofitting-an-app-that-already-has-users)
-- [README — Dev diagnostics](../../README.md#dev-diagnostics)
+- [README — Installation (report-mode ramp)](../../README.md#installation)
+- [Configuration — Dev diagnostics](configuration-reference.md#dev-diagnostics)
+- [Checking permissions](checking-permissions.md)
 - [#62](https://github.com/davidteren/current_scope/issues/62) — the skip-inheritance fail-open; its detection half shipped (grid badge, `current_scope:ungated`, `:warn` posture), the fail-open itself remains by design ([#76](https://github.com/davidteren/current_scope/issues/76) is the declared-skip macro)
 - [#45](https://github.com/davidteren/current_scope/issues/45) — assisted migration from Pundit / CanCanCan / Action Policy

@@ -293,21 +293,6 @@ role grid, org-wide assignments, scoped grants.
 
 Root [CONCEPTS.md](CONCEPTS.md) is the longer glossary narrative for maintainers.
 
-## Limitations
-
-Solid means honest limits. Full write-up in
-[docs/ROADMAP.md](docs/ROADMAP.md) (and worklist Track 8). In short:
-
-| Limit | What it means |
-|---|---|
-| **SSR-first** | Built for server-rendered Rails. Separate JS / Inertia contracts are open issues (#96, #97). |
-| **Flat scoped grants** | A scoped role on a parent record does **not** cascade to children. Hierarchy is deferred — see [docs/ROADMAP.md](docs/ROADMAP.md) §2.3. |
-| **One org-wide role** | At most one org-wide role per subject (DB-enforced). |
-| **Scoped role = full bundle** | Scoping reuses the whole role; there is no per-record capability subset. |
-| **Intentional residuals** | SoD + nil record skips veto; `actor_method` only loud at boundary APIs; `audit: true` degrades without the events table; report mode still hard-403s some model-hook misses. Details: [docs/ROADMAP.md](docs/ROADMAP.md). |
-
-Roadmap and open design questions: [docs/ROADMAP.md](docs/ROADMAP.md).
-
 ## The showcase app
 
 The engine has a full companion **showcase** — a standalone, deployable Rails
@@ -337,8 +322,17 @@ and Inertia ([#97](https://github.com/davidteren/current_scope/issues/97)) have
 no first-class client contract yet. API controllers that include Guard still
 authorize on the server.
 
+**Model limits** — deliberate shape of the v1 data model, not gaps:
+
+| Limit | What it means |
+|---|---|
+| **Flat scoped grants** | A scoped role on a parent record does **not** cascade to children. Hierarchy is deferred — see [docs/ROADMAP.md](docs/ROADMAP.md) §2.3. |
+| **One org-wide role** | At most one org-wide role per subject (DB-enforced). |
+| **Scoped role = full bundle** | Scoping reuses the whole role; there is no per-record capability subset. |
+
 **Intentional residuals** (not forgotten bugs) — full write-up on the
-[Limitations page](https://davidteren.github.io/current_scope/limitations.html):
+[Limitations page](https://davidteren.github.io/current_scope/limitations.html)
+(source: [docs/site/limitations.md](docs/site/limitations.md)):
 
 | Residual | What it means for you |
 |---|---|

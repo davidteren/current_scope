@@ -72,7 +72,11 @@ The mounted management UI at `/current_scope` — self-contained (no web fonts, 
 build step, CSP-safe), first-class light **and** dark themes.
 
 **Permission grid** — one row per controller, CRUD action groups derived from
-your routes; ticked cells glow, a partial group reads as indeterminate.
+your routes; ticked cells glow, a partial group reads as indeterminate. A route
+whose controller class is missing (stale or typo) still appears — the catalog
+mirrors routes — but the row is badged **no controller** so you do not grant a
+key that only 500s. Remove the route or add the class;
+`excluded_controllers` can hide the row if you want it out of the grid.
 
 ![Permission grid](docs/screenshots/permission-grid.png)
 
@@ -85,9 +89,16 @@ per-record scoped roles; server-side search across all subjects.
 |---|---|---|
 | ![Roles](docs/screenshots/roles.png) | ![Members](docs/screenshots/members.png) | ![Events](docs/screenshots/events.png) |
 
-> Regenerate: `CAPTURE_SCREENSHOTS=1 RAILS_ENV=test bin/rails test test/system/screenshots_test.rb`
+Screenshot regenerate command: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Installation
+
+This is the **canonical greenfield quickstart** (new app, or install before
+users hit gated controllers). The same numbered path lives on the
+[docs site](https://davidteren.github.io/current_scope/quickstart.html) and in
+the install generator's next-steps text (#25). **Existing apps with traffic
+must use [report mode first](#retrofitting-an-app-that-already-has-users)**
+before bootstrap — do not cut over blind.
 
 ```ruby
 # Gemfile
@@ -99,9 +110,8 @@ bin/rails generate current_scope:install
 bin/rails current_scope:install:migrations && bin/rails db:migrate
 ```
 
-Include the concerns in `ApplicationController` — `Context` populates the
-ambient subject from your authentication, `Guard` gates every action behind
-its own `controller#action` permission:
+**1. Include the concerns** in `ApplicationController` — `Context` populates
+the ambient subject from your authentication, `Guard` gates every action:
 
 ```ruby
 class ApplicationController < ActionController::Base
@@ -110,13 +120,42 @@ class ApplicationController < ActionController::Base
 end
 ```
 
-Skip the gate where authorization doesn't apply (sign-in, webhooks):
+**2. Skip the gate on sign-in** (and other public endpoints). **Do not skip
+this step** — the gate is fail-closed and covers *everything*, including login.
+Prefer the declared form so the role grid shows **why** the gate is off:
 
 ```ruby
 class SessionsController < ApplicationController
-  skip_before_action :current_scope_check!
+  current_scope_skip_gate!(reason: "sign-in must run without a grant")
+  # While impersonating, sign-in/out must also clear the mutation guard or a
+  # POST that ends act-as is blocked (same as bare skip of the permission gate):
+  skip_before_action :current_scope_mutation_guard!
+  # bare skip_before_action :current_scope_check! still works, but the grid
+  # marks it as an unexplained "gate not run"
 end
 ```
+
+A skipped controller is unprotected by the permission gate — supply your own
+auth where that matters ([security checklist](docs/SECURITY-CHECKLIST.md)).
+
+**3. Bootstrap the first admin.** The management UI only admits full-access
+subjects; the seeded **Member** role starts with **zero** permissions until
+you edit it:
+
+```bash
+bin/rails current_scope:grant SUBJECT_ID=YOUR_USER_ID
+# or: CurrentScope.grant!(User.first)   # upserts Owner — not RoleAssignment.create!
+```
+
+`grant!` reuses an existing role named Owner without forcing `full_access`.
+On a greenfield seed that is fine (seed_defaults! creates Owner as full_access).
+If someone renamed/stripped Owner earlier, repair with
+`CurrentScope::Role.find_by!(name: "Owner").update!(full_access: true)` before
+expecting `/current_scope` to open.
+
+**4. Manage roles** at `/current_scope`. A Guard denial is HTTP 403 with
+`X-Current-Scope-Reason` (`no_grant`, `sod_veto`, …) when the default
+engine rescue runs. Host `rescue_from` handlers can replace that response.
 
 ### Retrofitting an app that already has users
 
@@ -238,684 +277,21 @@ CurrentScope.grant!(User.first)        # give the first user the Owner role
 Then manage everything at `/current_scope` (full-access subjects only): the
 role grid, org-wide assignments, scoped grants.
 
-## Usage
+## Documentation
 
-### Checking permissions — anywhere
-
-`allowed_to?` is available in controllers and views via `Context`, and in any
-PORO or ViewComponent by mixing in `CurrentScope::Permissions`. No
-`current_user` threading, ever:
-
-```ruby
-allowed_to?(:approve, report)         # key derived from the record → reports#approve
-allowed_to?(:create, Report)          # class form for collection actions
-allowed_to?("admin/reports#approve")  # explicit key when you need it
-```
-
-Key derivation agrees with the gate **when the current controller's path ends
-in the record's route key**: inside `Admin::ReportsController` (path
-`admin/reports`, route key `reports`), `allowed_to?(:approve, report)` resolves
-to `admin/reports#approve` — exactly what the Guard enforces there — and a
-cross-resource check from a projects view resolves to `reports#approve`.
-
-> **Residual foot-gun — namespaced/custom-named controllers.** When a
-> controller's path segment differs from the record's route key (e.g. a
-> `DashboardController` that renders `Report`s: path `dashboard`, route key
-> `reports`), the short-form `allowed_to?(:show, report)` derives
-> `reports#show` while the Guard enforces `dashboard#show` — so a link may show
-> that then 403s (or hide that would work). The Guard stays authoritative, so
-> this is a display bug, not a bypass. **In such controllers, prefer the
-> explicit full key** — `allowed_to?("dashboard#show")` — which removes the
-> ambiguity. The short form is only guaranteed to match the gate when path
-> segment == route key.
-
-```ruby
-class ApproveButtonComponent < ViewComponent::Base
-  include CurrentScope::Permissions
-
-  def render? = !report.approved? && allowed_to?(:approve, report)
-end
-```
-
-### Scoping a list (`scope_for`)
-
-`allowed_to?` answers "may I act on **this** record?". `scope_for` answers the
-list-side question — "**which** records may I act on?" — from the *same* roles,
-permissions, and scoped grants the gate reads. Use it for index pages so the
-list and the per-record gate stay one source of truth, never a hand-written
-query that drifts:
-
-```ruby
-# app/controllers/projects_controller.rb
-def index
-  @projects = scope_for(Project).order(created_at: :desc).page(params[:page])
-end
-
-private
-
-# A collection-only controller declares BOTH hooks. current_scope_record = nil
-# is what tells the gate "this action has no record" (a scoped grant can then
-# open it); WITHOUT it the gate assumes nothing and current_scope_model is
-# inert — the grant never opens the gate. current_scope_model then names the
-# TYPE, so the grant opens the record-less gate only for Projects. (A
-# controller with member actions already has current_scope_record; it just
-# adds current_scope_model.)
-def current_scope_record = nil
-def current_scope_model = Project
-```
-
-- **full-access or an org-wide grant** of the key → every record (`Project.all`).
-- **scoped grants** → only the specific records that role was granted on.
-- **no grant** (or no subject) → empty, fail-closed like the gate.
-
-The gate agrees. A collection action like `#index` has no record to name, so it
-asks a record-less question, bound to the type the controller declares
-(`current_scope_model`, above). For a **collection read**
-(`config.collection_read_actions`, `index` by default) the gate asks
-`scope_for` itself: the subject reaches the list exactly when it would show
-them records — scoped `full_access` grants included — and the two halves
-cannot disagree, because they are one query. Any other record-less key needs a
-scoped grant whose role ticks it explicitly; `scope_for` then narrows the list
-to the records they were actually granted. A grant on a `Report` never opens a
-`Projects` gate — the type is what binds them. **No org-wide grant is needed to
-reach a scoped index** (and reaching for one would defeat the purpose — an
-org-wide grant means "see everything", so `scope_for` would return
-`Project.all`). The same holds for the class form,
-`allowed_to?(:index, Project)`, which carries the type as its argument, so a
-view helper and the gate never disagree. A controller that does **not** declare
-`current_scope_model` fails the record-less gate closed for scoped grants (the
-denial carries `X-Current-Scope-Reason: model_undeclared`, and a dev nudge
-names the one-line fix). A declaration that returns something other than a
-concrete ActiveRecord class — `"Report"` for `Report`, say — also fails
-closed, labelled `model_invalid`, with a nudge naming the value the hook
-returned.
-
-> **The gate admits; `scope_for` narrows. Both halves are yours to wire.** The
-> gate only decides *whether* `#index` runs — it cannot filter a list you build
-> with `Project.all`. If a scoped role ticks a collection key and that action
-> doesn't call `scope_for`, the subject reaches the action and sees everything
-> it queries. Gate a collection action for scoped roles only alongside a
-> `scope_for` list.
-
-Off the read list the rule is uniform: a scoped role that ticks `create` or a
-bulk key opens *those* collection gates too, exactly as an org-wide grant of
-the same key already does. Tick a collection key on a scoped role only when
-you mean it — there is no record filter on `create`.
-
-A scoped **`full_access`** role follows the read/write split: it opens the
-listed reads of its record's type — the gate derives from which records the
-grant actually holds, so "Owner of Project #7" reaches the project index and
-sees Project #7 — and nothing else record-less. A full_access role satisfies
-*every* key, so honoring it in a record-less check that answers with a bare
-boolean would make one scoped grant a pass on every `#create` in the app; the
-read gates are safe precisely because their answer comes from the list. Two
-consequences worth knowing: a grant whose record is absent from the model's
-default scope — destroyed, soft-deleted, or scoped out by a tenant
-`default_scope` — opens nothing (an empty list is a 403, not an empty page),
-and the declared
-`current_scope_model` is **trusted like the record hook** — a wrong
-declaration opens that controller's listed reads to full_access holders of the
-declared type, so review the declaration the way you review
-`current_scope_record`.
-
-It returns a chainable `ActiveRecord::Relation`, so `.where`/`.order`/`.page`
-compose normally. `permission:` defaults to the model's `index` key and accepts
-a bare action or a full key (`scope_for(Report, permission: :approve)`).
-
-Every record `scope_for(Project)` returns passes `allowed_to?(:index, project)`,
-and every record it omits fails it — by construction, not by convention. It
-resolves against the **effective** subject, so acting-as changes what lists
-show, and it is **flat**: a scoped grant lists that record only (parent/child
-cascade is deferred). SoD does not apply — it vetoes record-targeted *actions*,
-not list membership.
-
-### Record-level decisions
-
-Member actions that need scoped roles or the SoD veto declare a hook. It runs
-*before* your own `before_action`s (the gate comes first), so it loads the
-record itself; memoize so your `set_*` callback reuses it. Key off
-`request.path_parameters`, never `params` — a `?id=` query string must not
-smuggle a record into collection actions:
-
-```ruby
-class ReportsController < ApplicationController
-  private
-
-  def set_report = @report ||= Report.find(params.expect(:id))
-
-  def current_scope_record
-    set_report if request.path_parameters[:id]
-  end
-end
-```
-
-The same hook has two foot-guns worth knowing before you ship: returning **nil**
-on an SoD member action silently skips the veto
-([§ Separation of duties](#separation-of-duties-opt-in)), and loading with
-`Model.find` means an unauthorized caller sees **403** for an existing id vs
-**404** for a missing one — a record-existence oracle
-([security checklist mitigation](docs/SECURITY-CHECKLIST.md#2-403-vs-404-leaks-which-records-exist)).
-
-### Scopeable models
-
-`include CurrentScope::Scopeable` in a host model to list it in the scoped-role
-picker's type dropdown, and give records a nice label with `current_scope_label`:
-
-```ruby
-class Project < ApplicationRecord
-  include CurrentScope::Scopeable
-
-  def current_scope_label = "#{name} (##{id})"   # optional; defaults to "Project ##{id}"
-end
-```
-
-This is **browse-only sugar** — it does *not* gate anything. The raw-GlobalID
-path still accepts **any** model as a scoped-role target whether or not it opts
-in; the mixin only decides what shows up in the dropdown. `current_scope_label`
-is a plain instance method, so your own definition always wins over the default.
-
-### Separation of duties (opt-in)
-
-Separation of duties is **off by default** — the engine's baseline is scoped
-RBAC, and many apps want nothing to do with four-eyes. Turn it on by listing the
-actions an initiator can never perform on their own record, and declare who
-initiated each record:
-
-```ruby
-# config/initializers/current_scope.rb
-config.sod_actions = %w[approve]   # empty by default → no SoD
-```
-
-```ruby
-class Report < ApplicationRecord
-  def current_scope_initiator = requested_by
-end
-```
-
-Once enabled, the veto fails **loud, not open**: if an SoD action reaches a
-record whose class doesn't define the hook, the resolver raises a
-`ConfigurationError` instead of silently permitting. Return `nil` from the hook
-to exempt a record type, or trim `config.sod_actions`.
-
-> **An SoD-gated member action MUST return its record from `current_scope_record`.**
-> This is the one asymmetry to know: a *present* record with a *missing*
-> initiator hook raises (above), but if `current_scope_record` returns **nil**
-> on an SoD member action, the veto is *skipped* — an org-wide-granted subject
-> (including the initiator) passes. `nil` is legitimate for collection actions,
-> so the resolver can't tell the two apart and won't raise. Returning the record
-> on member actions is therefore the load-bearing control. **In development and
-> test the gate logs a nudge** whenever an allowed SoD action was gated with no
-> record (`config.warn_on_nil_sod_record`, on by default there, off in
-> production) — see [Dev diagnostics](#dev-diagnostics).
-
-With `sod_actions` empty (the default), the veto step is a no-op and the
-resolver is simply `full_access → org-wide role → scoped role → deny`. No model
-needs `current_scope_initiator` — the `ConfigurationError` above only fires for
-actions that are *in* `sod_actions`. `sod_identity` is moot; roles, scoped
-roles, `scope_for`, audit, and impersonation are unaffected.
-
-By default (`config.sod_identity = :either`) the veto weighs **two**
-identities: the effective subject *and* the real actor behind an impersonated
-session. So an admin who initiated a report can't slip past the veto by
-approving it while impersonating someone else — impersonation can never approve
-your own record. Set `:subject` to weigh only the effective subject. The two
-are identical when nobody is impersonating (`actor == subject`), so v0.1 hosts
-see no change.
-
-### Break-glass override (`allow_sod_bypass`)
-
-Sometimes a workflow needs a *conditional* self-approval — e.g. the owner or a
-trusted admin may approve their own request. You can express that in your app
-(a second `approve_own` permission plus a controller branch), but that pattern
-has one forgettable, security-critical step: **recording the override in the
-audit ledger**. Break-glass promotes the pattern into the engine so the audit
-**cannot** be forgotten.
-
-Be honest about what this is: it converts separation of duties from a
-*structural guarantee* into an **audited policy override**. It's called
-break-glass, not SoD. Its legitimacy rests on three things, all enforced: it is
-**off by default**, **privilege-gated**, and **always audited**.
-
-```ruby
-config.allow_sod_bypass     = true          # default false → the veto is absolute
-config.sod_bypass_permission = "bypass_sod" # grantable, editable in the role grid
-```
-
-With it on, the veto is lifted for a record **only when all three hold**,
-re-checked live at decision time:
-
-1. `config.allow_sod_bypass` is on, **and**
-2. the record's host hook `current_scope_sod_bypassed?` returns true, **and**
-3. the record's **initiator** holds the bypass permission (`bypass_sod`).
-
-**Where the cell is.** Break-glass is the one permission that isn't an action
-you can route, so the role grid gets it injected rather than derived: with
-`allow_sod_bypass` on, every controller that routes an action listed in
-`sod_actions` grows a `bypass_sod` column, blank elsewhere. Tick it on the row
-for that resource and the role can break the glass — the supported way to build
-a "trusted admin may self-approve" role **without** `full_access`, which would
-grant it implicitly along with everything else and defeat the point of a scoped
-trusted approver. Turn `allow_sod_bypass` off and the column disappears and the
-key stops being grantable: grantability follows the catalog, and the catalog
-follows the flag.
-
-Holding `bypass_sod` on a flagged, self-initiated record **is** the
-authorization for the SoD action — the bypass grants the action, it doesn't
-merely lift the veto and then re-check for a separate `approve` grant.
-`bypass_sod` must **not** appear in `sod_actions` (it isn't an SoD action); the
-engine raises **at boot** if it does (and again at decision time as defense in
-depth), so a re-entrant pairing fails the deploy instead of 500ing on the first
-real break-glass attempt.
-
-When a bypass lifts the veto, the engine records exactly one append-only
-`sod.bypassed` audit event at the enforcement gate (never on advisory
-`allowed_to?` checks) and sets `X-Current-Scope-Reason: sod_bypassed` on the
-response. A missing hook means "this type never breaks glass" — fail-closed, no
-error. Under impersonation (`sod_identity = :either`) the bypass checks the
-**initiator's** privilege, so impersonation can't launder it.
-
-**Host recipe** (the engine ships the mechanism; these stay yours, exactly as
-impersonation ships plumbing + recipe, not endpoints):
-
-```ruby
-# 1. A per-record flag column: add_column :invoices, :sod_bypass_requested, :boolean, default: false
-# 2. The hook, reading that column:
-class Invoice < ApplicationRecord
-  def current_scope_initiator     = requested_by
-  def current_scope_sod_bypassed? = sod_bypass_requested?
-end
-# 3. Gate WHO may set the flag on the same bypass_sod permission (a controller
-#    branch or a policy) — the engine deliberately does not own that decision.
-```
-
-Prefer true SoD for genuine fraud control (contracts, pay runs) where no
-override should exist. Reach for break-glass only when a *conditional,
-privileged, audited* self-approval is the real requirement. Unlike
-`allow_mutations_while_impersonating`, there is no production env-gate — the
-feature is per-record, privilege-scoped, and audited-by-construction, so
-production is its intended home.
-
-### Configuration
-
-Everything lives in `config/initializers/current_scope.rb` (created by the
-install generator): the `user_method`, the `subject_class`, `sod_actions`,
-`excluded_controllers` (keep infrastructure out of the grid), and
-`parent_controller` (what the management UI inherits from). The three
-impersonation knobs — `actor_method`, `allow_mutations_while_impersonating`,
-and `sod_identity` — are grouped in their own block and covered under
-[Impersonation](#impersonation-act-as); they layer in that order, so
-`sod_identity` is only observable once a mutation is allowed past the read-only
-gate.
-
-**`config.enforcement`** — `:enforce` (default) | `:report`. What the gate does
-with a denial. `:enforce` means a denial is a 403; it is the only production
-posture. `:report` logs a *missing grant* and lets the request through instead,
-recording it as `access.would_deny` — the adoption ramp for retrofitting an
-existing app, covered in [Retrofitting an app that already has
-users](#retrofitting-an-app-that-already-has-users). It relaxes nothing else: the
-SoD veto and the management console are untouched by it. An unknown value raises
-at boot rather than being silently treated as one of the two — believing you're
-enforcing when you aren't is the worst way to be wrong about this setting.
-
-**`config.collection_read_actions`** — `["index"]` by default. The record-less
-actions whose gate derives its answer from the scoped list, so a scoped
-`full_access` grant opens exactly the collections that would show its records
-(gate and list agree by construction — the #65 fix). Set `[]` to restore the
-pre-#65 behavior, where explicit ticks still open type-bound record-less gates
-but scoped `full_access` opens none (the whole record-less family is new in
-this release — no released version had either posture). A full key
-(`"reports#index"`) raises at assignment (the list is action-segment matched,
-app-wide), and a canonical mutating name (`create`/`update`/`destroy`) logs a
-loud warning.
-**List-narrowing reads only:** never name a mutating action here — that would
-hand a scoped full_access holder the action on every record of the type off a
-grant on one record. Custom read actions (`export`, `search`) are the intended
-additions. Members normalize to strings on assignment, so `%i[index]` works.
-
-The **audit ledger** is controlled by `config.audit` — tri-state
-`false | true | :strict`. `false` records nothing; `true` (the default) records
-authorization changes made through the **management UI**, the **impersonation
-boundary**, and **`CurrentScope.grant!`** (including the rake task and seeds
-bootstrap path — self-attributed, `details.source = "bootstrap"`), and degrades
-gracefully (skip + warn once) if the events table isn't migrated; `:strict`
-**raises** on a missing events table so an audit-mandatory app never commits an
-unaudited change (the mutation rolls back). Direct `RoleAssignment` /
-`ScopedRoleAssignment` writes and the test helpers (`grant_role!` /
-`grant_scoped_role!`) are **not** recorded — use `grant!` for bootstrap
-paths that need a ledger trail. UI events stamp `request_id` from
-`ActionDispatch::RequestId` via the Context hook.
-
-> **Note on the `!`:** despite the bang, `Event.record!` only guarantees
-> raise-on-failure under `:strict` (and for a missing actor). In the default
-> `true` mode a missing events table is a warn-once no-op, and under `false`
-> every call silently returns `nil` — so a mutation-wrapping transaction does
-> **not** roll back on a failed audit write unless you opt into `:strict`.
-
-### Dev diagnostics
-
-Three things this engine gets wrong **silently**, and silently in the bad
-direction: what went wrong looks exactly like what going right looks like. Each
-one now says so in the log.
-
-| Flag | Fires when | Why you'd never notice otherwise |
-|---|---|---|
-| `warn_on_nil_sod_record` | An SoD action was **allowed** while the gate had no record, so the veto was skipped | A veto that never ran looks identical to a veto that passed |
-| `warn_on_inert_scoped_grant` | Denied `no_grant`, the subject **holds a scoped grant** that would satisfy it, and the controller declares no `current_scope_record` | The 403 is byte-identical to "never granted", so you go audit the grants — which are fine — instead of the controller, which isn't |
-| `warn_on_cross_controller_derivation` | Short-form `allowed_to?(:show, record)` derived a **different key** than the gate on this controller enforces | If you meant this controller's gate, the view and the gate disagree — and the symptom (a link that 403s, or a hidden one that works) shows up nowhere near the cause |
-
-All three are **log-only** — no decision, exception, header, or audit row changes
-because of them, in any environment — and all three default **on in development
-and test, off in production**:
-
-```ruby
-config.warn_on_nil_sod_record = Rails.env.local?              # the defaults;
-config.warn_on_inert_scoped_grant = Rails.env.local?          # override either
-config.warn_on_cross_controller_derivation = Rails.env.local? # way
-```
-
-The last one is a **hint, not an accusation**, and says so: asking about a
-different resource than the current controller handles derives a different key
-too, and that is correct and common. Nothing at the call site distinguishes the
-two, so it warns **once per site** and names both readings. The first two are
-unambiguous.
-
-The default is the point. These catch mistakes you make while *writing* the app,
-which is exactly when dev/test is where you are — and a diagnostic that ships off
-is one the people who need it never find. `warn_on_nil_sod_record` has worked
-since v0.1 and defaulted off, which is how it helped nobody.
-
-A fourth setting is a **mode, not a flag** — the opt-in `GatingTripwire`
-already speaks; the question is how:
-
-```ruby
-config.gating_tripwire = Rails.env.local? ? :raise : :warn   # the default
-```
-
-`:raise` (dev/test) makes CI go red on an ungated action; `:warn` (elsewhere)
-logs each ungated `controller#action` once, so a production host that included
-the mixin gets an inventory instead of 500s. There is no `:off` — not including
-the mixin is off.
-
-Three loud-by-design behaviors. A controller excluded from the catalog can't be
-granted, so gating it is a misconfiguration — Guard raises and tells you to
-either stop excluding it or `skip_before_action :current_scope_check!`. A
-`user_method` that the controller doesn't respond to raises instead of
-silently turning every request into a 403. And **granting a permission key that
-isn't in the catalog makes the role invalid**, naming the key:
-
-```ruby
-role.permission_keys = %w[reports#aprove]   # typo
-role.save   # => false
-role.errors[:permission_keys]
-# => ["not in the permission catalog: reports#aprove — check for typos, or use
-#     assign_permission_keys(..., scrub: true) to drop stale keys deliberately"]
-```
-
-A grant that vanishes is the worst kind of bug this library can have: the role
-looks right in the UI, the save succeeds, and the denial arrives later as an
-unexplained 403. So a key the app doesn't route is an error, not a shrug — that
-covers typos, programmatic grants of unrouted keys, and the never-routed
-break-glass permission (which stays ungrantable; see #21).
-
-There is one legitimate reason to drop a key silently: a controller was removed,
-so a role still holds keys that no longer route. That is named at the call site
-rather than assumed:
-
-```ruby
-role.assign_permission_keys(keys, scrub: true)   # stale keys dropped, no error
-role.save!
-role.permission_keys_change[:rejected]           # => ["gone#index"] — log it if you want
-```
-
-The diff is computed on save, so read it after. `scrub:` takes literal `true`
-and nothing else — a stray truthy value must not be able to turn the strict
-path off.
-
-`scrub:` is deliberately not reachable from `permission_keys=`, so form params
-and strong-params flows always take the strict path. The role editor is
-unaffected: its grid is built from routed actions, so everything it submits is
-already in the catalog, and a stale key is cleaned up transparently on save.
-
-### Impersonation (act-as)
-
-`Current` distinguishes the **effective subject** (`current_scope_user` — who
-the request acts as) from the **real actor** (`current_scope_actor` — who is
-actually behind it). They're the same person until an admin impersonates
-someone; then permission checks read the subject while attribution reads the
-actor. `current_scope_actor` falls back to the subject, so it's never nil and
-you never write a nil branch. `impersonating?` is the read-only-state signal
-for views (show a banner, disable destructive controls).
-
-Point `actor_method` at the host method that returns the real actor:
-
-```ruby
-# config/initializers/current_scope.rb
-config.actor_method = :true_user
-```
-
-> **`actor_method` is security-critical, not an optional extra.** The entire
-> act-as security model keys off `actor != user`. If you impersonate but leave
-> `actor_method` unset, `actor` falls back to `user`, so it all *looks* fine in
-> manual testing while being silently inert: the read-only-while-impersonating
-> `MutationGuard` never engages, the SoD `:either` veto can't fire, and every
-> audit row is attributed to the impersonated subject instead of the real
-> admin. The permission path can't detect this, but the boundary API can:
-> calling `CurrentScope.record_impersonation_started!` with `actor_method` unset
-> **raises** — that call is your declaration that impersonation is live, so a
-> missing `actor_method` there is unambiguously a misconfiguration. (A host that
-> impersonates without ever calling the boundary API gets no runtime signal —
-> so set `actor_method` whenever you set up act-as.)
-
-The host owns the act-as switch — CurrentScope only reads it. The recipe:
-
-```ruby
-class ApplicationController < ActionController::Base
-  include CurrentScope::Context
-  include CurrentScope::Guard
-
-  private
-
-  # The real actor: always the signed-in account, never the impersonated one.
-  def true_user = current_user
-
-  # The effective subject: re-resolved from the session EVERY request, never
-  # cached in Current (which is per-request and must not be trusted across
-  # requests). Falls back to the real actor when not impersonating.
-  def current_scope_user
-    return true_user unless session[:impersonated_subject_id]
-
-    User.find_by(id: session[:impersonated_subject_id]) || true_user
-  end
-end
-```
-
-Wire `current_scope_user` in as your `user_method`, or override the reader as
-above. Start and stop act-as through state-changing verbs (CSRF-protected),
-and authorize **who** may impersonate — this is a privilege escalation surface:
-
-```ruby
-class ImpersonationsController < ApplicationController
-  def create   # POST /impersonation
-    head :forbidden and return unless allowed_to?(:create, controller: "impersonations")
-    session[:impersonated_subject_id] = params.expect(:subject_id)
-    redirect_to root_path
-  end
-
-  def destroy  # DELETE /impersonation
-    session.delete(:impersonated_subject_id)
-    redirect_to root_path
-  end
-end
-```
-
-Clear the impersonation on **both** sign-in and sign-out
-(`session.delete(:impersonated_subject_id)`) so an act-as session can never
-outlive the login that started it or bleed into the next one.
-
-#### Impersonated sessions are read-only by default
-
-An impersonated session can look, but not touch: with `actor_method` set,
-every non-`GET`/`HEAD` request is denied while a real actor stands behind a
-different subject — **including the engine's own management UI** (editing roles
-and grants is the highest-value surface to keep read-only). This gate is a
-*separate* `before_action` from the permission check, so it survives
-`skip_before_action :current_scope_check!` and runs *first*. Flip
-`config.allow_mutations_while_impersonating = true` to allow writes (at which
-point the SoD `:either` veto above becomes the observable line of defense).
-
-**Production refuses this flag by default.** Letting a real actor write as the
-subject they impersonate is a privilege-escalation and audit-integrity risk, so
-`config.allow_mutations_while_impersonating = true` **raises at boot in
-production** unless you set `CURRENT_SCOPE_ALLOW_PROD_IMPERSONATION_MUTATIONS` in
-the environment. An unsafe deploy fails loudly instead of running silently
-insecure. `development`, `test`, and `staging` are unaffected — the flag works
-there with no env var. Assigning `false` (the default) never raises anywhere.
-The escape hatch exists for cases like a live public showcase whose whole point
-is demonstrating impersonated actions; a real production app should almost
-always leave impersonated sessions read-only.
-
-Because it runs first, the endpoints that **end** an impersonation must opt
-out — your stop-impersonation, sign-out, **and** sign-in actions — or you could
-never turn act-as off (and sign-in could never clear it):
-
-```ruby
-class SessionsController < ApplicationController
-  skip_before_action :current_scope_mutation_guard!   # sign-in/out ends act-as
-end
-
-class ImpersonationsController < ApplicationController
-  skip_before_action :current_scope_mutation_guard!, only: :destroy   # stop act-as
-end
-```
-
-Denials raise `CurrentScope::AccessDenied` with stable accessors for branded
-403 pages and error trackers (prefer `#permission` over parsing `#message`):
-
-| Accessor | Meaning |
+| Guide | What it covers |
 |---|---|
-| `#permission` | denied `controller#action` key — the stable API. Defaults to the positional message when `permission:` is omitted |
-| `#message` | `StandardError` message. Gem raise sites pass the key as both message and permission; they can diverge if a caller passes an explicit `permission:` keyword |
-| `#reason` | machine-readable cause (also on `X-Current-Scope-Reason`) |
-| `#record` | the record under decision when the gate had one; **nil** on collection / impersonation-gate denials |
-| `#subject` | effective subject when known |
+| [Concepts & glossary](docs/guides/concepts-and-glossary.md) | Decision order + core vocabulary — **read first** |
+| [Checking permissions](docs/guides/checking-permissions.md) | `allowed_to?`, `scope_for`, record-level, scopeable models |
+| [Separation of duties & break-glass](docs/guides/separation-of-duties-and-break-glass.md) | SoD veto, `allow_sod_bypass` |
+| [Impersonation](docs/guides/impersonation.md) | Act-as, mutation guard, denial shape |
+| [Configuration reference](docs/guides/configuration-reference.md) | Initializer knobs, enforcement, audit, diagnostics |
+| [Testing](docs/guides/testing.md) | `TestHelpers`, grants in request specs |
+| [Adopting in an existing app](docs/guides/adopting-in-an-existing-app.md) | Report-mode retrofit ladder |
+| [Security & production checklist](docs/SECURITY-CHECKLIST.md) | Pre-ship tick list |
+| [Docs site](https://davidteren.github.io/current_scope/) | Published quickstart, SoD story, AI-agent prompts |
 
-| Reason | Means |
-|---|---|
-| `sod_veto` | the record's initiator can't perform a separation-of-duties action on it |
-| `no_grant` | nothing granted the permission — the default deny |
-| `model_undeclared` | a record-less deny that a scoped grant would have opened, had the controller declared `current_scope_model` |
-| `model_invalid` | `current_scope_model` was declared but returned something other than a concrete ActiveRecord class |
-| `impersonation_gate` | a mutation while impersonating, which is read-only |
-| `not_full_access` | the management UI, which only full-access subjects enter |
-
-Guard and MutationGuard denials route through one method
-(`current_scope_denied`), so by default a refusal on a Guard-wrapped controller
-gets its reason header (and the denial log line below). "By default" matters: a
-host `rescue_from CurrentScope::AccessDenied` registered after the include
-**replaces** that method, and with it the header and the log line (see the last
-example in this section). A **host** denial is a
-bodyless `403` by default — the reason header is the signal, and the gem won't
-render into your app's response contract. The engine's own management UI is the
-exception: it overrides the body seam to render a short page saying a full-access
-role is required, because the person reading that one is an admin looking at a
-browser.
-
-The engine also registers `CurrentScope::AccessDenied → :forbidden` in
-`ActionDispatch` rescue responses (only if the host has not already mapped that
-class), so a denial that **escapes** Guard (PORO re-raise, Context-only
-controller) is still HTTP **403**, not 500. That path is status-only — no
-`X-Current-Scope-Reason` header and no denial log line unless something in your
-stack writes them. On the Guard path, rescued denials log one INFO line
-mirroring the header:
-
-```
-[CurrentScope] denied reports#approve (no_grant) → 403
-```
-
-INFO is intentional so production captures denials without raising the log
-level; high-volume anonymous probes will grow the log — filter
-`[CurrentScope] denied` if that is noise for your operators.
-
-**Branded host 403 — prefer the body seam** so the header and log stay intact:
-
-```ruby
-# Keeps X-Current-Scope-Reason + the denial log; only the body changes.
-def current_scope_render_denied(reason)
-  render "errors/forbidden", status: :forbidden, locals: { reason: reason }
-end
-```
-
-Need `#permission` / `#record` / `#subject` on the page? A host `rescue_from`
-registered **after** `include CurrentScope::Guard` wins and **replaces**
-`current_scope_denied` — set the header yourself (or you lose it), and note
-this example restores only the header; write your own log line if you need
-the denial telemetry:
-
-```ruby
-rescue_from CurrentScope::AccessDenied do |e|
-  response.headers["X-Current-Scope-Reason"] = e.reason.to_s if e.reason
-  render "errors/forbidden",
-         status: :forbidden,
-         locals: { permission: e.permission, reason: e.reason, record: e.record }
-end
-```
-
-**View/gate disagreement is by design.** `allowed_to?` is HTTP-ignorant: it
-still returns `true` for a permission the subject genuinely holds, even though
-the mutation gate will `403` the resulting non-GET click while impersonating.
-Drive read-only affordances off `impersonating?` — render a banner, disable or
-hide destructive controls — rather than expecting `allowed_to?` to hide them.
-
-> The audit boundary events for act-as (recording who impersonated whom, and
-> when it stopped) land in a later unit — this section is the resolution
-> plumbing only.
-
-`Current` is request-scoped and does **not** flow into Active Job. When a job
-needs the subject or actor, pass GlobalIDs (or ids) as arguments and re-resolve
-inside `perform` — never read `CurrentScope::Current` from a job.
-
-### Testing your app
-
-```ruby
-require "current_scope/test_helpers"
-
-class ApproveButtonComponentTest < ViewComponent::TestCase
-  include CurrentScope::TestHelpers
-
-  test "renders for a reviewer" do
-    with_current_user(users(:reviewer)) do
-      render_inline ApproveButtonComponent.new(report: reports(:pending))
-      assert_selector "button", text: "Approve"
-    end
-  end
-end
-```
-
-`with_current_user` is for in-process unit/view/component checks. To test your
-own controllers **behind the gate** in a request or system spec, seed real
-grants with `grant_role!` / `grant_scoped_role!` — they persist assignment rows
-that survive the request cycle (which `with_current_user` cannot, since
-`Context` re-resolves the subject on every real request). They seed grants only;
-your app still signs the subject in through its own auth:
-
-```ruby
-class ReportsAccessTest < ActionDispatch::IntegrationTest
-  include CurrentScope::TestHelpers
-
-  test "a reviewer can list but not destroy" do
-    reviewer = users(:reviewer)
-    grant_role!(reviewer, role: roles(:member))              # org-wide grant
-    grant_scoped_role!(reviewer, role: roles(:viewer), record: reports(:q3))  # one record
-
-    sign_in reviewer            # your app's own auth
-    get reports_path
-    assert_response :success
-  end
-end
-```
-
-`CurrentAttributes` resets around every request, job, and test — the ambient
-subject cannot leak between executions.
+Root [CONCEPTS.md](CONCEPTS.md) is the longer glossary narrative for maintainers.
 
 ## The showcase app
 
@@ -937,6 +313,36 @@ cd current_scope_showcase
 bin/setup          # bundle (resolves the engine at ../current_scope), seed the DB
 bin/rails server   # http://localhost:3000
 ```
+
+## Limitations
+
+**SSR-first.** CurrentScope is for server-rendered Rails (controllers, views,
+ViewComponents, Turbo). Separate JS front-ends ([#96](https://github.com/davidteren/current_scope/issues/96))
+and Inertia ([#97](https://github.com/davidteren/current_scope/issues/97)) have
+no first-class client contract yet. API controllers that include Guard still
+authorize on the server.
+
+**Model limits** — deliberate shape of the v1 data model, not gaps:
+
+| Limit | What it means |
+|---|---|
+| **Flat scoped grants** | A scoped role on a parent record does **not** cascade to children. Hierarchy is deferred — see [docs/ROADMAP.md](docs/ROADMAP.md) §2.3. |
+| **One org-wide role** | At most one org-wide role per subject (DB-enforced). |
+| **Scoped role = full bundle** | Scoping reuses the whole role; there is no per-record capability subset. |
+
+**Intentional residuals** (not forgotten bugs) — full write-up on the
+[Limitations page](https://davidteren.github.io/current_scope/limitations.html)
+(source: [docs/site/limitations.md](docs/site/limitations.md)):
+
+| Residual | What it means for you |
+|---|---|
+| A5 SoD + nil record | Member SoD actions must return the record or the veto is skipped |
+| A2 `actor_method` | Set it when you impersonate; no false auto-detect |
+| A6 audit degrade | Use `audit: :strict` when the ledger is mandatory |
+| Trusted `current_scope_model` | Wrong type can open wrong listed reads — review like the record hook |
+| Report × model_undeclared / model_invalid | Hard 403 (reason header + dev nudge) only when a scoped grant would otherwise satisfy; plain no_grant still report-mode observes |
+| GatingTripwire opt-in | Never-included Guard stays open; include Guard + optional tripwire |
+| No parent/child cascade | Grant on Project does not open its Tasks (#108) |
 
 ## Design notes
 

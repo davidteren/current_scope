@@ -363,6 +363,6 @@ The three-valued interaction (KTD-5), by cell:
 - `roles_granting`'s safety rule, verbatim: `resolver.rb:158-159`. Why `roles_ticking` exists: `resolver.rb:164-186`.
 - The #49 P0 precedent: `docs/plans/2026-07-15-001-fix-scoped-collection-gate-plan.md:55` (KTD-6), and KTD-3 there — test record-less-ness as a closed positive set, never a negation.
 - Hook idiom: `guard.rb:16-31`, `:277-287`. Why declaration-not-route: `guard.rb:277-282`.
-- STI/`base_class`: `resolver.rb:79-88`; `test/scope_for_sti_test.rb`; readiness A7 (`docs/READINESS-AUDIT.md:146-150`).
+- STI/`base_class`: `resolver.rb:79-88`; `test/scope_for_sti_test.rb`; readiness A7 (`docs/internal/READINESS-AUDIT.md:146-150`).
 - Diagnostics contract to mirror: `guard.rb:320-345` (#41), and the `#37`/`#41` ordering at `guard.rb:108-118`.
 - Probe (this plan, Problem Frame): run against `main` @ `2b7f50b`; both consequences reproduced.

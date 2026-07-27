@@ -596,7 +596,9 @@ allowed_to?<span class="tk-p">(</span><span class="tk-str">"admin/reports#approv
 
 <span class="tk-com"># opt out only where authz doesn't apply (sign-in, webhooks)</span>
 <span class="tk-key">class</span> <span class="tk-const">SessionsController</span> <span class="tk-p">&lt;</span> <span class="tk-const">ApplicationController</span>
-  skip_before_action <span class="tk-sym">:current_scope_check!</span>
+  current_scope_skip_gate!(reason: <span class="tk-str">"sign-in must run without a grant"</span>)
+  <span class="tk-com"># impersonation: also clear the mutation guard on sign-in/out</span>
+  skip_before_action <span class="tk-sym">:current_scope_mutation_guard!</span>
 <span class="tk-key">end</span></pre>
     </div>
   </div>
@@ -628,7 +630,11 @@ bin/rails current_scope:install:migrations &amp;&amp; bin/rails db:migrate</pre>
     <div class="qstep"><div class="num"></div><div class="qc">
       <div class="qt"><b>Skip the gate where authorization doesn’t apply</b> — sign-in first, or nobody can log in. A skipped controller is unprotected: bring your own auth there.</div>
 <pre><span class="tk-key">class</span> <span class="tk-const">SessionsController</span> &lt; <span class="tk-const">ApplicationController</span>
-  skip_before_action <span class="tk-sym">:current_scope_check!</span>
+  <span class="tk-com"># Prefer the declared form so the role grid shows why the gate is off:</span>
+  current_scope_skip_gate!(reason: <span class="tk-str">"sign-in must run without a grant"</span>)
+  <span class="tk-com"># bare skip_before_action :current_scope_check! still works (unexplained badge).</span>
+  <span class="tk-com"># If you use impersonation, also skip the mutation guard on sign-in/out:</span>
+  skip_before_action <span class="tk-sym">:current_scope_mutation_guard!</span>
 <span class="tk-key">end</span></pre>
     </div></div>
     <div class="qstep"><div class="num"></div><div class="qc">
@@ -636,12 +642,13 @@ bin/rails current_scope:install:migrations &amp;&amp; bin/rails db:migrate</pre>
 <pre class="plain">bin/rails current_scope:grant SUBJECT_ID=1</pre>
     </div></div>
     <div class="qstep"><div class="num"></div><div class="qc">
-      <div class="qt">Manage everything at <code>/current_scope</code> — the role grid, org-wide assignments, scoped grants.</div>
+      <div class="qt">Manage everything at <code>/current_scope</code> — the role grid, org-wide assignments, scoped grants. Guard denials are 403 with <code>X-Current-Scope-Reason</code>.</div>
     </div></div>
   </div>
   <p class="reveal" style="margin-top:26px;color:var(--dim);font-size:14px">
-    Adding this to an app that already has users? Run <a href="quickstart.html#4-existing-app-run-report-mode-first">report mode</a> before enforcing —
+    Greenfield path above. Existing apps with users: run <a href="quickstart.html#4-existing-app-run-report-mode-first">report mode</a> <b>before</b> bootstrap/enforce —
     and read the <a href="security-checklist.html">security &amp; production checklist</a> before you ship.
+    Full numbered guide: <a href="quickstart.html">quickstart.html</a>.
   </p>
 </div></section>
 
@@ -688,6 +695,7 @@ bin/rails current_scope:install:migrations &amp;&amp; bin/rails db:migrate</pre>
       <li><a href="separation-of-duties.html">Separation of duties</a></li>
       <li><a href="security-checklist.html">Security checklist</a></li>
       <li><a href="configuration.html">Configuration</a></li>
+      <li><a href="limitations.html">Limitations</a></li>
       <li><a href="ai-agents.html">For AI agents</a></li>
       <li><a href="llms.txt">llms.txt</a></li>
       <li><a href="https://github.com/davidteren/current_scope_showcase" rel="noopener">Showcase app</a></li>

@@ -87,6 +87,12 @@ class GatingReflectionTest < ActiveSupport::TestCase
     assert_not @reflection.ungated?("orphaned")
   end
 
+  # #43: same shape, different question — is the class missing?
+  test "missing_controller? is true for a routed path with no controller class" do
+    assert @reflection.missing_controller?("orphaned")
+    assert_not @reflection.missing_controller?("reports")
+  end
+
   # BrokenConstantController's own body raises NameError at load. That is a
   # broken controller, not a missing one — Rails' controller_class_for already
   # distinguishes the two by missing_name, and this unit must not flatten them

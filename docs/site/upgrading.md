@@ -22,8 +22,14 @@ on upgrade with no error and no warning**. If you want SoD, say so:
 config.sod_actions = %w[approve]
 ```
 
-Tracked as [#27](https://github.com/davidteren/current_scope/issues/27)
-(a dedicated UPGRADING.md is planned).
+**Checklist if you might be affected**
+
+1. Do any models define `current_scope_initiator`?
+2. Is `config.sod_actions` still empty (or unset) after upgrade?
+3. If both yes: re-set `sod_actions` and re-run an initiator-cannot-approve test.
+
+Root-repo copy: [UPGRADING.md](https://github.com/davidteren/current_scope/blob/main/UPGRADING.md)
+([#27](https://github.com/davidteren/current_scope/issues/27)).
 
 ## 0.2 → 0.3: management-UI route rename (loud — programmatic callers 404)
 
@@ -39,3 +45,23 @@ path or helper callers. Details in the
 - Declared Rails floor is `>= 8.1` (the management UI relies on
   `params.expect` array semantics introduced in 8.1).
 - `config.audit` became tri-state `false | true | :strict`.
+
+## 0.3 → 0.4
+
+Solid-solution Phase 1 (loud misconfig + audit honesty), denial ergonomics,
+security checklist, docs site, migration toolkit. No intended host API break.
+Boot **raises** if `sod_bypass_permission` is listed in `sod_actions` (#40).
+
+## Silent SoD and advisory footguns (any version)
+
+These are not version flips; they are permanent posture facts:
+
+- **Collection actions in `sod_actions` are no-ops** for the veto (no record →
+  no initiator). Do not list `approve_all`-style bulk actions and expect
+  four-eyes. Filter per record with `allowed_to?(:approve, record)` inside the
+  bulk action. Details:
+  [Separation of duties](separation-of-duties.html#collection-actions-in-sod_actions-are-no-ops).
+- **`full_access` holds every permission**, including break-glass
+  `sod_bypass_permission` when break-glass is on. Prefer a narrow bypass role.
+- **`allowed_to?` never consults the catalog.** Typo keys are silent false;
+  a raw stale grant row can be silent true. The Guard is authoritative.

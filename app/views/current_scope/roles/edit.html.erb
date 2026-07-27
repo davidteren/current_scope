@@ -76,16 +76,50 @@
              rescue NameError
                :uninspectable
              end %>
+          <%# #76: a declared skip carries its reason. Only ungated rows can be
+              declared, so this is the one constantize an ungated row needs. %>
+          <% skip_reason = begin
+               grid.declared_skip_reason(controller)
+             rescue NameError
+               nil
+             end if ungated == true %>
+          <%# #43: only badge missing controllers on ROUTE-backed rows.
+              Break-glass can inject a synthetic "reports" row that no path
+              routes (admin-only SoD); that row is not a 500 risk and must not
+              wear the phantom badge. Also skip the constantize when the row
+              is already proven ungated (qodo). %>
           <% uninspectable = ungated == :uninspectable
-             ungated = ungated == true %>
-          <% badge_id = "cs_ungated_#{controller.parameterize(separator: '_')}" if ungated %>
+             ungated = ungated == true
+             declared = ungated && skip_reason.present?
+             has_routed = grid.actions_for(controller).any? { |a|
+               CurrentScope.catalog.routed?("#{controller}##{a}")
+             }
+             missing = if uninspectable || ungated || !has_routed
+                         false
+                       else
+                         begin
+                           grid.missing_controller?(controller)
+                         rescue NameError
+                           false
+                         end
+                       end %>
+          <%# Mutually exclusive by construction: `declared` implies ungated,
+              `missing` is only computed when NOT ungated. Order states from
+              most specific to least. %>
+          <% badge_id = if declared
+                          "cs_declared_skip_#{controller.parameterize(separator: '_')}"
+                        elsif ungated
+                          "cs_ungated_#{controller.parameterize(separator: '_')}"
+                        elsif missing
+                          "cs_missing_controller_#{controller.parameterize(separator: '_')}"
+                        end %>
           <tr>
             <th scope="row">
               <%# Per-row master: enable/disable every action in this controller at once.
                   Progressive enhancement — with JS off, each cell checkbox still works. %>
               <label class="cs-row-all" title="Enable all <%= controller %> permissions">
                 <input type="checkbox" data-cs-row-all
-                       aria-label="Enable all <%= controller %> permissions"<% if ungated %>
+                       aria-label="Enable all <%= controller %> permissions"<% if badge_id %>
                        aria-describedby="<%= badge_id %>"<% end %>>
                 <span><%= controller %></span>
               </label>
@@ -98,7 +132,26 @@
                   gate state is unknown. Fix the load error, then reload.
                 </span>
               <% end %>
-              <% if ungated %>
+              <% if missing %>
+                <%# #43: route exists, controller class does not. Granting still
+                    works (catalog is a route mirror); hitting the path is a
+                    MissingController 500. Flag, do not remove. %>
+                <span class="cs-missing-controller-badge" id="<%= badge_id %>">
+                  <strong>no controller</strong> — this route has no controller
+                  class (stale or typo route). Granting is allowed, but a request
+                  will 500 with <code>ActionDispatch::MissingController</code>.
+                  Remove the route or add the controller.
+                </span>
+              <% end %>
+              <% if declared %>
+                <%# #76 — intentional skip with a reason. Not alarming: a reviewer
+                    can read why the gate is off. Bare skips keep the warning. %>
+                <span class="cs-declared-skip-badge" id="<%= badge_id %>">
+                  <strong>skipped</strong> — <%= skip_reason %>.
+                  Ticking its routed actions still grants nothing until the gate
+                  runs; this declaration only records intent.
+                </span>
+              <% elsif ungated %>
                 <%# Advisory only — marking is not disabling (KTD-8/R5): nothing
                     here is grayed or disabled. Same remediation vocabulary as
                     GatingTripwire's message. The claim is scoped to ROUTED
@@ -114,7 +167,9 @@
                   gate; ticking its routed actions grants nothing until it does.
                   If it inherited a skip, re-assert
                   <code>before_action :current_scope_check!</code>; if it never had
-                  the gate, include CurrentScope::Guard.
+                  the gate, include CurrentScope::Guard. Prefer
+                  <code>current_scope_skip_gate!(reason: "…")</code> for deliberate
+                  skips so the reason shows here.
                 </span>
               <% end %>
             </th>

@@ -25,6 +25,7 @@ Key facts agents get wrong without reading:
 - [Security & production checklist](https://davidteren.github.io/current_scope/security-checklist.html): excluded controllers, 403/404 record oracle, pre-ship list
 - [Configuration](https://davidteren.github.io/current_scope/configuration.html): every knob with defaults
 - [Upgrading](https://davidteren.github.io/current_scope/upgrading.html): posture-changing upgrades
+- [Limitations](https://davidteren.github.io/current_scope/limitations.html): SSR-first stance + intentional residuals
 - [For AI agents](https://davidteren.github.io/current_scope/ai-agents.html): copy-paste integration prompts
 
 ## Source (canonical, deepest detail)

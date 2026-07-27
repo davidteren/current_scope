@@ -26,22 +26,19 @@ controllers, views, and ViewComponents.
   on CurrentAttributes vs dry-effects vs explicit passing, Action Policy ideas
 - Usage: [README.md](README.md)
 - **What's next / gaps / proposals: [docs/ROADMAP.md](docs/ROADMAP.md)**
-- Readiness audit: [docs/READINESS-AUDIT.md](docs/READINESS-AUDIT.md) — **complete
+- Readiness audit: [docs/internal/READINESS-AUDIT.md](docs/internal/READINESS-AUDIT.md) — **complete
   (A1–A13, PR #5); historical, not a worklist.** Kept for its reasoning and for the
   "Verified holding — DO NOT regress" invariants. Current work is in the
   [issues](https://github.com/davidteren/current_scope/issues) + `docs/plans/`
 - Showcase app: **[davidteren/current_scope_showcase](https://github.com/davidteren/current_scope_showcase)**
   (own repo; consumes the published gem — no longer vendored)
 
-Version **`0.4.0` cut 2026-07-23** (tag + GitHub Release with the merge of
-the release PR): solid-solution Phase 1, denial ergonomics + security
+Version **`0.4.0` cut 2026-07-23** (tag + GitHub Release) and **published on
+RubyGems 2026-07-24**: solid-solution Phase 1, denial ergonomics + security
 checklist (#39/#32), the docs site (#98/#33), and the full migration
-toolkit (#45). **RubyGems publish pending the human `gem push` step**
-(WebAuthn MFA) — `0.3.1` (2026-07-19) stays the latest PUBLISHED version
-until that runs. The showcase's `~> 0.3.0` pin does NOT
-admit 0.4.0 (pessimistic constraint: `>= 0.3.0, < 0.4`) — bump its Gemfile
-pin to `~> 0.4.0` after publish, then `bundle update current_scope`.
-Not production-ready; see the README banner.
+toolkit (#45). Showcase hosts still on `~> 0.3.0` should bump to `~> 0.4.0`
+and `bundle update current_scope`. Not production-ready; see the README
+banner and tracking issue **#116**.
 
 **0.3.0 shipped 2026-07-19.** The release gate (dte-deep-reviewer +
 dte-test-auditor + /security-review; records in `docs/reviews/`) passed with
@@ -79,10 +76,9 @@ report-only), PR #107 merged.
 PR #109).
 **Landed 2026-07-23:** #45 phase 3 (PR #110 merged `e8d3826`) — **#45 is
 CLOSED**; the migrate skill covers Pundit, CanCanCan, and Action Policy.
-**Release cut:** `v0.4.0` (tag + GitHub Release on the release PR's merge;
-RubyGems publish pending the human `gem push`) — solid-solution Phase 1,
-#32/#39, the docs site (#98/#33), and the full migration toolkit (#45).
-See CHANGELOG.
+**Release cut:** `v0.4.0` (tag + GitHub Release; **published on RubyGems
+2026-07-24**) — solid-solution Phase 1, #32/#39, the docs site (#98/#33),
+and the full migration toolkit (#45). See CHANGELOG.
 
 ## Done (all committed on `main`)
 
@@ -152,7 +148,7 @@ See CHANGELOG.
 
 ### Readiness remediation — A1–A13 (branch `feat/readiness-p0`, PR #5)
 
-Worked `docs/READINESS-AUDIT.md` end to end (plan:
+Worked `docs/internal/READINESS-AUDIT.md` end to end (plan:
 `docs/plans/2026-07-12-002-feat-engine-readiness-remediation-plan.md`), P0→P4,
 all test-first:
 
@@ -609,10 +605,11 @@ quickstart, production checklist) + tests T1–T4.
    Folds in #33 (site source/drift), feeds #34 (README→guides) and #32
    (security checklist page).
 5. **Solid-solution worklist Phase 1+** — follow
-   [08-solid-solution-worklist.md](docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md).
-   S6–S9 + O1 shipped (#40/#30/#74/#73/#90); O6/#39 + S13/D9/#32 in flight on
-   `feat/security-checklist-and-denial-ergonomics`. Still open: O3–O5, remaining
-   E5 gaps, T2/T5, and remaining Phase 2 docs (D9 checklist done with #32).
+   [08-solid-solution-worklist.md](docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md)
+   and tracking issue **#116**. S6–S9 + O1 + O6 + S13/D9 shipped; **E5 (#112)
+   and T2 (#113) Done** on the current solid-v1 branch. Still open for Phase 1
+   close-out: O3–O5 (#76/#43/#44). Optional: T5. Phase 2 docs remain
+   (#25/#34/#27/#29/#36/#115).
 6. ~~**PR #69 review → implement plan 030**~~ — **done** (PR #79, #62 closed).
 7. **#45 — UNPARKED by the 0.3.0 release.** — delivery split already settled: parity
    harness ships in the gem, analyzer ships as a skill. First-PR scope answered
@@ -625,14 +622,12 @@ quickstart, production checklist) + tests T1–T4.
    2026-07-16 comment) and plan 027 is amended (PR #78).
 8. Then the docs cluster: **#30, #28, #27, #24** (plan 006 is "relocate and
    complete", not "write"); also **#34**, **#25**, **#33**, **#32**.
-9. ~~**Publish to RubyGems**~~ — **recurring; `v0.4.0` cut 2026-07-23,
-   publish pending the human `gem push`** (latest published: `v0.3.1`;
-   `v0.2.0` was the first published version). The release recipe,
-   proven three times now: bump `lib/current_scope/version.rb` + CHANGELOG
-   heading, run the release gate, tag + **GitHub Release** (a pushed tag alone
-   does not update the Releases page — 0.3.1 stalled here), `gem push`
-   (**requires interactive WebAuthn MFA — a human step, an agent can only
-   build**), then `bundle update current_scope` in the showcase.
+9. ~~**Publish to RubyGems**~~ — **`v0.4.0` is live on RubyGems (2026-07-24).**
+   Recurring recipe for the next cut: bump `lib/current_scope/version.rb` +
+   CHANGELOG heading, run the release gate, tag + **GitHub Release** (a pushed
+   tag alone does not update the Releases page), `gem push` (**requires
+   interactive WebAuthn MFA — a human step**), then `bundle update
+   current_scope` in the showcase.
 10. **#96 / #97** — API abilities payload + Inertia shared props (after core
     solid bar, or parallel if capacity).
 11. **README screenshots** — the UI is clean and verified; capture the dashboard,

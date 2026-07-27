@@ -150,6 +150,60 @@ class RoleGridTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # #43 — route with no controller class is still catalogued (route mirror)
+  # but the grid flags it so admins do not grant a key that only 500s.
+  test "a routed path with no controller class carries the no-controller badge" do
+    get current_scope.edit_role_url(@role), headers: as(@owner)
+    assert_response :success
+
+    assert_select "th[scope=row] .cs-missing-controller-badge#cs_missing_controller_orphaned", count: 1
+    assert_select "#cs_missing_controller_orphaned", text: /no controller/i
+    assert_select "#cs_missing_controller_orphaned", text: /stale or typo route/i
+    assert_select "#cs_missing_controller_orphaned", text: /MissingController/
+    assert_select "input[data-cs-row-all][aria-describedby=cs_missing_controller_orphaned]", count: 1
+    # Real controllers must not get the badge.
+    assert_select "#cs_missing_controller_reports", count: 0
+    # Still grantable — catalog is a route mirror; cells stay interactive.
+    assert_select "input#perm_orphaned_read[type=checkbox]", count: 1
+  end
+
+  # Synthetic break-glass-only rows (ops/claims injects claims#bypass_sod with
+  # no top-level claims routes) must not be badged as MissingController 500s.
+  test "a synthetic bypass-only controller row is not badged as missing" do
+    original_bypass = CurrentScope.config.allow_sod_bypass
+    original_sod = CurrentScope.config.sod_actions
+    CurrentScope.config.allow_sod_bypass = true
+    CurrentScope.config.sod_actions = %w[approve]
+    CurrentScope.reset_catalog!
+
+    synthetic = CurrentScope.catalog.grouped.select { |controller, actions|
+      actions.any? && actions.all? { |a| !CurrentScope.catalog.routed?("#{controller}##{a}") }
+    }
+    assert synthetic.key?("claims"),
+           "fixture: ops/claims + break-glass must inject a claims-only synthetic row, got #{synthetic.keys.inspect}"
+
+    get current_scope.edit_role_url(@role), headers: as(@owner)
+    assert_response :success
+    assert_select "#cs_missing_controller_claims", { count: 0 },
+                  "injection-only claims row must not wear the 500 badge"
+  ensure
+    CurrentScope.config.allow_sod_bypass = original_bypass
+    CurrentScope.config.sod_actions = original_sod
+    CurrentScope.reset_catalog!
+  end
+
+  # #76 — declared skip shows intent, not the unexplained warning.
+  test "a declared skip_gate reason renders the skipped badge instead of gate-not-run" do
+    get current_scope.edit_role_url(@role), headers: as(@owner)
+    assert_response :success
+
+    assert_select "th[scope=row] .cs-declared-skip-badge#cs_declared_skip_declared_skip", count: 1
+    assert_select "#cs_declared_skip_declared_skip", text: /skipped/i
+    assert_select "#cs_declared_skip_declared_skip", text: /public health-check endpoint/
+    assert_select "#cs_ungated_declared_skip", count: 0
+    assert_select "input[data-cs-row-all][aria-describedby=cs_declared_skip_declared_skip]", count: 1
+  end
+
   test "the badge names the fact, scopes its claim to routed actions, and speaks the tripwire's remediation" do
     get current_scope.edit_role_url(@role), headers: as(@owner)
 

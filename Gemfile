@@ -18,6 +18,8 @@ gem "rubocop-rails-omakase", require: false
 group :test do
   gem "capybara"
   gem "cuprite"
+  # Coverage signal in CI (T6 / #114). Opt out with COVERAGE=0.
+  gem "simplecov", require: false
 end
 
 # Start debugger with binding.b [https://github.com/ruby/debug]

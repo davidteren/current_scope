@@ -15,7 +15,7 @@ RubyGems; not production-ready.
 | `STATUS.md` | what's done, per-session log, verification brief |
 | `docs/ROADMAP.md` | gaps + proposals (what's next) |
 | `resources/DESIGN.md` | design concept; §3.7 resolver order, §9 open questions |
-| `docs/READINESS-AUDIT.md` | historical audit — its "DO NOT regress" invariants still bind |
+| `docs/internal/READINESS-AUDIT.md` | historical audit — its "DO NOT regress" invariants still bind |
 | `docs/plans/`, GitHub issues | current work |
 
 **Drift rule:** if code and docs drift, update the docs in the same commit.

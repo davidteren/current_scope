@@ -59,9 +59,9 @@ Items below are what still stand between “good engine” and that bar.
 |---|---|---|---|---|
 | **O1** | Orphaned scoped grants: label / cleanup / reap | Inert since #65 but look like real access | **#90** | **Done** — PR #104 (label + revoke; Subjects no longer preloads :resource) |
 | **O2** | Role delete confirm with holder counts + danger button | Cascade wipes all holders; confirm understates | R UX | **Done** — `main` / PR #100 / 0.3.1 |
-| **O3** | `current_scope_skip_gate!(reason:)` + grid shows declared vs bare skip | Unexplained skips must stay alarming | **#76** | Open |
-| **O4** | Flag catalog rows whose controller does not resolve | Phantom grants → 500 on hit | **#43** | Open |
-| **O5** | Error polish: double org-grant message; excluded regex named | Cryptic failures send people to source | **#44** | Open |
+| **O3** | `current_scope_skip_gate!(reason:)` + grid shows declared vs bare skip | Unexplained skips must stay alarming | **#76** | **Done** — declared-skip badge; bare skips stay marked |
+| **O4** | Flag catalog rows whose controller does not resolve | Phantom grants → 500 on hit | **#43** | **Done** — "no controller" badge on route-backed rows |
+| **O5** | Error polish: double org-grant message; excluded regex named | Cryptic failures send people to source | **#44** | **Done** — both messages name cause + fix |
 | **O6** | Denial ergonomics: `AccessDenied#permission`, rescue_responses, reason in logs | Operable denials for hosts + APIs | **#39** | **Done** — `feat/security-checklist-and-denial-ergonomics` |
 | **O7** | Empty states: Roles / Events / Subjects | First-run silent blank tables | R UX | Open |
 | **O8** | Access-denied page: return link to host | Dead-end 403 | R UX | Open |
@@ -92,7 +92,7 @@ Items below are what still stand between “good engine” and that bar.
 | **E2** | Reword Guard “resolver never reads Current” | Stale purity claim vs org-role memo | R · gate | **Done** — `main` / PR #100 / 0.3.1 |
 | **E3** | Dual-hook macro e.g. `current_scope_collection Report` | Pair record+model; cut adoption footgun | R · C | Open (product) |
 | **E4** | Whole-controller / wildcard grants in model API | Grid JS sugar; seeds silently drop | **#42** | Open |
-| **E5** | Mis-declared `current_scope_model` diagnostic completeness | Fail closed with clear label/nudge | R gate finding 2 | Partially shipped (`:model_invalid` on main); verify remaining gaps |
+| **E5** | Mis-declared `current_scope_model` diagnostic completeness | Fail closed with clear label/nudge | R gate finding 2 · **#112** | **Done** — `:model_invalid` + shape pins (String/relation/abstract/wrong-AR/STI); worklist verify closed |
 | **E6** | Optional: request-scoped scoped-grant memo / preload | Finish ROADMAP 2.4; cut N×EXISTS | R · C · ROADMAP 2.4 | Open (measure first) |
 | **E7** | Optional: instrument `current_scope.decide` for log filtering | DX without caching allows | C | Open |
 | **E8** | Guard diagnostics extract (when next nudge lands) | Guard accretion only | R architecture | Defer |
@@ -104,11 +104,11 @@ Items below are what still stand between “good engine” and that bar.
 | ID | Item | Why | Source | Status |
 |---|---|---|---|---|
 | **T1** | Pin symbol `sod_actions` still enforces (with S1) | Fraud-control regression | T · R | **Done** — `main` / PR #100 / 0.3.1 |
-| **T2** | Integration GET: empty-list deny after destroy | Unit-only today | T · gate | Open |
+| **T2** | Integration GET: empty-list deny after destroy | Unit-only today | T · gate · **#113** | **Done** — request-cycle pin in `collection_read_gate_test` |
 | **T3** | Non-admin POST role/grant mutations → 403 | Self-escalation regression | T · R | **Done** — `main` / PR #100 / 0.3.1 |
 | **T4** | Org-role uniqueness regression test | Schema-only today | T | **Done** — `main` / PR #100 / 0.3.1 |
 | **T5** | Reason-trio includes `:sod_bypassed` | Order pin for break-glass (happy path already covered) | T | Open (optional order pin) |
-| **T6** | SimpleCov (± mutant) in CI | Coverage number missing | T · R | Open |
+| **T6** | SimpleCov (± mutant) in CI | Coverage number missing | T · R · **#114** | **Done** — SimpleCov + CI artifact (no minimum yet) |
 | **T7** | System tests prefer stable ids over text | AGENTS.md | T · U6 | Open |
 
 ---
@@ -117,8 +117,8 @@ Items below are what still stand between “good engine” and that bar.
 
 | ID | Item | Why | Source | Status |
 |---|---|---|---|---|
-| **D1** | Restructure README → guides + glossary + internal docs | 500+ line overload | **#34** · C | Open (plan exists) |
-| **D2** | One canonical quickstart (README / site / generator) | Three incomplete paths; can brick sign-in | **#25** · **#33** | Open |
+| **D1** | Restructure README → guides + glossary + internal docs | 500+ line overload | **#34** · C | **Done** — thin README + docs/guides/* + CONTRIBUTING + docs/internal/READINESS |
+| **D2** | One canonical quickstart (README / site / generator) | Three incomplete paths; can brick sign-in | **#25** · **#33** | **Done** — README / site / landing mirror / generator share one path + the declared skip |
 | **D3** | Docs site source on `main` + accurate claims | Drift + overclaims | **#33** · **#98** | Open |
 | **D4** | Denial behavior end-to-end guide | Blank 403s, JSON, rescue shadowing | **#24** | Open |
 | **D5** | Complete config reference both ways | Initializer ↔ README gaps | **#28** | Open |
@@ -126,7 +126,7 @@ Items below are what still stand between “good engine” and that bar.
 | **D7** | UPGRADING.md (0.1→0.2 and 0.2→0.3) | Silent posture changes | **#27** · R release notes | Open |
 | **D8** | Guide: performance & caching (request memo + host Solid Cache recipe) | Log noise + “how do we cache?” unanswered | C · new | Open — **file or fold into #34** |
 | **D9** | Guide: security & production (may merge with S13/#32) | Operable production | **#32** | **Done** — same as S13 (`docs/SECURITY-CHECKLIST.md`) |
-| **D10** | Document intentional residuals (A5, A2, A6, trusted model, report×model_undeclared) | Solid means honest limits | R residuals | Partial in README; centralize |
+| **D10** | Document intentional residuals (A5, A2, A6, trusted model, report×model_undeclared) | Solid means honest limits | R residuals · **#115** | **Done** — README Limitations + docs/site/limitations.md |
 | **D11** | Docs site: SoD anti-fraud story, real docs surface, agentic-coding prompts | Public site still thin; agents need copy-paste playbooks | **#98** | Open |
 
 ---
@@ -172,7 +172,7 @@ Shipped: **PR #100** → `main`, gem **0.3.1** (closes **#91**).
 **S6–S9, S7, O1, O3–O6, E5** · tests **T2, T5**  
 Suggested order: **#40** → **#30** → **#74** → **#73** → **#90**, then **#39 / #43 / #44 / #76**.  
 **Landed:** **S6/#40**, **S7/#30**, **S8/#74** (PR #102) · **S9/#73** (PR #103) · **O1/#90** (PR #104) · **O6/#39** (+ **S13/D9/#32** checklist).  
-Still open: O3–O5, E5, T2/T5.  
+Still open: O3–O5, T5. **E5 / T2 done** (#112 / #113).  
 *Outcome:* diagnostics tell the truth; ledger and console match reality.
 
 ### Phase 2 — Docs solid (adoptable)
@@ -203,18 +203,18 @@ Minimum for banner consideration: **D2** (one quickstart) + **D9/S13** (producti
 | Track | Rows | Done | Still open-ish |
 |---|---|---|---|
 | 1 Security / config | 14 | 10 | 4 (incl. S14 document-only) |
-| 2 Operator honesty | 10 | 3 | 7 |
+| 2 Operator honesty | 10 | 6 | 4 |
 | 3 A11y / UI polish | 7 | 2 | 5 |
-| 4 Engine API | 8 | 2 | 6 (incl. Partial/Defer) |
-| 5 Tests | 7 | 3 | 4 |
-| 6 Docs | 11 | 1 | 10 (incl. Partial) |
+| 4 Engine API | 8 | 3 | 5 (incl. Defer / optional) |
+| 5 Tests | 7 | 5 | 2 |
+| 6 Docs | 11 | 4 | 7 (incl. Partial) |
 | 7 Adoption / FE | 6 | 1 | 5 (incl. Ongoing) |
-| **Total** | **63** | **22** | **~41** |
+| **Total** | **63** | **31** | **~32** |
 | Explicit non-goals | 8 residuals | — | document, don’t loosen |
 
-**Open GitHub issues (27):** all mapped above — docs/adoption tracks cover **#24–#46** (minus closed), **#73/#74/#76/#90/#96/#97/#98**.  
-**Closed since original pack:** **#91** (Phase 0). Historical refs **#49/#65** stay as rationale only.  
-**Review-only (no issue yet):** O7, O8, U3–U7, E3, E5–E8, T2, T5–T7, D8, D10, A6, S14 (document-only).
+**Open GitHub issues:** prefer GitHub + #116 for live status (worklist counts lag).  
+**Closed since original pack:** **#91** (Phase 0), **#112** (E5), **#113** (T2), **#43** (O4), **#44** (O5), **#76** (O3), **#114** (T6), plus Phase 1 stack / #32/#39/#45/#98 as STATUS records.  
+**Review-only (no issue yet):** O7, O8, U3–U7, E3, E6–E8, T5, T7, D8, D10, A6, S14 (document-only). E5/T2/T6 have issues and are Done.
 
 ---
 
@@ -224,7 +224,7 @@ Call the product **solid** (still versioned carefully) when:
 
 1. **Phase 0** (done) **+ Phase 1** complete (no silent fraud-control / lockout / undiagnosed report gaps).  
 2. **Phase 2** complete enough that a new host has one quickstart + production checklist + structured guides (D1, D2, D9 minimum).  
-3. Core suite has **T1–T4** green (**T1/T3/T4** done; **T2** still open).  
+3. Core suite has **T1–T4** green (**all four done** — T2 closed by #113).  
 4. #96/#97 may still be open — but Limitations state SSR-first honestly until they ship.
 
 ---

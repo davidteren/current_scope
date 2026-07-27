@@ -265,6 +265,7 @@ GEM
       rubocop-rails (>= 2.30)
     ruby-progressbar (1.13.0)
     securerandom (0.4.1)
+    simplecov (1.0.2)
     sqlite3 (2.9.5-aarch64-linux-gnu)
     sqlite3 (2.9.5-aarch64-linux-musl)
     sqlite3 (2.9.5-arm-linux-gnu)
@@ -309,6 +310,7 @@ DEPENDENCIES
   propshaft
   puma
   rubocop-rails-omakase
+  simplecov
   sqlite3
 
 BUNDLED WITH

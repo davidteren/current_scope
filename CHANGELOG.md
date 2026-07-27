@@ -6,6 +6,44 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Grid badge for routes with no controller class (#43).** A stale or typo
+  route still appears in the catalog (route mirror), but the role editor now
+  marks the row "no controller" so operators do not grant a key that only
+  500s with `ActionDispatch::MissingController`. Granting stays allowed;
+  remove the route or add the controller.
+- **SimpleCov coverage signal in CI (#114).** Suite runs under SimpleCov
+  (engine `app/` + `lib/` only); HTML report uploaded as a CI artifact.
+  No hard minimum yet — baseline from green runs first.
+
+### Changed
+- **Clearer double org-grant error (#44).** A second org-wide `RoleAssignment`
+  for the same subject no longer raises the cryptic "Subject has already been
+  taken". The validation message names the role already held and points at
+  `CurrentScope.grant!` (replace) or scoped roles (additive access).
+- **Catalog-miss `ConfigurationError` names the real cause (#44).** Gating a
+  permission missing from the catalog now says whether the controller matched
+  `config.excluded_controllers` (and which pattern(s)) or is simply not
+  routed — two different host fixes.
+- **`current_scope_skip_gate!(reason:)` (#76).** Prefer this over bare
+  `skip_before_action :current_scope_check!` for deliberate skips. The role
+  grid shows **skipped — &lt;reason&gt;** instead of the unexplained "gate not
+  run" warning. Bare skips stay alarming.
+- **One canonical quickstart (#25).** README Installation, docs site
+  quickstart, and `current_scope:install` next-steps share the same path:
+  install → concerns → **sessions skip** (or you brick sign-in) →
+  `CurrentScope.grant!` / `current_scope:grant` (not raw
+  `RoleAssignment.create!`) → `/current_scope`. Member starts empty.
+- **Limitations page (#115).** Canonical SSR-first stance and intentional
+  residuals (A5/A2/A6, trusted model hook, report-mode model_invalid, opt-in
+  tripwire, no cascade) in the README and
+  [docs/site/limitations.md](docs/site/limitations.md).
+- **Silent-security documentation (#27, #29, #36).** Root [UPGRADING.md](UPGRADING.md)
+  leads with the 0.1→0.2 `sod_actions` default flip. SoD guide + README document
+  collection actions in `sod_actions` as no-ops (bulk recipe), `full_access`
+  holding break-glass bypass, and that advisory `allowed_to?` never consults
+  the catalog.
+
 ## [0.4.0] - 2026-07-23
 
 Solid-solution Phase 1 plus the adoption surface: denial ergonomics, the

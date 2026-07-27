@@ -1,6 +1,16 @@
 # STATUS
 
-> Last updated: 2026-07-23
+> ## Last session handoff
+>
+> **This is:** CurrentScope, a mountable Rails authorization engine (published
+> gem `current_scope` 0.4.0), being driven to a "solid v1" bar so the README's
+> not-production-ready banner can come down.
+> **Done:** the whole solid-v1 sprint queue merged — Waves 1 and 2 of tracking
+> issue **#116** (PRs #117–#125) plus the consolidated Pages action bump
+> (PR #130). Twelve issues closed; no open PRs.
+> **Next:** #116 Wave 3 — the real-host report-mode bake, then the banner-drop PR.
+
+> Last updated: 2026-07-27
 >
 > **If you are a fresh session asked to audit this work, start at
 > [Verification brief](#verification-brief--for-a-fresh-session).**
@@ -544,6 +554,62 @@ confident, well-argued, wrong.
 
 ---
 
+### This session (2026-07-25 → 2026-07-27) — the solid-v1 sprint, merged
+
+**Suite on `main`: 635 unit + 24 system green, RuboCop clean, SimpleCov
+44.49% line / 31.91% branch.** No open PRs.
+
+The remaining solid-v1 gap was scoped into tracking issue **#116** (four new
+issues filed alongside it: **#112** E5, **#113** T2, **#114** T6, **#115** D10),
+then worked to completion.
+
+- [x] **Wave 1 — Phase 1 close-out.** #117 (E5 `current_scope_model` shape pins
+      + T2 destroyed-record request-cycle pin), #118 (**#44** error messages),
+      #119 (**#43** "no controller" grid badge), #120 (**#76**
+      `current_scope_skip_gate!(reason:)`), #124 (**#114** SimpleCov + CI
+      artifact, no minimum yet).
+- [x] **Wave 2 — docs.** #125 (**#34** README → `docs/guides/*` + glossary +
+      CONTRIBUTING + `docs/internal/`), #122 (**#25** one canonical quickstart),
+      #123 (**#115** Limitations + `docs/site/limitations.md`), #121
+      (**#27/#29/#36** UPGRADING.md + the two silent-SoD notes + the advisory
+      `allowed_to?` note).
+- [x] **PR #130** — the three Pages actions (`configure-pages` v6,
+      `upload-pages-artifact` v5, `deploy-pages` v5) bumped in **one** commit,
+      superseding Dependabot #126/#127/#128. Post-merge `docs-site` run
+      verified green (build + deploy) and the live site returns 200.
+
+**What this run actually taught, stated plainly.**
+
+**A rebase can delete work that no test and no reviewer will catch.** #44's
+README additions landed *inside* the regions #125 deletes, so replaying the
+restructure silently dropped the "four loud-by-design behaviors" wording and
+the double-`grant_role!` raise note. The suite stayed green and every bot was
+happy. **On any rebase of a docs restructure, diff what the base added inside
+the deleted regions before accepting either side.**
+
+**A branch encodes facts that expire.** Two PRs carried decisions that were
+correct when written and wrong by merge time: #122 had dropped
+`current_scope_skip_gate!` as "premature" (#76 had since shipped) and #125
+pointed Limitations at ROADMAP because `limitations.md` did not exist yet
+(#123 ships it). Re-derive a branch's *reasons*, not just its conflicts.
+
+**The worklist lied twice, the same way.** O3/O4/O5 still read `Open` after
+their PRs merged, then D2 did the same. A merging PR does not update its own
+worklist row. Counts are now 31 done / ~32 open — **verify the row, not the
+summary count.**
+
+**`rake test` is not the suite.** The engine Rakefile exposes only `app:test`,
+so a bare `bundle exec rake test` exits **0 having run nothing** — the same
+false-green shape as the `SystemExit` incident below. CI is right: `bin/rails
+db:test:prepare` then `bin/rails test` then `bin/rails test:system`.
+
+**Version-coupled CI actions must move together.** `upload-pages-artifact` v5
+switches to the `upload-artifact` v7 backend that `deploy-pages` consumes, and
+`pages.yml` is inside its own workflow's path filter — so each separate merge
+would deploy from `main` with a mismatched pair, and the deploy job is
+main-gated so **no PR can ever exercise it**. Consolidating was the fix
+(precedent: PR #14).
+
 ## Reviews (2026-07-19)
 
 ### 0.3.0 release gate (diff `102de5d..main`, PRs #88 / #89 / #92)
@@ -584,6 +650,20 @@ quickstart, production checklist) + tests T1–T4.
 
 ## Next
 
+> **The only things between here and dropping the banner** (tracking issue
+> **#116**, Wave 3):
+>
+> 1. **The real-host bake.** One real app runs `config.enforcement = :report`,
+>    reads the gaps back with `rails current_scope:report`, then flips to
+>    `:enforce`. Everything proven so far is the showcase and the six
+>    `current_scope_test_scenarios` apps — the banner should outlive one real
+>    adoption.
+> 2. **The banner-drop PR** — remove the README banner + badge, update this
+>    file, cut the next release.
+>
+> Items 1–12 below are the standing backlog; the numbered history is kept
+> because the struck-through entries record what was decided and why.
+
 1. ~~**0.3.0 — #50 (plan 029) + #65 together.**~~ — **SHIPPED 2026-07-19**
    (PRs #88/#89, release-gate fixes PR #93, CHANGELOG errata PR #95; see the
    shipped note at the top of this file).
@@ -604,12 +684,15 @@ quickstart, production checklist) + tests T1–T4.
    copy-pasteable **agentic-coding prompts** per guide (plus `llms.txt`).
    Folds in #33 (site source/drift), feeds #34 (README→guides) and #32
    (security checklist page).
-5. **Solid-solution worklist Phase 1+** — follow
-   [08-solid-solution-worklist.md](docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md)
-   and tracking issue **#116**. S6–S9 + O1 + O6 + S13/D9 shipped; **E5 (#112)
-   and T2 (#113) Done** on the current solid-v1 branch. Still open for Phase 1
-   close-out: O3–O5 (#76/#43/#44). Optional: T5. Phase 2 docs remain
-   (#25/#34/#27/#29/#36/#115).
+5. ~~**Solid-solution worklist Phase 1 + Phase 2 docs**~~ — **DONE
+   2026-07-27.** Tracking issue **#116** Waves 1–2 all merged: O3–O5
+   (#76/#43/#44), E5 (#112), T2 (#113), T6 (#114), and the Phase 2 docs
+   (#25/#34/#27/#29/#36/#115). Worklist now 31 done / ~32 open — see
+   [08-solid-solution-worklist.md](docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md).
+   Still open and **post-banner** (verified against the tracker 2026-07-27):
+   O7–O10, U3–U7, E3/E4/E6–E8, T5/T7; the docs cluster item 8 enumerates
+   (#28/#24/#31/#35); plus **#38** (O9, permission grid at scale — a console
+   issue, not a docs one, which is why item 8 does not list it).
 6. ~~**PR #69 review → implement plan 030**~~ — **done** (PR #79, #62 closed).
 7. **#45 — UNPARKED by the 0.3.0 release.** — delivery split already settled: parity
    harness ships in the gem, analyzer ships as a skill. First-PR scope answered
@@ -620,8 +703,12 @@ quickstart, production checklist) + tests T1–T4.
    not certify hosts against semantics about to change). Note: the parking +
    delivery split exist only in this file — ~~record them on issue #45~~ (done,
    2026-07-16 comment) and plan 027 is amended (PR #78).
-8. Then the docs cluster: **#30, #28, #27, #24** (plan 006 is "relocate and
-   complete", not "write"); also **#34**, **#25**, **#33**, **#32**.
+8. Remaining docs cluster (verified open 2026-07-27): **#28** (config
+   reference both ways), **#24** (denial behavior end-to-end; plan 006 is
+   "relocate and complete", not "write"), **#31** (theming + views generator),
+   **#35** (testing guide: denials, `actor:`, RSpec). *(Closed, so no longer
+   listed here: #25/#27/#29/#34/#36 in the 2026-07-25 → 27 session block;
+   #32/#33 with v0.4.0 on 2026-07-24; #30 earlier, in the Phase 1 stack.)*
 9. ~~**Publish to RubyGems**~~ — **`v0.4.0` is live on RubyGems (2026-07-24).**
    Recurring recipe for the next cut: bump `lib/current_scope/version.rb` +
    CHANGELOG heading, run the release gate, tag + **GitHub Release** (a pushed

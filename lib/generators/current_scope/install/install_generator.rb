@@ -12,19 +12,36 @@ module CurrentScope
       end
 
       def show_next_steps
+        # Keep this list in lockstep with README Installation and
+        # docs/site/quickstart.md (#25). Three paths must not disagree.
         say <<~NEXT
 
-          CurrentScope installed. Next steps:
+          CurrentScope installed. Next steps (canonical quickstart):
 
             1. bin/rails current_scope:install:migrations && bin/rails db:migrate
             2. Include the concerns in ApplicationController (Context first):
                  include CurrentScope::Context
                  include CurrentScope::Guard
-            3. Seed the baseline roles and give yourself full access, e.g. in db/seeds.rb:
-                 CurrentScope.seed_defaults!
-                 CurrentScope::RoleAssignment.create!(
-                   subject: User.first, role: CurrentScope::Role.find_by!(name: "Owner"))
-            4. Manage roles at /current_scope (full-access subjects only).
+            3. Skip the gate on sign-in / public endpoints (or nobody can log in):
+                 class SessionsController < ApplicationController
+                   # Declared form: the role grid shows WHY the gate is off.
+                   # A bare skip_before_action :current_scope_check! still works,
+                   # but the grid marks it as an unexplained "gate not run".
+                   current_scope_skip_gate!(reason: "sign-in must run without a grant")
+                   # If you use impersonation, also skip the mutation guard on
+                   # sign-in/out or POSTs while acting-as stay blocked:
+                   skip_before_action :current_scope_mutation_guard!
+                 end
+                 Skipping leaves that controller ungated by CurrentScope —
+                 use your own auth there (security checklist:
+                 https://davidteren.github.io/current_scope/).
+            4. Bootstrap the first admin (Member starts with zero permissions):
+                 bin/rails current_scope:grant SUBJECT_ID=YOUR_USER_ID
+                 # or: CurrentScope.grant!(User.first)  # upserts Owner; not RoleAssignment.create!
+            5. Manage roles at /current_scope (full-access subjects only).
+            6. A denial is 403 with X-Current-Scope-Reason (no_grant, sod_veto, …).
+
+            Full guide: https://davidteren.github.io/current_scope/quickstart.html
 
         NEXT
 

@@ -24,7 +24,10 @@ module CurrentScope
                  include CurrentScope::Guard
             3. Skip the gate on sign-in / public endpoints (or nobody can log in):
                  class SessionsController < ApplicationController
-                   skip_before_action :current_scope_check!
+                   # Declared form: the role grid shows WHY the gate is off.
+                   # A bare skip_before_action :current_scope_check! still works,
+                   # but the grid marks it as an unexplained "gate not run".
+                   current_scope_skip_gate!(reason: "sign-in must run without a grant")
                    # If you use impersonation, also skip the mutation guard on
                    # sign-in/out or POSTs while acting-as stay blocked:
                    skip_before_action :current_scope_mutation_guard!

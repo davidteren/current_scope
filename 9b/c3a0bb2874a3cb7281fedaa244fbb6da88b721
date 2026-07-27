@@ -1,7 +1,19 @@
+docs/site/separation-of-duties.md
+  s_d0b7a017cb7816::t_0b8ba4b0ae85b0 190-191
 ---
 {
   "schema_version": "authorship/3.0.0",
   "git_ai_version": "1.6.16",
   "base_commit_sha": "9bc3a0bb2874a3cb7281fedaa244fbb6da88b721",
-  "prompts": {}
+  "prompts": {},
+  "sessions": {
+    "s_d0b7a017cb7816": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bfd2cba0-d9a4-4473-a45d-8ca28e9d5d22",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
 }

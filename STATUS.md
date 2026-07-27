@@ -690,7 +690,8 @@ quickstart, production checklist) + tests T1–T4.
    (#25/#34/#27/#29/#36/#115). Worklist now 31 done / ~32 open — see
    [08-solid-solution-worklist.md](docs/reviews/grok-whole-app-2026-07-19/08-solid-solution-worklist.md).
    Still open and **post-banner**: O7–O10, U3–U7, E3/E4/E6–E8, T5/T7,
-   remaining Phase 2/3 docs (#30/#28/#24/#31/#38).
+   remaining Phase 2/3 docs (#28/#24/#31/#35/#38) — the same open set item 8
+   lists, verified against the tracker 2026-07-27.
 6. ~~**PR #69 review → implement plan 030**~~ — **done** (PR #79, #62 closed).
 7. **#45 — UNPARKED by the 0.3.0 release.** — delivery split already settled: parity
    harness ships in the gem, analyzer ships as a skill. First-PR scope answered
@@ -704,8 +705,9 @@ quickstart, production checklist) + tests T1–T4.
 8. Remaining docs cluster (verified open 2026-07-27): **#28** (config
    reference both ways), **#24** (denial behavior end-to-end; plan 006 is
    "relocate and complete", not "write"), **#31** (theming + views generator),
-   **#35** (testing guide: denials, `actor:`, RSpec). *(#25, #27, #29, #30,
-   #32, #33, #34, #36 all closed — see the 2026-07-25 → 27 session block.)*
+   **#35** (testing guide: denials, `actor:`, RSpec). *(Closed, so no longer
+   listed here: #25/#27/#29/#34/#36 in the 2026-07-25 → 27 session block;
+   #32/#33 with v0.4.0 on 2026-07-24; #30 earlier, in the Phase 1 stack.)*
 9. ~~**Publish to RubyGems**~~ — **`v0.4.0` is live on RubyGems (2026-07-24).**
    Recurring recipe for the next cut: bump `lib/current_scope/version.rb` +
    CHANGELOG heading, run the release gate, tag + **GitHub Release** (a pushed

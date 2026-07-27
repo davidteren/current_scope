@@ -118,7 +118,7 @@ Items below are what still stand between “good engine” and that bar.
 | ID | Item | Why | Source | Status |
 |---|---|---|---|---|
 | **D1** | Restructure README → guides + glossary + internal docs | 500+ line overload | **#34** · C | **Done** — thin README + docs/guides/* + CONTRIBUTING + docs/internal/READINESS |
-| **D2** | One canonical quickstart (README / site / generator) | Three incomplete paths; can brick sign-in | **#25** · **#33** | Open |
+| **D2** | One canonical quickstart (README / site / generator) | Three incomplete paths; can brick sign-in | **#25** · **#33** | **Done** — README / site / landing mirror / generator share one path + the declared skip |
 | **D3** | Docs site source on `main` + accurate claims | Drift + overclaims | **#33** · **#98** | Open |
 | **D4** | Denial behavior end-to-end guide | Blank 403s, JSON, rescue shadowing | **#24** | Open |
 | **D5** | Complete config reference both ways | Initializer ↔ README gaps | **#28** | Open |
@@ -126,7 +126,7 @@ Items below are what still stand between “good engine” and that bar.
 | **D7** | UPGRADING.md (0.1→0.2 and 0.2→0.3) | Silent posture changes | **#27** · R release notes | Open |
 | **D8** | Guide: performance & caching (request memo + host Solid Cache recipe) | Log noise + “how do we cache?” unanswered | C · new | Open — **file or fold into #34** |
 | **D9** | Guide: security & production (may merge with S13/#32) | Operable production | **#32** | **Done** — same as S13 (`docs/SECURITY-CHECKLIST.md`) |
-| **D10** | Document intentional residuals (A5, A2, A6, trusted model, report×model_undeclared) | Solid means honest limits | R residuals | Partial in README; centralize |
+| **D10** | Document intentional residuals (A5, A2, A6, trusted model, report×model_undeclared) | Solid means honest limits | R residuals · **#115** | **Done** — README Limitations + docs/site/limitations.md |
 | **D11** | Docs site: SoD anti-fraud story, real docs surface, agentic-coding prompts | Public site still thin; agents need copy-paste playbooks | **#98** | Open |
 
 ---
@@ -207,9 +207,9 @@ Minimum for banner consideration: **D2** (one quickstart) + **D9/S13** (producti
 | 3 A11y / UI polish | 7 | 2 | 5 |
 | 4 Engine API | 8 | 3 | 5 (incl. Defer / optional) |
 | 5 Tests | 7 | 5 | 2 |
-| 6 Docs | 11 | 2 | 9 (incl. Partial) |
+| 6 Docs | 11 | 4 | 7 (incl. Partial) |
 | 7 Adoption / FE | 6 | 1 | 5 (incl. Ongoing) |
-| **Total** | **63** | **29** | **~34** |
+| **Total** | **63** | **31** | **~32** |
 | Explicit non-goals | 8 residuals | — | document, don’t loosen |
 
 **Open GitHub issues:** prefer GitHub + #116 for live status (worklist counts lag).  

@@ -1,0 +1,19 @@
+.github/workflows/pages.yml
+  s_d0b7a017cb7816::t_f207f36c5ceeb4 68,73,90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "7b4b200fa8d4d150ca652d5ae870f8926ca61a58",
+  "prompts": {},
+  "sessions": {
+    "s_d0b7a017cb7816": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bfd2cba0-d9a4-4473-a45d-8ca28e9d5d22",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

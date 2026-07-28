@@ -5,36 +5,40 @@
 > **This is:** CurrentScope, a mountable Rails authorization engine (published
 > gem `current_scope` 0.4.0), being driven to a "solid v1" bar so the README's
 > not-production-ready banner can come down.
-> **Done:** the whole solid-v1 sprint queue merged — Waves 1 and 2 of tracking
-> issue **#116** (PRs #117–#125) plus the consolidated Pages action bump
-> (PR #130). Twelve issues closed; no open PRs.
-> **Next:** **#108 first** (parent-record resolution for scoped grants). The
-> real-host report-mode bake found it blocks that host's `:enforce` flip, so it
-> comes before the rest of #116 Wave 3 and before the banner-drop PR.
+> **Done:** the whole solid-v1 sprint queue merged (Waves 1 and 2 of tracking
+> issue **#116**, PRs #117–#125, plus the Pages action bump PR #130), and then
+> **#108 parent-record resolution landed on `main` via PR #135** (`ab63832`),
+> which unblocks the real host's `:enforce` flip. Unreleased: `main` is ahead
+> of the published 0.4.0.
+> **Next:** the four follow-ups #135 spawned, then #116 Wave 3 and the
+> banner-drop PR. Take **#134** first (it was sequenced ahead of #135 and did
+> not land) and **#133** next (it breaks report mode's core promise on a live
+> host). Then cut the minor release, because #108 moves authorization semantics.
 
-> ## 🔴 TOP PRIORITY — [#108](https://github.com/davidteren/current_scope/issues/108): a scoped grant on a parent record matches nothing on its children
+> ## Open after #108 (all opened 2026-07-28 from the #135 work)
 >
-> **Why this is now first.** A real host running `:report` cannot flip
-> `:enforce`. A base-tier subject who holds only a scoped grant on the parent
-> record loses an action they perform today, because the gated action must
-> resolve `current_scope_record` to the **child** for SoD to see the initiator.
-> That is a regression at the flip, not a missing feature, and the documented
-> `:report` rollback does not clear it. The adopting app is parked at the
-> boundary until the gem can express the rule.
+> - **[#134](https://github.com/davidteren/current_scope/issues/134)** — flag a
+>   scoped grant that can never match any gated action for its class. The
+>   guardrail that was split out of #135 and sequenced first, but has not
+>   landed. An unresolvable grant must be visible **before** an operator flips
+>   enforcement.
+> - **[#133](https://github.com/davidteren/current_scope/issues/133)** — report
+>   mode does not keep its "nothing changes for users" promise: a missing
+>   `current_scope_initiator` 500s live traffic. This one bites an adopting host
+>   already running `:report`, so it is not just a polish item.
+> - **[#136](https://github.com/davidteren/current_scope/issues/136)** —
+>   parent-chain gate checks cost one query per hop, unmemoized, on the per-row
+>   path. Performance debt introduced by #135.
+> - **[#132](https://github.com/davidteren/current_scope/issues/132)** —
+>   adoption guide: report mode's two other outcomes (SoD blind-spot 403,
+>   `ConfigurationError` 500) are undocumented.
 >
-> **Direction (not yet built):** option 1 from the issue, the model-declared
-> chain (`current_scope_parent :project`). The resolver walks the chain when a
-> direct match fails; SoD keeps reading the declared record, so the initiator
-> stays visible. Static and greppable, and the security decision stays in the
-> gem rather than in a host callback.
->
-> **Ship alongside it:** flag a scoped grant that can never match any gated
-> action for its own class, in the report and in the console. Same spirit as the
-> inert-grant labelling from #90. An unresolvable grant must be visible **before**
-> an operator flips enforcement.
->
-> Full reasoning and the rejected workarounds are in the issue and its
-> 2026-07-28 comment.
+> **Release note owed:** #108 is a **minor** bump, not a patch. A host that
+> declares no chain sees byte-identical decisions, but the semantics moved.
+> See the Unreleased section of CHANGELOG.md for the three caveats a host must
+> read before declaring a chain (scoped `full_access` does not cascade, the SoD
+> veto and break-glass still read the declared record, the declaration is a
+> class macro bounded at 5 hops).
 
 > Last updated: 2026-07-28
 >

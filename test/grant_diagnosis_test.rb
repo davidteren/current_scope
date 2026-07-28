@@ -168,6 +168,16 @@ class GrantDiagnosisTest < ActiveSupport::TestCase
            "to remove a working grant, which is worse than saying nothing"
   end
 
+  # NOT PINNED, deliberately, and both are P1 false-positive fixes:
+  #
+  #   STI subclass-named controller — the dummy routes only documents#*, so the
+  #   shape (grant stored as "Document", key "invoices#show") cannot be built
+  #   without adding a route to the dummy.
+  #   Lazy-loaded models — clearing ParentChain.declared_names does not
+  #   reproduce it, because the classes stay loaded; only a cold dev boot does.
+  #
+  # Stated rather than faked. See the PR body.
+
   # --- KTD-2: the verdict wins ---
 
   test "the advisory stays silent when the verdict already speaks" do

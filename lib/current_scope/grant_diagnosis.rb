@@ -52,7 +52,7 @@ module CurrentScope
         return false if klass.nil? # unresolvable class is #90's inert, not ours
 
         keys = persisted_keys(role)
-        return false if keys.any? { |key| routed?(key) && targets_route_key?(key, klass.model_name.route_key) }
+        return false if keys.any? { |key| routed?(key) && targets_any_route_key?(key, klass) }
 
         # #108: a grant on a PARENT legitimately reaches its children, so stay
         # silent when any declared chain reaches this class.
@@ -111,13 +111,40 @@ module CurrentScope
         grant.respond_to?(:orphaned_resource?) && grant.orphaned_resource?
       end
 
+      # A polymorphic grant stores the STI BASE class, but the routed controller
+      # is named after the SUBCLASS — so a grant on an Invoice (stored
+      # "Document") whose role ticks "invoices#show" WORKS and must not be
+      # flagged. Check every route key in the hierarchy.
+      def targets_any_route_key?(key, klass)
+        ([ klass ] + klass.descendants).any? do |candidate|
+          targets_route_key?(key, candidate.model_name.route_key)
+        end
+      rescue StandardError
+        true # unknown hierarchy: stay silent, never flag on a guess
+      end
+
+      # declared_names fills as model classes LOAD. With eager loading off (the
+      # default in development, where this task is run) the chain lookup is
+      # blind and would flag the very #108 grants it exists to protect — and
+      # order-dependently, since an earlier row could load the model. Force the
+      # load once.
+      def ensure_models_loaded!
+        return if @models_loaded
+
+        @models_loaded = true
+        Rails.application.eager_load! unless Rails.application.config.eager_load
+      rescue StandardError => e
+        log_degrade(e)
+      end
+
       # Walks the same declared reflections the resolver walks, so the two
       # cannot disagree about what a chain reaches.
       def reachable_through_declared_chain?(klass, keys)
+        ensure_models_loaded!
         CurrentScope::ParentChain.declared_names.any? do |name|
           child = name.safe_constantize
           next false if child.nil?
-          next false unless keys.any? { |key| routed?(key) && targets_route_key?(key, child.model_name.route_key) }
+          next false unless keys.any? { |key| routed?(key) && targets_any_route_key?(key, child) }
 
           chain_reaches?(child, klass)
         end

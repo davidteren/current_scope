@@ -96,9 +96,8 @@ namespace :current_scope do
       "    #{who} — role \"#{grant.role&.name}\" on #{grant.resource_type}##{grant.resource_id}"
     end
 
-    # The guard is four-way, not two-way. Leaving it keyed on the ledger alone
-    # would print "nothing recorded" and stop, hiding both static sections in
-    # the one case they matter most. (#134)
+    # Still the ledger guard, but it no longer RETURNS: the two sections below
+    # are derived from the grants table, not the ledger. (#134)
     if rows.empty? && blind_rows.empty?
       # "No output" is indistinguishable from "the task is broken", and the two
       # likeliest causes are both SILENT: report mode never on, or audit off.

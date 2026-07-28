@@ -101,7 +101,7 @@ module CurrentScope
         ]
       end
 
-      return nil unless CurrentScope::GrantDiagnosis.type_untargeted?(scoped_assignment)
+      return nil unless CurrentScope::GrantDiagnosis.type_untargeted?(scoped_assignment, verdict: verdict)
 
       [
         "cs-check-badge", "check hooks",

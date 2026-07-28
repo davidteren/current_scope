@@ -177,7 +177,15 @@ module CurrentScope
       def live?(key, klass)
         return true if CurrentScope.catalog.routed?(key)
 
-        injected?(key) && !klass.nil? && targets_any_route_key?(key, klass)
+        return false unless injected?(key)
+
+        # A FULL sod_bypass_permission ("claims#bypass_sod") is the key the
+        # resolver checks for every record, so it is live on any grant and the
+        # row-local heuristic must not apply. Only a bare action is per-row.
+        configured = CurrentScope.config.sod_bypass_permission.to_s
+        return key == configured if configured.include?("#")
+
+        !klass.nil? && targets_any_route_key?(key, klass)
       end
 
       def injected?(key)

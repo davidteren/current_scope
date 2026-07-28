@@ -90,6 +90,23 @@ class GrantDiagnosisTest < ActiveSupport::TestCase
     end
   end
 
+  test "a FULL sod_bypass_permission is live on any grant, not row-local" do
+    # With a full key configured, the resolver checks that exact key for every
+    # record, so the row-local heuristic must not apply. (cubic, PR #137)
+    prev = CurrentScope.config.sod_bypass_permission
+    CurrentScope.config.sod_bypass_permission = "claims#bypass_sod"
+    with_injected_bypass_key do
+      r = CurrentScope::Role.create!(name: "Full-#{rand(10**9)}")
+      r.role_permissions.create!(permission_key: "claims#bypass_sod")
+
+      assert_nil CurrentScope::GrantDiagnosis.verdict_for(grant(r, @report)),
+                 "a configured full bypass key is live regardless of the grant's type"
+    end
+  ensure
+    CurrentScope.config.sod_bypass_permission = prev
+    CurrentScope.reset_catalog!
+  end
+
   # --- R4: full_access is never flagged, by either rule ---
 
   test "a full_access role is never flagged, even with zero ticked keys" do

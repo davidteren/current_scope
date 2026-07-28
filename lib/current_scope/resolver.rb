@@ -317,6 +317,13 @@ module CurrentScope
       # The veto itself was never the leg that widened; its escape hatch was.
       # Break-glass stays where it has always been: org-wide, full_access, or a
       # grant on THIS record.
+      #
+      # This is airtight only because `record` here is always a concrete record —
+      # it is the record the veto is deciding about — so record_less_scoped_grant?
+      # returns immediately and its always-cascading scope_for path is never
+      # reached. If break-glass is ever routed through a record-less or collection
+      # shape, `cascade: false` will NOT protect it, because the record-less read
+      # arm has no cascade toggle. Re-check this line before doing that. (devin)
       allow?(
         subject: initiator,
         permission: CurrentScope.permission_key(CurrentScope.config.sod_bypass_permission, record: record),

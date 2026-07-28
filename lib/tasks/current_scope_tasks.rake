@@ -74,7 +74,7 @@ namespace :current_scope do
           verdict = CurrentScope::GrantDiagnosis.verdict_for(grant)
           if verdict
             dead_grants << [ grant, verdict ]
-        elsif CurrentScope::GrantDiagnosis.type_untargeted?(grant, verdict: verdict)
+          elsif CurrentScope::GrantDiagnosis.type_untargeted?(grant, verdict: verdict)
             untargeted_grants << grant
           end
         end

@@ -87,6 +87,9 @@
                 <span class="cs-inert-badge"
                       title="This resource no longer resolves; the grant opens nothing on collection reads">inert</span>
               <% end %>
+              <% if (diag = current_scope_grant_diagnosis_badge(sra)) %>
+                <span class="<%= diag[0] %>" title="<%= diag[2] %>"><%= diag[1] %><span class="cs-badge-note"> — <%= diag[2] %></span></span>
+              <% end %>
             </td>
             <td>
               <% revoke_prompt = orphaned ?

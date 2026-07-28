@@ -132,6 +132,21 @@ the data is two `UPDATE`s and must not turn a live request into a 500. If a
 subject is missing access they should have, look for
 "current_scope_parent stopped walking" in the log.
 
+### When a scoped grant reaches nothing
+
+`bin/rails current_scope:report` and the role members view flag two shapes
+before you flip `config.enforcement` to `:enforce`:
+
+- **cannot match** — proven. The role ticks no permissions, or only keys that no
+  route produces. Tick a key, or remove the grant.
+- **check hooks** — advisory. No ticked key names a controller for the grant's
+  record type. The engine cannot prove this (`current_scope_record` runs at
+  request time), so a controller serving that type under another name is a false
+  alarm. Read the hook before removing anything.
+
+Neither is the same as **inert** (a grant whose record was deleted), which has a
+third fix: remove the grant. See [Limitations A16](../site/limitations.md).
+
 The gate agrees. A collection action like `#index` has no record to name, so it
 asks a record-less question, bound to the type the controller declares
 (`current_scope_model`, above). For a **collection read**

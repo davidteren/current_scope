@@ -189,4 +189,59 @@ class ReportTaskTest < ActiveSupport::TestCase
   ensure
     singleton.define_method(:where, original)
   end
+
+  # --- #134: the static sections. These are NOT ledger-driven. ---
+
+  def role_with(*keys, full_access: false)
+    r = CurrentScope::Role.create!(name: "R-#{rand(10**9)}", full_access: full_access)
+    keys.each { |k| r.role_permissions.create!(permission_key: k) }
+    r
+  end
+
+  def scope_grant(subject, role, resource)
+    CurrentScope::ScopedRoleAssignment.create!(subject: subject, role: role, resource: resource)
+  end
+
+  test "a grant that can never match is reported with ZERO ledger rows" do
+    # The pin for the four-way empty guard. The ledger is deliberately empty:
+    # a grant that cannot match is most likely to exist BEFORE report mode was
+    # ever exercised, and the old two-way guard printed "No would-be denials
+    # recorded" and stopped — hiding this section in exactly that case.
+    report = Report.create!(title: "Q3", requested_by: @bob)
+    scope_grant(@alice, role_with, report)
+
+    out = run_task
+
+    assert_match(/can never match/, out)
+    assert_match(/role ticks no permissions/, out)
+    assert_match(/No would-be denials recorded/, out,
+                 "the ledger IS empty and the operator must still be told why — " \
+                 "the static section is additional to that explanation, not a " \
+                 "replacement for it")
+  end
+
+  test "the advisory section names its own false alarm rather than asserting a verdict" do
+    # Folder, not Project: a Report-keyed role on a Project is a WORKING
+    # parent-chain grant since #108 and must not be flagged.
+    folder = Folder.create!(name: "F")
+    scope_grant(@alice, role_with("reports#approve"), folder)
+
+    out = run_task
+
+    assert_match(/Worth checking/, out)
+    assert_match(/NOT a verdict/, out)
+    assert_match(/false alarm/, out,
+                 "an operator must not remove a working grant on this section's say-so")
+  end
+
+  test "a healthy scoped grant produces neither section" do
+    report = Report.create!(title: "Q3", requested_by: @bob)
+    scope_grant(@alice, role_with("reports#approve"), report)
+
+    out = run_task
+
+    refute_match(/can never match/, out)
+    refute_match(/Worth checking/, out)
+    assert_match(/No would-be denials recorded/, out)
+  end
 end

@@ -674,6 +674,45 @@ input[type="checkbox"], input[type="radio"] {
   background: var(--cs-surface-2);
 }
 .cs-row--inert td { color: var(--cs-muted); }
+/* #134: two states #90's "inert" does not cover. .cs-dead-badge uses a solid
+   danger fill where .cs-inert-badge uses a wash of the same token, so the two
+   are separable at a glance. Real theme tokens only (--cs-danger, --cs-warn). */
+.cs-dead-badge,
+.cs-check-badge {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.05rem 0.35rem;
+  margin-left: 0.35rem;
+  border-radius: 0.25rem;
+  max-width: 100%;
+}
+.cs-dead-badge {
+  color: var(--cs-surface);
+  background: var(--cs-danger);
+}
+.cs-check-badge {
+  color: var(--cs-warn, #b45309);
+  border: 1px solid var(--cs-warn, #b45309);
+  background: color-mix(in srgb, var(--cs-warn, #b45309) 12%, var(--cs-surface));
+}
+
+/* The caveat must reach keyboard and screen-reader users; a title attribute
+   reaches neither reliably. */
+.cs-badge-note {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 .cs-inert-badge {
   display: inline-block;
   font-size: 0.6875rem;

@@ -7,6 +7,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Unresolvable scoped grants are surfaced before the enforce flip (#134).**
+  `bin/rails current_scope:report` and the role members view now separate a
+  grant that **cannot match** (proven: the role ticks nothing, or only unrouted
+  keys) from one worth a **check hooks** look (advisory: no ticked key names a
+  controller for that type — the engine cannot prove this, so the output says
+  so). Neither is #90's **inert**, which means the record is gone.
+
+  The report sections are derived from the grants table, not the ledger, so they
+  print with no recorded traffic. Not on the subjects page yet: the badge
+  widened that table past the viewport at narrow widths. No runtime
+  `warn_on_*` nudge — this is a pre-flip check, not a per-request one.
+
 - **Parent-record resolution for scoped grants (#108), opt-in.** A model may
   declare `current_scope_parent :project`; when no direct scoped grant matches a
   record, the resolver walks the declared chain and matches grants against its

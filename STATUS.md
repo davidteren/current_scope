@@ -8,9 +8,35 @@
 > **Done:** the whole solid-v1 sprint queue merged — Waves 1 and 2 of tracking
 > issue **#116** (PRs #117–#125) plus the consolidated Pages action bump
 > (PR #130). Twelve issues closed; no open PRs.
-> **Next:** #116 Wave 3 — the real-host report-mode bake, then the banner-drop PR.
+> **Next:** **#108 first** (parent-record resolution for scoped grants). The
+> real-host report-mode bake found it blocks that host's `:enforce` flip, so it
+> comes before the rest of #116 Wave 3 and before the banner-drop PR.
 
-> Last updated: 2026-07-27
+> ## 🔴 TOP PRIORITY — [#108](https://github.com/davidteren/current_scope/issues/108): a scoped grant on a parent record matches nothing on its children
+>
+> **Why this is now first.** A real host running `:report` cannot flip
+> `:enforce`. A base-tier subject who holds only a scoped grant on the parent
+> record loses an action they perform today, because the gated action must
+> resolve `current_scope_record` to the **child** for SoD to see the initiator.
+> That is a regression at the flip, not a missing feature, and the documented
+> `:report` rollback does not clear it. The adopting app is parked at the
+> boundary until the gem can express the rule.
+>
+> **Direction (not yet built):** option 1 from the issue, the model-declared
+> chain (`current_scope_parent :project`). The resolver walks the chain when a
+> direct match fails; SoD keeps reading the declared record, so the initiator
+> stays visible. Static and greppable, and the security decision stays in the
+> gem rather than in a host callback.
+>
+> **Ship alongside it:** flag a scoped grant that can never match any gated
+> action for its own class, in the report and in the console. Same spirit as the
+> inert-grant labelling from #90. An unresolvable grant must be visible **before**
+> an operator flips enforcement.
+>
+> Full reasoning and the rejected workarounds are in the issue and its
+> 2026-07-28 comment.
+
+> Last updated: 2026-07-28
 >
 > **If you are a fresh session asked to audit this work, start at
 > [Verification brief](#verification-brief--for-a-fresh-session).**

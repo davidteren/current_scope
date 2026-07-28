@@ -9,7 +9,11 @@ module CurrentScope
   #   2. full_access   — the subject's org-wide role grants all permissions,
   #                      present and future.
   #   3. org-wide role — the role's permission set includes this permission.
-  #   4. scoped role   — a role held on THIS record grants the permission.
+  #   4. scoped role   — a role held on THIS record grants the permission; or,
+  #                      when the record's model declared current_scope_parent
+  #                      (#108, opt-in), a role held on one of its declared
+  #                      ancestors and EXPLICITLY ticking the key. full_access
+  #                      does not cascade up a chain — see scoped_grant?.
   #   5. scoped role,  — the target is record-less (nil for a collection action,
   #      record-less     a Class for a class-form check), so no specific record
   #                      can be named. An action in config.collection_read_actions
@@ -111,11 +115,57 @@ module CurrentScope
       # `model.where` still applies STI's own type predicate, so a subclass query
       # can't over-list sibling-subclass rows. An empty subquery yields an empty
       # (still chainable) relation.
-      model.where(
+      direct = model.where(
         id: ScopedRoleAssignment
               .where(subject: subject, resource_type: model.base_class.name, role_id: roles_granting(permission))
               .select(:resource_id)
       )
+
+      ancestor_scope_for(subject: subject, model: model, permission: permission)
+        .reduce(direct) { |relation, arm| relation.or(arm) }
+    end
+
+    # The #108 list arm, one relation per hop of the declared chain.
+    #
+    # This is NOT list cosmetics: record_less_scoped_grant?'s read arm takes
+    # .exists? of scope_for's relation, so for config.collection_read_actions
+    # this query IS the gate. It therefore uses roles_ticking, matching
+    # scoped_grant?'s ancestor arm — the direct arm above keeps roles_granting,
+    # so full_access still opens a directly-granted record's collection reads and
+    # still does not cascade to children.
+    #
+    # Every hop normalizes through base_class for the same reason the direct arm
+    # does (see the comment above it): grants store the polymorphic base_class,
+    # and querying a subclass name instead would make the list return nothing
+    # where the per-record gate allows.
+    def ancestor_scope_for(subject:, model:, permission:)
+      arms = []
+      klass = model
+      # Foreign keys walked so far, innermost last: [[Report, :project_id], ...]
+      path = []
+
+      while (reflection = ParentChain.reflection_for(klass))
+        parent = reflection.klass
+        path << [ klass, reflection.foreign_key ]
+        break if path.size > ParentChain::MAX_PARENT_DEPTH
+
+        granted = ScopedRoleAssignment
+                    .where(subject: subject, resource_type: parent.base_class.name, role_id: roles_ticking(permission))
+                    .select(:resource_id)
+
+        arms << narrow_through(path, model: model, innermost: parent.where(id: granted))
+        klass = parent
+      end
+
+      arms
+    end
+
+    # Build `model.where(fk1 => Parent.where(fk2 => ...))` from the outside in, so
+    # a grant N hops up still narrows to the right rows of `model`.
+    def narrow_through(path, model:, innermost:)
+      path.reverse.reduce(innermost) do |inner, (klass, foreign_key)|
+        klass.where(foreign_key => inner.select(:id))
+      end.then { |relation| model.where(id: relation.select(:id)) }
     end
 
     # Whether the separation-of-duties veto is in a position to decide about this
@@ -235,11 +285,21 @@ module CurrentScope
       # never mean "permit". A record type where SoD genuinely doesn't apply
       # declares the hook returning nil.
       unless record.respond_to?(INITIATOR_METHOD, true)
+        # The third fix, and the warning, exist because this message used to
+        # name only the first two — and a host who reached it by declaring a
+        # PARENT as current_scope_record (to make a scoped grant match, before
+        # #108 existed) would take fix 1 and silently blind the veto: it would
+        # then measure the parent's initiator, never the child's. That is the
+        # trap; naming it here is cheaper than diagnosing it later.
         raise ConfigurationError,
               "#{record.class.name}##{INITIATOR_METHOD} is not defined, but " \
               "\"#{permission}\" is a separation-of-duties action (config.sod_actions). " \
               "Define #{INITIATOR_METHOD} on #{record.class.name} (return nil to exempt " \
-              "a record), or remove \"#{permission.split('#').last}\" from config.sod_actions."
+              "a record), or remove \"#{permission.split('#').last}\" from config.sod_actions. " \
+              "If #{record.class.name} is standing in for its children so a scoped grant " \
+              "matches, declare current_scope_parent on the CHILD instead and hand the " \
+              "child back from current_scope_record — defining #{INITIATOR_METHOD} here " \
+              "would make the veto measure this record's initiator, not the child's."
       end
 
       initiator = record.send(INITIATOR_METHOD)
@@ -279,13 +339,40 @@ module CurrentScope
       CurrentScope.allowed?(CurrentScope.config.sod_bypass_permission, subject: initiator, record: record)
     end
 
+    # A scoped grant held on THIS record, or — when the model opted in with
+    # `current_scope_parent` (#108) — on one of its declared ancestors.
+    #
+    # The two arms deliberately query DIFFERENT role sets. The direct arm keeps
+    # roles_granting (full_access-inclusive), safe because `resource:` binds to
+    # one exact record, so a scoped full_access grant opens exactly that record.
+    # The ancestor arm uses roles_ticking, which EXCLUDES full_access: reusing
+    # roles_granting there would let one scoped full_access grant on a root
+    # record open every descendant of it, for every permission — #49's P0
+    # escalation with a multiplier. Cascading reach and cascading privilege are
+    # separate decisions; a host wanting blanket authority over a subtree ticks
+    # the keys. The cost is that privilege stops being monotonic (a full_access
+    # role reaches FEWER records through a chain than one that merely ticks the
+    # key), which is why the role editor's label names the carve-out.
     def scoped_grant?(subject:, permission:, record:)
       # `record` may be a class (allowed_to?(:create, Report)) — classes can't
       # hold scoped grants, only persisted records can.
       return false unless record.respond_to?(:new_record?) && record.persisted?
 
+      return true if ScopedRoleAssignment
+                       .where(subject: subject, resource: record, role_id: roles_granting(permission))
+                       .exists?
+
+      ancestor_scoped_grant?(subject: subject, permission: permission, record: record)
+    end
+
+    # The #108 fallback. Empty ancestors (no declaration, the default) means one
+    # extra no-op call and the same answer as before.
+    def ancestor_scoped_grant?(subject:, permission:, record:)
+      ancestors = ParentChain.ancestors_for(record)
+      return false if ancestors.empty?
+
       ScopedRoleAssignment
-        .where(subject: subject, resource: record, role_id: roles_granting(permission))
+        .where(subject: subject, resource: ancestors, role_id: roles_ticking(permission))
         .exists?
     end
 

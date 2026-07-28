@@ -1,0 +1,21 @@
+CHANGELOG.md
+  s_c282f3352ca4de::t_67c9a00a66bc69 7-13
+STATUS.md
+  s_c282f3352ca4de::t_67c9a00a66bc69 5-6,8-28,33-36,41-43,745-746
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "8d5d7c998b16291e57d72b7209879e5d41967e65",
+  "prompts": {},
+  "sessions": {
+    "s_c282f3352ca4de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3035983c-e50f-42b0-8797-fc66e30b6058",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

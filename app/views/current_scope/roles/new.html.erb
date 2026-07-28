@@ -12,7 +12,7 @@
   </p>
   <p>
     <%= f.label :full_access do %>
-      <%= f.check_box :full_access %> Full access — every permission, present and future
+      <%= f.check_box :full_access %> Full access — every permission, present and future. Does not cascade to child records through current_scope_parent.
     <% end %>
   </p>
   <p><%= f.submit "Create role" %></p>

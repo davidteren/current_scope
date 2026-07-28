@@ -23,6 +23,24 @@ module CurrentScope
       map["CurrentScope::AccessDenied"] = :forbidden unless map.key?("CurrentScope::AccessDenied")
     end
 
+    # The `current_scope_parent` declaration (#108). on_load rather than a
+    # host-included concern: it is an acts_as_*-style class macro, and hanging it
+    # off CurrentScope::Scopeable would both contradict that module's BROWSE-ONLY
+    # contract and register every parent-declaring model in the scoped-role
+    # picker as a side effect. instance_accessor: false because the declaration is
+    # a class-level fact and is only ever read through the class; an instance
+    # reader would blur that. (It does NOT collide with the method-form mistake
+    # ParentChain.reject_method_form! catches — that one is named
+    # current_scope_parent, a different method entirely.)
+    initializer "current_scope.parent_chain" do
+      ActiveSupport.on_load(:active_record) do
+        class_attribute :current_scope_parent_association,
+                        instance_accessor: false,
+                        default: nil
+        extend CurrentScope::ParentChain::Declaration
+      end
+    end
+
     # Cross-field config invariants (e.g. bypass permission ∉ sod_actions) must
     # run AFTER the host initializer has assigned every field — a writer on
     # either attr alone is order-dependent. once, not on to_prepare (config
@@ -45,6 +63,14 @@ module CurrentScope
       # controller#action is gated, and a stale latch would hand a dev running
       # :warn a false all-clear right after the edit.
       CurrentScope::GatingTripwire.reset_warnings!
+      # Same reason: a reload can change a declared chain, and a latched
+      # truncation warning would hide the one the edit just created.
+      CurrentScope::ParentChain.reset_warnings!
+      # Declaration validation that needs reflection.klass runs HERE, not on the
+      # request path: a deploy must not boot green and 500 on the first gated
+      # request. to_prepare rather than after_initialize so a reload re-checks a
+      # chain the edit just changed.
+      CurrentScope::ParentChain.validate_declarations!
     end
   end
 end

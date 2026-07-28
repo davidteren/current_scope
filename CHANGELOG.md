@@ -7,6 +7,34 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Parent-record resolution for scoped grants (#108), opt-in.** A model may
+  declare `current_scope_parent :project`; when no direct scoped grant matches a
+  record, the resolver walks the declared chain and matches grants against its
+  ancestors, and `scope_for` lists the same records. This makes "Lead of Project
+  7 approves Project 7's reports" expressible without granting per child.
+
+  **This moves authorization semantics, so it is a minor bump, not a patch.** A
+  host that declares no chain sees byte-identical decisions.
+
+  Three things to know before declaring one:
+  - **A scoped `full_access` grant does NOT cascade.** The ancestor query
+    matches only roles that explicitly tick the key. Otherwise one scoped
+    `full_access` grant on a root record would open every permission on every
+    descendant. The consequence is that privilege stops being monotonic: a
+    `full_access` role reaches *fewer* records through a chain than a role that
+    merely ticks the key. The role editor's label now says so.
+  - **The separation-of-duties veto still reads the record you declared**, never
+    an ancestor. The chain feeds grant matching only, so a lead who requested a
+    report still cannot approve it. Break-glass does not cascade either: a
+    `bypass_sod` grant held on a parent does **not** lift the veto on its
+    children, only one held org-wide or on the record itself does.
+  - **The declaration is a class macro**, unlike every other `current_scope_*`
+    hook, which are plain methods. It has to name an association rather than
+    return a record, because `scope_for` builds a query from the foreign key.
+    Chains are bounded at 5 hops. A bad DECLARATION raises `ConfigurationError`
+    (missing, scoped, polymorphic, `has_many`, or declared on an STI subclass);
+    bad DATA never does — an over-deep or looping chain truncates, denies, and
+    warns, because a `parent_id` loop is two UPDATEs and must not 500 a request.
 - **Grid badge for routes with no controller class (#43).** A stale or typo
   route still appears in the catalog (route mirror), but the role editor now
   marks the row "no controller" so operators do not grant a key that only
@@ -17,6 +45,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   No hard minimum yet — baseline from green runs first.
 
 ### Changed
+- **The missing-`current_scope_initiator` error names a third fix, and warns
+  about one of the others (#108).** A host who declared a *parent* as
+  `current_scope_record` (the pre-#108 way to make a scoped grant match) hits
+  this error, and the message used to offer "define `current_scope_initiator`
+  on the parent" with no caveat. Taking that advice silently blinds the veto:
+  it then measures the parent's initiator, never the child's. The message now
+  points at `current_scope_parent` on the child and says plainly what the other
+  fix costs.
 - **Clearer double org-grant error (#44).** A second org-wide `RoleAssignment`
   for the same subject no longer raises the cryptic "Subject has already been
   taken". The validation message names the role already held and points at

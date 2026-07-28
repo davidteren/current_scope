@@ -69,14 +69,20 @@ v0.1 model.
   (default: effective subject, with the actor recorded). Also decide whether mutating
   actions are allowed at all while impersonating (a host policy, surfaced as config).
 
-### 2.3 Resource hierarchy / cascade &nbsp;·&nbsp; priority: MEDIUM (opt-in)
-- **What:** optionally let a scoped role on a *parent* record grant on its children —
-  e.g. a role on a container applying to the items inside it.
-- **Why:** common when resources nest; today scoping is strictly flat ("Editor of
-  Project #7 grants nothing on Project #8", and nothing cascades down).
-- **Rough shape:** a host-declared `current_scope_parent` hook the resolver can walk
-  up when no direct scoped grant is found. **Flat stays the default** — cascade can
-  surprise, so it's opt-in per resource type. Guard against cycles + unbounded walks.
+### 2.3 Resource hierarchy / cascade &nbsp;·&nbsp; **SHIPPED (#108)**
+- **What:** a scoped role on a *parent* record grants on its children — a role on a
+  container applying to the items inside it.
+- **Shipped as:** a `current_scope_parent :association` class macro. The resolver
+  walks the declared chain when no direct scoped grant matches, and `scope_for`
+  lists the same records (it has to: the record-less read arm takes `.exists?` of
+  that relation, so it is a gate). Flat is still the default — a model that
+  declares nothing is unaffected. Chains are bounded at 5 hops; a bad
+  declaration raises, while over-deep or looping DATA truncates and denies.
+- **Two deliberate limits**, both documented in the guide: a scoped `full_access`
+  grant does **not** cascade (only roles explicitly ticking the key do), and the
+  separation-of-duties veto keeps reading the declared record, never an ancestor.
+- **Still open:** flagging a scoped grant that can never match any gated action for
+  its class, so an operator sees it before flipping enforcement (**#134**).
 
 ### 2.4 Resolver memoization / caching &nbsp;·&nbsp; priority: MEDIUM (perf)
 - **What:** the resolver currently queries per call (`RoleAssignment.find_by` + a

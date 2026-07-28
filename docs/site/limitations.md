@@ -30,6 +30,48 @@ contract. Do not plan a SPA cutover expecting that to exist today.
 These are deliberate product choices, not forgotten bugs. Documented so
 operators and auditors know what to expect.
 
+### A15 — A declared chain is bounded at five hops, and truncation is silent to the user (#108)
+
+`CurrentScope::ParentChain::MAX_PARENT_DEPTH` is 5. A grant held more than five
+hops above a record does not match it, and a loop in the data
+(`parent_id` pointing back up the tree) stops the walk where it repeats.
+
+Both cases **deny** — fewer ancestors can only mean fewer grants match, never
+more — and both log a warning naming the class and the reason. Neither raises.
+That is deliberate: the chain shape is often *data*, so raising would let two
+`UPDATE`s on a foreign key turn a live request into a 500 and break report
+mode's promise never to break a request.
+
+**Host should:** keep hierarchies within five levels, and add an acyclicity
+check on write if users can re-parent records. Watch the log for
+"current_scope_parent stopped walking" if a subject is missing access they
+should have.
+
+**Also true:** a parent-scoped grant opens member actions and collection
+**reads**, but never a record-less non-read action such as `#create`. A role
+that ticks `reports#create` and is held on a Project opens the index and 403s
+`new`/`create`. Grant record-less keys org-wide, or on the collection's own
+type.
+
+### A14 — A scoped `full_access` grant does not cascade to children (#108)
+
+When a model declares `current_scope_parent`, only roles that **explicitly tick
+the key** reach its children. A scoped `full_access` grant reaches the record it
+was granted on and stops there.
+
+This is deliberate. Cascading it would mean one scoped `full_access` grant on a
+root record opened every permission on every descendant, which is a far larger
+grant than ticking one box implies. The visible oddity is that privilege stops
+being monotonic in this one place: a `full_access` role reaches **fewer** records
+through a chain than a role that merely ticks the key.
+
+**Host should:** tick the keys on the role when blanket authority over a subtree
+is what you want. The role editor's full-access label states the carve-out.
+
+**Operators should know:** a scoped grant that can never match any gated action
+is not yet flagged anywhere (**#134**). Until it is, a grant that looks correct
+in the console may resolve to nothing.
+
 ### A5 — Org grant + nil SoD record skips the veto
 
 On an SoD-listed **member** action, if `current_scope_record` returns `nil`
@@ -89,11 +131,11 @@ every Metal controller would surprise hosts.
 `GatingTripwire` / `bin/rails current_scope:ungated` for inventory. Recommended
 on the [security checklist](security-checklist.md).
 
-### No parent/child cascade
+### Parent/child cascade is opt-in, one declaration at a time
 
-A scoped grant on a Project does **not** open Tasks under that project.
-Hierarchy is an open design question (ROADMAP / #108), not a silent partial
-feature.
+A scoped grant on a Project does **not** open Tasks under it *unless* Task
+declares `current_scope_parent` (#108). Flat is the default and stays the
+default; see A14 and A15 above for the two limits that come with opting in.
 
 ## Related
 

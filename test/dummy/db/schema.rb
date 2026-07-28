@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_14_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_28_000100) do
   create_table "current_scope_events", force: :cascade do |t|
     t.string "actor", null: false
     t.datetime "created_at", null: false
@@ -80,7 +80,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_14_000001) do
   create_table "projects", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "name", null: false
+    t.integer "parent_id"
     t.datetime "updated_at", null: false
+    t.index [ "parent_id" ], name: "index_projects_on_parent_id"
   end
 
   create_table "reports", force: :cascade do |t|
@@ -102,6 +104,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_14_000001) do
   add_foreign_key "current_scope_role_assignments", "current_scope_roles", column: "role_id"
   add_foreign_key "current_scope_role_permissions", "current_scope_roles", column: "role_id"
   add_foreign_key "current_scope_scoped_role_assignments", "current_scope_roles", column: "role_id"
+  add_foreign_key "projects", "projects", column: "parent_id"
   add_foreign_key "reports", "projects"
   add_foreign_key "reports", "users", column: "requested_by_id"
 end

@@ -44,7 +44,13 @@ generator, and get:
   permissions — ticked cells on a controller × action grid. Change what
   "Reviewer" means without a deploy.
 - **Scoped roles.** The same role, attached to one specific record: "Editor of
-  Project #7" grants nothing on Project #8.
+  Project #7" grants nothing on Project #8. A model can opt in to reaching down a
+  declared chain with `current_scope_parent :project`, so a role held on a
+  project covers that project's reports — including reports created after the
+  grant, and up to five hops of nesting.
+  Flat is still the default, a scoped `full_access` grant deliberately does not
+  cascade, and the four-eyes veto keeps reading the record you handed it. See
+  [Checking permissions](docs/guides/checking-permissions.md#a-grant-on-a-parent-record-108).
 - **An optional separation-of-duties veto.** Off by default; opt in by listing
   actions. Once on, whoever initiated a record can never approve it — not
   grantable, not configurable in the UI, overrides even full access. A
@@ -342,7 +348,7 @@ authorize on the server.
 | Trusted `current_scope_model` | Wrong type can open wrong listed reads — review like the record hook |
 | Report × model_undeclared / model_invalid | Hard 403 (reason header + dev nudge) only when a scoped grant would otherwise satisfy; plain no_grant still report-mode observes |
 | GatingTripwire opt-in | Never-included Guard stays open; include Guard + optional tripwire |
-| No parent/child cascade | Grant on Project does not open its Tasks (#108) |
+| Parent/child cascade is opt-in | Flat unless the child declares `current_scope_parent`; then bounded at 5 hops, and `full_access` does not cascade (#108) |
 
 ## Design notes
 

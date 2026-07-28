@@ -1,0 +1,29 @@
+docs/site/limitations.md
+  s_c282f3352ca4de::t_607272da1cc024 33-51
+docs/ROADMAP.md
+  s_c282f3352ca4de::t_fbe194027aaaf3 72-84
+docs/guides/checking-permissions.md
+  s_c282f3352ca4de::t_431294e6ebdc42 78-79,82-124
+  s_c282f3352ca4de::t_4980d86ebd5531 125
+README.md
+  s_c282f3352ca4de::t_60822041970999 47-52
+CHANGELOG.md
+  s_c282f3352ca4de::t_81d378cfb53df9 43-50
+  s_c282f3352ca4de::t_88348c6fc82511 10-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "1ee22f53956ca193196b7258ece99417f154d281",
+  "prompts": {},
+  "sessions": {
+    "s_c282f3352ca4de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3035983c-e50f-42b0-8797-fc66e30b6058",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -4,7 +4,13 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] — next cut is **0.5.0 (minor, not a patch)**
+
+`current_scope_parent` (#108) moves authorization semantics: a scoped grant can
+reach records it never reached before. It is opt-in, so a host that declares no
+chain sees byte-identical decisions — but the version must still say a rule
+changed. Not cut yet; the README banner stays up pending the real-host
+`:enforce` bake (#116 Wave 3).
 
 ### Added
 - **Unresolvable scoped grants are surfaced before the enforce flip (#134).**

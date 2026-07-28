@@ -1,0 +1,26 @@
+app/assets/stylesheets/current_scope/application.css
+  s_c282f3352ca4de::t_4447267bf56745 697-699
+lib/current_scope/grant_diagnosis.rb
+  s_c282f3352ca4de::t_4447267bf56745 26,51-52,133-135,137,140,143,175-185
+  s_c282f3352ca4de::t_eafb07f83a9d4d 186
+lib/tasks/current_scope_tasks.rake
+  s_c282f3352ca4de::t_4447267bf56745 67-76,78-79
+test/grant_diagnosis_test.rb
+  s_c282f3352ca4de::t_399d0f57402af3 45-48,59-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "b96b42ec3a81a65bbb212535f9c47b217b19d7aa",
+  "prompts": {},
+  "sessions": {
+    "s_c282f3352ca4de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3035983c-e50f-42b0-8797-fc66e30b6058",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

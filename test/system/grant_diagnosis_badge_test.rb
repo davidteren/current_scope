@@ -1,5 +1,9 @@
 require "application_system_test_case"
 
+# U3 of plan 032 (#134). Role MEMBERS view only — see the note in the PR: the
+# subjects page badge is deferred because it widened that table past the
+# viewport at narrow widths and broke the overflow guard from PR #11.
+#
 # U3 of plan 032 (#134). The console must let an operator tell THREE states
 # apart, because each has a different fix:
 #
@@ -32,7 +36,7 @@ class GrantDiagnosisBadgeSystemTest < ApplicationSystemTestCase
 
   test "a grant whose role ticks nothing is badged 'cannot match', not 'inert'" do
     grant(role_with, @report)
-    visit "/current_scope/subjects"
+    visit "/current_scope/roles/#{CurrentScope::ScopedRoleAssignment.last.role_id}/members"
 
     # Case-insensitive: the badge CSS uppercases it, and Capybara reports the
     # RENDERED text, so a literal match would silently miss a visible badge.
@@ -42,8 +46,10 @@ class GrantDiagnosisBadgeSystemTest < ApplicationSystemTestCase
   end
 
   test "a type mismatch is badged as advisory, not as a verdict" do
-    grant(role_with("reports#approve"), @project)
-    visit "/current_scope/subjects"
+    # Folder, not Project: since #108 a Report-keyed role on a Project is a
+    # WORKING parent-chain grant and must not be flagged at all.
+    grant(role_with("reports#approve"), Folder.create!(name: "F"))
+    visit "/current_scope/roles/#{CurrentScope::ScopedRoleAssignment.last.role_id}/members"
 
     assert_selector ".cs-check-badge", text: /check hooks/i
     # An unprovable finding must not be rendered as the proven one.
@@ -52,7 +58,7 @@ class GrantDiagnosisBadgeSystemTest < ApplicationSystemTestCase
 
   test "a healthy grant carries no diagnosis badge at all" do
     grant(role_with("reports#approve"), @report)
-    visit "/current_scope/subjects"
+    visit "/current_scope/roles/#{CurrentScope::ScopedRoleAssignment.last.role_id}/members"
 
     assert_no_selector ".cs-dead-badge"
     assert_no_selector ".cs-check-badge"

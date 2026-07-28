@@ -214,13 +214,17 @@ class ReportTaskTest < ActiveSupport::TestCase
 
     assert_match(/can never match/, out)
     assert_match(/role ticks no permissions/, out)
-    refute_match(/No would-be denials recorded/, out,
-                 "the static section must survive an empty ledger")
+    assert_match(/No would-be denials recorded/, out,
+                 "the ledger IS empty and the operator must still be told why — " \
+                 "the static section is additional to that explanation, not a " \
+                 "replacement for it")
   end
 
   test "the advisory section names its own false alarm rather than asserting a verdict" do
-    project = Project.create!(name: "P7")
-    scope_grant(@alice, role_with("reports#approve"), project)
+    # Folder, not Project: a Report-keyed role on a Project is a WORKING
+    # parent-chain grant since #108 and must not be flagged.
+    folder = Folder.create!(name: "F")
+    scope_grant(@alice, role_with("reports#approve"), folder)
 
     out = run_task
 

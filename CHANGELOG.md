@@ -8,8 +8,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 - **Unresolvable scoped grants are surfaced before the enforce flip (#134).**
-  The console (subjects page and role members view) and
-  `bin/rails current_scope:report` now distinguish three states an operator
+  The role members view and `bin/rails current_scope:report` now distinguish three states an operator
   previously could not tell apart: a grant that is **missing**, one that is
   **inert** (#90 — its record is gone), and one that **cannot match**.
 
@@ -25,6 +24,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   The report task's empty-state guard became four-way: these are derived from
   the grants table, not the ledger, so they print with zero recorded traffic —
   which is exactly when a grant that can never match is most likely to exist.
+
+  **Not on the subjects page yet.** The badge widened that table past the
+  viewport at narrow widths, so it ships on the role members view and in the
+  report task, which covers every grant regardless of surface.
 - **Parent-record resolution for scoped grants (#108), opt-in.** A model may
   declare `current_scope_parent :project`; when no direct scoped grant matches a
   record, the resolver walks the declared chain and matches grants against its

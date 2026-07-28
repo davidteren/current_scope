@@ -90,9 +90,58 @@ class GrantDiagnosisTest < ActiveSupport::TestCase
   # --- R2: the advisory ---
 
   test "the advisory fires when no ticked key targets the grant's type" do
+    # Folder deliberately, NOT Project: since #108 the dummy's Report declares
+    # `current_scope_parent :project`, so a Report-keyed role granted on a
+    # Project is a WORKING parent-chain grant. Nothing declares Folder as a
+    # parent, so nothing reaches it.
     assert CurrentScope::GrantDiagnosis.type_untargeted?(
-      grant(role("Lead", "reports#approve"), @project)),
-      "a Report-only role granted on a Project targets nothing of that type"
+      grant(role("Lead", "reports#approve"), Folder.create!(name: "F"))),
+      "a Report-only role granted on a Folder targets nothing of that type"
+  end
+
+  test "a working PARENT-CHAIN grant is NOT flagged — the #108 headline example" do
+    # "Lead of Project 7 approves Project 7's reports": the role ticks only
+    # reports#approve and the grant is on a Project, and it WORKS because Report
+    # declares current_scope_parent :project. Flagging it would send an operator
+    # to a hook that is already correct.
+    g = grant(role("Lead", "reports#approve"), @project)
+
+    assert_equal [ true, nil ],
+                 CurrentScope::Resolver.new.decide(
+                   subject: @user, permission: "reports#approve",
+                   record: Report.create!(title: "child", project: @project, requested_by: @user)),
+                 "precondition: the chain grant really does work"
+    refute CurrentScope::GrantDiagnosis.type_untargeted?(g),
+           "a grant the resolver honours must never be badged as unreachable"
+  end
+
+  test "an orphaned grant (#90 inert) gets no diagnosis — its record is gone, and that is a different fix" do
+    g = grant(role("Empty"), @report)
+    @report.destroy
+    g.reload
+
+    assert g.orphaned_resource?, "precondition: this is #90's state"
+    assert_nil CurrentScope::GrantDiagnosis.verdict_for(g)
+    refute CurrentScope::GrantDiagnosis.type_untargeted?(g)
+  end
+
+  test "a resolution failure degrades to no verdict rather than raising" do
+    # The R8 pin. The previous version of this test only set an unresolvable
+    # resource_type, which safe_constantize handles WITHOUT raising — so the
+    # rescue clauses were never reached and deleting them broke nothing.
+    g = grant(role("Reader", "reports#approve"), @report)
+
+    catalog = CurrentScope.catalog
+    catalog.define_singleton_method(:routed?) { |_key| raise ActiveRecord::StatementInvalid, "boom" }
+
+    begin
+      assert_nothing_raised do
+        assert_nil CurrentScope::GrantDiagnosis.verdict_for(g)
+        refute CurrentScope::GrantDiagnosis.type_untargeted?(g)
+      end
+    ensure
+      CurrentScope.reset_catalog!
+    end
   end
 
   test "the advisory is silent when a ticked key targets the type" do
@@ -110,7 +159,9 @@ class GrantDiagnosisTest < ActiveSupport::TestCase
 
   test "a CUSTOM-NAMED controller for the same type is NOT flagged" do
     key = CurrentScope.catalog.keys.find { |k| k.start_with?("nested_reports#") }
-    skip "dummy has no nested_reports route" if key.nil?
+    # refute_nil, not skip: this is the most load-bearing assertion in the file
+    # and a route change must fail it loudly, not quietly disable it.
+    refute_nil key, "the dummy must keep a nested_reports route for this pin to mean anything"
 
     refute CurrentScope::GrantDiagnosis.type_untargeted?(grant(role("Nested", key), @report)),
            "nested_reports gates Report records; flagging it would tell an operator " \

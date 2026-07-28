@@ -107,8 +107,15 @@ reach-only (accurate but makes the operator do the judging every time).
   `rows.empty? && blind_rows.empty?`); these categories are **static**, so the
   guard must account for them or the sections never print for the case that
   matters most — a grant created before report mode was ever exercised.
-- **R6.** Both surfaces appear in the console on **both** grant surfaces, as #90
-  does: the subjects page and the role members view.
+- **R6.** ~~Both surfaces appear in the console on **both** grant surfaces, as
+  #90 does: the subjects page and the role members view.~~ **Reduced during the
+  pre-PR gate to the role members view only.** Adding the badge to the subjects
+  page widened its scoped-role cell enough to push the table past the viewport
+  at narrow widths, failing the overflow guard PR #11 added. Letting the chip
+  wrap did not clear it. The report task covers every grant regardless of
+  surface, so the operator is not blind — but this is a real, deliberate
+  reduction of what the issue asked for, tracked as a follow-up rather than
+  quietly dropped.
 - **R7.** **No authorization decision changes.** Nothing here is read by the
   resolver or the Guard.
 - **R8.** Diagnostics must not break a request or a task: a resolution failure
@@ -169,8 +176,8 @@ that is where the wrong conclusion gets drawn. This follows
   "No would-be denials recorded" path still prints when everything is clean.
 
 ### U3. Console badges
-- **Files:** `app/views/current_scope/subjects/index.html.erb`,
-  `app/views/current_scope/roles/members.html.erb`, the engine stylesheet,
+- **Files:** `app/views/current_scope/roles/members.html.erb`, the engine
+  stylesheet (the subjects page is deferred — see R6),
   `test/system/unresolvable_grant_badge_test.rb` (new).
 - **Approach:** follow #90's badge markup and its data-attribute confirm
   pattern; no JS, CSP-safe. Distinct wording per R3.

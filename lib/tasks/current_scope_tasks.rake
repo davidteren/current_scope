@@ -58,21 +58,48 @@ namespace :current_scope do
     # ledger — so they are present with zero traffic. That is the whole point:
     # a grant that can never match is most likely to exist BEFORE report mode
     # was ever exercised, which is exactly when the ledger is empty.
-    dead_grants, untargeted_grants = CurrentScope::ScopedRoleAssignment
-      .includes(:role)
-      .each_with_object([ [], [] ]) do |grant, (dead, untargeted)|
+    # find_each, not a full load: a host's grants table can be large and this is
+    # a scan. Verdict computed once and handed to the advisory, which would
+    # otherwise recompute it (and re-query role_permissions) per grant.
+    dead_grants = []
+    untargeted_grants = []
+    begin
+      CurrentScope::ScopedRoleAssignment.includes(role: :role_permissions).find_each(batch_size: 500) do |grant|
         verdict = CurrentScope::GrantDiagnosis.verdict_for(grant)
         if verdict
-          dead << [ grant, verdict ]
-        elsif CurrentScope::GrantDiagnosis.type_untargeted?(grant)
-          untargeted << grant
+          dead_grants << [ grant, verdict ]
+        elsif CurrentScope::GrantDiagnosis.type_untargeted?(grant, verdict: verdict)
+          untargeted_grants << grant
         end
       end
+    rescue ActiveRecord::ActiveRecordError => e
+      # This scan is an ADDITION to the ledger survey, so a database problem
+      # here must not take the whole task down — the would-deny summary is the
+      # part a host is mid-rollout depending on. Degrade to no static findings
+      # and say so. (cubic)
+      warn "[CurrentScope] could not scan scoped grants (#{e.class}: #{e.message}); " \
+           "skipping the static grant sections."
+      dead_grants = []
+      untargeted_grants = []
+    end
+
+    # Same rescue the org_role_suffix lambda above needs, for the same reason: a
+    # rollout aid must not abort the whole survey because one subject's class was
+    # removed. Without it this task now raises NameError where it never did.
+    grant_line = lambda do |grant|
+      who =
+        begin
+          CurrentScope.label_for(grant.subject)
+        rescue StandardError
+          "#{grant.subject_type} ##{grant.subject_id}"
+        end
+      "    #{who} — role \"#{grant.role&.name}\" on #{grant.resource_type}##{grant.resource_id}"
+    end
 
     # The guard is four-way, not two-way. Leaving it keyed on the ledger alone
     # would print "nothing recorded" and stop, hiding both static sections in
     # the one case they matter most. (#134)
-    if rows.empty? && blind_rows.empty? && dead_grants.empty? && untargeted_grants.empty?
+    if rows.empty? && blind_rows.empty?
       # "No output" is indistinguishable from "the task is broken", and the two
       # likeliest causes are both SILENT: report mode never on, or audit off.
       # Name them — this is the first thing a host runs, and an unexplained blank
@@ -85,7 +112,13 @@ namespace :current_scope do
            "(needs true or :strict — the ledger is where these rows live)"
       puts
       puts "With both on, exercise the app or run your suite, then re-run this."
-      next
+      # NOT `next`. The two sections below are derived from the grants table, not
+      # the ledger, so they are present with zero traffic — which is exactly when
+      # a grant that can never match is most likely to exist. Returning here
+      # would hide them in that case. The config explanation above still prints,
+      # because "nothing was recorded" stays true and unexplained silence is how
+      # a host concludes the feature does not work. (#134)
+      puts if dead_grants.any? || untargeted_grants.any?
     end
 
     # ponytail: group in Ruby, not SQL. `details` is a JSON column and querying
@@ -124,10 +157,7 @@ namespace :current_scope do
       puts
       dead_grants.group_by { |_g, verdict| verdict }.each do |verdict, pairs|
         puts "  #{CurrentScope::GrantDiagnosis.verdict_label(verdict)}"
-        pairs.each do |grant, _v|
-          puts "    #{CurrentScope.label_for(grant.subject)} — role \"#{grant.role&.name}\" " \
-               "on #{grant.resource_type}##{grant.resource_id}"
-        end
+        pairs.each { |grant, _v| puts grant_line.call(grant) }
         puts "    → #{CurrentScope::GrantDiagnosis.verdict_fix(verdict)}"
         puts
       end
@@ -138,10 +168,7 @@ namespace :current_scope do
       puts if rows.any? || dead_grants.any?
       puts "Worth checking — no ticked key targets this grant's type:"
       puts
-      untargeted_grants.each do |grant|
-        puts "  #{CurrentScope.label_for(grant.subject)} — role \"#{grant.role&.name}\" " \
-             "on #{grant.resource_type}##{grant.resource_id}"
-      end
+      untargeted_grants.each { |grant| puts grant_line.call(grant) }
       puts
       # Says only what the check proves. The route-key comparison cannot see a
       # controller that handles this type under another name, so this section
@@ -154,7 +181,7 @@ namespace :current_scope do
     end
 
     unless blind_rows.empty?
-      puts if rows.any?
+      puts if rows.any? || dead_grants.any? || untargeted_grants.any?
       puts "SoD blind-spot denials — NOT fixed by granting (declare current_scope_record):"
       puts
       print_permission_counts.call(blind_rows)

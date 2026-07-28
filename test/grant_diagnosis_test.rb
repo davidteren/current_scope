@@ -47,7 +47,7 @@ class GrantDiagnosisTest < ActiveSupport::TestCase
     # It is NOT routed, but it IS live on that row, so "can this ever open
     # anything" must answer yes.
     with_injected_bypass_key do
-      bypass = CurrentScope.catalog.keys.find { |k| k.end_with?("#bypass_sod") }
+      bypass = "reports#bypass_sod"
 
       refute_nil bypass, "precondition: an SoD action should inject a bypass key"
       assert CurrentScope.catalog.include?(bypass), "precondition: it IS in the catalog"
@@ -76,6 +76,18 @@ class GrantDiagnosisTest < ActiveSupport::TestCase
     CurrentScope.config.sod_actions = prev_actions
     CurrentScope.config.allow_sod_bypass = prev_bypass
     CurrentScope.reset_catalog!
+  end
+
+  test "an injected bypass key for ANOTHER type does not keep a grant alive" do
+    # The exemption is row-local: the catalog injects the key per controller, so
+    # claims#bypass_sod cannot lift anything on a Report. (cubic, PR #137)
+    with_injected_bypass_key do
+      r = CurrentScope::Role.create!(name: "Other-#{rand(10**9)}")
+      r.role_permissions.create!(permission_key: "claims#bypass_sod")
+
+      assert_equal :unrouted_permissions,
+                   CurrentScope::GrantDiagnosis.verdict_for(grant(r, @report))
+    end
   end
 
   # --- R4: full_access is never flagged, by either rule ---

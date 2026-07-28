@@ -17,27 +17,25 @@ module CurrentScope
         role = grant.role
         return nil if role.nil? || role.full_access?
 
-        # An empty catalog means routes are not derived yet, not that every key is
-        # dead.
-        return nil if CurrentScope.catalog.keys.empty?
-
         keys = persisted_keys(role)
+        # Checked BEFORE the catalog guard: a role with nothing ticked can never
+        # match whatever the catalog says, so deferring to "no verdict" here
+        # would downgrade a proven finding to an advisory.
         return :no_permissions if keys.empty?
-        return :unrouted_permissions if keys.none? { |key| live?(key) }
+
+        # An empty catalog means routes are not derived yet, not that every key
+        # is dead. Only the unrouted claim depends on it.
+        return nil if CurrentScope.catalog.keys.empty?
+        return :unrouted_permissions if keys.none? { |key| live?(key, resource_class(grant)) }
 
         nil
       rescue NameError, ActiveRecord::ActiveRecordError => e
-        # NoMethodError < NameError, and that one is a bug in us, not a missing
-        # host constant — re-raise it rather than answer "healthy".
         raise if e.instance_of?(NoMethodError)
 
         log_degrade(e)
         nil
       end
 
-      # Advisory. Silent whenever verdict_for speaks — a weaker second sentence
-      # about the same grant is noise, and the stronger one already names the
-      # fix.
       # `verdict:` lets a caller that already has it skip the recompute (three
       # role_permissions plucks per grant otherwise).
       def type_untargeted?(grant, verdict: :__unset)
@@ -172,15 +170,17 @@ module CurrentScope
         klass.respond_to?(:model_name) ? klass : nil
       end
 
-      # Can this key ever open anything? Routed keys can. So can the catalog's
-      # INJECTED break-glass key, which is live on any row it was injected onto
-      # (permission_catalog.rb) — marking a role that holds only it "dead" would
-      # tell an operator to remove live, security-sensitive authority.
-      def live?(key)
-        CurrentScope.catalog.routed?(key) || injected_bypass?(key)
+      # Can this key ever open anything for THIS grant? Routed keys can. So can
+      # the catalog's injected break-glass key — but only on the rows it was
+      # injected onto, so the exemption is row-local: a bypass key for another
+      # type cannot lift anything here.
+      def live?(key, klass)
+        return true if CurrentScope.catalog.routed?(key)
+
+        injected?(key) && !klass.nil? && targets_any_route_key?(key, klass)
       end
 
-      def injected_bypass?(key)
+      def injected?(key)
         CurrentScope.catalog.include?(key) && !CurrentScope.catalog.routed?(key)
       end
 

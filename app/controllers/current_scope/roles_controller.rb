@@ -45,7 +45,7 @@ module CurrentScope
       # NameErrors at preload. Org holders stay lazy; scoped resources use the
       # safe per-type preload (unresolvable types stay unloaded → inert label).
       @org_holders = RoleAssignment.where(role: @role).to_a
-      @scoped_holders = ScopedRoleAssignment.where(role: @role).includes(:role).to_a
+      @scoped_holders = ScopedRoleAssignment.where(role: @role).includes(role: :role_permissions).to_a
       ScopedRoleAssignment.preload_resolvable_resources!(@scoped_holders)
 
       # Exclude via a subquery, not a plucked Ruby array, so a role with many

@@ -11,6 +11,21 @@ class RoleEditingSystemTest < ApplicationSystemTestCase
     sign_in(@owner)
   end
 
+  test "the full-access label states the non-cascade carve-out, on both forms" do
+    # Asserted in a real browser, not by reading the ERB: the claim is about what
+    # an operator SEES before ticking a box that no longer means what it used to.
+    # KTD-2 made "every permission, present and future" false for a declared
+    # chain, and this label is the only place the console says so.
+    role = CurrentScope::Role.create!(name: "Labelled")
+
+    [ "/current_scope/roles/new", "/current_scope/roles/#{role.id}/edit" ].each do |path|
+      visit path
+
+      assert page.has_text?("Does not cascade to child records through current_scope_parent"),
+             "#{path} must show the full_access carve-out"
+    end
+  end
+
   test "creating a role with a blank name shows a validation error, not a crash" do
     visit "/current_scope/roles/new"
     fill_in "role_name", with: ""

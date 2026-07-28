@@ -179,6 +179,67 @@ class ParentChainTest < ActiveSupport::TestCase
                  "explain is its own failure")
   end
 
+  test "a chain of EXACTLY MAX_PARENT_DEPTH does not warn — nothing was truncated" do
+    # Warning here would be false, and worse: the latch is keyed [class, :depth],
+    # so a false warning swallows the next genuine one for the same model.
+    root = Project.create!(name: "exact-0")
+    deepest = (1...CurrentScope::ParentChain::MAX_PARENT_DEPTH).reduce(root) do |parent, i|
+      Project.create!(name: "exact-#{i}", parent: parent)
+    end
+    leaf = Report.create!(title: "exactly at the ceiling", project: deepest, requested_by: @requester)
+
+    CurrentScope::ParentChain.reset_warnings!
+    logged = capture_warning { CurrentScope::ParentChain.ancestors_for(leaf) }
+
+    assert_equal CurrentScope::ParentChain::MAX_PARENT_DEPTH,
+                 CurrentScope::ParentChain.ancestors_for(leaf).size
+    refute_match(/stopped walking/, logged,
+                 "a chain of exactly #{CurrentScope::ParentChain::MAX_PARENT_DEPTH} hops " \
+                 "truncated nothing, so it must not warn")
+  end
+
+  test "the method-form mistake is caught on the COLLECTION path too, not only per record" do
+    # reflection_for early-returned for an undeclared class, so scope_for used to
+    # silently omit parent grants where the member gate raised.
+    klass = Class.new(ApplicationRecord) do
+      def self.name = "CollectionMethodForm"
+      self.table_name = "reports"
+      belongs_to :project, optional: true
+      belongs_to :requested_by, class_name: "User"
+      def current_scope_parent = project
+    end
+
+    # Exercised through reflection_for, which is the path scope_for actually
+    # takes — not the private helper directly.
+    assert_raises(CurrentScope::ConfigurationError) do
+      CurrentScope::ParentChain.reflection_for(klass)
+    end
+  end
+
+  test "an STI subclass that OVERRIDES the inherited association is still walked through the base" do
+    # The declaration is refused on a subclass, but overriding the inherited
+    # association would let the gate (instance class) and the list (base class)
+    # walk different associations for the same record.
+    assert_equal Report.reflect_on_association(:project).klass,
+                 CurrentScope::ParentChain.reflection_for(Report).klass
+
+    subclass = Class.new(Report) { def self.name = "OverridingReport" }
+
+    assert_equal CurrentScope::ParentChain.reflection_for(Report).name,
+                 CurrentScope::ParentChain.reflection_for(subclass).name,
+                 "both must resolve through the declared BASE reflection"
+  end
+
+  test "walking a strict_loading record does not raise" do
+    # A host-wide strict_loading policy would otherwise turn the gate into a 500
+    # on ordinary data, via a lazy association load inside the walk.
+    strict = Report.strict_loading.find(@report.id)
+
+    assert_nothing_raised do
+      assert_equal [ @project ], CurrentScope::ParentChain.ancestors_for(strict)
+    end
+  end
+
   test "truncation is fail-closed: a grant above the ceiling opens nothing" do
     root = Project.create!(name: "far-0")
     deepest = (1..CurrentScope::ParentChain::MAX_PARENT_DEPTH + 2).reduce(root) do |parent, i|

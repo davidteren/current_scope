@@ -1,3 +1,5 @@
+require "set"
+
 module CurrentScope
   # The ONE answer to "what are this record's declared ancestors?" (#108).
   #
@@ -105,6 +107,7 @@ module CurrentScope
         end
 
         self.current_scope_parent_association = association_name.to_sym
+        CurrentScope::ParentChain.register(self)
       end
 
       def current_scope_parent_declared?
@@ -113,6 +116,37 @@ module CurrentScope
     end
 
     class << self
+      # Declared classes, by NAME so dev-mode reloading never pins a stale
+      # constant (same reason CurrentScope::Scopeable stores strings).
+      def register(klass)
+        declared_names << klass.name if klass.name
+      end
+
+      def declared_names
+        @declared_names ||= Set.new
+      end
+
+      # Run once at boot (and on reload) rather than on the request path.
+      # validate_key! needs reflection.klass, which cannot resolve inside the
+      # macro without breaking an ordinary forward reference between two models
+      # that name each other — so the check has to happen later. Later must not
+      # mean "on the first gated request", because that is a deploy that boots
+      # green and 500s on real traffic. (cubic P2, ie-predictability P1)
+      #
+      # In production this is complete: eager loading has run, so every
+      # declaring class is registered. In development it can only see the
+      # classes loaded so far, which is the same partial-coverage bargain the
+      # permission catalog already makes, and it is stated rather than implied.
+      def validate_declarations!
+        declared_names.each do |name|
+          klass = name.safe_constantize
+          next if klass.nil?
+
+          reflection = klass.reflect_on_association(klass.current_scope_parent_association)
+          validate_key!(klass, reflection) if reflection
+        end
+      end
+
       # The ancestors a scoped grant may be matched against, nearest parent
       # first, root last. Empty for an unopted model, a class, or an unsaved
       # record — all three are "nothing to walk", not an error.
@@ -120,7 +154,7 @@ module CurrentScope
         return [] unless record.respond_to?(:new_record?) && record.persisted?
 
         unless declared?(record.class)
-          reject_method_form!(record)
+          reject_method_form!(record.class)
           return []
         end
 
@@ -141,12 +175,25 @@ module CurrentScope
 
       # The declared association reflection, or nil. scope_for reads this for the
       # foreign key; it must never re-derive the name itself.
+      # Resolved from base_class, ALWAYS. The declaration is refused on an STI
+      # subclass, but a subclass can still OVERRIDE the association it inherits
+      # (a different class_name or foreign key). The per-record gate reads the
+      # instance's class and the collection query reads the base, so resolving
+      # per-class would let those two walk different associations for the same
+      # record — the drift the STI refusal exists to prevent, re-entering by the
+      # back door. One declared base reflection feeds both. (cubic P1)
       def reflection_for(klass)
-        return nil unless declared?(klass)
+        unless declared?(klass)
+          # Both paths funnel through here, so this is where the method-form
+          # mistake has to be caught. Checking it only in ancestors_for meant the
+          # member gate raised while scope_for silently omitted parent grants —
+          # the collection answering :no_grant with no diagnosis. (qodo 3)
+          reject_method_form!(klass)
+          return nil
+        end
 
-        reflection = klass.reflect_on_association(klass.current_scope_parent_association)
-        validate_key!(klass, reflection) if reflection
-        reflection
+        base = klass.base_class
+        base.reflect_on_association(base.current_scope_parent_association)
       end
 
       # Reset between reloads/tests so a truncation warning is not latched by a
@@ -189,7 +236,7 @@ module CurrentScope
         current = record
 
         while (reflection = reflection_for(current.class))
-          parent = current.public_send(reflection.name)
+          parent = load_parent(current, reflection)
 
           # Normal data, all three: an optional belongs_to with no owner, a
           # parent built in memory but never saved (it can hold no scoped grant),
@@ -210,12 +257,38 @@ module CurrentScope
           current = parent
 
           if ancestors.size >= MAX_PARENT_DEPTH
-            warn_truncated(record, :depth, seen)
+            # Only a chain that actually CONTINUES past the ceiling was
+            # truncated. A chain of exactly five hops is valid and lost nothing,
+            # and warning here would latch [class, :depth] and swallow a later
+            # genuine over-depth warning for the same model. (qodo 2 / cubic P3)
+            warn_truncated(record, :depth, seen) if next_parent(current)
             break
           end
         end
 
         ancestors
+      end
+
+      # Whether the walk would have continued — used only to decide whether a
+      # ceiling stop actually TRUNCATED anything.
+      def next_parent(record)
+        reflection = reflection_for(record.class)
+        reflection && load_parent(record, reflection)
+      end
+
+      # F. Read the parent WITHOUT triggering a lazy load. A host running
+      # `strict_loading` would otherwise get ActiveRecord::StrictLoadingViolationError
+      # from inside the gate — a 500 on ordinary data, which is the failure this
+      # module exists to avoid. Uses the already-loaded target when there is one,
+      # so `includes(:project)` still pays off. (cubic P2)
+      def load_parent(record, reflection)
+        association = record.association(reflection.name)
+        return association.target if association.loaded?
+
+        foreign_key = record[reflection.foreign_key]
+        return nil if foreign_key.nil?
+
+        reflection.klass.find_by(reflection.klass.primary_key => foreign_key)
       end
 
       # Grants store the polymorphic base_class, so identity must too — otherwise
@@ -256,15 +329,16 @@ module CurrentScope
       # name invites, and silence would be indistinguishable from "flat by
       # design". This one DOES raise: it is a declaration error, reachable only
       # by writing it, and no row value can trigger it.
-      def reject_method_form!(record)
-        return unless record.respond_to?(:current_scope_parent)
+      def reject_method_form!(klass)
+        return unless klass.method_defined?(:current_scope_parent)
 
         raise ConfigurationError,
-              "#{record.class.name} defines an INSTANCE method " \
+              "#{klass.name} defines an INSTANCE method " \
               "`current_scope_parent`, but the declaration is a class-level macro " \
               "and nothing reads that method. Replace it with " \
               "`current_scope_parent :the_association` in the class body."
       end
+
     end
   end
 end

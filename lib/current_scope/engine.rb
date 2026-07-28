@@ -66,6 +66,11 @@ module CurrentScope
       # Same reason: a reload can change a declared chain, and a latched
       # truncation warning would hide the one the edit just created.
       CurrentScope::ParentChain.reset_warnings!
+      # Declaration validation that needs reflection.klass runs HERE, not on the
+      # request path: a deploy must not boot green and 500 on the first gated
+      # request. to_prepare rather than after_initialize so a reload re-checks a
+      # chain the edit just changed.
+      CurrentScope::ParentChain.validate_declarations!
     end
   end
 end

@@ -1,0 +1,23 @@
+app/views/current_scope/roles/new.html.erb
+  s_c282f3352ca4de::t_b110e294554016 15
+app/views/current_scope/roles/edit.html.erb
+  s_c282f3352ca4de::t_b110e294554016 17
+test/parent_chain_messages_test.rb
+  s_c282f3352ca4de::t_44ff81ee5016ba 1-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "ed514b167bdd90c21ceeaae7b8611f441bc3f5c2",
+  "prompts": {},
+  "sessions": {
+    "s_c282f3352ca4de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3035983c-e50f-42b0-8797-fc66e30b6058",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

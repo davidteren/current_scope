@@ -33,6 +33,11 @@ module CurrentScope
     # Public contract: boolean. `actor` is the REAL principal behind the
     # request (defaults to the subject — no impersonation); it only widens the
     # SoD veto under config.sod_identity == :either.
+    # `cascade:` (default true) controls ONLY the #108 ancestor arm of the
+    # record-bound scoped-grant check. `false` matches grants on THIS record
+    # alone; it does not change org-wide, full_access, or record-less behaviour,
+    # and it does not reach scope_for (the record-less read arm always cascades).
+    # Break-glass is its one caller — see sod_bypassed?.
     def allow?(subject:, permission:, record: nil, actor: nil, model: nil, cascade: true)
       decide(subject: subject, permission: permission, record: record, actor: actor, model: model,
              cascade: cascade).first

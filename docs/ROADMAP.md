@@ -76,7 +76,8 @@ v0.1 model.
   walks the declared chain when no direct scoped grant matches, and `scope_for`
   lists the same records (it has to: the record-less read arm takes `.exists?` of
   that relation, so it is a gate). Flat is still the default — a model that
-  declares nothing is unaffected. Chains are bounded at 5 and cycles raise.
+  declares nothing is unaffected. Chains are bounded at 5 hops; a bad
+  declaration raises, while over-deep or looping DATA truncates and denies.
 - **Two deliberate limits**, both documented in the guide: a scoped `full_access`
   grant does **not** cascade (only roles explicitly ticking the key do), and the
   separation-of-duties veto keeps reading the declared record, never an ancestor.

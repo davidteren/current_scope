@@ -63,6 +63,9 @@ module CurrentScope
       # controller#action is gated, and a stale latch would hand a dev running
       # :warn a false all-clear right after the edit.
       CurrentScope::GatingTripwire.reset_warnings!
+      # Same reason: a reload can change a declared chain, and a latched
+      # truncation warning would hide the one the edit just created.
+      CurrentScope::ParentChain.reset_warnings!
     end
   end
 end

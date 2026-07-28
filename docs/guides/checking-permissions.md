@@ -120,8 +120,17 @@ and silently blinded it.
 plain method you define. This one names an association instead, because
 `scope_for` has to build a query from the foreign key and a method returning a
 parent instance cannot give it one. Writing `def current_scope_parent = project`
-raises rather than being ignored. Chains are bounded at five hops, and a cycle
-raises `ConfigurationError` naming the loop.
+raises rather than being ignored.
+
+**Declaration errors raise; data never does.** A missing association, a
+`has_many`, a polymorphic or scoped `belongs_to`, a custom association primary
+key, or a declaration on an STI subclass all raise `ConfigurationError` with the
+fix named. But the *shape of your rows* is not a misconfiguration: a chain
+longer than five hops, or a `parent_id` loop, stops the walk where it runs out,
+**denies**, and logs one warning per model. It never raises, because a loop in
+the data is two `UPDATE`s and must not turn a live request into a 500. If a
+subject is missing access they should have, look for
+"current_scope_parent stopped walking" in the log.
 
 The gate agrees. A collection action like `#index` has no record to name, so it
 asks a record-less question, bound to the type the controller declares
@@ -180,8 +189,9 @@ a bare action or a full key (`scope_for(Report, permission: :approve)`).
 Every record `scope_for(Project)` returns passes `allowed_to?(:index, project)`,
 and every record it omits fails it — by construction, not by convention. It
 resolves against the **effective** subject, so acting-as changes what lists
-show, and it is **flat**: a scoped grant lists that record only (parent/child
-cascade is deferred). SoD does not apply — it vetoes record-targeted *actions*,
+show. A scoped grant lists that record only — plus the descendants of granted
+records when the model declares `current_scope_parent` (see above). SoD does not
+apply — it vetoes record-targeted *actions*,
 not list membership.
 
 ## Record-level decisions

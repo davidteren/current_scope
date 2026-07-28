@@ -61,7 +61,9 @@ module CurrentScope
                 "#{name}.current_scope_parent(#{association_name.inspect}) must name a " \
                 "belongs_to association — #{association_name.inspect} is a " \
                 "#{reflection.macro}. A scoped grant is held on ONE parent record, so " \
-                "the chain walks upward one owner at a time."
+                "the chain walks upward one owner at a time. Declare it on the CHILD " \
+                "instead — `current_scope_parent` in #{reflection.klass.name} — so a " \
+                "grant held here reaches its #{association_name}."
         end
 
         if reflection.polymorphic?
@@ -69,7 +71,8 @@ module CurrentScope
                 "#{name}.current_scope_parent(#{association_name.inspect}) names a " \
                 "polymorphic belongs_to, which is not supported: the parent's class is " \
                 "not knowable without loading every candidate row, so scope_for could " \
-                "not build its query. Declare a concrete belongs_to instead."
+                "not build its query. Either name a concrete belongs_to if this model " \
+                "has one, or keep this model flat and grant on it directly."
         end
 
         # The walk loads the parent THROUGH the association, so a scope on it is
@@ -197,15 +200,19 @@ module CurrentScope
           break if parent.nil? || parent.new_record? || parent.destroyed?
 
           key = identity(parent)
-          break if truncate?(record, "a loop in the data (#{chain_text(seen + [ key ])})") if seen.include?(key)
+          if seen.include?(key)
+            warn_truncated(record, :loop, seen + [ key ])
+            break
+          end
 
           ancestors << parent
           seen << key
           current = parent
 
-          break if ancestors.size >= MAX_PARENT_DEPTH && truncate?(
-            record, "a chain longer than #{MAX_PARENT_DEPTH} (#{chain_text(seen)})"
-          )
+          if ancestors.size >= MAX_PARENT_DEPTH
+            warn_truncated(record, :depth, seen)
+            break
+          end
         end
 
         ancestors
@@ -219,21 +226,24 @@ module CurrentScope
       end
 
       # Truncation denies rather than allows, so it can never escalate — but a
-      # denial nobody can explain is its own failure, hence the warning. Once per
-      # class+reason, never per request. Always returns true so the caller reads
-      # as `break if truncate?(...)`.
-      def truncate?(record, reason)
-        key = [ record.class.base_class.name, reason ]
-        unless warned.include?(key)
-          warned << key
-          Rails.logger&.warn(
-            "[CurrentScope] current_scope_parent stopped walking #{record.class.name} " \
-            "early because of #{reason}. Grants held above that point will not match, " \
-            "so this can only DENY, never allow. Fix the data (or shorten the chain) " \
-            "if a subject is missing access they should have."
-          )
-        end
-        true
+      # denial nobody can explain is its own failure, hence the warning.
+      #
+      # The latch keys on the KIND (:loop / :depth), never on the rendered chain:
+      # the chain text carries record ids, so keying on it would mean a fresh
+      # entry per record — a warning on every row and a Set that grows without
+      # bound in a long-running process. At most two entries per class.
+      def warn_truncated(record, kind, chain)
+        key = [ record.class.base_class.name, kind ]
+        return if warned.include?(key)
+
+        warned << key
+        reason = kind == :loop ? "a loop in the data" : "a chain longer than #{MAX_PARENT_DEPTH}"
+        Rails.logger&.warn(
+          "[CurrentScope] current_scope_parent stopped walking #{record.class.name} " \
+          "early because of #{reason} (#{chain_text(chain)}). Grants held above that " \
+          "point will not match, so this can only DENY, never allow. Fix the data (or " \
+          "shorten the chain) if a subject is missing access they should have."
+        )
       end
 
       def chain_text(keys)

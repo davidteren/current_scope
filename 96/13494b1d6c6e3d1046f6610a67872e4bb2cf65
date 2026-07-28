@@ -1,0 +1,29 @@
+lib/current_scope/engine.rb
+  s_c282f3352ca4de::t_5101b7e0e46b42 69-73
+lib/current_scope/parent_chain.rb
+  s_c282f3352ca4de::t_42a18304ea9e32 186-193
+  s_c282f3352ca4de::t_7cca5e7f2a70d4 1-2,157,178-184,195-196,239,260-264,272-293,332-333,336,341
+  s_c282f3352ca4de::t_3c7c59c300786e 110,119-149
+test/system/role_editing_test.rb
+  s_c282f3352ca4de::t_4f29c6e4eb748e 14-23,26-28
+  s_c282f3352ca4de::t_98744ec45a7e7c 24-25
+test/parent_chain_test.rb
+  s_c282f3352ca4de::t_42a18304ea9e32 212-213,215
+  s_c282f3352ca4de::t_f0dc97e6f0ca48 182-211,214,216-242
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "9613494b1d6c6e3d1046f6610a67872e4bb2cf65",
+  "prompts": {},
+  "sessions": {
+    "s_c282f3352ca4de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3035983c-e50f-42b0-8797-fc66e30b6058",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

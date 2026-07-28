@@ -1,0 +1,27 @@
+docs/guides/checking-permissions.md
+  s_c282f3352ca4de::t_0f16094021a6a1 123-133,192-194
+lib/current_scope/resolver.rb
+  s_c282f3352ca4de::t_5996926d358964 36-40
+lib/current_scope/parent_chain.rb
+  s_c282f3352ca4de::t_5996926d358964 64-66,74-75,203-206,212-215,229-246
+docs/ROADMAP.md
+  s_c282f3352ca4de::t_0f16094021a6a1 79-80
+lib/current_scope/engine.rb
+  s_c282f3352ca4de::t_5996926d358964 66-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "860830b5aab8a6eb8b22e1b5a8375886ce600910",
+  "prompts": {},
+  "sessions": {
+    "s_c282f3352ca4de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3035983c-e50f-42b0-8797-fc66e30b6058",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

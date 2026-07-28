@@ -170,14 +170,7 @@ namespace :current_scope do
       puts
       untargeted_grants.each { |grant| puts grant_line.call(grant) }
       puts
-      # Says only what the check proves. The route-key comparison cannot see a
-      # controller that handles this type under another name, so this section
-      # names its own false alarm rather than letting an operator draw the
-      # wrong conclusion and remove a working grant.
-      puts "  This is NOT a verdict. Only your current_scope_record hooks decide"
-      puts "  which records a controller resolves to, and that is not knowable"
-      puts "  statically. A controller serving this type under a different name"
-      puts "  is a false alarm here. Check the hook before removing anything."
+      puts "  #{CurrentScope::GrantDiagnosis.untargeted_caveat}"
     end
 
     unless blind_rows.empty?

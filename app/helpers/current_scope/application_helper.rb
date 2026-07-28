@@ -105,10 +105,8 @@ module CurrentScope
 
       [
         "cs-check-badge", "check hooks",
-        "No permission on this role names a controller for this record's type. " \
-        "This is NOT a verdict — only your current_scope_record hooks decide " \
-        "which records a controller resolves to. A controller serving this type " \
-        "under another name is a false alarm."
+        "No permission on this role names a controller for this record's type. " +
+          CurrentScope::GrantDiagnosis.untargeted_caveat
       ]
     end
 

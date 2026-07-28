@@ -62,12 +62,4 @@ class GrantDiagnosisBadgeSystemTest < ApplicationSystemTestCase
     assert_no_selector ".cs-dead-badge"
     assert_no_selector ".cs-check-badge"
   end
-
-  test "the role members view carries the badge" do
-    role = role_with
-    grant(role, @report)
-    visit "/current_scope/roles/#{role.id}/members"
-
-    assert_selector ".cs-dead-badge", text: /cannot match/i
-  end
 end

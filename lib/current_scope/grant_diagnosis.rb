@@ -27,8 +27,10 @@ module CurrentScope
 
         nil
       rescue NameError, ActiveRecord::ActiveRecordError => e
-        # Narrow on purpose: a blanket rescue would report a BROKEN diagnostic
-        # as a healthy grant.
+        # NoMethodError < NameError, and that one is a bug in us, not a missing
+        # host constant — re-raise it rather than answer "healthy".
+        raise if e.instance_of?(NoMethodError)
+
         log_degrade(e)
         nil
       end
@@ -56,8 +58,19 @@ module CurrentScope
         # silent when any declared chain reaches this class.
         !reachable_through_declared_chain?(klass, keys)
       rescue NameError, ActiveRecord::ActiveRecordError => e
+        raise if e.instance_of?(NoMethodError)
+
         log_degrade(e)
         false
+      end
+
+      # The advisory's caveat, centralised for the same reason the proven wording
+      # is: the console and the CLI had drifted into two versions of it.
+      def untargeted_caveat
+        "This is NOT a verdict. Only your current_scope_record hooks decide which " \
+        "records a controller resolves to, and that is not knowable statically. A " \
+        "controller serving this type under a different name is a false alarm here. " \
+        "Check the hook before removing anything."
       end
 
       # One wording, so the task and the view cannot drift.

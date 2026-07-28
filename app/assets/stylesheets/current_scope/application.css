@@ -699,9 +699,6 @@ input[type="checkbox"], input[type="radio"] {
   background: color-mix(in srgb, var(--cs-warn) 12%, var(--cs-surface));
 }
 
-/* The scoped-role cell now carries a badge as well as the role/record label.
-   Without this the added inline-block pushed the subjects table past the
-   viewport at narrow widths and broke the overflow guard from PR #11. */
 /* The caveat must reach keyboard and screen-reader users; a title attribute
    reaches neither reliably. */
 .cs-badge-note {

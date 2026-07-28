@@ -15,12 +15,28 @@ module CurrentScope
   # row. Naming an association gives both derivations (the walk and the query)
   # from one declaration, so the gate and the list cannot drift. The departure is
   # deliberate and documented in the README rather than left to surprise a reader.
+  #
+  # DECLARATION ERRORS RAISE. DATA NEVER DOES. That split is load-bearing and was
+  # learned the hard way in review: the first cut raised ConfigurationError when a
+  # record's chain was too deep or looped, which meant two UPDATEs on a parent_id
+  # column — no code change at all — could 500 a live request, escape report
+  # mode's "never breaks a request" promise, and print a fix ("remove one of the
+  # current_scope_parent declarations") pointing at code that was correct. So:
+  # a bad DECLARATION raises at declaration time, where the host can only hit it
+  # by writing it; bad or over-deep DATA truncates the walk, denies (fail-closed),
+  # and warns once.
   module ParentChain
     # A private ceiling, not a config knob: nobody can pick a default for a knob
     # before a host declares a chain deep enough to need it. Raise it when one
-    # asks. Exceeding it raises — a walk that silently stopped would answer
-    # "no grant" for a subject who holds one, which is a denial nobody can
-    # diagnose.
+    # asks.
+    #
+    # Truncating past it is FAIL-CLOSED — fewer ancestors means fewer grants
+    # match, so the answer is a denial, never an escalation. It is also the only
+    # option that keeps the gate and the list agreeing: Resolver#ancestor_scope_for
+    # walks CLASSES, and a legitimate self-referential chain (Project belongs_to
+    # :parent, class_name: "Project") never terminates at the class level however
+    # shallow the data is. A ceiling that raised on one side and truncated on the
+    # other is exactly the divergence this constant exists to prevent.
     MAX_PARENT_DEPTH = 5
 
     # Installed on ActiveRecord::Base via ActiveSupport.on_load — the standard
@@ -56,6 +72,35 @@ module CurrentScope
                 "not build its query. Declare a concrete belongs_to instead."
         end
 
+        # The walk loads the parent THROUGH the association, so a scope on it is
+        # applied; ancestor_scope_for rebuilds the join from the foreign key
+        # alone, so the scope never reaches that SQL. The two then disagree in
+        # the fail-OPEN direction — the gate denies while the collection-read
+        # gate (which is scope_for(...).exists?) allows and the list renders the
+        # rows. Refusing the shape is total; supporting it would mean building
+        # the arm with joins(reflection.name) so one definition feeds both.
+        if reflection.scope
+          raise ConfigurationError,
+                "#{name}.current_scope_parent(#{association_name.inspect}) names a SCOPED " \
+                "belongs_to. The per-record walk would apply that scope and the collection " \
+                "query would not, so the gate and the list would disagree about the same " \
+                "record. Declare an unscoped belongs_to for the chain."
+        end
+
+        # Resolver#scope_for is handed the COLLECTION type a controller names,
+        # which for STI is the base class, while the per-record gate reads the
+        # declaration off the instance's own class. A chain declared on a
+        # subclass would therefore be walked by the gate and invisible to the
+        # list — the two disagreeing about the same record. Refusing the shape
+        # removes that entire class of drift instead of documenting it.
+        if self != base_class
+          raise ConfigurationError,
+                "#{name}.current_scope_parent(#{association_name.inspect}) is declared on " \
+                "an STI subclass. Declare it on #{base_class.name} instead: scoped grants " \
+                "store the base class, and the collection query is built from it, so a " \
+                "subclass-only chain would open records the list could never show."
+        end
+
         self.current_scope_parent_association = association_name.to_sym
       end
 
@@ -80,8 +125,15 @@ module CurrentScope
       end
 
       # Whether this class (or an STI ancestor it inherits from) opted in.
+      # `klass < ActiveRecord::Base` rather than a bare respond_to? duck-type:
+      # the macro is installed on ActiveRecord::Base, so anything else answering
+      # this trio is a coincidence, and honouring it would let a non-AR class
+      # steer grant matching. Mirrors the record-less branch's collection_type?
+      # guard.
       def declared?(klass)
-        klass.respond_to?(:current_scope_parent_declared?) && klass.current_scope_parent_declared?
+        klass.is_a?(Class) && klass < ActiveRecord::Base &&
+          klass.respond_to?(:current_scope_parent_declared?) &&
+          klass.current_scope_parent_declared?
       end
 
       # The declared association reflection, or nil. scope_for reads this for the
@@ -89,10 +141,44 @@ module CurrentScope
       def reflection_for(klass)
         return nil unless declared?(klass)
 
-        klass.reflect_on_association(klass.current_scope_parent_association)
+        reflection = klass.reflect_on_association(klass.current_scope_parent_association)
+        validate_key!(klass, reflection) if reflection
+        reflection
+      end
+
+      # Reset between reloads/tests so a truncation warning is not latched by a
+      # run that has since been fixed (same reason the gating tripwire resets).
+      def reset_warnings!
+        @warned = nil
       end
 
       private
+
+      # Checked HERE, not at declaration time, because it needs reflection.klass
+      # and forcing that constant to resolve inside the macro breaks a perfectly
+      # ordinary forward reference between two models that name each other. It is
+      # still a DECLARATION error, so it raises: no row value can reach it.
+      #
+      # Rebuilding the join (ancestor_scope_for) assumes the parent is matched on
+      # its own primary key. With `primary_key:` set, the child's foreign key
+      # holds some other column's values, so joining on the primary key would
+      # match a DIFFERENT parent row — a grant on X acting on Y, in the arm that
+      # IS the collection-read gate.
+      def validate_key!(klass, reflection)
+        return if reflection.polymorphic?
+        return if reflection.association_primary_key.to_s == reflection.klass.primary_key.to_s
+
+        raise ConfigurationError,
+              "#{klass.name}.current_scope_parent(#{reflection.name.inspect}) names a " \
+              "belongs_to with a custom association primary key " \
+              "(#{reflection.association_primary_key}). The collection query joins on " \
+              "#{reflection.klass.name}'s primary key, so it would match the wrong rows. " \
+              "Declare a chain that keys on the primary key."
+      end
+
+      def warned
+        @warned ||= Set.new
+      end
 
       def walk(record)
         ancestors = []
@@ -101,38 +187,53 @@ module CurrentScope
 
         while (reflection = reflection_for(current.class))
           parent = current.public_send(reflection.name)
-          break if parent.nil? # optional: belongs_to, or an unset column — normal data
+
+          # Normal data, all three: an optional belongs_to with no owner, a
+          # parent built in memory but never saved (it can hold no scoped grant),
+          # and one destroyed earlier in this request — the association cache
+          # would otherwise keep handing back the destroyed object, and matching
+          # a grant against it would open access to a record that is gone, which
+          # is the one-hop-up form of the AE4 rule.
+          break if parent.nil? || parent.new_record? || parent.destroyed?
 
           key = identity(parent)
-          raise ConfigurationError, cycle_message(seen, key) if seen.include?(key)
+          break if truncate?(record, "a loop in the data (#{chain_text(seen + [ key ])})") if seen.include?(key)
 
           ancestors << parent
-          raise ConfigurationError, depth_message(seen, key) if ancestors.size > MAX_PARENT_DEPTH
-
           seen << key
           current = parent
+
+          break if ancestors.size >= MAX_PARENT_DEPTH && truncate?(
+            record, "a chain longer than #{MAX_PARENT_DEPTH} (#{chain_text(seen)})"
+          )
         end
 
         ancestors
       end
 
       # Grants store the polymorphic base_class, so identity must too — otherwise
-      # an STI parent and its base would read as different records and a cycle
-      # through them would not be caught.
+      # an STI parent and its base would read as different records and a loop
+      # through them would not be seen.
       def identity(record)
         [ record.class.base_class.name, record.id ]
       end
 
-      def cycle_message(seen, repeat)
-        "current_scope_parent forms a cycle: #{chain_text(seen + [ repeat ])}. " \
-        "A chain must terminate at a record with no parent. Remove one of the " \
-        "current_scope_parent declarations in that loop."
-      end
-
-      def depth_message(seen, last)
-        "current_scope_parent chain is deeper than #{MAX_PARENT_DEPTH}: " \
-        "#{chain_text(seen + [ last ])}. Shorten the chain, or grant on a record " \
-        "nearer the one being acted on."
+      # Truncation denies rather than allows, so it can never escalate — but a
+      # denial nobody can explain is its own failure, hence the warning. Once per
+      # class+reason, never per request. Always returns true so the caller reads
+      # as `break if truncate?(...)`.
+      def truncate?(record, reason)
+        key = [ record.class.base_class.name, reason ]
+        unless warned.include?(key)
+          warned << key
+          Rails.logger&.warn(
+            "[CurrentScope] current_scope_parent stopped walking #{record.class.name} " \
+            "early because of #{reason}. Grants held above that point will not match, " \
+            "so this can only DENY, never allow. Fix the data (or shorten the chain) " \
+            "if a subject is missing access they should have."
+          )
+        end
+        true
       end
 
       def chain_text(keys)
@@ -143,8 +244,8 @@ module CurrentScope
       # method that nothing calls: the declaration is a class macro. Every other
       # current_scope_* hook IS an instance method, so this is the mistake the
       # name invites, and silence would be indistinguishable from "flat by
-      # design". Raised on the first decision that would have walked, which is
-      # where sod_decision raises for a missing current_scope_initiator too.
+      # design". This one DOES raise: it is a declaration error, reachable only
+      # by writing it, and no row value can trigger it.
       def reject_method_form!(record)
         return unless record.respond_to?(:current_scope_parent)
 

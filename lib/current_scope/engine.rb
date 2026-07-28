@@ -27,9 +27,11 @@ module CurrentScope
     # host-included concern: it is an acts_as_*-style class macro, and hanging it
     # off CurrentScope::Scopeable would both contradict that module's BROWSE-ONLY
     # contract and register every parent-declaring model in the scoped-role
-    # picker as a side effect. instance_accessor: false — the declaration is a
-    # class-level fact, and an instance reader would shadow the very method-form
-    # mistake ParentChain.reject_method_form! exists to catch.
+    # picker as a side effect. instance_accessor: false because the declaration is
+    # a class-level fact and is only ever read through the class; an instance
+    # reader would blur that. (It does NOT collide with the method-form mistake
+    # ParentChain.reject_method_form! catches — that one is named
+    # current_scope_parent, a different method entirely.)
     initializer "current_scope.parent_chain" do
       ActiveSupport.on_load(:active_record) do
         class_attribute :current_scope_parent_association,

@@ -138,11 +138,15 @@ own review. Split to **#134**, sequenced first. See Scope Boundaries.
   (`resolver.rb:400`), this arm is a **gate** for `collection_read_actions`, not
   only a list. Its direct arm keeps `roles_granting` exactly as today, so
   `full_access` still opens a directly-granted record's collection reads.
-- **R6.** The walk is **bounded and cycle-safe**. A cycle or an over-deep chain
-  raises `ConfigurationError` naming the walked chain in order, rather than
-  looping or silently truncating.
+- **R6.** The walk is **bounded and cycle-safe**. A bad *declaration* raises
+  `ConfigurationError`; over-deep or looping *data* truncates at the ceiling,
+  denies (fail-closed), and warns once. See KTD-7 for why the draft's
+  raise-on-data rule was withdrawn.
 - **R7.** A model that defines an instance method named `current_scope_parent`
-  without calling the macro raises at boot, naming the correct form. The silent
+  without calling the macro raises on the first decision that would have walked,
+  naming the correct form. (Not at boot: detecting it there would mean loading
+  every model at boot, which the catalog explicitly refuses to do. Same place
+  `sod_decision` raises for a missing `current_scope_initiator`.) The silent
   no-op is the failure this hook's name invites.
 - **R8.** Every existing test passes unmodified. Specifically
   `test/collection_scope_gate_test.rb:579` (AE4 destroyed record), `:595` (the
@@ -247,21 +251,39 @@ Two constraints validation surfaced:
    ancestor arm needs the same normalization or STI parents drift gate from
    list.
 
-### KTD-7 — Bound the walk loudly, with a private constant, not a config knob
+### KTD-7 — Bound the walk. Declaration errors raise; DATA never does.
 
-Carry a visited set keyed on `[class, id]`, and cap depth at a private
-`MAX_PARENT_DEPTH = 5`. Exceeding the cap or detecting a cycle raises
-`ConfigurationError` whose message **lists the walked chain in order**
-(`Report#3 -> Project#7 -> Report#3`), which names the cycle without a second
-diagnostic.
+**Rewritten after code review falsified the first version.** The draft said
+"silent truncation is the failure to avoid" and made the record walk raise
+`ConfigurationError` past the ceiling and on a cycle. Three reviewers
+independently showed that is wrong, and wrong in the dangerous direction:
 
-No `config.max_parent_depth`. The draft proposed one and could not justify a
-default, which is the definition of a knob nobody sets. It costs an initializer
-line, a `validate!` branch, and a config test. Add it when a host declares a
-chain deeper than five and asks.
+1. **It made data a 500.** A `parent_id` loop is two `UPDATE`s and no code
+   change. Raising from inside `decide` turned that into a 500 that escapes
+   report mode's "never breaks a request" promise, and the message
+   ("remove one of the `current_scope_parent` declarations") pointed at code
+   that was correct.
+2. **It broke the gate/list invariant this plan calls immutable.** The record
+   walk raised while `ancestor_scope_for` silently truncated, so a chain deeper
+   than the ceiling 500ed the member gate while the collection gate happily
+   allowed.
+3. **It could not be made symmetric.** The class walk *cannot* raise: a
+   legitimate self-referential declaration (`Project belongs_to :parent`) never
+   terminates at the class level however shallow the data is.
 
-Silent truncation is the failure to avoid: a walk that quietly stops answers
-"no grant" for a subject who has one, which is a denial nobody can diagnose.
+The rule that holds instead:
+
+- **A bad DECLARATION raises**, at declaration time where only the host's own
+  code can reach it: a missing association, a `has_many`, a polymorphic or
+  scoped `belongs_to`, a custom association primary key, or a chain declared on
+  an STI subclass. Each removes a whole class of gate/list drift rather than
+  documenting it.
+- **Bad DATA truncates**, in both walks, at the same ceiling — then denies and
+  warns once. Truncation is **fail-closed** by construction: fewer ancestors can
+  only mean fewer grants match.
+
+`MAX_PARENT_DEPTH = 5` stays a private constant, not a config knob: nobody can
+pick a default before a host needs one.
 
 ---
 
@@ -297,13 +319,15 @@ ordered chain) and because the bound must be enforced in exactly one place.
 - **Patterns to follow:** plan 030's `GatingReflection` — one module owning one
   question, no resolver coupling.
 - **Test scenarios:** declared chain resolves; no declaration returns empty;
-  cycle raises and the message lists the chain in order; depth over
-  `MAX_PARENT_DEPTH` raises; a declaration naming a missing association raises
+  a data cycle truncates and warns (it does NOT raise); depth over
+  `MAX_PARENT_DEPTH` truncates to the ceiling, warns, and denies;
+  a scoped `belongs_to`, a custom association primary key, and a declaration on
+  an STI subclass each raise; a declaration naming a missing association raises
   at declaration time; a `has_many` association is rejected; a nil parent
   mid-chain stops the walk and denies (normal data —
   `belongs_to :project, optional: true`); repeated `current_scope_parent` calls
   are last-wins, not silently additive; a model defining
-  `def current_scope_parent` without the macro raises at boot (R7).
+  `def current_scope_parent` without the macro raises on first use (R7).
 - **Verification:** `bin/rails test test/parent_chain_test.rb`.
 
 ### U2. `scoped_grant?` consults the chain
@@ -382,8 +406,10 @@ Each mutation must turn a named test red. Run them; do not assume.
 | 1a | `roles_ticking` → `roles_granting` in `scoped_grant?`'s ancestor query | the `full_access` non-cascade gate test (U2) |
 | 1b | `roles_ticking` → `roles_granting` in `scope_for`'s ancestor arm | the `full_access` non-cascade list test (U3) |
 | 2 | Move `sod_decision` below the grant checks | the U2 veto pin |
-| 3 | Drop the cycle guard | the U1 cycle test (must raise, not hang) |
+| 3 | Drop the cycle guard | the U1 data-cycle test (must truncate, not hang) |
 | 4 | Drop the depth cap | the U1 depth test |
+| 10 | Drop `cascade: false` from `sod_bypassed?` | the U2 break-glass non-cascade test |
+| 11 | Allow a scoped/STI/custom-key declaration | the U1 declaration-guard tests |
 | 5 | Extend `scoped_grant?` but not `scope_for` | the U3 gate-and-list agreement test |
 | 6 | `current_scope_parent_association`'s default `nil` → `:parent` | the U1 "flat by default" test |
 | 7 | Match an ancestor of the wrong type (drop the `resource:` bind) | the U2 sibling-project test |
@@ -463,6 +489,13 @@ ancestor arm, the bound, the two message/label honesty fixes, docs.
   the bound, plus Open Question 2.
 
 ## Open Questions
+
+0. **Should the ancestor grant lookup be memoized per request, and the walk
+   short-circuit at the first matching hop?** Review measured a per-record gate
+   at 2 -> 5 queries for a two-hop chain, unmemoized, on the per-row path a view
+   renders. Deferred to its own issue rather than bolted on here: the org role is
+   memoized on `Current` and the scoped arms are not, so this is a pre-existing
+   asymmetry the chain makes louder rather than a defect this PR introduces.
 
 1. **Should a scoped `full_access` grant cascade?** KTD-2 says no, and this
    revision commits to no. Reopenable; widening later is backward-compatible.

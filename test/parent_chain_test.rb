@@ -28,6 +28,20 @@ class ParentChainTest < ActiveSupport::TestCase
     @report = Report.create!(title: "Q3", project: @project, requested_by: @requester)
   end
 
+  def capture_warning
+    messages = []
+    logger = Rails.logger
+    fake = Object.new
+    fake.define_singleton_method(:warn) { |msg = nil, &blk| messages << (msg || blk&.call).to_s }
+    fake.define_singleton_method(:respond_to_missing?) { |*| true }
+    fake.define_singleton_method(:method_missing) { |*| nil }
+    Rails.logger = fake
+    yield
+    messages.join("\n")
+  ensure
+    Rails.logger = logger
+  end
+
   # --- R1: the declaration ---
 
   test "a declared chain yields the parent, nearest first" do
@@ -92,6 +106,34 @@ class ParentChainTest < ActiveSupport::TestCase
     assert_match(/polymorphic/, error.message)
   end
 
+  test "declaring a SCOPED belongs_to raises — the walk would apply the scope and the query would not" do
+    error = assert_raises(CurrentScope::ConfigurationError) do
+      Class.new(ApplicationRecord) do
+        def self.name = "ScopedParent"
+        self.table_name = "reports"
+        belongs_to :project, -> { where(name: "OPEN") }, optional: true
+        belongs_to :requested_by, class_name: "User"
+        current_scope_parent :project
+      end
+    end
+
+    assert_match(/SCOPED belongs_to/, error.message)
+    assert_match(/gate and the list would disagree/, error.message)
+  end
+
+  test "declaring the chain on an STI subclass raises and names the base class" do
+    error = assert_raises(CurrentScope::ConfigurationError) do
+      Class.new(Document) do
+        def self.name = "StiChild"
+        belongs_to :folder, optional: true
+        current_scope_parent :folder
+      end
+    end
+
+    assert_match(/STI subclass/, error.message)
+    assert_match(/Document/, error.message)
+  end
+
   test "repeated declarations are last-wins, never silently additive" do
     klass = Class.new(ApplicationRecord) do
       def self.name = "TwiceDeclared"
@@ -107,33 +149,49 @@ class ParentChainTest < ActiveSupport::TestCase
 
   # --- R6: the bound ---
 
-  test "a cycle raises and the message lists the walked chain in order" do
+  test "a data cycle truncates and warns — it does NOT raise, because rows are not a misdeclaration" do
+    # Two UPDATEs on a parent_id column, no code change, must never 500 a live
+    # request. Truncating denies (fail-closed); raising here used to escape
+    # report mode's "never breaks a request" promise as a 500.
     node = CycleA.create!(name: "loops back to itself through CycleB")
 
-    error = assert_raises(CurrentScope::ConfigurationError) do
-      CurrentScope::ParentChain.ancestors_for(node)
+    assert_nothing_raised do
+      assert_operator CurrentScope::ParentChain.ancestors_for(node).size, :<=,
+                      CurrentScope::ParentChain::MAX_PARENT_DEPTH
     end
-
-    assert_match(/forms a cycle/, error.message)
-    assert_match(/CycleA##{node.id} -> CycleB##{node.id} -> CycleA##{node.id}/, error.message,
-                 "the message must show the walked chain in order, not just name the failure")
   end
 
-  test "a chain deeper than MAX_PARENT_DEPTH raises rather than truncating silently" do
-    # A silent stop would answer "no ancestors" — i.e. no grant — for a subject
-    # who holds one, which is a denial nobody can diagnose.
+  test "a chain deeper than MAX_PARENT_DEPTH truncates to the ceiling and warns" do
     root = Project.create!(name: "depth-0")
-    deepest = (1..CurrentScope::ParentChain::MAX_PARENT_DEPTH + 1).reduce(root) do |parent, i|
+    deepest = (1..CurrentScope::ParentChain::MAX_PARENT_DEPTH + 2).reduce(root) do |parent, i|
       Project.create!(name: "depth-#{i}", parent: parent)
     end
     leaf = Report.create!(title: "too deep", project: deepest, requested_by: @requester)
 
-    error = assert_raises(CurrentScope::ConfigurationError) do
-      CurrentScope::ParentChain.ancestors_for(leaf)
-    end
+    CurrentScope::ParentChain.reset_warnings!
+    logged = capture_warning { CurrentScope::ParentChain.ancestors_for(leaf) }
 
-    assert_match(/deeper than #{CurrentScope::ParentChain::MAX_PARENT_DEPTH}/, error.message)
-    assert_match(/->/, error.message)
+    assert_equal CurrentScope::ParentChain::MAX_PARENT_DEPTH,
+                 CurrentScope::ParentChain.ancestors_for(leaf).size,
+                 "the walk must stop AT the ceiling, not past it"
+    assert_match(/stopped walking/, logged,
+                 "truncation denies, so it must at least say so — a denial nobody can " \
+                 "explain is its own failure")
+  end
+
+  test "truncation is fail-closed: a grant above the ceiling opens nothing" do
+    root = Project.create!(name: "far-0")
+    deepest = (1..CurrentScope::ParentChain::MAX_PARENT_DEPTH + 2).reduce(root) do |parent, i|
+      Project.create!(name: "far-#{i}", parent: parent)
+    end
+    leaf = Report.create!(title: "beyond reach", project: deepest, requested_by: @requester)
+    role = CurrentScope::Role.create!(name: "Far-#{rand(10**9)}")
+    role.role_permissions.create!(permission_key: "reports#approve")
+    CurrentScope::ScopedRoleAssignment.create!(role: role, subject: @requester, resource: root)
+
+    assert_equal [ false, :no_grant ],
+                 CurrentScope::Resolver.new.decide(subject: @requester, permission: "reports#approve", record: leaf),
+                 "truncating past the ceiling must DENY, never allow"
   end
 
   test "a chain exactly at MAX_PARENT_DEPTH is allowed" do

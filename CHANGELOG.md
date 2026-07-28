@@ -25,11 +25,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     merely ticks the key. The role editor's label now says so.
   - **The separation-of-duties veto still reads the record you declared**, never
     an ancestor. The chain feeds grant matching only, so a lead who requested a
-    report still cannot approve it.
+    report still cannot approve it. Break-glass does not cascade either: a
+    `bypass_sod` grant held on a parent does **not** lift the veto on its
+    children, only one held org-wide or on the record itself does.
   - **The declaration is a class macro**, unlike every other `current_scope_*`
     hook, which are plain methods. It has to name an association rather than
     return a record, because `scope_for` builds a query from the foreign key.
-    Chains are bounded at 5 and a cycle raises `ConfigurationError`.
+    Chains are bounded at 5 hops. A bad DECLARATION raises `ConfigurationError`
+    (missing, scoped, polymorphic, `has_many`, or declared on an STI subclass);
+    bad DATA never does — an over-deep or looping chain truncates, denies, and
+    warns, because a `parent_id` loop is two UPDATEs and must not 500 a request.
 - **Grid badge for routes with no controller class (#43).** A stale or typo
   route still appears in the catalog (route mirror), but the role editor now
   marks the row "no controller" so operators do not grant a key that only

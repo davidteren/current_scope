@@ -33,8 +33,9 @@ module CurrentScope
     # Public contract: boolean. `actor` is the REAL principal behind the
     # request (defaults to the subject — no impersonation); it only widens the
     # SoD veto under config.sod_identity == :either.
-    def allow?(subject:, permission:, record: nil, actor: nil, model: nil)
-      decide(subject: subject, permission: permission, record: record, actor: actor, model: model).first
+    def allow?(subject:, permission:, record: nil, actor: nil, model: nil, cascade: true)
+      decide(subject: subject, permission: permission, record: record, actor: actor, model: model,
+             cascade: cascade).first
     end
 
     # Internal decision: returns [allowed_bool, reason_or_nil]. The reason is a
@@ -48,7 +49,7 @@ module CurrentScope
     # record-less branch reads it, to bind that otherwise type-unbound grant
     # check; every other branch ignores it. It stays a parameter, never state,
     # per the purity rule above.
-    def decide(subject:, permission:, record: nil, actor: nil, model: nil)
+    def decide(subject:, permission:, record: nil, actor: nil, model: nil, cascade: true)
       return [ false, :no_grant ] if subject.nil?
 
       case sod_decision(subject: subject, actor: actor, permission: permission, record: record)
@@ -59,7 +60,8 @@ module CurrentScope
       role = org_role(subject)
       return [ true, nil ] if role&.full_access?
       return [ true, nil ] if role&.grants?(permission)
-      return [ true, nil ] if scoped_grant?(subject: subject, permission: permission, record: record)
+      return [ true, nil ] if scoped_grant?(subject: subject, permission: permission, record: record,
+                                            cascade: cascade)
       return [ true, nil ] if record_less_scoped_grant?(subject: subject, permission: permission, record: record, model: model)
 
       # A LABEL, not a decision (R7a): this deny would have been an ALLOW had
@@ -96,7 +98,9 @@ module CurrentScope
     # The list-side complement to allow?: "which records of `model` may this
     # subject act on?". Reads the SAME org + scoped grants the gate reads, so a
     # host list can never drift from the per-record decision. Fail-closed (nil
-    # subject / no grant → none) and flat — no parent/child cascade. SoD does
+    # subject / no grant → none). Flat UNLESS the model declared
+    # current_scope_parent (#108), in which case the ancestor arm unions in the
+    # children of granted parents under roles_ticking. SoD does
     # NOT apply: it vetoes record-targeted actions, not list membership.
     #
     # Since #65 the record-less gate asks this same query (.exists?) for
@@ -123,49 +127,6 @@ module CurrentScope
 
       ancestor_scope_for(subject: subject, model: model, permission: permission)
         .reduce(direct) { |relation, arm| relation.or(arm) }
-    end
-
-    # The #108 list arm, one relation per hop of the declared chain.
-    #
-    # This is NOT list cosmetics: record_less_scoped_grant?'s read arm takes
-    # .exists? of scope_for's relation, so for config.collection_read_actions
-    # this query IS the gate. It therefore uses roles_ticking, matching
-    # scoped_grant?'s ancestor arm — the direct arm above keeps roles_granting,
-    # so full_access still opens a directly-granted record's collection reads and
-    # still does not cascade to children.
-    #
-    # Every hop normalizes through base_class for the same reason the direct arm
-    # does (see the comment above it): grants store the polymorphic base_class,
-    # and querying a subclass name instead would make the list return nothing
-    # where the per-record gate allows.
-    def ancestor_scope_for(subject:, model:, permission:)
-      arms = []
-      klass = model
-      # Foreign keys walked so far, innermost last: [[Report, :project_id], ...]
-      path = []
-
-      while (reflection = ParentChain.reflection_for(klass))
-        parent = reflection.klass
-        path << [ klass, reflection.foreign_key ]
-        break if path.size > ParentChain::MAX_PARENT_DEPTH
-
-        granted = ScopedRoleAssignment
-                    .where(subject: subject, resource_type: parent.base_class.name, role_id: roles_ticking(permission))
-                    .select(:resource_id)
-
-        arms << narrow_through(path, model: model, innermost: parent.where(id: granted))
-        klass = parent
-      end
-
-      arms
-    end
-
-    # Build `model.where(fk1 => Parent.where(fk2 => ...))` from the outside in, so
-    # a grant N hops up still narrows to the right rows of `model`.
-    def narrow_through(path, model:, innermost:)
-      path.reverse.reduce(innermost) do |inner, (klass, foreign_key)|
-        klass.where(foreign_key => inner.select(:id))
-      end.then { |relation| model.where(id: relation.select(:id)) }
     end
 
     # Whether the separation-of-duties veto is in a position to decide about this
@@ -251,13 +212,21 @@ module CurrentScope
     end
 
     # Role ids that EXPLICITLY tick `permission` — full_access roles deliberately
-    # excluded, whether or not they also carry a RolePermission row. Only for the
-    # record-less branch, which binds the grant to no record at all: honoring
+    # excluded, whether or not they also carry a RolePermission row.
+    #
+    # FOUR callers now, for two different reasons. The record-less branch
+    # (record_less_scoped_grant?, record_less_denied_for_unknown_type?) binds the
+    # grant to no record at all: honoring
     # full_access there would mean one scoped full_access grant on one record
     # ("Owner of Report #7") opened EVERY record-less gate in the host app —
     # every #index and #create on every controller — since a full_access role
     # satisfies every key. That is the `resource:` bound scoped_grant? applies
     # and the record-less branch cannot.
+    #
+    # The #108 ancestor arms (ancestor_scoped_grant?, ancestor_scope_for) DO bind
+    # to specific ancestor records, so they are here for the second reason: a
+    # scoped full_access grant on a root record must not open every permission on
+    # every descendant. Same escalation as above, one hop removed.
     #
     # The `where.not` is load-bearing, not belt-and-braces: a role can be
     # full_access AND retain explicit rows (tick grid cells, then flip the
@@ -336,7 +305,19 @@ module CurrentScope
       # Absent hook ⇒ this type never breaks glass (fail-closed, no raise).
       return false unless record.respond_to?(BYPASS_METHOD, true) && record.send(BYPASS_METHOD)
 
-      CurrentScope.allowed?(CurrentScope.config.sod_bypass_permission, subject: initiator, record: record)
+      # cascade: false is load-bearing (#108). This re-enters the resolver, so
+      # WITHOUT it the ancestor arm would satisfy the bypass permission too, and
+      # a bypass_sod grant held on a PARENT would lift the four-eyes veto on
+      # every descendant — off a grant never held on the record being approved.
+      # The veto itself was never the leg that widened; its escape hatch was.
+      # Break-glass stays where it has always been: org-wide, full_access, or a
+      # grant on THIS record.
+      allow?(
+        subject: initiator,
+        permission: CurrentScope.permission_key(CurrentScope.config.sod_bypass_permission, record: record),
+        record: record,
+        cascade: false
+      )
     end
 
     # A scoped grant held on THIS record, or — when the model opted in with
@@ -353,7 +334,54 @@ module CurrentScope
     # the keys. The cost is that privilege stops being monotonic (a full_access
     # role reaches FEWER records through a chain than one that merely ticks the
     # key), which is why the role editor's label names the carve-out.
-    def scoped_grant?(subject:, permission:, record:)
+    # The #108 list arm, one relation per hop of the declared chain.
+    #
+    # This is NOT list cosmetics: record_less_scoped_grant?'s read arm takes
+    # .exists? of scope_for's relation, so for config.collection_read_actions
+    # this query IS the gate. It therefore uses roles_ticking, matching
+    # scoped_grant?'s ancestor arm — the direct arm above keeps roles_granting,
+    # so full_access still opens a directly-granted record's collection reads and
+    # still does not cascade to children.
+    #
+    # Every hop normalizes through base_class for the same reason the direct arm
+    # does (see the comment above it): grants store the polymorphic base_class,
+    # and querying a subclass name instead would make the list return nothing
+    # where the per-record gate allows.
+    def ancestor_scope_for(subject:, model:, permission:)
+      arms = []
+      klass = model
+      # Foreign keys walked so far, innermost last: [[Report, :project_id], ...]
+      path = []
+
+      while (reflection = ParentChain.reflection_for(klass))
+        parent = reflection.klass
+        path << [ klass, reflection.foreign_key ]
+        break if path.size > ParentChain::MAX_PARENT_DEPTH
+
+        granted = ScopedRoleAssignment
+                    .where(subject: subject, resource_type: parent.base_class.name, role_id: roles_ticking(permission))
+                    .select(:resource_id)
+
+        arms << narrow_through(path, innermost: parent.where(id: granted))
+        klass = parent
+      end
+
+      arms
+    end
+
+    # Build `model.where(fk1 => Parent.where(fk2 => ...))` from the outside in, so
+    # a grant N hops up still narrows to the right rows of `model`.
+    def narrow_through(path, innermost:)
+      # The reduce already ENDS on `model.where(...)`, because the first path
+      # entry pushed by ancestor_scope_for is always [model, its own fk] and
+      # reversing puts it last. Wrapping the result in model.where(id: ...)
+      # again would add a redundant self-join to every arm at every depth.
+      path.reverse.reduce(innermost) do |inner, (klass, foreign_key)|
+        klass.where(foreign_key => inner.select(inner.klass.primary_key))
+      end
+    end
+
+    def scoped_grant?(subject:, permission:, record:, cascade: true)
       # `record` may be a class (allowed_to?(:create, Report)) — classes can't
       # hold scoped grants, only persisted records can.
       return false unless record.respond_to?(:new_record?) && record.persisted?
@@ -361,6 +389,8 @@ module CurrentScope
       return true if ScopedRoleAssignment
                        .where(subject: subject, resource: record, role_id: roles_granting(permission))
                        .exists?
+
+      return false unless cascade
 
       ancestor_scoped_grant?(subject: subject, permission: permission, record: record)
     end

@@ -101,6 +101,38 @@ class ParentScopedGrantTest < ActiveSupport::TestCase
     end
   end
 
+  # --- Break-glass must NOT inherit the cascade (found in review) ---
+
+  test "a bypass_sod grant held on the PARENT does not lift the veto on a child" do
+    # sod_bypassed? re-enters the resolver, so without cascade: false the #108
+    # ancestor arm would satisfy the bypass permission too — lifting four-eyes on
+    # every descendant off a grant never held on the record being approved.
+    with_sod_actions("approve") do
+      with_bypass do
+        Report.sod_bypass_glass = true
+        scope_grant(@lead, role("Lead", "reports#approve", "reports#bypass_sod"), @project)
+        own = Report.create!(title: "mine", project: @project, requested_by: @lead)
+
+        assert_equal [ false, :sod_veto ], decide(@lead, "reports#approve", own),
+                     "break-glass held on an ancestor must NOT lift the veto — the veto's " \
+                     "escape hatch is exactly what must not widen with the chain"
+      end
+    end
+  end
+
+  test "a bypass_sod grant held on the RECORD still lifts the veto, unchanged" do
+    with_sod_actions("approve") do
+      with_bypass do
+        Report.sod_bypass_glass = true
+        own = Report.create!(title: "mine", project: @project, requested_by: @lead)
+        scope_grant(@lead, role("Lead", "reports#approve", "reports#bypass_sod"), own)
+
+        assert_equal [ true, :sod_bypassed ], decide(@lead, "reports#approve", own),
+                     "the fix must not break break-glass where it was always held"
+      end
+    end
+  end
+
   # --- R1/R8: nothing changes for a model that declared nothing ---
 
   test "a model with no declaration is unaffected: a grant elsewhere opens nothing" do
@@ -132,6 +164,15 @@ class ParentScopedGrantTest < ActiveSupport::TestCase
   end
 
   private
+
+  def with_bypass
+    previous = CurrentScope.config.allow_sod_bypass
+    CurrentScope.config.allow_sod_bypass = true
+    yield
+  ensure
+    CurrentScope.config.allow_sod_bypass = previous
+    Report.sod_bypass_glass = false
+  end
 
   def with_sod_actions(*actions)
     previous = CurrentScope.config.sod_actions

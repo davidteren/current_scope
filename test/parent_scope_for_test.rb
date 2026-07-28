@@ -107,13 +107,52 @@ class ParentScopeForTest < ActiveSupport::TestCase
 
   # --- R8: the pins that must not move ---
 
-  test "a parent grant opens nothing once the parent is destroyed (AE4 still holds one hop up)" do
+  test "a parent grant opens nothing once the parent is destroyed" do
+    # The POSITIVE CONTROL is the point. Without it this test passed with the
+    # ancestor arm entirely deleted: Project has `has_many :reports, dependent:
+    # :nullify`, so destroying the parent clears project_id before the assertion
+    # runs, and the arm matched nothing for a reason unrelated to liveness.
     scope_grant(@lead, role("Lead", "reports#index"), @project)
-    orphaned = @mine
+
+    assert_includes listed, "mine", "control: the parent grant must list the child BEFORE the destroy"
+
     @project.destroy
 
-    orphaned.reload
-    assert_empty @resolver.scope_for(subject: @lead, model: Report, permission: "reports#index")
-                          .where(id: orphaned.id)
+    assert_empty listed, "and nothing after it"
+  end
+
+  test "the gate agrees with the list, record by record" do
+    # The pairing that catches gate/list drift. Asserting the record-less gate
+    # against list emptiness (above) does not: it compares a boolean to a count,
+    # so a per-record disagreement hides inside a non-empty list.
+    scope_grant(@lead, role("Lead", "reports#index"), @project)
+
+    listed_ids = @resolver.scope_for(subject: @lead, model: Report, permission: "reports#index").pluck(:id)
+
+    Report.find_each do |report|
+      allowed, = @resolver.decide(subject: @lead, permission: "reports#index", record: report)
+      assert_equal listed_ids.include?(report.id), allowed,
+                   "scope_for and decide disagree about Report##{report.id} " \
+                   "(#{report.title}) — listed=#{listed_ids.include?(report.id)} allowed=#{allowed}"
+    end
+  end
+
+  test "the gate agrees with the list past the depth ceiling, where the two walks used to diverge" do
+    # The record walk truncates and the class walk truncates at the SAME ceiling.
+    # An earlier cut raised on one side and broke silently on the other, so a
+    # deep tree 500ed the member gate while the list happily answered.
+    root = Project.create!(name: "deep-0")
+    deepest = (1..CurrentScope::ParentChain::MAX_PARENT_DEPTH + 2).reduce(root) do |parent, i|
+      Project.create!(name: "deep-#{i}", parent: parent)
+    end
+    far = Report.create!(title: "far", project: deepest, requested_by: @requester)
+    scope_grant(@lead, role("Lead", "reports#index"), root)
+
+    listed_ids = @resolver.scope_for(subject: @lead, model: Report, permission: "reports#index").pluck(:id)
+    allowed, = @resolver.decide(subject: @lead, permission: "reports#index", record: far)
+
+    assert_equal listed_ids.include?(far.id), allowed,
+                 "past the ceiling the gate and the list must still agree"
+    refute allowed, "and both must DENY — truncation is fail-closed"
   end
 end

@@ -244,7 +244,7 @@ module CurrentScope
           # would otherwise keep handing back the destroyed object, and matching
           # a grant against it would open access to a record that is gone, which
           # is the one-hop-up form of the AE4 rule.
-          break if parent.nil? || parent.new_record? || parent.destroyed?
+          break unless walkable?(parent)
 
           key = identity(parent)
           if seen.include?(key)
@@ -273,7 +273,19 @@ module CurrentScope
       # ceiling stop actually TRUNCATED anything.
       def next_parent(record)
         reflection = reflection_for(record.class)
-        reflection && load_parent(record, reflection)
+        return nil unless reflection
+
+        parent = load_parent(record, reflection)
+        walkable?(parent) ? parent : nil
+      end
+
+      # The three terminal shapes, in ONE place so the walk and the
+      # would-it-have-continued check cannot disagree about what counts as a
+      # stop. A terminal parent means the walk ended normally and truncated
+      # nothing, so it must not warn — and must not latch [class, :depth] and
+      # swallow the next real over-depth warning. (cubic P3, second round)
+      def walkable?(parent)
+        !parent.nil? && !parent.new_record? && !parent.destroyed?
       end
 
       # F. Read the parent WITHOUT triggering a lazy load. A host running
@@ -282,8 +294,17 @@ module CurrentScope
       # module exists to avoid. Uses the already-loaded target when there is one,
       # so `includes(:project)` still pays off. (cubic P2)
       def load_parent(record, reflection)
-        association = record.association(reflection.name)
-        return association.target if association.loaded?
+        # A preloaded target is only trustworthy when the record's own class
+        # resolves the SAME association object the base declared. An STI subclass
+        # that overrides the inherited association would otherwise make the gate
+        # walk a different parent than scope_for queries — resolving the
+        # reflection from base_class is not enough on its own, because
+        # `record.association(name)` still resolves on the runtime subclass.
+        # (cubic P1, second round)
+        if record.class.reflect_on_association(reflection.name).equal?(reflection)
+          association = record.association(reflection.name)
+          return association.target if association.loaded?
+        end
 
         foreign_key = record[reflection.foreign_key]
         return nil if foreign_key.nil?

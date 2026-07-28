@@ -1,0 +1,31 @@
+docs/site/limitations.md
+  s_c282f3352ca4de::t_d844761d657347 33,36-43
+CHANGELOG.md
+  s_c282f3352ca4de::t_d844761d657347 11-15,17-20
+app/helpers/current_scope/application_helper.rb
+  s_c282f3352ca4de::t_6e84b7b993a39f 91-93
+lib/current_scope/grant_diagnosis.rb
+  s_c282f3352ca4de::t_587dbf67a2cbd8 2,4-7,9-10,20-21,30-31,39-40,55-56,63,83-85,101-102,130-131,136-139
+app/assets/stylesheets/current_scope/application.css
+  s_c282f3352ca4de::t_6e84b7b993a39f 677-679,705-706
+test/system/grant_diagnosis_badge_test.rb
+  s_c282f3352ca4de::t_6e84b7b993a39f 41,66
+docs/guides/checking-permissions.md
+  s_c282f3352ca4de::t_c15370fbec2cc3 135-149
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "96f338c2543e20363c7f8c48c0f2e0e50ce9ac72",
+  "prompts": {},
+  "sessions": {
+    "s_c282f3352ca4de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3035983c-e50f-42b0-8797-fc66e30b6058",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

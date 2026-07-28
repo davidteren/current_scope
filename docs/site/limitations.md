@@ -30,6 +30,25 @@ contract. Do not plan a SPA cutover expecting that to exist today.
 These are deliberate product choices, not forgotten bugs. Documented so
 operators and auditors know what to expect.
 
+### A16 — The "no ticked key targets this type" signal is advisory, not a verdict (#134)
+
+The console badge **check hooks** and the report task's *"Worth checking"*
+section are a heuristic, and they say so where you read them.
+
+The engine cannot prove which records a controller resolves to:
+`current_scope_record` and `current_scope_model` are instance methods whose
+values only exist at runtime. So the check compares the grant's type against the
+route keys of the permissions its role ticks — the same comparison
+`CurrentScope.permission_key` uses — and inherits that comparison's blind spot
+for controllers serving a type under a different name.
+
+**A controller named for something other than its records is a false alarm
+here.** Check the record hook before removing a grant on this signal alone.
+
+The separate **cannot match** badge is different: it is proven, it holds
+whatever your hooks do, and it fires only when the role ticks no permissions at
+all or ticks only keys absent from the routed catalog.
+
 ### A15 — A declared chain is bounded at five hops, and truncation is silent to the user (#108)
 
 `CurrentScope::ParentChain::MAX_PARENT_DEPTH` is 5. A grant held more than five
@@ -68,9 +87,10 @@ through a chain than a role that merely ticks the key.
 **Host should:** tick the keys on the role when blanket authority over a subtree
 is what you want. The role editor's full-access label states the carve-out.
 
-**Operators should know:** a scoped grant that can never match any gated action
-is not yet flagged anywhere (**#134**). Until it is, a grant that looks correct
-in the console may resolve to nothing.
+**Operators should know:** since **#134** the console and
+`bin/rails current_scope:report` flag a scoped grant whose role can never match
+anything, and separately flag one whose ticked keys do not name a controller for
+the grant's type. The second is an **advisory, not a verdict** — see A16.
 
 ### A5 — Org grant + nil SoD record skips the veto
 

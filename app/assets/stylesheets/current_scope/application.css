@@ -674,6 +674,31 @@ input[type="checkbox"], input[type="radio"] {
   background: var(--cs-surface-2);
 }
 .cs-row--inert td { color: var(--cs-muted); }
+/* #134: two states #90's "inert" does not cover. Distinct colours AND distinct
+   words, because the fixes differ: inert = the record is gone (remove the
+   grant); cannot match = the role reaches nothing (tick a key); check hooks =
+   advisory, not a verdict. */
+.cs-dead-badge,
+.cs-check-badge {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.05rem 0.35rem;
+  margin-left: 0.35rem;
+  border-radius: 0.25rem;
+  white-space: nowrap;
+}
+.cs-dead-badge {
+  color: var(--cs-danger-fg, #b42318);
+  background: var(--cs-danger-bg, #fee4e2);
+}
+.cs-check-badge {
+  color: var(--cs-warn-fg, #93370d);
+  background: var(--cs-warn-bg, #fef0c7);
+}
+
 .cs-inert-badge {
   display: inline-block;
   font-size: 0.6875rem;

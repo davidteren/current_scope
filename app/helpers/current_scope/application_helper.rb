@@ -88,6 +88,34 @@ module CurrentScope
       "#{assignment.subject_type} ##{assignment.subject_id}"
     end
 
+    # #134: the console's one read of GrantDiagnosis, so the two grant surfaces
+    # cannot drift into different wordings for the same finding. Returns
+    # [css_modifier, badge_text, tooltip] or nil.
+    #
+    # Deliberately NOT the word "inert" — that is #90's badge and it means the
+    # grant's RECORD is gone, with a different fix. Three states an operator has
+    # to tell apart: missing, inert, cannot-match.
+    def current_scope_grant_diagnosis_badge(scoped_assignment)
+      verdict = CurrentScope::GrantDiagnosis.verdict_for(scoped_assignment)
+      if verdict
+        return [
+          "cs-dead-badge", "cannot match",
+          "#{CurrentScope::GrantDiagnosis.verdict_label(verdict).capitalize}. " \
+          "#{CurrentScope::GrantDiagnosis.verdict_fix(verdict)}"
+        ]
+      end
+
+      return nil unless CurrentScope::GrantDiagnosis.type_untargeted?(scoped_assignment)
+
+      [
+        "cs-check-badge", "check hooks",
+        "No permission on this role names a controller for this record's type. " \
+        "This is NOT a verdict — only your current_scope_record hooks decide " \
+        "which records a controller resolves to. A controller serving this type " \
+        "under another name is a false alarm."
+      ]
+    end
+
     def current_scope_holder_resource_label(scoped_assignment)
       if scoped_assignment.respond_to?(:orphaned_resource?) && scoped_assignment.orphaned_resource?
         return "#{scoped_assignment.resource_type} ##{scoped_assignment.resource_id} (unavailable — inert)"

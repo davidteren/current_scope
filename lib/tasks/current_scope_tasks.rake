@@ -54,7 +54,25 @@ namespace :current_scope do
             "Run: bin/rails current_scope:install:migrations && bin/rails db:migrate"
     end
 
-    if rows.empty? && blind_rows.empty?
+    # #134: these two are STATIC — derived from the grants table, not the
+    # ledger — so they are present with zero traffic. That is the whole point:
+    # a grant that can never match is most likely to exist BEFORE report mode
+    # was ever exercised, which is exactly when the ledger is empty.
+    dead_grants, untargeted_grants = CurrentScope::ScopedRoleAssignment
+      .includes(:role)
+      .each_with_object([ [], [] ]) do |grant, (dead, untargeted)|
+        verdict = CurrentScope::GrantDiagnosis.verdict_for(grant)
+        if verdict
+          dead << [ grant, verdict ]
+        elsif CurrentScope::GrantDiagnosis.type_untargeted?(grant)
+          untargeted << grant
+        end
+      end
+
+    # The guard is four-way, not two-way. Leaving it keyed on the ledger alone
+    # would print "nothing recorded" and stop, hiding both static sections in
+    # the one case they matter most. (#134)
+    if rows.empty? && blind_rows.empty? && dead_grants.empty? && untargeted_grants.empty?
       # "No output" is indistinguishable from "the task is broken", and the two
       # likeliest causes are both SILENT: report mode never on, or audit off.
       # Name them — this is the first thing a host runs, and an unexplained blank
@@ -98,6 +116,41 @@ namespace :current_scope do
       end
 
       puts "Total: #{rows.count} would-be denials across #{grouped.size} subject(s)."
+    end
+
+    unless dead_grants.empty?
+      puts if rows.any?
+      puts "Scoped grants that can never match — granting more will not help:"
+      puts
+      dead_grants.group_by { |_g, verdict| verdict }.each do |verdict, pairs|
+        puts "  #{CurrentScope::GrantDiagnosis.verdict_label(verdict)}"
+        pairs.each do |grant, _v|
+          puts "    #{CurrentScope.label_for(grant.subject)} — role \"#{grant.role&.name}\" " \
+               "on #{grant.resource_type}##{grant.resource_id}"
+        end
+        puts "    → #{CurrentScope::GrantDiagnosis.verdict_fix(verdict)}"
+        puts
+      end
+      puts "Total: #{dead_grants.count} grant(s) that cannot match any gated action."
+    end
+
+    unless untargeted_grants.empty?
+      puts if rows.any? || dead_grants.any?
+      puts "Worth checking — no ticked key targets this grant's type:"
+      puts
+      untargeted_grants.each do |grant|
+        puts "  #{CurrentScope.label_for(grant.subject)} — role \"#{grant.role&.name}\" " \
+             "on #{grant.resource_type}##{grant.resource_id}"
+      end
+      puts
+      # Says only what the check proves. The route-key comparison cannot see a
+      # controller that handles this type under another name, so this section
+      # names its own false alarm rather than letting an operator draw the
+      # wrong conclusion and remove a working grant.
+      puts "  This is NOT a verdict. Only your current_scope_record hooks decide"
+      puts "  which records a controller resolves to, and that is not knowable"
+      puts "  statically. A controller serving this type under a different name"
+      puts "  is a false alarm here. Check the hook before removing anything."
     end
 
     unless blind_rows.empty?

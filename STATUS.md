@@ -24,16 +24,19 @@
 >
 > Do not drop the banner on "the fix shipped". The bar is a real app running
 > enforced, because that is the claim the banner makes.
+>
+> **[#133](https://github.com/davidteren/current_scope/issues/133) sits ON this
+> path, not after it.** Report mode is the bake's FIRST phase, and #133 is a
+> live-traffic 500 in report mode: a model reached by an SoD action with no
+> `current_scope_initiator` raises for every subject. A host attempting the bake
+> can hit it before they ever reach the flip. Treat it as a bake risk to weigh
+> before starting, not a post-banner polish item.
 
 > ## Open, post-banner (opened 2026-07-28 from the #135/#137 work)
 >
 > - **[#136](https://github.com/davidteren/current_scope/issues/136)** —
 >   parent-chain gate checks cost one query per hop, unmemoized, on the per-row
 >   path. Performance debt introduced by #135.
-> - **[#133](https://github.com/davidteren/current_scope/issues/133)** — report
->   mode does not keep its "nothing changes for users" promise: a missing
->   `current_scope_initiator` 500s live traffic. Bites a host already running
->   `:report`, so it is not just polish.
 > - **[#132](https://github.com/davidteren/current_scope/issues/132)** —
 >   adoption guide: report mode's two other outcomes (SoD blind-spot 403,
 >   `ConfigurationError` 500) are undocumented.

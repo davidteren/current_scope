@@ -30,6 +30,25 @@ contract. Do not plan a SPA cutover expecting that to exist today.
 These are deliberate product choices, not forgotten bugs. Documented so
 operators and auditors know what to expect.
 
+### A14 — A scoped `full_access` grant does not cascade to children (#108)
+
+When a model declares `current_scope_parent`, only roles that **explicitly tick
+the key** reach its children. A scoped `full_access` grant reaches the record it
+was granted on and stops there.
+
+This is deliberate. Cascading it would mean one scoped `full_access` grant on a
+root record opened every permission on every descendant, which is a far larger
+grant than ticking one box implies. The visible oddity is that privilege stops
+being monotonic in this one place: a `full_access` role reaches **fewer** records
+through a chain than a role that merely ticks the key.
+
+**Host should:** tick the keys on the role when blanket authority over a subtree
+is what you want. The role editor's full-access label states the carve-out.
+
+**Operators should know:** a scoped grant that can never match any gated action
+is not yet flagged anywhere (**#134**). Until it is, a grant that looks correct
+in the console may resolve to nothing.
+
 ### A5 — Org grant + nil SoD record skips the veto
 
 On an SoD-listed **member** action, if `current_scope_record` returns `nil`

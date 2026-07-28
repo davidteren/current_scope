@@ -75,8 +75,53 @@ def current_scope_model = Project
 ```
 
 - **full-access or an org-wide grant** of the key → every record (`Project.all`).
-- **scoped grants** → only the specific records that role was granted on.
+- **scoped grants** → only the specific records that role was granted on, plus
+  the children of granted parents when the model declares a chain (below).
 - **no grant** (or no subject) → empty, fail-closed like the gate.
+
+### A grant on a parent record (#108)
+
+Scoping is flat by default: a role held on `Project 7` matches actions on
+`Project 7` and nothing else. Opt a model in when authority should reach down a
+level:
+
+```ruby
+class Report < ApplicationRecord
+  belongs_to :project
+  current_scope_parent :project
+
+  # Unchanged, and it still names the REPORT's requester.
+  def current_scope_initiator = requested_by
+end
+```
+
+Now a scoped role held on `Project 7` satisfies `reports#approve` on that
+project's reports, including reports created after the grant, and
+`scope_for(Report)` lists exactly those reports.
+
+Three things to know before you declare one.
+
+**A scoped `full_access` grant does not cascade.** Only roles that explicitly
+tick the key reach children. A scoped `full_access` grant on a root record would
+otherwise open every permission on everything beneath it, which is a much larger
+grant than the operator who ticked one box intended. The side effect is that
+privilege stops being monotonic here: a `full_access` role reaches *fewer*
+records through a chain than a role that merely ticks the key. If you want
+blanket authority over a subtree, tick the keys.
+
+**The four-eyes veto still reads the record you handed back**, never an ancestor.
+A lead holding a grant on `Project 7` still cannot approve a report they
+requested themselves. This is the whole reason the chain feeds grant matching
+only — the older workaround, handing the *parent* back from
+`current_scope_record` so the grant would match, moved the record the veto reads
+and silently blinded it.
+
+**It is a class macro, not a method.** Every other `current_scope_*` hook is a
+plain method you define. This one names an association instead, because
+`scope_for` has to build a query from the foreign key and a method returning a
+parent instance cannot give it one. Writing `def current_scope_parent = project`
+raises rather than being ignored. Chains are bounded at five hops, and a cycle
+raises `ConfigurationError` naming the loop.
 
 The gate agrees. A collection action like `#index` has no record to name, so it
 asks a record-less question, bound to the type the controller declares

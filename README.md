@@ -44,7 +44,12 @@ generator, and get:
   permissions — ticked cells on a controller × action grid. Change what
   "Reviewer" means without a deploy.
 - **Scoped roles.** The same role, attached to one specific record: "Editor of
-  Project #7" grants nothing on Project #8.
+  Project #7" grants nothing on Project #8. A model can opt in to reaching one
+  level down with `current_scope_parent :project`, so a role held on a project
+  covers that project's reports — including reports created after the grant.
+  Flat is still the default, a scoped `full_access` grant deliberately does not
+  cascade, and the four-eyes veto keeps reading the record you handed it. See
+  [Checking permissions](docs/guides/checking-permissions.md#a-grant-on-a-parent-record-108).
 - **An optional separation-of-duties veto.** Off by default; opt in by listing
   actions. Once on, whoever initiated a record can never approve it — not
   grantable, not configurable in the UI, overrides even full access. A

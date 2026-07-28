@@ -2,43 +2,45 @@
 
 > ## Last session handoff
 >
-> **This is:** CurrentScope, a mountable Rails authorization engine (published
-> gem `current_scope` 0.4.0), being driven to a "solid v1" bar so the README's
+> **This is:** CurrentScope, a Rails authorization engine (gem `current_scope`,
+> 0.4.0 published) being driven to a "solid v1" bar so the README's
 > not-production-ready banner can come down.
-> **Done:** the whole solid-v1 sprint queue merged (Waves 1 and 2 of tracking
-> issue **#116**, PRs #117–#125, plus the Pages action bump PR #130), and then
-> **#108 parent-record resolution landed on `main` via PR #135** (`ab63832`),
-> which unblocks the real host's `:enforce` flip. Unreleased: `main` is ahead
-> of the published 0.4.0.
-> **Next:** the four follow-ups #135 spawned, then #116 Wave 3 and the
-> banner-drop PR. Take **#134** first (it was sequenced ahead of #135 and did
-> not land) and **#133** next (it breaks report mode's core promise on a live
-> host). Then cut the minor release, because #108 moves authorization semantics.
+> **What we finished:** #108 parent-record resolution (PR #135, `ab63832`) and
+> #134's unresolvable-grant guardrail (PR #137, `561734f`) are both on `main`.
+> Every coded item in tracking issue **#116** is now done.
+> **What you do next:** flip one real host to `:enforce` on this `main`. That
+> bake is the last thing before the banner drops, and only a human can do it.
 
-> ## Open after #108 (all opened 2026-07-28 from the #135 work)
+> ## 🔴 ONLY REMAINING BLOCKER — the real-host bake (#116 Wave 3)
 >
-> - **[#134](https://github.com/davidteren/current_scope/issues/134)** — flag a
->   scoped grant that can never match any gated action for its class. The
->   guardrail that was split out of #135 and sequenced first, but has not
->   landed. An unresolvable grant must be visible **before** an operator flips
->   enforcement.
-> - **[#133](https://github.com/davidteren/current_scope/issues/133)** — report
->   mode does not keep its "nothing changes for users" promise: a missing
->   `current_scope_initiator` 500s live traffic. This one bites an adopting host
->   already running `:report`, so it is not just a polish item.
+> Every coded item in #116 is finished. The banner stays up until **one real
+> host runs `config.enforcement = :report`, reads `bin/rails
+> current_scope:report`, and flips to `:enforce`** on current `main`.
+>
+> That bake is what found **#108** (a scoped grant on a parent matched nothing
+> on its children, which blocked the flip). #108 shipped in PR #135, and #134's
+> guardrail (PR #137) now shows an operator a grant that can never match
+> *before* they flip. **Neither is evidence the flip happened.**
+>
+> Do not drop the banner on "the fix shipped". The bar is a real app running
+> enforced, because that is the claim the banner makes.
+
+> ## Open, post-banner (opened 2026-07-28 from the #135/#137 work)
+>
 > - **[#136](https://github.com/davidteren/current_scope/issues/136)** —
 >   parent-chain gate checks cost one query per hop, unmemoized, on the per-row
 >   path. Performance debt introduced by #135.
+> - **[#133](https://github.com/davidteren/current_scope/issues/133)** — report
+>   mode does not keep its "nothing changes for users" promise: a missing
+>   `current_scope_initiator` 500s live traffic. Bites a host already running
+>   `:report`, so it is not just polish.
 > - **[#132](https://github.com/davidteren/current_scope/issues/132)** —
 >   adoption guide: report mode's two other outcomes (SoD blind-spot 403,
 >   `ConfigurationError` 500) are undocumented.
 >
-> **Release note owed:** #108 is a **minor** bump, not a patch. A host that
-> declares no chain sees byte-identical decisions, but the semantics moved.
-> See the Unreleased section of CHANGELOG.md for the three caveats a host must
-> read before declaring a chain (scoped `full_access` does not cascade, the SoD
-> veto and break-glass still read the declared record, the declaration is a
-> class macro bounded at 5 hops).
+> **Release owed:** the next cut is **0.5.0 (minor)**, not a patch — #108 moves
+> authorization semantics even though it is opt-in. See the Unreleased section
+> of CHANGELOG.md for the caveats a host must read before declaring a chain.
 
 > Last updated: 2026-07-28
 >
@@ -740,6 +742,8 @@ quickstart, production checklist) + tests T1–T4.
    listed here: #25/#27/#29/#34/#36 in the 2026-07-25 → 27 session block;
    #32/#33 with v0.4.0 on 2026-07-24; #30 earlier, in the Phase 1 stack.)*
 9. ~~**Publish to RubyGems**~~ — **`v0.4.0` is live on RubyGems (2026-07-24).**
+   `main` is now AHEAD of it: #108 and #134 are unreleased, and together they
+   make the next cut **0.5.0 (minor)**.
    Recurring recipe for the next cut: bump `lib/current_scope/version.rb` +
    CHANGELOG heading, run the release gate, tag + **GitHub Release** (a pushed
    tag alone does not update the Releases page), `gem push` (**requires

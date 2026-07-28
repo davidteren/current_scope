@@ -23,6 +23,22 @@ module CurrentScope
       map["CurrentScope::AccessDenied"] = :forbidden unless map.key?("CurrentScope::AccessDenied")
     end
 
+    # The `current_scope_parent` declaration (#108). on_load rather than a
+    # host-included concern: it is an acts_as_*-style class macro, and hanging it
+    # off CurrentScope::Scopeable would both contradict that module's BROWSE-ONLY
+    # contract and register every parent-declaring model in the scoped-role
+    # picker as a side effect. instance_accessor: false — the declaration is a
+    # class-level fact, and an instance reader would shadow the very method-form
+    # mistake ParentChain.reject_method_form! exists to catch.
+    initializer "current_scope.parent_chain" do
+      ActiveSupport.on_load(:active_record) do
+        class_attribute :current_scope_parent_association,
+                        instance_accessor: false,
+                        default: nil
+        extend CurrentScope::ParentChain::Declaration
+      end
+    end
+
     # Cross-field config invariants (e.g. bypass permission ∉ sod_actions) must
     # run AFTER the host initializer has assigned every field — a writer on
     # either attr alone is order-dependent. once, not on to_prepare (config

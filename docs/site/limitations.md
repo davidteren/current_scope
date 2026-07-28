@@ -30,24 +30,17 @@ contract. Do not plan a SPA cutover expecting that to exist today.
 These are deliberate product choices, not forgotten bugs. Documented so
 operators and auditors know what to expect.
 
-### A16 — The "no ticked key targets this type" signal is advisory, not a verdict (#134)
-
-The console badge **check hooks** and the report task's *"Worth checking"*
-section are a heuristic, and they say so where you read them.
+### A16 — "check hooks" is advisory, not a verdict (#134)
 
 The engine cannot prove which records a controller resolves to:
-`current_scope_record` and `current_scope_model` are instance methods whose
-values only exist at runtime. So the check compares the grant's type against the
-route keys of the permissions its role ticks — the same comparison
-`CurrentScope.permission_key` uses — and inherits that comparison's blind spot
-for controllers serving a type under a different name.
+`current_scope_record` and `current_scope_model` run at request time. The
+**check hooks** signal therefore compares the grant's type against the route
+keys its role ticks, and inherits that comparison's blind spot for a controller
+serving a type under a different name.
 
-**A controller named for something other than its records is a false alarm
-here.** Check the record hook before removing a grant on this signal alone.
-
-The separate **cannot match** badge is different: it is proven, it holds
-whatever your hooks do, and it fires only when the role ticks no permissions at
-all or ticks only keys absent from the routed catalog.
+**Host should:** read the record hook before removing a grant on this signal
+alone. The separate **cannot match** signal *is* proven and holds whatever your
+hooks do.
 
 ### A15 — A declared chain is bounded at five hops, and truncation is silent to the user (#108)
 

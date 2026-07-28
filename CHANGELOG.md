@@ -8,26 +8,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 - **Unresolvable scoped grants are surfaced before the enforce flip (#134).**
-  The role members view and `bin/rails current_scope:report` now distinguish three states an operator
-  previously could not tell apart: a grant that is **missing**, one that is
-  **inert** (#90 — its record is gone), and one that **cannot match**.
+  `bin/rails current_scope:report` and the role members view now separate a
+  grant that **cannot match** (proven: the role ticks nothing, or only unrouted
+  keys) from one worth a **check hooks** look (advisory: no ticked key names a
+  controller for that type — the engine cannot prove this, so the output says
+  so). Neither is #90's **inert**, which means the record is gone.
 
-  Two signals, deliberately separate because they carry different certainty:
-  - **cannot match** is *proven* — the role ticks no permissions at all, or
-    ticks only keys absent from the routed catalog. True whatever the host's
-    hooks do.
-  - **check hooks** is an *advisory* — no ticked key names a controller for the
-    grant's type. The engine cannot prove this (`current_scope_record` is an
-    instance method resolved at runtime), so the signal names its own false
-    alarm inline rather than asserting a verdict. See limitations A16.
+  The report sections are derived from the grants table, not the ledger, so they
+  print with no recorded traffic. Not on the subjects page yet: the badge
+  widened that table past the viewport at narrow widths. No runtime
+  `warn_on_*` nudge — this is a pre-flip check, not a per-request one.
 
-  The report task's empty-state guard became four-way: these are derived from
-  the grants table, not the ledger, so they print with zero recorded traffic —
-  which is exactly when a grant that can never match is most likely to exist.
-
-  **Not on the subjects page yet.** The badge widened that table past the
-  viewport at narrow widths, so it ships on the role members view and in the
-  report task, which covers every grant regardless of surface.
 - **Parent-record resolution for scoped grants (#108), opt-in.** A model may
   declare `current_scope_parent :project`; when no direct scoped grant matches a
   record, the resolver walks the declared chain and matches grants against its

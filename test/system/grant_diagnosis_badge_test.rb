@@ -38,8 +38,7 @@ class GrantDiagnosisBadgeSystemTest < ApplicationSystemTestCase
     grant(role_with, @report)
     visit "/current_scope/roles/#{CurrentScope::ScopedRoleAssignment.last.role_id}/members"
 
-    # Case-insensitive: the badge CSS uppercases it, and Capybara reports the
-    # RENDERED text, so a literal match would silently miss a visible badge.
+    # Case-insensitive: the CSS uppercases it and Capybara reads rendered text.
     assert_selector ".cs-dead-badge", text: /cannot match/i
     # Not #90's state, so it must not borrow #90's word.
     assert_no_selector ".cs-inert-badge"
@@ -64,12 +63,11 @@ class GrantDiagnosisBadgeSystemTest < ApplicationSystemTestCase
     assert_no_selector ".cs-check-badge"
   end
 
-  test "the role members view carries the same badge as the subjects page" do
+  test "the role members view carries the badge" do
     role = role_with
     grant(role, @report)
     visit "/current_scope/roles/#{role.id}/members"
 
-    # #90 covers both grant surfaces identically; this must too.
     assert_selector ".cs-dead-badge", text: /cannot match/i
   end
 end

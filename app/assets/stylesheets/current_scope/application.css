@@ -674,17 +674,9 @@ input[type="checkbox"], input[type="radio"] {
   background: var(--cs-surface-2);
 }
 .cs-row--inert td { color: var(--cs-muted); }
-/* #134: two states #90's "inert" does not cover. The fixes differ, so the
-   badges must differ at a glance: inert = the record is gone (remove the
-   grant); cannot match = the role reaches nothing (tick a key); check hooks =
-   advisory, not a verdict.
-
-   .cs-dead-badge deliberately uses a SOLID danger fill where .cs-inert-badge
-   uses a subtle wash of the same token — same hue family, different weight, so
-   the two are separable when they would otherwise read as one red smear. Only
-   real theme tokens here: --cs-danger and --cs-warn are defined in :root and in
-   both dark blocks. An invented token name would ship its hardcoded fallback in
-   BOTH themes, which is what the first cut did. */
+/* #134: two states #90's "inert" does not cover. .cs-dead-badge uses a solid
+   danger fill where .cs-inert-badge uses a wash of the same token, so the two
+   are separable at a glance. Real theme tokens only (--cs-danger, --cs-warn). */
 .cs-dead-badge,
 .cs-check-badge {
   display: inline-block;
@@ -695,9 +687,6 @@ input[type="checkbox"], input[type="radio"] {
   padding: 0.05rem 0.35rem;
   margin-left: 0.35rem;
   border-radius: 0.25rem;
-  /* NOT nowrap: these sit inside the subjects table's scoped-role cell, and an
-     unbreakable badge pushed that table past the viewport at narrow widths,
-     breaking the overflow guard PR #11 added. Let it wrap. */
   max-width: 100%;
 }
 .cs-dead-badge {
@@ -713,8 +702,8 @@ input[type="checkbox"], input[type="radio"] {
 /* The scoped-role cell now carries a badge as well as the role/record label.
    Without this the added inline-block pushed the subjects table past the
    viewport at narrow widths and broke the overflow guard from PR #11. */
-/* The caveat must reach a keyboard or screen-reader user: a title attribute
-   reaches neither reliably, and the caveat is the whole point of the advisory. */
+/* The caveat must reach keyboard and screen-reader users; a title attribute
+   reaches neither reliably. */
 .cs-badge-note {
   position: absolute;
   width: 1px;

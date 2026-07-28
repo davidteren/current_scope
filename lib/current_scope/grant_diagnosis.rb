@@ -1,35 +1,13 @@
 module CurrentScope
-  # The ONE place that judges a scoped grant (#134). It answers two different
-  # questions and returns them separately ON PURPOSE, because they carry
-  # different amounts of certainty and a caller must not be able to render one
-  # as the other:
+  # Judges a scoped grant. Two methods, two certainties:
   #
-  #   verdict_for(grant)   PROVEN — this grant cannot match anything, for any
-  #                        type, whatever the host's hooks do.
-  #   type_untargeted?     ADVISORY — no ticked key names a controller whose
-  #                        route key matches this grant's type. Suggestive, NOT
-  #                        conclusive; only the host's current_scope_record
-  #                        hooks can settle it.
+  #   verdict_for      PROVEN — the grant cannot match anything, for any type.
+  #   type_untargeted? ADVISORY — suggestive only; the host's runtime hooks
+  #                    decide what a controller resolves to, so this can be
+  #                    wrong and says so where the operator reads it.
   #
-  # WHY THE SPLIT, when #134 asked for one verdict: the verdict it asked for
-  # cannot be proven. `current_scope_model` and `current_scope_record` are
-  # INSTANCE methods whose values only exist at runtime, so "which controllers
-  # resolve to type X" is not statically knowable. The obvious route-key
-  # heuristic produces false positives in this repo's own dummy app —
-  # `nested_reports#index` and `external_id_reports#show` both gate Report
-  # records and neither route key equals "reports". Reporting one of those as
-  # dead would tell an operator to remove a working grant.
-  #
-  # That is why the advisory is labelled rather than promoted: this codebase's
-  # standing rule is that a diagnostic which cries wolf is worse than none
-  # (`lib/current_scope.rb`), that a claim is made only when proven
-  # (GatingReflection), and that a diagnostic which overstates is how a
-  # diagnostic starts being ignored (`guard.rb`, warn_on_inert_scoped_grant).
-  #
-  # NOT the same as #90's "inert". That means the grant's RECORD is gone and the
-  # fix is to remove the grant. These mean the grant's ROLE reaches nothing, and
-  # the fix is to tick a key (or grant on a different record). Three states an
-  # operator must tell apart: missing, inert, cannot-match.
+  # Neither is #90's "inert" (the RECORD is gone; different fix).
+  # Design rationale: docs/plans/2026-07-28-032-feat-unresolvable-grant-guardrail-plan.md
   module GrantDiagnosis
     class << self
       # Proven, or nil. Never guesses.
@@ -39,10 +17,8 @@ module CurrentScope
         role = grant.role
         return nil if role.nil? || role.full_access?
 
-        # An empty catalog means routes have not been derived yet, NOT that every
-        # key is dead. Without this, one badly-timed read reports every grant in
-        # the app as unresolvable — the mass false positive this whole design is
-        # built to avoid.
+        # An empty catalog means routes are not derived yet, not that every key is
+        # dead.
         return nil if CurrentScope.catalog.keys.empty?
 
         keys = persisted_keys(role)
@@ -51,10 +27,8 @@ module CurrentScope
 
         nil
       rescue NameError, ActiveRecord::ActiveRecordError => e
-        # Narrow on purpose. A blanket rescue would turn a real
-        # ConfigurationError into a "healthy" nil — a diagnostic that BROKE
-        # reading as a diagnostic that found nothing. Log so the silence is
-        # explainable.
+        # Narrow on purpose: a blanket rescue would report a BROKEN diagnostic
+        # as a healthy grant.
         log_degrade(e)
         nil
       end
@@ -62,11 +36,8 @@ module CurrentScope
       # Advisory. Silent whenever verdict_for speaks — a weaker second sentence
       # about the same grant is noise, and the stronger one already names the
       # fix.
-      # `verdict:` lets a caller that already computed the verdict pass it in.
-      # Without it every badge cost three role_permissions queries: verdict_for
-      # plucked, this method re-called verdict_for and plucked again, then
-      # plucked a third time itself — multiplied by every chip on a 50-subject
-      # page.
+      # `verdict:` lets a caller that already has it skip the recompute (three
+      # role_permissions plucks per grant otherwise).
       def type_untargeted?(grant, verdict: :__unset)
         verdict = verdict_for(grant) if verdict == :__unset
         return false unless verdict.nil?
@@ -81,19 +52,15 @@ module CurrentScope
         keys = persisted_keys(role)
         return false if keys.any? { |key| routed?(key) && targets_route_key?(key, klass.model_name.route_key) }
 
-        # #108: a grant on a PARENT legitimately reaches its children, so a role
-        # ticking only `reports#approve` is correct on a Project grant when Report
-        # declares `current_scope_parent :project`. That is the CHANGELOG's own
-        # headline example, and flagging it would send an operator to a hook that
-        # is already right. Silent when any declared chain reaches this class.
+        # #108: a grant on a PARENT legitimately reaches its children, so stay
+        # silent when any declared chain reaches this class.
         !reachable_through_declared_chain?(klass, keys)
       rescue NameError, ActiveRecord::ActiveRecordError => e
         log_degrade(e)
         false
       end
 
-      # What the operator is told, per state. Kept here so the task and the two
-      # views cannot drift into three different wordings for one finding.
+      # One wording, so the task and the view cannot drift.
       def verdict_label(verdict)
         case verdict
         when :no_permissions       then "role ticks no permissions"
@@ -113,13 +80,9 @@ module CurrentScope
 
       private
 
-      # #90's state, not ours: the RECORD is gone and the fix is to remove the
-      # grant. Rendering "cannot match" or "check hooks" beside "inert" stacks
-      # two badges naming different remedies on one grant, which is the exact
-      # confusion this feature exists to end.
-      # Role#permission_keys returns STAGED keys when a save failed validation,
-      # and inverse_of hands back that same in-memory object. A diagnostic must
-      # judge what is persisted, never rejected form input.
+      # #90's state, not ours — two badges naming different remedies on one
+      # grant is the confusion this feature exists to end.
+      # Never the STAGED keys Role#permission_keys returns after a failed save.
       def persisted_keys(role)
         role.role_permissions.pluck(:permission_key)
       end
@@ -135,9 +98,8 @@ module CurrentScope
         grant.respond_to?(:orphaned_resource?) && grant.orphaned_resource?
       end
 
-      # Does any model that declares a parent chain reaching `klass` have a
-      # ticked key targeting it? Walks the same declared reflections the
-      # resolver walks, so the two cannot disagree about what a chain reaches.
+      # Walks the same declared reflections the resolver walks, so the two
+      # cannot disagree about what a chain reaches.
       def reachable_through_declared_chain?(klass, keys)
         CurrentScope::ParentChain.declared_names.any? do |name|
           child = name.safe_constantize
@@ -165,26 +127,16 @@ module CurrentScope
         klass.respond_to?(:model_name) ? klass : nil
       end
 
-      # routed?, not include?: the catalog INJECTS the break-glass key onto rows
-      # that route an SoD action, so include? is true for a key nothing routes.
-      # "Could this ever be gated" is the routed? question.
+      # routed?, not include?: the catalog injects the break-glass key, so
+      # include? is true for a key nothing routes.
       def routed?(key)
         CurrentScope.catalog.routed?(key)
       end
 
-      # Starts from the comparison CurrentScope.permission_key makes (does the
-      # controller's last path segment equal the record's route key), then
-      # WIDENS it: a segment that merely CONTAINS the route key as a whole
-      # underscore-delimited word also counts.
-      #
-      # The widening is not cosmetic. Without it this repo's own dummy fails the
-      # false-positive pin: `nested_reports#index` and `external_id_reports#show`
-      # both gate Report records, and the strict comparison calls a grant ticking
-      # either of them dead. Every widening makes the advisory QUIETER — more
-      # false negatives, fewer false positives — which is the only direction it
-      # may err, because the cost of missing a dead grant is an operator who
-      # investigates one flip later, and the cost of a false alarm is an operator
-      # who removes a working grant and stops trusting the diagnostics.
+      # Wider than CurrentScope.permission_key's comparison: a controller segment
+      # CONTAINING the route key counts, and both the namespaced and collapsed
+      # forms are tried. Biased toward false negatives on purpose. Pins:
+      # test/grant_diagnosis_test.rb (nested_reports, namespaced).
       def targets_route_key?(key, route_key)
         controller = key.split("#").first.to_s
         # BOTH forms: a namespaced model keeps its namespace in the route key

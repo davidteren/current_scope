@@ -88,13 +88,9 @@ module CurrentScope
       "#{assignment.subject_type} ##{assignment.subject_id}"
     end
 
-    # #134: the console's one read of GrantDiagnosis, so the two grant surfaces
-    # cannot drift into different wordings for the same finding. Returns
-    # [css_modifier, badge_text, tooltip] or nil.
-    #
-    # Deliberately NOT the word "inert" — that is #90's badge and it means the
-    # grant's RECORD is gone, with a different fix. Three states an operator has
-    # to tell apart: missing, inert, cannot-match.
+    # #134: the console's one read of GrantDiagnosis. Returns
+    # [css_class, badge_text, caveat] or nil. Never the word "inert" (#90's
+    # badge, different state, different fix).
     def current_scope_grant_diagnosis_badge(scoped_assignment)
       verdict = CurrentScope::GrantDiagnosis.verdict_for(scoped_assignment)
       if verdict

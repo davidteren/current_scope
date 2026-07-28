@@ -338,7 +338,6 @@ module CurrentScope
               "and nothing reads that method. Replace it with " \
               "`current_scope_parent :the_association` in the class body."
       end
-
     end
   end
 end

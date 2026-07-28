@@ -42,11 +42,10 @@ class GrantDiagnosisTest < ActiveSupport::TestCase
       grant(role("Real", "reports#approve"), @report))
   end
 
-  test "the injected break-glass key alone is NOT enough — routed?, not include?" do
-    # The catalog injects the bypass key onto any row routing an SoD action, so
-    # `include?` is true for a key nothing routes. This builds that condition
-    # rather than skipping when the default config lacks it — a skipped pin is
-    # not a pin, and this is the only thing holding mutation 1.
+  test "the injected break-glass key alone is LIVE, not dead" do
+    # The catalog injects the bypass key onto any row routing an SoD action.
+    # It is NOT routed, but it IS live on that row, so "can this ever open
+    # anything" must answer yes.
     with_injected_bypass_key do
       bypass = CurrentScope.catalog.keys.find { |k| k.end_with?("#bypass_sod") }
 
@@ -57,9 +56,10 @@ class GrantDiagnosisTest < ActiveSupport::TestCase
       r = CurrentScope::Role.create!(name: "Bypass-#{rand(10**9)}")
       r.role_permissions.create!(permission_key: bypass)
 
-      assert_equal :unrouted_permissions,
-                   CurrentScope::GrantDiagnosis.verdict_for(grant(r, @report)),
-                   "a role holding only the injected key can never be gated"
+      assert_nil CurrentScope::GrantDiagnosis.verdict_for(grant(r, @report)),
+                 "the INJECTED bypass key is live on its record — marking a role " \
+                 "that holds only it dead would tell an operator to remove live, " \
+                 "security-sensitive authority (found on PR #137)"
     end
   end
 

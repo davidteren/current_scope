@@ -694,9 +694,9 @@ input[type="checkbox"], input[type="radio"] {
   background: var(--cs-danger);
 }
 .cs-check-badge {
-  color: var(--cs-warn);
-  border: 1px solid var(--cs-warn);
-  background: color-mix(in srgb, var(--cs-warn) 12%, var(--cs-surface));
+  color: var(--cs-warn, #b45309);
+  border: 1px solid var(--cs-warn, #b45309);
+  background: color-mix(in srgb, var(--cs-warn, #b45309) 12%, var(--cs-surface));
 }
 
 /* The caveat must reach keyboard and screen-reader users; a title attribute

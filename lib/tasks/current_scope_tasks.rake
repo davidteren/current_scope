@@ -64,12 +64,19 @@ namespace :current_scope do
     dead_grants = []
     untargeted_grants = []
     begin
-      CurrentScope::ScopedRoleAssignment.includes(role: :role_permissions).find_each(batch_size: 500) do |grant|
-        verdict = CurrentScope::GrantDiagnosis.verdict_for(grant)
-        if verdict
-          dead_grants << [ grant, verdict ]
+      CurrentScope::ScopedRoleAssignment.includes(role: :role_permissions)
+                                        .in_batches(of: 500) do |relation|
+        batch = relation.to_a
+        # orphaned? reads the polymorphic resource, which includes() cannot
+        # cover — without this the scan costs one extra query per grant.
+        CurrentScope::ScopedRoleAssignment.preload_resolvable_resources!(batch)
+        batch.each do |grant|
+          verdict = CurrentScope::GrantDiagnosis.verdict_for(grant)
+          if verdict
+            dead_grants << [ grant, verdict ]
         elsif CurrentScope::GrantDiagnosis.type_untargeted?(grant, verdict: verdict)
-          untargeted_grants << grant
+            untargeted_grants << grant
+          end
         end
       end
     rescue ActiveRecord::ActiveRecordError => e

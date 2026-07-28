@@ -23,7 +23,7 @@ module CurrentScope
 
         keys = persisted_keys(role)
         return :no_permissions if keys.empty?
-        return :unrouted_permissions if keys.none? { |key| routed?(key) }
+        return :unrouted_permissions if keys.none? { |key| live?(key) }
 
         nil
       rescue NameError, ActiveRecord::ActiveRecordError => e
@@ -47,6 +47,8 @@ module CurrentScope
 
         role = grant.role
         return false if role.nil? || role.full_access?
+
+        return false unless ensure_models_loaded!
 
         klass = resource_class(grant)
         return false if klass.nil? # unresolvable class is #90's inert, not ours
@@ -128,19 +130,22 @@ module CurrentScope
       # blind and would flag the very #108 grants it exists to protect — and
       # order-dependently, since an earlier row could load the model. Force the
       # load once.
+      # Returns false when the registry may be incomplete, so the caller stays
+      # silent rather than negating a partial answer into an advisory. Latches
+      # only on success, so a transient failure can retry.
       def ensure_models_loaded!
-        return if @models_loaded
+        return true if @models_loaded
 
-        @models_loaded = true
         Rails.application.eager_load! unless Rails.application.config.eager_load
+        @models_loaded = true
       rescue StandardError => e
         log_degrade(e)
+        false
       end
 
       # Walks the same declared reflections the resolver walks, so the two
       # cannot disagree about what a chain reaches.
       def reachable_through_declared_chain?(klass, keys)
-        ensure_models_loaded!
         CurrentScope::ParentChain.declared_names.any? do |name|
           child = name.safe_constantize
           next false if child.nil?
@@ -167,8 +172,18 @@ module CurrentScope
         klass.respond_to?(:model_name) ? klass : nil
       end
 
-      # routed?, not include?: the catalog injects the break-glass key, so
-      # include? is true for a key nothing routes.
+      # Can this key ever open anything? Routed keys can. So can the catalog's
+      # INJECTED break-glass key, which is live on any row it was injected onto
+      # (permission_catalog.rb) — marking a role that holds only it "dead" would
+      # tell an operator to remove live, security-sensitive authority.
+      def live?(key)
+        CurrentScope.catalog.routed?(key) || injected_bypass?(key)
+      end
+
+      def injected_bypass?(key)
+        CurrentScope.catalog.include?(key) && !CurrentScope.catalog.routed?(key)
+      end
+
       def routed?(key)
         CurrentScope.catalog.routed?(key)
       end

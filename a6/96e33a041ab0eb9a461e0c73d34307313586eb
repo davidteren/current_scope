@@ -1,0 +1,75 @@
+test/sod_preflight_test.rb
+  s_c80c0efb3a316a::t_3f548eaf30c700 94-100
+  s_c80c0efb3a316a::t_6db893087c212b 1-93,101-102,129-140
+  s_c80c0efb3a316a::t_ae0636da06bbdb 103-128
+STATUS.md
+  s_c80c0efb3a316a::t_4cad7648eb1fd3 30-47
+  s_c80c0efb3a316a::t_023fec773f991a 8-14
+test/integration/report_only_test.rb
+  s_c80c0efb3a316a::t_9de642850d679d 181-192,200-202,206-224,230-238,240-263
+  s_c80c0efb3a316a::t_1574926e5fe008 225-229,239
+  s_c80c0efb3a316a::t_e1d1096cb9b581 193-199,203-205
+lib/generators/current_scope/install/templates/initializer.rb
+  s_c80c0efb3a316a::t_b3bc91311ea1fc 108-111
+lib/current_scope/guard.rb
+  s_c80c0efb3a316a::t_12db96b6eacc09 202-288
+  s_c80c0efb3a316a::t_6f2ab641fe7d7c 167
+lib/current_scope/sod_preflight.rb
+  s_c80c0efb3a316a::t_a0b10f57010de7 1-158
+docs/guides/adopting-in-an-existing-app.md
+  s_c80c0efb3a316a::t_d3934445ebe0e6 351-378
+  s_c80c0efb3a316a::t_f7bc33d1b0635d 283-285
+  s_c80c0efb3a316a::t_11bae55ebd8e05 333-335
+lib/tasks/current_scope_tasks.rake
+  s_c80c0efb3a316a::t_402c38d2af1bc9 193,195-210
+  s_c80c0efb3a316a::t_7789a3876460ba 119
+  s_c80c0efb3a316a::t_dcfc7ee701808f 69-74
+  s_c80c0efb3a316a::t_9d244c9efd4130 47-51
+  s_c80c0efb3a316a::t_381ee73bb6a688 218-241
+  s_c80c0efb3a316a::t_e0c507dc7050ff 138
+README.md
+  s_c80c0efb3a316a::t_fd2ede5dd970eb 234
+CHANGELOG.md
+  s_c80c0efb3a316a::t_b6369271235929 133-143
+  s_c80c0efb3a316a::t_722bd6686b3fe6 16-47
+lib/current_scope/parent_chain.rb
+  s_c80c0efb3a316a::t_7e911e930651b1 140-152,154
+lib/current_scope/gating_reflection.rb
+  s_c80c0efb3a316a::t_628f7d82e46255 68-78
+lib/current_scope/engine.rb
+  s_c80c0efb3a316a::t_e3eefe661c48f4 98
+  s_c80c0efb3a316a::t_63a0c85b48a452 75-97
+test/parent_chain_test.rb
+  s_c80c0efb3a316a::t_eab429c627588d 303-335
+docs/plans/2026-07-29-033-feat-sod-initiator-preflight-plan.md
+  s_c80c0efb3a316a::t_0aaee73d45a950 1-105,131-164,167,173-182
+  s_c80c0efb3a316a::t_dc181968f9599d 165-166,168-172
+  s_c80c0efb3a316a::t_cca1ee497b2318 106-130
+lib/current_scope/resolver.rb
+  s_c80c0efb3a316a::t_57eaaa8dc08505 174-190
+  s_c80c0efb3a316a::t_2d83fe9df8135a 278
+docs/site/limitations.md
+  s_c80c0efb3a316a::t_510c46eb86a7e4 122-124
+  s_c80c0efb3a316a::t_8f2864aed690ab 33-55
+lib/current_scope.rb
+  s_c80c0efb3a316a::t_bde21a18e0d7d4 15
+test/report_task_test.rb
+  s_c80c0efb3a316a::t_c97d7a7a1c5273 247-298,301-311
+  s_c80c0efb3a316a::t_0c3ab6b8a143fc 299-300
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "a696e33a041ab0eb9a461e0c73d34307313586eb",
+  "prompts": {},
+  "sessions": {
+    "s_c80c0efb3a316a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e897c493-a8bf-4c03-bd8f-f6dc3bd783fa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

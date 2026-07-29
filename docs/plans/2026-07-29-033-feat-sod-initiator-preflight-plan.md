@@ -133,8 +133,13 @@ a new key into hash during iteration`, straight out of `to_prepare`.
 That is a boot crash for any host whose declared chain points at another
 declaring model. The dummy's `Report -> Project` is exactly that shape; nothing
 had ever called `validate_declarations!` in a test, so it had no coverage at all.
-The fix is to iterate a snapshot (`declared_names.to_a`). Deterministically
-pinned in `test/parent_chain_test.rb`; verified red without the snapshot.
+The fix walks in WAVES: take a snapshot, validate it, then take another until no
+new name appears. A single snapshot stops the crash but defers whatever
+registered mid-pass to a later pass — and in production there is no later pass,
+so that would silently drop exactly the declarations the walk itself just
+loaded. The loop terminates because the registry is finite. Deterministically
+pinned in `test/parent_chain_test.rb`, verified red both without the snapshot
+(the crash) and with only one snapshot (the silent skip).
 
 **A first draft of this section justified the snapshot's cost with "production
 has eager loaded before this runs." That is false, and the review caught it.**
@@ -248,6 +253,9 @@ and a plan that reads as if it arrived correct teaches the next reader nothing.
   it removed the four ivars, the fail-closed "never run" special case, the
   temporal-coupling comment, and the capture-at-call-site workaround in the rake
   task, because you cannot ask a result you do not have.
+- **The `ParentChain` snapshot deferred work to a pass that does not exist.**
+  cubic caught that a model registering mid-walk waited for "a later pass",
+  which production never runs. It validates in waves now.
 
 Suite after the review pass: **734 unit + 28 system green, RuboCop clean**,
 stable across seeds.

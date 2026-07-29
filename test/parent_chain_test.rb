@@ -322,12 +322,20 @@ class ParentChainTest < ActiveSupport::TestCase
     original_validate = chain.method(:validate_key!)
     chain.instance_variable_set(:@declared_names, Set.new([ "Report" ]))
 
+    validated = []
     singleton.define_method(:validate_key!) do |klass, reflection|
+      validated << klass.name
       declared_names << "Project"
       original_validate.call(klass, reflection)
     end
 
     assert_nothing_raised { chain.validate_declarations! }
+
+    # And the model that registered DURING the walk is validated in the same
+    # pass, not deferred: in production there is no later pass to defer to, so a
+    # single snapshot would drop it silently. (#133 review — cubic)
+    assert_includes validated, "Project",
+                    "the walk is what loaded this model, so the walk must also check it"
   ensure
     singleton.define_method(:validate_key!, original_validate)
     singleton.send(:private, :validate_key!)

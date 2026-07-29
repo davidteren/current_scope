@@ -20,12 +20,12 @@ class SodPreflightTest < ActiveSupport::TestCase
     CurrentScope.reset_catalog!
   end
 
-  def permissions = CurrentScope::SodPreflight.findings.map(&:first)
+  def permissions = CurrentScope::SodPreflight.scan.rows.map(&:first)
 
   test "the default config finds nothing — SoD is opt-in, so this costs nothing" do
     CurrentScope.config.sod_actions = []
 
-    assert_empty CurrentScope::SodPreflight.findings
+    assert_empty CurrentScope::SodPreflight.scan.rows
   end
 
   test "names a routed SoD action whose declared model defines no initiator" do
@@ -34,7 +34,7 @@ class SodPreflightTest < ActiveSupport::TestCase
     CurrentScope.config.sod_actions = %w[show]
 
     assert_includes permissions, "documents#show"
-    assert_equal Document, CurrentScope::SodPreflight.findings.find { |p, _| p == "documents#show" }.last
+    assert_equal Document, CurrentScope::SodPreflight.scan.rows.find { |p, _| p == "documents#show" }.last
   end
 
   test "stays silent about a declared model that DOES define an initiator" do
@@ -54,7 +54,7 @@ class SodPreflightTest < ActiveSupport::TestCase
     CurrentScope.config.sod_actions = %w[approve]
 
     refute_includes permissions, "admin/reports#approve"
-    assert_empty CurrentScope::SodPreflight.findings,
+    assert_empty CurrentScope::SodPreflight.scan.rows,
                  "no dummy controller declares a model for an approve action — " \
                  "guessing one from the route key is exactly what #134 refuted"
   end
@@ -101,14 +101,15 @@ class SodPreflightTest < ActiveSupport::TestCase
     # blows up while being read.
     HooklessMemberController.define_singleton_method(:new) { |*| raise "the host's own hook blew up" }
 
-    found = CurrentScope::SodPreflight.findings
+    result = CurrentScope::SodPreflight.scan
+    found = result.rows
 
     assert_empty found.select { |p, _| p.start_with?("hookless_member#") },
                  "an unanswerable controller must not become a finding"
     assert_includes found.map(&:first), "documents#show",
                     "one broken controller must not suppress every other finding — " \
                     "isolation is what declared_model_for's own rescue is for"
-    assert CurrentScope::SodPreflight.degraded?
+    assert result.degraded?
   ensure
     # Removing the override restores the inherited Class#new — no saved method
     # to put back, and nothing left behind for the next test in this process.
@@ -189,9 +190,11 @@ class SodPreflightTest < ActiveSupport::TestCase
 
     Document.define_singleton_method(:new) { |*| raise "no connection" }
 
-    refute_includes permissions, "documents#show",
+    result = CurrentScope::SodPreflight.scan
+
+    refute_includes result.rows.map(&:first), "documents#show",
                     "an unanswerable check must not become a finding"
-    assert CurrentScope::SodPreflight.degraded?,
+    assert result.degraded?,
            "the operator has to be able to tell this list is incomplete"
   ensure
     Document.singleton_class.send(:remove_method, :new)
@@ -230,8 +233,10 @@ class SodPreflightTest < ActiveSupport::TestCase
 
     logs = capture_warn_log { CurrentScope::SodPreflight.warn! }
 
-    assert_equal 0, CurrentScope::SodPreflight.coverage[:inspected]
-    assert_operator CurrentScope::SodPreflight.coverage[:in_scope], :>, 0
+    result = CurrentScope::SodPreflight.scan
+    assert_equal 0, result.inspected
+    assert_operator result.in_scope, :>, 0
+    assert result.blind?, "nothing read is not a clean run"
     assert_match(/inspected NONE/, logs)
     assert_match(/Do NOT read that as an all-clear/, logs)
   ensure
@@ -239,16 +244,16 @@ class SodPreflightTest < ActiveSupport::TestCase
     ReportsController.send(:private, :current_scope_model)
   end
 
-  test "coverage reports what was actually read (#133)" do
+  test "the result reports what was actually read (#133)" do
     CurrentScope.config.sod_actions = %w[show]
 
-    CurrentScope::SodPreflight.findings
-    cov = CurrentScope::SodPreflight.coverage
+    result = CurrentScope::SodPreflight.scan
 
-    assert_operator cov[:inspected], :>, 0
-    assert_operator cov[:in_scope], :>=, cov[:inspected],
+    assert_operator result.inspected, :>, 0
+    assert_operator result.in_scope, :>=, result.inspected,
                     "in_scope counts every routed SoD action; inspected only those whose " \
                     "controller declared a model"
+    refute result.blind?, "a run that read something and skipped nothing is not blind"
   end
 
   # The two remedies are not coequal on a list that can be wrong: defining the
@@ -267,20 +272,22 @@ class SodPreflightTest < ActiveSupport::TestCase
   test "a clean run does not report itself as degraded (#133)" do
     CurrentScope.config.sod_actions = %w[show]
 
-    CurrentScope::SodPreflight.findings
-
-    refute CurrentScope::SodPreflight.degraded?
+    refute CurrentScope::SodPreflight.scan.degraded?
   end
 
-  # Asking before any run is a question about nothing, and the fail-closed answer
-  # is "I cannot vouch for it". Answering `false` there would hand back a clean
-  # bill of health for a check that never happened — the same vacuous all-clear
-  # this module refuses to print, one layer up in the API.
-  test "degraded? does not claim clean before any run has happened (#133)" do
-    CurrentScope::SodPreflight.instance_variable_set(:@degraded, nil)
+  # The state that used to make "never run" answerable at all is gone: the
+  # answers ride on the Result, so there is no module flag to read before a run
+  # and no fail-closed special case to maintain. This pins that the module keeps
+  # no run state — the defect class, not one instance of it.
+  test "the module holds no run state between scans (#133)" do
+    CurrentScope.config.sod_actions = %w[show]
+    CurrentScope::SodPreflight.scan
 
-    assert CurrentScope::SodPreflight.degraded?,
-           "a never-run check must not read as a passing one"
+    leaked = CurrentScope::SodPreflight.instance_variables - [ :@models_loaded ]
+
+    assert_empty leaked,
+                 "a scan's answers belong to the scan; state left on the singleton is what " \
+                 "made call order matter and 'never run' read as clean"
   end
 
   # A bug in THIS module must not be reported as a host misconfiguration. The
@@ -297,7 +304,7 @@ class SodPreflightTest < ActiveSupport::TestCase
     original = CurrentScope.method(:catalog)
     singleton.define_method(:catalog) { Object.new }
 
-    assert_raises(NoMethodError) { CurrentScope::SodPreflight.findings }
+    assert_raises(NoMethodError) { CurrentScope::SodPreflight.scan }
   ensure
     singleton.define_method(:catalog, original)
   end

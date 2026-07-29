@@ -373,7 +373,8 @@ warning** naming every SoD action whose declared model cannot answer the hook â€
 at boot in production and staging, on the first request in development, whose
 route set is lazy â€” and `bin/rails current_scope:report` lists both that set and
 the requests that actually raised (`access.sod_initiator_missing` rows).
-`CurrentScope::SodPreflight.findings` returns the same list programmatically.
+`CurrentScope::SodPreflight.scan` returns the same list programmatically (a
+Result with `.rows`; ask `.blind?` before reading an empty one as an all-clear).
 
 Read the preflight list as a **lead, not a verdict**: it can only inspect
 controllers that declare `current_scope_model`, and it states that limit in its

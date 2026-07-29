@@ -70,11 +70,10 @@ namespace :current_scope do
     # action with no initiator behind it exists before report mode is ever
     # exercised, which is exactly when the ledger is empty. Never raises; it
     # degrades to no findings and logs.
-    preflight_rows = CurrentScope::SodPreflight.findings
-    # Captured HERE, next to the call that sets it: degraded? describes the LAST
-    # findings run, and the section that reads it is far below. Nothing calls
-    # findings in between today, and this makes sure nothing has to notice.
-    preflight_degraded = CurrentScope::SodPreflight.degraded?
+    # One scan, carried as a value. Nothing below has to reason about whether
+    # some other call has since reset a flag on the module.
+    preflight = CurrentScope::SodPreflight.scan
+    preflight_rows = preflight.rows
 
     dead_grants = []
     untargeted_grants = []
@@ -164,7 +163,7 @@ namespace :current_scope do
                    "has already run."
     if CurrentScope.config.sod_actions.any?
       caveat_line << " The SoD preflight is also partial by construction (its own note says how)."
-      caveat_line << " It could not complete this run." if preflight_degraded
+      caveat_line << " It could not complete this run." if preflight.degraded?
     end
     puts caveat_line
 
@@ -257,18 +256,18 @@ namespace :current_scope do
     # vacuous all-clear is worse than a blank. (#133 review)
     if preflight_rows.empty? && CurrentScope.config.sod_actions.any?
       separate.call
-      if preflight_degraded
+      if preflight.degraded?
         puts "Separation-of-duties preflight: COULD NOT COMPLETE — this section is incomplete."
         puts
-        puts "  Some check failed and was skipped; the reason is in the application log " \
-             "([CurrentScope] SodPreflight). Do NOT read the absence of findings below as " \
-             "an all-clear."
+        # The reason printed HERE rather than "see the log": an operator reading
+        # a terminal must not be sent off to find a log file.
+        puts "  #{CurrentScope::SodPreflight.skip_summary(preflight)}"
+        puts "  Do NOT read the absence of findings below as an all-clear."
       else
-        cov = CurrentScope::SodPreflight.coverage
-        puts "Separation-of-duties preflight: inspected #{cov[:inspected]} of #{cov[:in_scope]} " \
-             "routed SoD action(s); none named a model missing " \
+        puts "Separation-of-duties preflight: inspected #{preflight.inspected} of " \
+             "#{preflight.in_scope} routed SoD action(s); none named a model missing " \
              "#{CurrentScope::Resolver::INITIATOR_METHOD}."
-        if cov[:inspected].zero? && cov[:in_scope].positive?
+        if preflight.blind?
           puts
           puts "  NOTHING was inspected — none of those controllers declares " \
                "current_scope_model, so there was nothing for this check to read. This is " \

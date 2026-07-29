@@ -70,6 +70,15 @@ module CurrentScope
     # asks the same path→class question, and a second copy would have to
     # reimplement the NameError triage described below — the one thing that
     # keeps a broken controller from being reported as a clean one.
+    #
+    # This is not a second way to ask the same question, and the difference is
+    # the whole point: `controller_class_for` RAISES MissingController — every
+    # private caller above rescues it into its own answer (`ungated?` → false,
+    # `missing_controller?` → true, `declared_skip_reason` → nil), because those
+    # three mean different things by "no class here". This one is the fourth such
+    # answer, spelled nil, and it delegates rather than reimplements, so there is
+    # still exactly one path→class rule. What must NOT be added is a public
+    # method that swallows the NameError too. (#133 review — cubic)
     def controller_class(controller_path)
       controller_class_for(controller_path)
     rescue ActionDispatch::MissingController

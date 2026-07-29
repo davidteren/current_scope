@@ -106,7 +106,7 @@ module CurrentScope
     # `klass.new` per routed SoD controller and one `model.new` per declared
     # model, which runs whatever the host put in `initialize`, `after_initialize`
     # and `respond_to_missing?`. Failures are absorbed and surfaced through
-    # SodPreflight.degraded?, so the risk is not a crash — it is that a side
+    # the scan Result's skipped list, so the risk is not a crash — it is that a side
     # effect in a host constructor has already happened by the time the rescue
     # runs. Nothing here writes to the database, and it is a no-op until a host
     # opts into SoD (config.sod_actions defaults to []).

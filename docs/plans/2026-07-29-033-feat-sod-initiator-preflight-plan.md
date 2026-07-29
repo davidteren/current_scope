@@ -240,7 +240,16 @@ and a plan that reads as if it arrived correct teaches the next reader nothing.
   the removal. The raise in `Resolver#sod_decision` still offers both plainly —
   there the cause is proven.
 
-Suite after the review pass: **729 unit + 28 system green, RuboCop clean**,
+- **The advisory grew four ivars of run state**, one per honesty fix, and three
+  independent reviewers (cubic, ie-predictability, ie-architecture) landed on
+  that seam. `SodPreflight` is stateless now: `scan` returns a `Result` carrying
+  `rows`, `inspected`, `in_scope` and `skipped`, and every honesty question
+  (`degraded?`, `blind?`) is a method on that value. This is a NET DELETION —
+  it removed the four ivars, the fail-closed "never run" special case, the
+  temporal-coupling comment, and the capture-at-call-site workaround in the rake
+  task, because you cannot ask a result you do not have.
+
+Suite after the review pass: **734 unit + 28 system green, RuboCop clean**,
 stable across seeds.
 
 ## What this does not do

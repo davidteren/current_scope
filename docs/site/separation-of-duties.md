@@ -92,12 +92,11 @@ logs a preflight warning naming every routed SoD action whose controller declare
 `current_scope_model` that cannot answer the hook, and a request that does
 raise in report mode records an `access.sod_initiator_missing` ledger row.
 `bin/rails current_scope:report` prints both, and
-`CurrentScope::SodPreflight.findings` returns the boot list programmatically.
-Read it as a lead, not a verdict — and an empty return is not an all-clear by
-itself. Pair it with `SodPreflight.degraded?` (did the run complete?) and
-`SodPreflight.coverage` (`{inspected:, in_scope:}` — how many routed SoD
-actions it could actually read); both describe the last `findings` call. Full
-limits: [Limitations A17](limitations.md).
+`CurrentScope::SodPreflight.scan` returns the boot list programmatically, as a
+Result carrying `.rows`, `.inspected`, `.in_scope` and `.skipped`. Read it as a
+lead, not a verdict — and empty `.rows` is not an all-clear by itself. Ask
+`result.blind?`: true when a check failed (`.degraded?`) or when nothing was
+read at all. Full limits: [Limitations A17](limitations.md).
 
 ### The one asymmetry you must know
 

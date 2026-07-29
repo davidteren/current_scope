@@ -247,11 +247,20 @@ module CurrentScope
 
       def blind_message(result)
         reason =
-          if result.inspected.zero? && result.in_scope.positive?
+          # DEGRADED WINS, and the order is the whole finding. Both conditions
+          # are true when declared_model_for fails for every controller —
+          # `inspected` only counts a successfully READ declaration, so a run
+          # whose checks all blew up looks identical to one that found nothing
+          # to read. Leading with "none of those controllers declares
+          # current_scope_model" then sends an operator off to add declarations
+          # when their hook is raising. (#133 — qodo, PR #141)
+          if result.degraded?
+            "it was not able to look properly (some checks were skipped; see the lines above)"
+          elsif result.inspected.zero? && result.in_scope.positive?
             "it inspected NONE of the #{result.in_scope} routed SoD action(s) — none of those " \
             "controllers declares current_scope_model, so there was nothing to read"
           else
-            "it was not able to look properly (some checks were skipped; see the lines above)"
+            "it was not able to look properly"
           end
 
         "[CurrentScope] separation-of-duties preflight found nothing, and #{reason}. Do NOT " \

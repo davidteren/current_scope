@@ -261,6 +261,18 @@ and a plan that reads as if it arrived correct teaches the next reader nothing.
   hook, so a compliant model is never built; an instance is only constructed for
   a model the scan is about to NAME, where the class/instance divergence could
   otherwise produce a false accusation.
+- **The blind-run message named the wrong cause.** `inspected` only counts a
+  declaration that was successfully READ, so a run whose controller checks all
+  failed has the same numbers as one that had nothing to read — and the message
+  explained it as "no controller declares current_scope_model", sending an
+  operator to add declarations while their hook was the thing raising. The
+  earlier degraded test missed it because it fails at the MODEL step, after
+  `inspected` has been incremented. (qodo, on the PR.)
+- **A row-building failure could spend the ledger's warn-once latch.** That
+  latch is one per process, shared by all three report-mode recorders, so a
+  failure that never reached the ledger would both mislabel itself "could not
+  record" and silence the warning the other two still need. Only
+  `Event.record!` may trip it now. (qodo, on the PR.)
 - **A gem bug in the scan could break a host's boot.** The `NoMethodError`
   re-raise was copied from `GrantDiagnosis`, which is only ever called from a
   rake task and a console view; this module runs from an engine initializer, so

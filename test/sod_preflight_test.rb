@@ -316,6 +316,39 @@ class SodPreflightTest < ActiveSupport::TestCase
     refute result.blind?, "a run that read something and skipped nothing is not blind"
   end
 
+  # qodo: `inspected` only counts a declaration that was successfully READ, so a
+  # run whose controller checks ALL blew up has inspected == 0 and in_scope > 0
+  # — identical numbers to a run that simply had nothing to read. Explaining it
+  # as "none of those controllers declares current_scope_model" then sends an
+  # operator off to add declarations while their hook is the thing raising.
+  #
+  # The earlier degraded test did not catch this: it makes the MODEL checks fail,
+  # which happens after `inspected` has already been incremented.
+  test "a run whose controller checks all failed says SKIPPED, not 'no declarations' (#133)" do
+    CurrentScope.config.sod_actions = %w[show]
+    singleton = CurrentScope::SodPreflight.singleton_class
+    original = CurrentScope::SodPreflight.method(:declared_model_for)
+    singleton.define_method(:declared_model_for) do |path, _reflection, skipped|
+      skipped << [ path, RuntimeError.new("the host's hook blew up") ]
+      nil
+    end
+
+    result = CurrentScope::SodPreflight.scan
+    logs = capture_warn_log { CurrentScope::SodPreflight.warn!(result) }
+
+    assert_equal 0, result.inspected
+    assert_operator result.in_scope, :>, 0
+    assert result.degraded?
+
+    assert_match(/not able to look properly/, logs)
+    refute_match(/none of those controllers declares current_scope_model/, logs,
+                 "the numbers are identical to a nothing-to-read run; only degraded? tells " \
+                 "them apart, and naming the wrong cause sends the operator to the wrong fix")
+  ensure
+    singleton.define_method(:declared_model_for, original)
+    singleton.send(:private, :declared_model_for)
+  end
+
   # The two remedies are not coequal on a list that can be wrong: defining the
   # hook wires a control, removing the action DELETES one.
   test "the fix line leads with the hook, not with disabling the veto (#133)" do

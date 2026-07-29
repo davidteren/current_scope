@@ -260,19 +260,36 @@ module CurrentScope
       subject = CurrentScope::Current.user
       return if subject.nil?
 
-      # An unsaved record has no GlobalID, so attribute the row to the subject
-      # instead — the model NAME is the fix-carrying detail here, and it rides in
-      # details either way.
-      target = record if record.respond_to?(:to_gid) && record.try(:persisted?)
-
-      CurrentScope::Event.record!(
-        event: "access.sod_initiator_missing",
-        target: target || subject,
-        details: {
+      # Building the row is rescued SEPARATELY from writing it, and the reason is
+      # the latch rather than the rescue. warn_ledger_failure_once is one
+      # per-PROCESS one-shot shared by all three report-mode recorders
+      # (would_deny, sod_blind_spot, and this one), so a failure that never
+      # reached the ledger would consume the single warning the OTHER two still
+      # need — and label itself "could not record", sending an operator after a
+      # ledger problem that does not exist. Only Event.record! may trip that
+      # latch. (#133 — qodo, PR #141)
+      begin
+        # An unsaved record has no GlobalID, so attribute the row to the subject
+        # instead — the model NAME is the fix-carrying detail here, and it rides
+        # in details either way.
+        target = record if record.respond_to?(:to_gid) && record.try(:persisted?)
+        details = {
           permission: permission,
           model: record.class.name,
           fix: "define #{CurrentScope::Resolver::INITIATOR_METHOD} on #{record.class.name}"
         }
+      rescue StandardError => e
+        Rails.logger&.warn(
+          "[CurrentScope] report-only: could not BUILD the access.sod_initiator_missing row " \
+          "(#{e.class}: #{e.message.to_s.truncate(120)}) — this is not a ledger failure, so the " \
+          "ledger warning is left armed. The request RAISED " \
+          "CurrentScope::ConfigurationError (500) either way."
+        )
+        return nil
+      end
+
+      CurrentScope::Event.record!(
+        event: "access.sod_initiator_missing", target: target || subject, details: details
       )
     rescue StandardError => e
       # The request is about to 500 on the ConfigurationError being re-raised —

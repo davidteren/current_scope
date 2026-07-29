@@ -307,6 +307,38 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
     Rails.logger = original_logger
   end
 
+  # qodo: warn_ledger_failure_once is ONE per-process one-shot shared by all
+  # three report-mode recorders. A failure that never reached the ledger must not
+  # consume it — the other two still need that warning, and "could not record"
+  # would send an operator after a ledger problem that does not exist.
+  test "a failure building the row leaves the ledger warning armed (#133)" do
+    original_logger = Rails.logger
+    io = StringIO.new
+    Rails.logger = ActiveSupport::Logger.new(io)
+
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[show]
+    CurrentScope::Guard.reset_ledger_warning!
+    document = Invoice.create!(title: "Contract")
+    # Raises while the row is being BUILT, before Event.record! is reached.
+    Invoice.define_method(:persisted?) { raise "cannot answer that" }
+
+    assert_raises(CurrentScope::ConfigurationError) do
+      get document_url(document), headers: sign_in(@alice)
+    end
+
+    logs = io.string
+    assert_match(/could not BUILD the access.sod_initiator_missing row/, logs)
+    assert_match(/not a ledger failure/, logs)
+    refute CurrentScope::Guard.ledger_warning_emitted?,
+           "the shared one-shot belongs to real ledger failures; spending it here silences " \
+           "the warning would_deny and sod_blind_spot still need"
+  ensure
+    Invoice.send(:remove_method, :persisted?)
+    Rails.logger = original_logger
+    CurrentScope::Guard.reset_ledger_warning!
+  end
+
   test "report mode still reports ordinary would-be denials on non-SoD actions" do
     CurrentScope.config.enforcement = :report
     CurrentScope.config.sod_actions = %w[approve]

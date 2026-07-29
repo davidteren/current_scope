@@ -133,11 +133,8 @@ module CurrentScope
       # mean "on the first gated request", because that is a deploy that boots
       # green and 500s on real traffic. (cubic P2, ie-predictability P1)
       #
-      # It sees only the classes loaded so far — in EVERY environment, not just
-      # development. That is the same partial-coverage bargain the permission
-      # catalog already makes, and it is stated rather than implied. (This
-      # sentence used to claim production was complete because eager loading had
-      # run; see the correction below, and #139.)
+      # A single call sees only the classes loaded so far — in EVERY environment,
+      # not just development. That is why the engine calls it twice; see below.
       #
       # WORKS IN WAVES, and both halves of that are load-bearing.
       #
@@ -156,13 +153,15 @@ module CurrentScope
       # them. Terminates because the registry is finite and `validated` only
       # grows. (#133 review — cubic)
       #
-      # This does NOT close the bigger gap: models nothing has loaded at all are
-      # still invisible here, because railties runs :run_prepare_callbacks
+      # CALLED TWICE, on purpose (#139). From to_prepare, which railties runs
       # BEFORE :eager_load! ("This needs to happen before eager load so it
-      # happens in exactly the same point regardless of config.eager_load"). So
-      # declared_names starts thin in every environment, and a second pass after
-      # eager loading is the fix — tracked as #139, because it changes WHEN a
-      # bad declaration raises.
+      # happens in exactly the same point regardless of config.eager_load") — so
+      # that pass sees only what was already loaded, and earns its keep in
+      # development by re-running on every reload. And from after_initialize
+      # where eager loading is on, which is the authoritative pass: the registry
+      # is complete there, so a production deploy validates every declaring
+      # model. Idempotent, so running twice costs a second walk over a set that
+      # raises on the first bad entry either way.
       def validate_declarations!
         validated = Set.new
 

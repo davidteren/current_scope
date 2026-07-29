@@ -301,6 +301,114 @@ class ParentChainTest < ActiveSupport::TestCase
     assert_match(/current_scope_parent :the_association/, error.message)
   end
 
+  # --- #139: the check that only the boot pass performs ---
+
+  # WHY validate_key! matters, demonstrated rather than asserted. It is the only
+  # guard anywhere against current_scope_parent on a belongs_to with a custom
+  # `primary_key:`, and nothing on the request path repeats it — so a model that
+  # was not loaded when the boot pass ran used to go unchecked forever.
+  #
+  # Unchecked, scope_for joins the CHILD's foreign-key column against the
+  # PARENT's primary key. This test pins both halves of what that does, and the
+  # second half is the reason the check raises rather than warns.
+  test "an unvalidated custom-primary-key chain matches the wrong rows entirely (#139)" do
+    original_names = CurrentScope::ParentChain.instance_variable_get(:@declared_names)
+    klass = Class.new(ApplicationRecord) do
+      def self.name = "CustomKeyReport"
+      self.table_name = "reports"
+      # reports.title (a string) is declared to hold what is really projects.name.
+      belongs_to :project, primary_key: :name, foreign_key: :title, optional: true
+      belongs_to :requested_by, class_name: "User"
+      current_scope_parent :project
+    end
+
+    subject = User.create!(name: "Subject")
+    granted = Project.create!(name: "Apollo")
+    linked = klass.create!(title: "Apollo", requested_by: @requester)
+    # Belongs to no project at all — its title merely equals the granted
+    # project's numeric id. With a NUMERIC custom key this collision is not
+    # contrived, it is the common case.
+    collides = klass.create!(title: granted.id.to_s, requested_by: @requester)
+
+    role = CurrentScope::Role.create!(name: "ChainRole")
+    role.role_permissions.create!(permission_key: "custom_key_reports#index")
+    CurrentScope::ScopedRoleAssignment.create!(subject: subject, role: role, resource: granted)
+
+    visible = CurrentScope.resolver.scope_for(
+      subject: subject, model: klass, permission: "custom_key_reports#index"
+    ).to_a
+
+    refute_includes visible, linked,
+                    "the record the declared chain actually links is NOT reachable — the grant " \
+                    "silently does nothing for the rows it was meant to cover"
+    assert_includes visible, collides,
+                    "and an unrelated record IS reachable, purely because its foreign-key value " \
+                    "collides with the granted parent's id. That is the fail-open half, and it " \
+                    "is why validate_key! raises instead of warning"
+  ensure
+    # The macro registered this class; leaving it in the shared registry makes
+    # every later validate_declarations! walk a name that no longer resolves.
+    CurrentScope::ParentChain.instance_variable_set(:@declared_names, original_names)
+  end
+
+  test "the custom-primary-key chain is refused by the boot pass (#139)" do
+    chain = CurrentScope::ParentChain
+    original_names = chain.instance_variable_get(:@declared_names)
+
+    # A REAL constant, because validate_declarations! walks names and resolves
+    # them with safe_constantize — an anonymous class with a stubbed `.name`
+    # registers and is then silently skipped, which is how the first draft of
+    # this test passed while proving nothing.
+    Object.const_set(:CustomKeyRefused, Class.new(ApplicationRecord) do
+      self.table_name = "reports"
+      belongs_to :project, primary_key: :name, foreign_key: :title, optional: true
+      belongs_to :requested_by, class_name: "User"
+    end)
+    CustomKeyRefused.current_scope_parent :project
+
+    error = assert_raises(CurrentScope::ConfigurationError) { chain.validate_declarations! }
+
+    assert_match(/custom association primary key/, error.message)
+    assert_match(/would match the wrong rows/, error.message)
+  ensure
+    Object.send(:remove_const, :CustomKeyRefused) if Object.const_defined?(:CustomKeyRefused)
+    chain.instance_variable_set(:@declared_names, original_names)
+  end
+
+  # The lesson from #133: a boot check whose WIRING nothing asserts can be
+  # deleted by a bad merge with the whole suite still green. Pinned behaviourally
+  # by running the after_initialize load hooks and watching for the call — which
+  # covers the gate in the same test, because the gate is the reason the answer
+  # differs between the two runs.
+  test "the authoritative pass runs on after_initialize, and only when eager loading (#139)" do
+    chain = CurrentScope::ParentChain
+    original_names = chain.instance_variable_get(:@declared_names)
+    original_eager = Rails.application.config.eager_load
+    singleton = chain.singleton_class
+    original = chain.method(:validate_declarations!)
+    calls = 0
+    singleton.define_method(:validate_declarations!) { calls += 1 }
+
+    # Eager loading OFF (the test env's real setting): the registry is partial
+    # anyway, and running here would autoload reloadable constants during
+    # initialization — pinning constants the first reload then makes stale.
+    Rails.application.config.eager_load = false
+    ActiveSupport.run_load_hooks(:after_initialize, Rails.application)
+    assert_equal 0, calls, "must not run, and must not autoload, when eager loading is off"
+
+    # Eager loading ON: the registry is complete, so this is the pass that
+    # actually validates a production deploy.
+    Rails.application.config.eager_load = true
+    ActiveSupport.run_load_hooks(:after_initialize, Rails.application)
+    assert_equal 1, calls,
+                 "without this the check is back to seeing only whatever happened to be " \
+                 "loaded before to_prepare — which in production is close to nothing"
+  ensure
+    Rails.application.config.eager_load = original_eager
+    singleton.define_method(:validate_declarations!, original)
+    chain.instance_variable_set(:@declared_names, original_names)
+  end
+
   # --- Boot-time validation must survive its own autoloading ---
 
   # validate_declarations! runs on engine to_prepare, and resolving a

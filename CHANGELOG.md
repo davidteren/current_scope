@@ -133,6 +133,27 @@ changed. Not cut yet; the README banner stays up pending the real-host
   holding break-glass bypass, and that advisory `allowed_to?` never consults
   the catalog.
 
+### Changed
+- **A mis-declared `current_scope_parent` now fails the deploy instead of
+  serving wrong rows (#139).** BREAKING for one narrow, already-broken shape:
+  a chain declared on a `belongs_to` with a custom `primary_key:`.
+
+  The check is not new — `ParentChain.validate_declarations!` has always refused
+  that shape. What changed is when it runs. It ran only from `to_prepare`, which
+  railties executes **before** `:eager_load!`, so it saw only models something
+  else had already loaded; in production, close to none. It now also runs after
+  eager loading, where the registry is complete. Development keeps the
+  `to_prepare` pass, which re-runs on reload and catches up; the new pass is
+  gated on `config.eager_load` precisely so it never autoloads reloadable
+  constants during initialization.
+
+  **Why a broken deploy is the right outcome:** unvalidated, that chain makes
+  `scope_for` join the child's foreign-key column against the *parent's* primary
+  key. It hides records the grant should reach AND returns unrelated records
+  whose foreign-key value collides with a granted parent's id — dense collisions
+  with a numeric custom key. A subject sees records nobody granted them. See
+  [UPGRADING.md](UPGRADING.md) for the fix.
+
 ### Fixed
 - **Boot could crash validating a declared parent chain (#108, found while
   building #133).** `ParentChain.validate_declarations!` iterated its registry

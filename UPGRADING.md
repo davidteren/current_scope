@@ -51,6 +51,51 @@ the migration toolkit. No intended host API break. Boot now **raises** if
 `sod_bypass_permission` is listed in `sod_actions` (#40) instead of 500ing on
 the first real bypass.
 
+## 0.4 → 0.5: a mis-declared `current_scope_parent` now fails the deploy (#139)
+
+**If your app boots today and stops booting after upgrading**, you have a
+`current_scope_parent` declared on a `belongs_to` with a custom `primary_key:`.
+That was already broken; it was just never checked. The error names the model
+and the association.
+
+```ruby
+# The shape that now refuses to boot:
+class Report < ApplicationRecord
+  belongs_to :project, primary_key: :slug, foreign_key: :project_slug
+  current_scope_parent :project        # <- refused
+end
+```
+
+### What changed
+
+The check itself is not new — `ParentChain.validate_declarations!` has always
+refused this. What changed is **when it runs**. It used to run only from
+`to_prepare`, which railties executes *before* eager loading, so it saw only the
+models something else had already loaded. In production that is close to none,
+so the check could be skipped entirely for the model that needed it. It now also
+runs after eager loading, where the registry is complete.
+
+### Why it is worth a broken deploy
+
+An unvalidated chain of this shape does not fail safely. `scope_for` joins the
+child's foreign-key column against the **parent's primary key**, so it compares
+values from two different columns. The result is wrong in both directions:
+
+- records the grant *should* reach are **not** returned, and
+- unrelated records **are** returned whenever their foreign-key value collides
+  with a granted parent's id — with a numeric custom key, a dense collision
+  space.
+
+That second half is a subject seeing records nobody granted them. Failing the
+deploy is the correct outcome; the alternative is continuing to serve wrong
+authorization answers quietly.
+
+### If you need to ship right now
+
+Remove the `current_scope_parent` declaration to restore the previous
+behaviour (flat matching, no chain), fix the association to key on the primary
+key, and re-declare.
+
 ## Related silent-security docs (not version-specific)
 
 - Collection actions in `sod_actions` are **no-ops** for the veto (no record →

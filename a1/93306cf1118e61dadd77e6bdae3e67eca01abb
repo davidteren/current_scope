@@ -1,0 +1,23 @@
+lib/current_scope/sod_preflight.rb
+  s_c80c0efb3a316a::t_993ae76ac5f81d 57-62,95-113,120-121,219-228,233-237
+test/sod_preflight_test.rb
+  s_c80c0efb3a316a::t_521aa7a3170eef 353-358,363,368-390
+docs/plans/2026-07-29-033-feat-sod-initiator-preflight-plan.md
+  s_c80c0efb3a316a::t_5c39ca2505ff15 264-270
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "a193306cf1118e61dadd77e6bdae3e67eca01abb",
+  "prompts": {},
+  "sessions": {
+    "s_c80c0efb3a316a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e897c493-a8bf-4c03-bd8f-f6dc3bd783fa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

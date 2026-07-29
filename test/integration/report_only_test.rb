@@ -339,6 +339,41 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
     CurrentScope::Guard.reset_ledger_warning!
   end
 
+  # cubic: every `e.message` here sits inside a rescue on a path that is about to
+  # re-raise something MORE important. `message` is host-overridable and can
+  # raise, so formatting the first exception could replace the ConfigurationError
+  # that names the model and both fixes — losing the only thing that tells the
+  # host what to do. Same argument PR #93 accepted for `model.inspect`.
+  test "a hostile exception cannot mask the ConfigurationError while being logged (#133)" do
+    original_logger = Rails.logger
+    io = StringIO.new
+    Rails.logger = ActiveSupport::Logger.new(io)
+
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[show]
+    CurrentScope::Guard.reset_ledger_warning!
+    document = Invoice.create!(title: "Contract")
+
+    hostile = Class.new(StandardError) do
+      def self.name = "HostileError"
+      def message = raise("even my message raises")
+    end
+    Invoice.define_method(:persisted?) { raise hostile }
+
+    error = assert_raises(CurrentScope::ConfigurationError) do
+      get document_url(document), headers: sign_in(@alice)
+    end
+
+    assert_match(/current_scope_initiator is not defined/, error.message,
+                 "the host must still get the error that names the model and both fixes")
+    assert_match(/\(message unavailable\)/, io.string,
+                 "and the log says it could not read the message, rather than dying trying")
+  ensure
+    Invoice.send(:remove_method, :persisted?)
+    Rails.logger = original_logger
+    CurrentScope::Guard.reset_ledger_warning!
+  end
+
   test "report mode still reports ordinary would-be denials on non-SoD actions" do
     CurrentScope.config.enforcement = :report
     CurrentScope.config.sod_actions = %w[approve]

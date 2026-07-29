@@ -281,7 +281,7 @@ module CurrentScope
       rescue StandardError => e
         Rails.logger&.warn(
           "[CurrentScope] report-only: could not BUILD the access.sod_initiator_missing row " \
-          "(#{e.class}: #{e.message.to_s.truncate(120)}) — this is not a ledger failure, so the " \
+          "(#{safe_error_description(e)}) — this is not a ledger failure, so the " \
           "ledger warning is left armed. The request RAISED " \
           "CurrentScope::ConfigurationError (500) either way."
         )
@@ -502,8 +502,23 @@ module CurrentScope
         "`rails current_scope:install:migrations && rails db:migrate`, or set " \
         "config.audit = false if you don't want the ledger."
       else
-        "could not record #{event} (#{error.class}: #{error.message.to_s.truncate(120)})."
+        "could not record #{event} (#{safe_error_description(error)})."
       end
+    end
+
+    # "Class: message", with a fallback when the exception itself is hostile.
+    #
+    # `e.message` is host-overridable and can raise. Every use of it here is
+    # inside a rescue on a path that is ABOUT to re-raise something more
+    # important — the ConfigurationError that names the model and both fixes, or
+    # a 403 — so a second exception raised while formatting the first would
+    # replace it, and the host would lose the message that tells them what to do.
+    # This codebase already accepted that argument once for `model.inspect`
+    # (PR #93); the same reasoning covers `message`. (#133 — cubic, PR #141)
+    def safe_error_description(error)
+      "#{error.class}: #{error.message.to_s.truncate(120)}"
+    rescue StandardError
+      "#{error.class}: (message unavailable)"
     end
 
     # Why a gated permission is missing from the catalog: excluded by config
@@ -615,7 +630,7 @@ module CurrentScope
         rescue StandardError => e
           Rails.logger&.warn(
             "[CurrentScope] warn_on_inert_scoped_grant could not check scoped grants " \
-            "(#{e.class}: #{e.message}); skipping diagnostic for \"#{permission}\"."
+            "(#{safe_error_description(e)}); skipping diagnostic for \"#{permission}\"."
           )
           false
         end

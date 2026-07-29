@@ -261,6 +261,13 @@ and a plan that reads as if it arrived correct teaches the next reader nothing.
   hook, so a compliant model is never built; an instance is only constructed for
   a model the scan is about to NAME, where the class/instance divergence could
   otherwise produce a false accusation.
+- **A gem bug in the scan could break a host's boot.** The `NoMethodError`
+  re-raise was copied from `GrantDiagnosis`, which is only ever called from a
+  rake task and a console view; this module runs from an engine initializer, so
+  the same convention took boot down over a diagnostic and aborted
+  `current_scope:report`. The distinction it protected — our bug versus host
+  misconfiguration — is kept by attributing the skip instead of raising it.
+  (Devin, on the PR.)
 - **One failing controller erased every finding before it.** The top-level
   rescue returned a fresh empty Result; rows are accumulated outside the begin
   now, so a partial list survives and is still marked incomplete.

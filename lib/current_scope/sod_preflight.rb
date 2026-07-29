@@ -54,6 +54,12 @@ module CurrentScope
       def any? = rows.any?
     end
 
+    # The subject recorded when the walk itself failed, rather than one host
+    # controller or model. Paired with a NoMethodError it identifies a bug in
+    # this gem — every host call-out is wrapped by a helper and carries its own
+    # subject, so it can never produce this pair.
+    SCAN_ITSELF = "the scan itself".freeze
+
     class << self
       # Scan the routed SoD actions and return a Result. PURE: it reads routes,
       # declarations and models, and returns; rendering and logging belong to the
@@ -86,30 +92,33 @@ module CurrentScope
               rows << [ permission, model ]
             end
           rescue StandardError => e
-            # An advisory must never be the thing that breaks a boot.
+            # AN ADVISORY MUST NEVER BE THE THING THAT BREAKS A BOOT, and that
+            # includes when the bug is OURS.
             #
-            # NoMethodError re-raises, matching GrantDiagnosis: at THIS level it
-            # can only be our own bug. Every call into host code — building the
-            # controller, reading the hook, instantiating the model — is wrapped
-            # by the two helpers below, which own those failures and never let
-            # them reach here. So a NoMethodError that escapes to this line came
-            # from the catalog walk or the loop, i.e. from us, and swallowing it
-            # would report a gem bug as a host misconfiguration. The helpers
-            # deliberately do NOT copy this re-raise: a hook reading `params` on
-            # a request-less controller raises NoMethodError, and that is the
-            # single likeliest host failure here — exactly what they must
-            # absorb. (The sibling can rescue narrowly throughout because it
-            # calls no host code at all.)
-            raise if e.instance_of?(NoMethodError)
-
+            # This used to re-raise NoMethodError, copying GrantDiagnosis on the
+            # theory that host failures are absorbed by the two helpers below, so
+            # one arriving here can only be a gem bug worth surfacing. The
+            # reasoning holds; the CONSEQUENCE did not survive review. That
+            # sibling is only ever called from a rake task and a console view.
+            # This module is called from an engine initializer, so re-raising
+            # took a host's boot down — over a diagnostic — and aborted
+            # `current_scope:report`, the survey they run mid-rollout. The
+            # convention was borrowed from a module that never runs at boot.
+            #
+            # The distinction it was protecting is kept without the crash: a
+            # NoMethodError whose subject is the scan itself is reported as OUR
+            # bug rather than blamed on host config (see skip_summary), because
+            # every call into host code is wrapped by the helpers and carries the
+            # controller or model as its subject. Loud, attributed, and
+            # survivable. (#133 — Devin, PR #141)
+            #
             # KEEP WHAT WAS FOUND. `rows` is built outside the begin precisely so
             # a failure partway through cannot discard the findings already
             # collected — in a large app one bad controller would otherwise hide
             # every earlier SoD miss from both surfaces, which is the exact case
             # this check exists to surface. The run is still marked as skipped,
-            # so an incomplete list never reads as a clean one. (#133 review —
-            # cubic)
-            skipped << [ "the scan itself", e ]
+            # so an incomplete list never reads as a clean one. (#133 — cubic)
+            skipped << [ SCAN_ITSELF, e ]
           end
         end
 
@@ -207,11 +216,25 @@ module CurrentScope
       def skip_summary(result)
         return nil if result.skipped.empty?
 
-        broken = result.skipped.select { |_s, error| error.is_a?(NameError) }
+        # NameError is a subclass of NoMethodError's parent, so test the gem-bug
+        # pair FIRST: only the scan-itself subject can carry one, and calling
+        # that a broken controller would send a host after their own code for a
+        # bug in ours.
+        ours = result.skipped.select { |subject, error|
+          subject == SCAN_ITSELF && error.instance_of?(NoMethodError)
+        }
+        broken = result.skipped.select { |subject, error|
+          error.is_a?(NameError) && subject != SCAN_ITSELF
+        }
         detail = result.skipped.map { |subject, error| "#{subject} (#{error.class})" }.uniq.join(", ")
 
         message = +"[CurrentScope] SodPreflight skipped #{result.skipped.size} check(s), so its " \
                    "list is INCOMPLETE — absence below is not an all-clear: #{detail}."
+        if ours.any?
+          message << " That NoMethodError came from the scan itself, not from your app — it is " \
+                     "a bug in current_scope. Please report it; nothing in your configuration " \
+                     "needs changing for it."
+        end
         if broken.any?
           message << " #{broken.size} of those did not LOAD (#{broken.map(&:first).uniq.join(', ')}) " \
                      "— that is a broken controller, not a missing declaration, and the gate will " \

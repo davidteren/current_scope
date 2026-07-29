@@ -350,21 +350,44 @@ class SodPreflightTest < ActiveSupport::TestCase
                  "made call order matter and 'never run' read as clean"
   end
 
-  # A bug in THIS module must not be reported as a host misconfiguration. The
-  # two helpers absorb host failures; anything reaching the top-level rescue as
-  # a NoMethodError came from us, and GrantDiagnosis sets the precedent of
-  # re-raising exactly that.
-  test "a NoMethodError from our own code re-raises instead of degrading (#133)" do
+  # A bug in THIS module must not be reported as a host misconfiguration — and
+  # must not take a host's boot down either. It used to re-raise, copying a
+  # sibling that is only ever called from a rake task; this module runs from an
+  # engine initializer, so the same convention broke boot over a diagnostic.
+  # Both halves are pinned: it survives, and it says whose bug it is.
+  test "a NoMethodError from our own code is attributed, not raised (#133)" do
     CurrentScope.config.sod_actions = %w[show]
 
     # A catalog that cannot answer `grouped` stands in for any slip inside this
     # module's own walk. Host code never reaches this rescue — the helpers own
-    # it — so degrading here would report our bug as the host's.
+    # it and carry the controller or model as the subject.
     singleton = CurrentScope.singleton_class
     original = CurrentScope.method(:catalog)
     singleton.define_method(:catalog) { Object.new }
 
-    assert_raises(NoMethodError) { CurrentScope::SodPreflight.scan }
+    result = nil
+    assert_nothing_raised { result = CurrentScope::SodPreflight.scan }
+
+    assert result.degraded?, "our own bug must still mark the run incomplete"
+    summary = CurrentScope::SodPreflight.skip_summary(result)
+    assert_match(/a bug in current_scope/, summary)
+    assert_match(/not from your app/, summary,
+                 "blaming host configuration for our bug sends them after the wrong thing")
+  ensure
+    singleton.define_method(:catalog, original)
+  end
+
+  # The boot surface is the one that made the old re-raise a real problem.
+  test "a bug in the scan cannot break the boot warning (#133)" do
+    CurrentScope.config.sod_actions = %w[show]
+    singleton = CurrentScope.singleton_class
+    original = CurrentScope.method(:catalog)
+    singleton.define_method(:catalog) { Object.new }
+
+    logs = nil
+    assert_nothing_raised { logs = capture_warn_log { CurrentScope::SodPreflight.warn! } }
+
+    assert_match(/a bug in current_scope/, logs)
   ensure
     singleton.define_method(:catalog, original)
   end

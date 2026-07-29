@@ -1,0 +1,23 @@
+docs/site/separation-of-duties.md
+  s_c80c0efb3a316a::t_b9b11ef16721b1 93-97
+docs/site/limitations.md
+  s_c80c0efb3a316a::t_b9b11ef16721b1 44-56
+docs/guides/adopting-in-an-existing-app.md
+  s_c80c0efb3a316a::t_1e1e4b237ee3cc 379-383
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "a06f143b304f70d23c9a8d04013748bc869032f5",
+  "prompts": {},
+  "sessions": {
+    "s_c80c0efb3a316a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e897c493-a8bf-4c03-bd8f-f6dc3bd783fa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

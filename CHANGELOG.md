@@ -142,16 +142,18 @@ changed. Not cut yet; the README banner stays up pending the real-host
   that shape. What changed is when it runs. It ran only from `to_prepare`, which
   railties executes **before** `:eager_load!`, so it saw only models something
   else had already loaded; in production, close to none. It now also runs after
-  eager loading, where the registry is complete. Development keeps the
-  `to_prepare` pass, which re-runs on reload and catches up; the new pass is
-  gated on `config.eager_load` precisely so it never autoloads reloadable
+  eager loading, where the registry is complete for models that were eager-loaded.
+  Development keeps the `to_prepare` pass, which re-runs on reload and grows
+  coverage as classes load, but never guarantees a full pass when
+  `config.eager_load` is off (or when declaring models sit outside eager-load
+  paths). The new pass is gated on `eager_load` so it never autoloads reloadable
   constants during initialization.
 
-  **Why a broken deploy is the right outcome:** unvalidated, that chain makes
-  `scope_for` join the child's foreign-key column against the *parent's* primary
-  key. It hides records the grant should reach AND returns unrelated records
-  whose foreign-key value collides with a granted parent's id — dense collisions
-  with a numeric custom key. A subject sees records nobody granted them. See
+  **Why a broken deploy is the right outcome:** unvalidated, both `scope_for`
+  and the unloaded member walk key the parent on its primary key. That hides
+  records the grant should reach AND returns / opens unrelated records whose
+  foreign-key value collides with a granted parent's id — dense collisions with
+  a numeric custom key. A subject sees records nobody granted them. See
   [UPGRADING.md](UPGRADING.md) for the fix.
 
 ### Fixed

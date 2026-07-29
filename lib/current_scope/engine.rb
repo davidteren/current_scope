@@ -87,11 +87,11 @@ module CurrentScope
     # That check is not cosmetic. validate_key! is the only guard anywhere
     # against a current_scope_parent on a belongs_to with a custom
     # `primary_key:`, and nothing on the request path repeats it. Unvalidated,
-    # such a chain makes scope_for join the child's foreign-key column against
-    # the PARENT'S primary key — comparing values from different columns. It
-    # both hides records the grant should reach AND surfaces unrelated ones
-    # whose foreign-key value happens to collide with a granted parent's id.
-    # With a numeric custom key that collision space is dense. See the
+    # both scope_for and the unloaded load_parent walk key the parent on its
+    # primary key — comparing values from different columns. Both hide records
+    # the grant should reach AND surface / open unrelated ones whose
+    # foreign-key value happens to collide with a granted parent's id. With a
+    # numeric custom key that collision space is dense. See the
     # characterization test in test/parent_chain_test.rb.
     #
     # Gated on eager_load, which is the whole point: where it is on, the registry

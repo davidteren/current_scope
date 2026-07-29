@@ -82,27 +82,31 @@ constants the first reload then makes stale. So:
 
 | `config.eager_load` | Coverage |
 |---|---|
-| `true` (production, staging by default) | every declaring model is validated at boot |
+| `true` (production, staging by default) | every declaring model that was **eager-loaded** (and thus registered) is validated at boot |
 | `false` (development, test, and any environment that turns it off) | only models already loaded when `to_prepare` runs — which grows across reloads, but is never a guarantee |
 
-If you deploy an environment with `eager_load = false`, this check does **not**
-protect it. That is the same partial-coverage bargain the permission catalog
+Models excluded from eager load (`do_not_eager_load`, paths outside
+`eager_load_paths`) still register only when first loaded, and nothing on the
+request path re-runs this check. If you deploy with `eager_load = false`, or
+keep declaring models off the eager-load surface, this check does **not** fully
+protect you. That is the same partial-coverage bargain the permission catalog
 makes, and it is stated rather than implied.
 
 ### Why it is worth a broken deploy
 
-An unvalidated chain of this shape does not fail safely. `scope_for` joins the
-child's foreign-key column against the **parent's primary key**, so it compares
-values from two different columns. The result is wrong in both directions:
+An unvalidated chain of this shape does not fail safely. Both the collection
+query (`scope_for`) and the unloaded member walk (`load_parent`) key the parent
+on its **primary key**, so they compare values from two different columns. The
+result is wrong in both directions on both surfaces:
 
-- records the grant *should* reach are **not** returned, and
-- unrelated records **are** returned whenever their foreign-key value collides
-  with a granted parent's id — with a numeric custom key, a dense collision
-  space.
+- records the grant *should* reach are **not** returned / denied, and
+- unrelated records **are** returned / allowed whenever their foreign-key value
+  collides with a granted parent's id — with a numeric custom key, a dense
+  collision space.
 
-That second half is a subject seeing records nobody granted them. Failing the
-deploy is the correct outcome; the alternative is continuing to serve wrong
-authorization answers quietly.
+That second half is a subject seeing (and opening) records nobody granted them.
+Failing the deploy is the correct outcome; the alternative is continuing to
+serve wrong authorization answers quietly.
 
 ### If you need to ship right now
 

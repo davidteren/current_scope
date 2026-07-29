@@ -73,12 +73,20 @@ module CurrentScope
       CurrentScope::ParentChain.validate_declarations!
     end
 
-    # #133, and here for the same reason ParentChain.validate_declarations! runs
-    # on to_prepare: a deploy must not boot green and 500 on the first gated
-    # request. An SoD action whose model defines no current_scope_initiator
-    # raises per request — in :report mode too, which is where it hurts most,
-    # because report mode is what a host turns on to survey live traffic without
+    # #133: a deploy must not boot green and 500 on the first gated request. An
+    # SoD action whose model defines no current_scope_initiator raises per
+    # request — in :report mode too, which is where it hurts most, because
+    # report mode is what a host turns on to survey live traffic without
     # changing anything for users.
+    #
+    # WHEN this fires is "as soon as the routes exist", which is boot only where
+    # routes load during initialization. Railties ends set_routes_reloader_hook
+    # with `reloader.execute_unless_loaded if !app.routes.is_a?(Engine::
+    # LazyRouteSet) || app.config.eager_load` — so an eager-loading environment
+    # (production, staging, the environments a bake actually runs in) warns at
+    # boot, while development's lazy route set defers it to the first request or
+    # reload. Forcing the routes early to make "boot" literally true would
+    # defeat LazyRouteSet for every host to make one log line punctual.
     #
     # after_routes_loaded, NOT to_prepare, and that is load-bearing. The
     # preflight reads CurrentScope.catalog, and the catalog MEMOIZES its

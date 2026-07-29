@@ -133,10 +133,11 @@ module CurrentScope
       # mean "on the first gated request", because that is a deploy that boots
       # green and 500s on real traffic. (cubic P2, ie-predictability P1)
       #
-      # In production this is complete: eager loading has run, so every
-      # declaring class is registered. In development it can only see the
-      # classes loaded so far, which is the same partial-coverage bargain the
-      # permission catalog already makes, and it is stated rather than implied.
+      # It sees only the classes loaded so far — in EVERY environment, not just
+      # development. That is the same partial-coverage bargain the permission
+      # catalog already makes, and it is stated rather than implied. (This
+      # sentence used to claim production was complete because eager loading had
+      # run; see the correction below, and #139.)
       #
       # Iterates a SNAPSHOT, and that is load-bearing rather than defensive:
       # validate_key! resolves reflection.klass, which AUTOLOADS the parent
@@ -147,9 +148,17 @@ module CurrentScope
       # another declaring model. The dummy's Report -> Project is exactly that
       # shape; it surfaced while pinning #133's boot hook.
       #
-      # A class registered mid-pass is therefore not validated in THIS pass. That
-      # is the partial-coverage bargain above, unchanged: production has eager
-      # loaded before this runs, and development re-validates on the next reload.
+      # A class registered mid-pass is therefore not validated in THIS pass.
+      #
+      # Do NOT justify that with "production has eager loaded by now" — it has
+      # not. Railties runs :run_prepare_callbacks (this) BEFORE :eager_load!,
+      # with the source comment "This needs to happen before eager load so it
+      # happens in exactly the same point regardless of config.eager_load". So
+      # declared_names here holds only the models something else already loaded,
+      # in every environment. This pass has always been thinner than it looks;
+      # the snapshot does not make it thinner, it just stops the crash. Closing
+      # the real gap needs a second pass after eager loading, which changes when
+      # a bad declaration raises and is tracked as #139. (#133 review)
       def validate_declarations!
         declared_names.to_a.each do |name|
           klass = name.safe_constantize

@@ -45,6 +45,18 @@ Add the current_scope gem to this Rails app (Rails >= 8.1, < 9 required).
    append-only ledger — historical rows never clear) and any
    access.sod_blind_spot rows are resolved. Report mode must not be the
    final state.
+   If config.sod_actions is set, ALSO clear any access.sod_initiator_missing
+   rows before flipping. Those are not denials — they are 500s. An SoD action
+   reaching a model with no current_scope_initiator RAISES
+   CurrentScope::ConfigurationError, in :report mode exactly as in :enforce,
+   so granting will not clear them. Best done before enabling SoD at all:
+   the engine logs a preflight warning naming the ones it can see (at boot in
+   production; on the first request in development, whose routes are lazy),
+   `bin/rails current_scope:report` lists them, and
+   `CurrentScope::SodPreflight.findings` returns them programmatically as
+   [permission, model_class] pairs. That list is PARTIAL by construction —
+   it only sees controllers declaring current_scope_model — so an empty
+   list is not proof.
 5. Bootstrap the first admin (the management UI only admits full-access
    subjects): `bin/rails current_scope:grant SUBJECT_ID=<id>` — or, in
    seeds, `CurrentScope.grant!(user)` (it creates the default

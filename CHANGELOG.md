@@ -26,11 +26,14 @@ changed. Not cut yet; the README banner stays up pending the real-host
   consulted, and downgrading it to a 403 would dress a misconfiguration up as an
   ordinary denial. What changed is when a host learns about it:
 
-  - **At boot.** `CurrentScope::SodPreflight` walks `config.sod_actions` against
-    the route-derived catalog and logs one warning naming every action whose
-    controller declares a `current_scope_model` that cannot answer
-    `current_scope_initiator`. Log-only, and a no-op until a host opts into SoD
-    (`config.sod_actions` defaults to `[]`).
+  - **Before traffic.** `CurrentScope::SodPreflight` walks `config.sod_actions`
+    against the route-derived catalog and logs one warning naming every action
+    whose controller declares a `current_scope_model` that cannot answer
+    `current_scope_initiator`. It runs when the route set loads: at **boot** in
+    an eager-loading environment (production, staging — where a rollout bake
+    runs), and on the **first request** in development, whose route set is lazy.
+    Log-only, and a no-op until a host opts into SoD (`config.sod_actions`
+    defaults to `[]`).
   - **In the survey.** `bin/rails current_scope:report` gains two sections: the
     static preflight list (present with zero recorded traffic) and the requests
     that actually raised, recorded in report mode as `access.sod_initiator_missing`

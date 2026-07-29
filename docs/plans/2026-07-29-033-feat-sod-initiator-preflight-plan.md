@@ -38,7 +38,7 @@ are worse than the 500:
 
 So the 500 stands, and stops being the loudest failure with the least reporting.
 
-**Option 1 — find them at boot.** `CurrentScope::SodPreflight` walks
+**Option 1 — find them before traffic.** `CurrentScope::SodPreflight` walks
 `config.sod_actions` against the route-derived catalog and, for each routed SoD
 action, reads the controller's `current_scope_model` declaration. A declared type
 that cannot answer `current_scope_initiator` is logged, once, in one message.
@@ -99,6 +99,16 @@ preflight on after_routes_loaded CATALOG=44   (eager_load on and off)
 `after_routes_loaded` is the one hook where Rails guarantees the route set is
 complete, and it re-runs on every routes reload, so a dev edit is re-checked.
 
+**What that costs, stated rather than glossed:** the hook only fires during
+initialization where routes load during initialization. Railties ends
+`set_routes_reloader_hook` with `reloader.execute_unless_loaded if !app.routes
+.is_a?(Engine::LazyRouteSet) || app.config.eager_load`, so an eager-loading
+environment (production, staging — the environments a bake runs in) warns at
+boot, while development's lazy route set defers the warning to the first
+request. Forcing the routes early to make "boot" literally true would defeat
+`LazyRouteSet` for every host in order to make one log line punctual. Every
+"at boot" claim in the docs was corrected to say this. (#133 review)
+
 The general lesson, worth carrying: **a diagnostic that reads a memoized
 derivation can poison it.** Anything else added to boot that touches
 `CurrentScope.catalog` must answer this question before it ships.
@@ -123,10 +133,21 @@ a new key into hash during iteration`, straight out of `to_prepare`.
 That is a boot crash for any host whose declared chain points at another
 declaring model. The dummy's `Report -> Project` is exactly that shape; nothing
 had ever called `validate_declarations!` in a test, so it had no coverage at all.
-The fix is to iterate a snapshot (`declared_names.to_a`), and the consequence — a
-class registered mid-pass is validated on the next pass instead — is the
-partial-coverage bargain that method already documents. Deterministically pinned
-in `test/parent_chain_test.rb`; verified red without the snapshot.
+The fix is to iterate a snapshot (`declared_names.to_a`). Deterministically
+pinned in `test/parent_chain_test.rb`; verified red without the snapshot.
+
+**A first draft of this section justified the snapshot's cost with "production
+has eager loaded before this runs." That is false, and the review caught it.**
+Railties orders `:run_prepare_callbacks` (which runs `to_prepare`) *before*
+`:eager_load!`, with the source comment "This needs to happen before eager load
+so it happens in exactly the same point regardless of config.eager_load". So
+`declared_names` at that moment holds only the models something else already
+loaded — in **every** environment. The consequence is that #108's boot-time
+chain validation has always been much thinner than its own comment implies, and
+the snapshot neither causes nor worsens that. Closing it needs a second pass
+after eager loading, which changes *when* a bad declaration raises and is
+therefore its own change, filed as **#139** rather than smuggled into this PR.
+The comment in `parent_chain.rb` now says the true thing.
 
 ## KTD-3 — Ask the resolver why; never read the exception's message
 
@@ -164,12 +185,47 @@ component owns is #74's defect, and this repo has paid for it three times.
 | Both report sections print with an empty ledger / from ledger rows | `test/report_task_test.rb` |
 | Nothing on `to_prepare` derives the catalog (KTD-2) | `test/sod_preflight_test.rb` |
 | Boot-time chain validation survives a mid-walk registration (KTD-4) | `test/parent_chain_test.rb` |
-
-Suite at implementation: **719 unit + 28 system green, RuboCop clean.**
+| One broken controller does not blind the whole run | `test/sod_preflight_test.rb` |
+| An uninstantiable model is passed over, and marks the run degraded | same |
+| A NoMethodError from our own code re-raises rather than degrading | same |
+| An empty preflight still prints, and says whether it was clean or blind | `test/report_task_test.rb` |
+| A failed ledger write names the RAISED outcome, not an allow or a deny | `test/integration/report_only_test.rb` |
 
 Mutations re-run red before shipping: `sod_initiator_missing?` forced to
 `false`; the `report_only?` guard removed from the diagnosis; the boot hook moved
-to `to_prepare`; the `to_a` snapshot removed from `validate_declarations!`.
+to `to_prepare`; the `to_a` snapshot removed from `validate_declarations!`;
+`declared_model_for`'s isolating rescue removed; the diagnosis stopped asking the
+resolver and trusted the exception class alone.
+
+## What the review changed, recorded rather than smoothed over
+
+Every item here was wrong in the first version of this branch. Listing them
+because this repo's own base rate says review changes the design on every PR,
+and a plan that reads as if it arrived correct teaches the next reader nothing.
+
+- **The suite was order-dependent and passed by luck.** The KTD-2 pin calls
+  `Rails.application.reloader.prepare!`, which also runs
+  `reset_scopeable_registry!` — and in a test process that is permanent, because
+  `prepare!` does not unload constants, so no model class body re-runs
+  `include CurrentScope::Scopeable`. Eleven picker tests failed on seed 22. The
+  pin now snapshots and restores the registry.
+- **Two tests could not fail for their stated reason.** The unrelated-
+  `ConfigurationError` pin posted to an excluded controller, whose catalog miss
+  raises in `current_scope_check!` *before* the rescue it was pinning; and the
+  "degrades to silence" pin passed with `declared_model_for`'s isolating rescue
+  deleted, because the outer rescue returned `[]` either way. Both rewritten,
+  both verified red.
+- **"At boot" was false in development**, and appeared in nine places.
+- **The `collection_type?` shape guard was re-derived inline** — the #74 defect,
+  in a diff whose own plan cites #74 three times. It now asks the resolver.
+- **The advisory's caveat named two limits and had four.**
+- **An empty preflight printed nothing**, so a check that blew up looked exactly
+  like a check that came back clean.
+- **Per-controller degrade logging would flood** the multi-tenant host it is
+  meant to help; it aggregates into one line per run now.
+
+Suite after the review pass: **725 unit + 28 system green, RuboCop clean**,
+stable across seeds.
 
 ## What this does not do
 

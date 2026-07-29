@@ -283,7 +283,48 @@ class ReportTaskTest < ActiveSupport::TestCase
   test "no SoD config means no preflight section at all (#133)" do
     CurrentScope.config.sod_actions = []
 
-    refute_match(/will RAISE/, run_task)
+    out = run_task
+
+    refute_match(/will RAISE/, out)
+    refute_match(/preflight/i, out, "a host who never opted into SoD gets no SoD noise")
+  end
+
+  # An empty preflight must not read like "the task didn't run". Suppressing the
+  # whole section made a clean run and a BROKEN run identical on stdout, and hid
+  # the PARTIAL caveat that stops this being taken as a verdict. Same rule the
+  # ungated task follows: a vacuous all-clear is worse than a blank.
+  test "an empty preflight still says so, with its caveat, when SoD is on (#133)" do
+    CurrentScope.config.sod_actions = %w[approve] # no dummy controller declares a model for it
+    CurrentScope.reset_catalog!
+
+    out = run_task
+
+    assert_match(/no routed SoD action named a model missing/, out)
+    assert_match(/PARTIAL/, out, "the caveat must not be trapped inside the non-empty branch")
+    refute_match(/COULD NOT COMPLETE/, out, "a clean run must not claim it degraded")
+  ensure
+    CurrentScope.config.sod_actions = []
+    CurrentScope.reset_catalog!
+  end
+
+  test "a preflight that could not complete says THAT, not 'nothing found' (#133)" do
+    CurrentScope.config.sod_actions = %w[show]
+    CurrentScope.reset_catalog!
+    # Every model check fails, so the run finds nothing AND knows it is blind.
+    Document.define_singleton_method(:new) { |*| raise "no connection" }
+    Report.define_singleton_method(:new) { |*| raise "no connection" }
+
+    out = run_task
+
+    assert_match(/COULD NOT COMPLETE/, out)
+    assert_match(/Do NOT read the absence of findings below as an all-clear/, out)
+    refute_match(/no routed SoD action named a model missing/, out,
+                 "a blind run must never render as a clean one")
+  ensure
+    Document.singleton_class.send(:remove_method, :new)
+    Report.singleton_class.send(:remove_method, :new)
+    CurrentScope.config.sod_actions = []
+    CurrentScope.reset_catalog!
   end
 
   test "raised requests get their own section, apart from denials (#133)" do

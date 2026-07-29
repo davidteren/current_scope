@@ -14,6 +14,9 @@ Key facts agents get wrong without reading:
 - Separation of duties is OFF by default (config.sod_actions = []).
 - An SoD member action must return its record from current_scope_record,
   or the veto is silently skipped.
+- An SoD action on a model with no current_scope_initiator RAISES (500),
+  in report mode too — report mode downgrades a missing grant, never a
+  misconfiguration.
 - config.actor_method is security-critical the moment the host impersonates.
 - Retrofit existing apps through config.enforcement = :report first.
 

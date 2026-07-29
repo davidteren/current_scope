@@ -371,7 +371,8 @@ outcomes step 3 names — report mode refuses to downgrade a `model_undeclared`
    and it is the one outcome that can look like an outage during a survey, so
    audit `config.sod_actions` against your models **before** you turn report mode
    on. Since #133 you do not have to do that by hand: the engine logs a preflight
-   warning **at boot** naming every SoD action whose declared model cannot answer
+   warning **when the routes load** (boot in production and staging; the first
+   request in development) naming every SoD action whose declared model cannot answer
    the hook, and `bin/rails current_scope:report` lists them too, alongside the
    requests that actually raised (`access.sod_initiator_missing` rows). Read the
    boot list as a lead rather than a verdict — it can only inspect controllers

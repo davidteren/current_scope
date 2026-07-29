@@ -556,7 +556,12 @@ module CurrentScope
     # The full rationale lives on the shape guard in record_less_scoped_grant?
     # above; this predicate exists so the diagnostic labeler below refuses the
     # exact same shapes the gate refused, and cannot drift from it.
-    def collection_type?(type)
+    #
+    # PUBLIC since #133, for that same reason one hop further out: SodPreflight
+    # asks the identical question of a declared current_scope_model, and an
+    # inline copy of the three terms is precisely the re-derivation #74 keeps
+    # charging this codebase for. One definition, three consumers.
+    public def collection_type?(type)
       type.is_a?(Class) && type < ActiveRecord::Base && !type.abstract_class?
     end
 

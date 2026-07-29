@@ -25,6 +25,17 @@ record whose class doesn't define the hook, the resolver raises a
 `ConfigurationError` instead of silently permitting. Return `nil` from the hook
 to exempt a record type, or trim `config.sod_actions`.
 
+That raise is a **500**, and `config.enforcement = :report` does not soften it —
+report mode downgrades a missing grant, never a misconfiguration. So audit
+`config.sod_actions` against your models before you enable it. The engine helps:
+it logs a preflight warning **when the route set loads** (boot in production and
+staging; the first request in development) naming every routed SoD action whose
+controller declares a `current_scope_model` that cannot answer the hook, records
+an `access.sod_initiator_missing` ledger row when a request does raise in report
+mode, and lists both in `bin/rails current_scope:report`. The boot list is a
+lead, not a verdict — it only sees controllers that declare
+`current_scope_model`, and it states that limit in its own output.
+
 > **An SoD-gated member action MUST return its record from `current_scope_record`.**
 > This is the one asymmetry to know: a *present* record with a *missing*
 > initiator hook raises (above), but if `current_scope_record` returns **nil**

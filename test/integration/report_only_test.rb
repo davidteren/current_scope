@@ -247,18 +247,64 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
 
   # The diagnosis must ASK the resolver why, never match the exception's text.
   # A ConfigurationError raised for a DIFFERENT reason gets no SoD row.
+  #
+  # The raise has to come from INSIDE decide, or it never enters the rescue this
+  # pins. An earlier version of this test posted to the excluded `webhooks`
+  # controller — but that catalog miss raises in current_scope_check! well
+  # before decide_with_report_diagnosis is called, so the rescue never ran and
+  # the test would have stayed green with the diagnosis removed entirely. A test
+  # that cannot fail for its stated reason is the shape STATUS.md's SystemExit
+  # incident is about. (#133 review)
   test "an unrelated ConfigurationError is not diagnosed as a missing initiator (#133)" do
     CurrentScope.config.enforcement = :report
     CurrentScope.config.sod_actions = %w[show]
     CurrentScope::Event.delete_all
+    # A REPORT, not a Document: Report defines current_scope_initiator, so
+    # sod_initiator_missing? is honestly false here and the only thing that could
+    # write a row is the diagnosis matching on the exception instead of asking.
+    report = Report.create!(title: "Q3", requested_by: @bob)
 
-    # webhooks is excluded by config yet still includes the gate — the catalog
-    # miss raises ConfigurationError before any SoD question is asked.
+    resolver = CurrentScope.resolver
+    resolver.define_singleton_method(:decide) do |**|
+      raise CurrentScope::ConfigurationError, "something else entirely"
+    end
+
     assert_no_difference -> { CurrentScope::Event.where(event: "access.sod_initiator_missing").count } do
+      error = assert_raises(CurrentScope::ConfigurationError) do
+        get report_url(report), headers: sign_in(@alice)
+      end
+      assert_equal "something else entirely", error.message,
+                   "the original error must reach the host, not one the diagnosis replaced"
+    end
+  ensure
+    resolver&.singleton_class&.send(:remove_method, :decide)
+  end
+
+  # The ledger write is best-effort, but the request still 500s — so the warning
+  # must not claim an outcome this path does not produce. Its two siblings say
+  # "was allowed through" and "was DENIED (403)"; this one has to say RAISED.
+  test "a failed sod_initiator_missing ledger write warns with the right outcome (#133)" do
+    original_logger = Rails.logger
+    io = StringIO.new
+    Rails.logger = ActiveSupport::Logger.new(io)
+
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[show]
+    document = Invoice.create!(title: "Contract")
+
+    with_broken_ledger do
       assert_raises(CurrentScope::ConfigurationError) do
-        post webhooks_url, headers: sign_in(@alice)
+        get document_url(document), headers: sign_in(@alice)
       end
     end
+
+    logs = io.string
+    assert_match "access.sod_initiator_missing", logs
+    assert_match(/RAISED CurrentScope::ConfigurationError \(500\)/, logs)
+    refute_match(/WAS allowed through/, logs,
+                 "this path does not allow the request — saying so sends the operator elsewhere")
+  ensure
+    Rails.logger = original_logger
   end
 
   test "report mode still reports ordinary would-be denials on non-SoD actions" do

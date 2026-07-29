@@ -5,7 +5,7 @@
 > **This is:** CurrentScope, a Rails authorization engine (gem `current_scope`,
 > 0.4.0 published) being driven to a "solid v1" bar so the README's
 > not-production-ready banner can come down.
-> **What we finished:** #133 is built — report mode now warns at boot about an
+> **What we finished:** #133 is built — the engine now warns at boot about an
 > SoD action whose model has no `current_scope_initiator`, and records the ones
 > traffic finds. It also uncovered and fixed a boot crash in #108's chain
 > validation.
@@ -36,7 +36,8 @@
 > **The 500 still happens, deliberately** — passing the request through would
 > run a four-eyes action with the veto never consulted, and a 403 would make a
 > wiring mistake read as an ordinary denial. What changed is that the engine now
-> warns at boot about the ones it can see coming, and records
+> warns about the ones it can see coming as soon as the routes load (boot in
+> production; the first request in development), and records
 > `access.sod_initiator_missing` for the ones traffic finds, so
 > `bin/rails current_scope:report` accounts for them. Audit
 > `config.sod_actions` against your models before starting the bake; the boot

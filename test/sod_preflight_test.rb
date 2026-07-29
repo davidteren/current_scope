@@ -88,16 +88,31 @@ class SodPreflightTest < ActiveSupport::TestCase
   # Host code runs inside this check (an instance method on a controller built
   # outside a request). A hook that raises is a coverage gap, never a boot
   # failure — and never a finding either, because a raise proves nothing.
-  test "a current_scope_model hook that raises degrades to silence" do
-    CurrentScope.config.sod_actions = %w[index]
+  # Two assertions, and the second is the one that matters. Asserting only that
+  # the broken controller is absent passes just as well when the WHOLE run blew
+  # up and returned [] — the reviewer proved that by deleting declared_model_for's
+  # rescue and watching this test stay green. So a healthy controller has to be
+  # in the same run, and it has to still report. (#133 review)
+  test "a raising controller is skipped without blinding the rest of the run" do
+    CurrentScope.config.sod_actions = %w[show]
 
-    DocumentsController.define_singleton_method(:new) { |*| raise "the host's own hook blew up" }
+    # hookless_member also routes `show`, so it IS inspected under this config —
+    # which is what makes it a usable stand-in for a controller whose own code
+    # blows up while being read.
+    HooklessMemberController.define_singleton_method(:new) { |*| raise "the host's own hook blew up" }
 
-    assert_empty CurrentScope::SodPreflight.findings.select { |p, _| p.start_with?("documents#") }
+    found = CurrentScope::SodPreflight.findings
+
+    assert_empty found.select { |p, _| p.start_with?("hookless_member#") },
+                 "an unanswerable controller must not become a finding"
+    assert_includes found.map(&:first), "documents#show",
+                    "one broken controller must not suppress every other finding — " \
+                    "isolation is what declared_model_for's own rescue is for"
+    assert CurrentScope::SodPreflight.degraded?
   ensure
     # Removing the override restores the inherited Class#new — no saved method
     # to put back, and nothing left behind for the next test in this process.
-    DocumentsController.singleton_class.send(:remove_method, :new)
+    HooklessMemberController.singleton_class.send(:remove_method, :new)
   end
 
   # KTD-2, and the reason this test exists at all: moving the boot check to
@@ -114,6 +129,13 @@ class SodPreflightTest < ActiveSupport::TestCase
   # feature is for. Hence a pin on the CAUSE: nothing on to_prepare may derive
   # the catalog.
   test "the to_prepare chain never derives the permission catalog (#133 KTD-2)" do
+    # to_prepare also calls reset_scopeable_registry!, and in a test process that
+    # is DESTRUCTIVE: the registry is filled by `include CurrentScope::Scopeable`
+    # in a model's class body, and prepare! does not unload constants — so those
+    # bodies never re-run and the registry stays empty for every later test. It
+    # cost the picker suite 11 failures on seed 22 before this snapshot existed.
+    # Restore it by hand; nothing else to_prepare resets is a latch that matters.
+    scopeable = CurrentScope.scopeable_registry.dup
     CurrentScope.config.sod_actions = %w[show]
     CurrentScope.reset_catalog!
 
@@ -124,6 +146,55 @@ class SodPreflightTest < ActiveSupport::TestCase
            "drawn yet at that point, the empty derivation is MEMOIZED and every " \
            "gated request raises for the rest of the process. Move the read to " \
            "after_routes_loaded."
+  ensure
+    CurrentScope.reset_scopeable_registry!
+    scopeable&.each { |name| CurrentScope.register_scopeable(name) }
+  end
+
+  # The model half of the degrade path. defines_initiator? answers TRUE when it
+  # cannot tell, which CLEARS the model — so an uninstantiable model (no database
+  # connection during an asset precompile, a custom initialize) silently reads as
+  # compliant. Deliberate ("prove or stay silent"), but it is the one degrade that
+  # makes the list quieter rather than noisier, so it is pinned and named in the
+  # caveat rather than left for someone to discover.
+  test "a model that cannot be instantiated is passed over, not flagged (#133)" do
+    CurrentScope.config.sod_actions = %w[show]
+
+    Document.define_singleton_method(:new) { |*| raise "no connection" }
+
+    refute_includes permissions, "documents#show",
+                    "an unanswerable check must not become a finding"
+    assert CurrentScope::SodPreflight.degraded?,
+           "the operator has to be able to tell this list is incomplete"
+  ensure
+    Document.singleton_class.send(:remove_method, :new)
+  end
+
+  test "a clean run does not report itself as degraded (#133)" do
+    CurrentScope.config.sod_actions = %w[show]
+
+    CurrentScope::SodPreflight.findings
+
+    refute CurrentScope::SodPreflight.degraded?
+  end
+
+  # A bug in THIS module must not be reported as a host misconfiguration. The
+  # two helpers absorb host failures; anything reaching the top-level rescue as
+  # a NoMethodError came from us, and GrantDiagnosis sets the precedent of
+  # re-raising exactly that.
+  test "a NoMethodError from our own code re-raises instead of degrading (#133)" do
+    CurrentScope.config.sod_actions = %w[show]
+
+    # A catalog that cannot answer `grouped` stands in for any slip inside this
+    # module's own walk. Host code never reaches this rescue — the helpers own
+    # it — so degrading here would report our bug as the host's.
+    singleton = CurrentScope.singleton_class
+    original = CurrentScope.method(:catalog)
+    singleton.define_method(:catalog) { Object.new }
+
+    assert_raises(NoMethodError) { CurrentScope::SodPreflight.findings }
+  ensure
+    singleton.define_method(:catalog, original)
   end
 
   private

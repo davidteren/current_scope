@@ -1,0 +1,21 @@
+UPGRADING.md
+  s_c80c0efb3a316a::t_bc01e7a31e01b3 78-91
+test/parent_chain_test.rb
+  s_c80c0efb3a316a::t_1456bf0064ec28 346-364
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "7fe8a1624d6b84f141a22b4560ff3b3f5c9ffa36",
+  "prompts": {},
+  "sessions": {
+    "s_c80c0efb3a316a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e897c493-a8bf-4c03-bd8f-f6dc3bd783fa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

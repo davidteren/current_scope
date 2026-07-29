@@ -403,9 +403,15 @@ class ParentChainTest < ActiveSupport::TestCase
 
   # The lesson from #133: a boot check whose WIRING nothing asserts can be
   # deleted by a bad merge with the whole suite still green. Pinned behaviourally
-  # by running the after_initialize load hooks and watching for the call — which
-  # covers the gate in the same test, because the gate is the reason the answer
-  # differs between the two runs.
+  # by re-running Rails' own after_initialize load hooks and watching for the
+  # call — which covers the gate in the same test, because the gate is the
+  # reason the answer differs between the two runs.
+  #
+  # This IS the real mechanism, not a stand-in. Railties finisher_hook does
+  # `ActiveSupport.run_load_hooks(:after_initialize, self)`, and
+  # `config.after_initialize` registers with
+  # `ActiveSupport.on_load(:after_initialize, yield: true)`. Re-firing the hooks
+  # re-runs every registered after_initialize block, including the engine's.
   test "the authoritative pass runs on after_initialize, and only when eager loading (#139)" do
     chain = CurrentScope::ParentChain
     original_names = chain.declared_names.dup
@@ -422,8 +428,8 @@ class ParentChainTest < ActiveSupport::TestCase
     ActiveSupport.run_load_hooks(:after_initialize, Rails.application)
     assert_equal 0, calls, "must not run, and must not autoload, when eager loading is off"
 
-    # Eager loading ON: the registry is complete, so this is the pass that
-    # actually validates a production deploy.
+    # Eager loading ON: the registry is complete for eager-loaded models, so
+    # this is the pass that actually validates a production deploy.
     Rails.application.config.eager_load = true
     ActiveSupport.run_load_hooks(:after_initialize, Rails.application)
     assert_equal 1, calls,

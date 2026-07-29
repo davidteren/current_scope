@@ -1,0 +1,49 @@
+lib/current_scope/sod_preflight.rb
+  s_c80c0efb3a316a::t_ad0b2c7814b809 91-98
+  s_c80c0efb3a316a::t_6cc8ae85f757cb 40-43,47-48,55,58-59,100-108,140-145,147-158,168-172,180,248,281,283-285,294-300
+  s_c80c0efb3a316a::t_7232ac39a65fec 118-121,182-192
+  s_c80c0efb3a316a::t_b28cd68cff727c 99,181
+docs/site/separation-of-duties.md
+  s_c80c0efb3a316a::t_aef471a98dab65 96-100
+lib/tasks/current_scope_tasks.rake
+  s_c80c0efb3a316a::t_5a9066c88bb545 159-169
+  s_c80c0efb3a316a::t_7232ac39a65fec 267-269,271-276
+  s_c80c0efb3a316a::t_a558cd6c872816 132-158,170
+  s_c80c0efb3a316a::t_c4165c89bc49d5 74-77,260,291-297,318-319
+docs/guides/adopting-in-an-existing-app.md
+  s_c80c0efb3a316a::t_7ede731864dae4 284-285,333-336
+  s_c80c0efb3a316a::t_bda65f5ebad6b3 346-348,358-380
+  s_c80c0efb3a316a::t_19825cd9043781 381
+test/sod_preflight_test.rb
+  s_c80c0efb3a316a::t_e170320e5fbf5c 212-213,219-223,228,230-234,240-251
+  s_c80c0efb3a316a::t_fe391056bdce4f 224-227,229,235-239
+  s_c80c0efb3a316a::t_03021dc5eb45b1 252,275-285
+  s_c80c0efb3a316a::t_62f4fd64588086 253
+docs/site/ai-agents.md
+  s_c80c0efb3a316a::t_aef471a98dab65 57-62
+lib/current_scope/resolver.rb
+  s_c80c0efb3a316a::t_be6881aba8b4da 560-562,567-571
+lib/current_scope/engine.rb
+  s_c80c0efb3a316a::t_be6881aba8b4da 70-77,105-111
+test/report_task_test.rb
+  s_c80c0efb3a316a::t_0d79d9be960d8b 248-271
+  s_c80c0efb3a316a::t_fe391056bdce4f 326-328
+  s_c80c0efb3a316a::t_2850267d178d2d 364-366,378
+  s_c80c0efb3a316a::t_e170320e5fbf5c 330
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "d3d07138f343fca7c77bbbb78d025b1709553797",
+  "prompts": {},
+  "sessions": {
+    "s_c80c0efb3a316a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e897c493-a8bf-4c03-bd8f-f6dc3bd783fa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -105,7 +105,11 @@ CurrentScope.configure do |config|
   # record's initiator can never perform on their own record (four-eyes).
   # Deliberately NOT editable in the UI. Records reached by these actions must
   # define current_scope_initiator (return nil to exempt a record type) — the
-  # resolver raises if the hook is missing. Leave commented for RBAC-only apps.
+  # resolver raises if the hook is missing, in :report mode as well as :enforce.
+  # The engine logs a preflight warning naming the actions it can see this
+  # coming for (at boot in production; on the first request in development,
+  # whose route set is lazy); `rails current_scope:report` lists them too. Leave
+  # commented for RBAC-only apps.
   # config.sod_actions = %w[approve]
 
   # Audit ledger — tri-state: false | true (default) | :strict.

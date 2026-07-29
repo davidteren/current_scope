@@ -171,6 +171,23 @@ module CurrentScope
       sod_action?(permission) && !sod_veto_applies?(permission: permission, record: record)
     end
 
+    # The misconfiguration behind the ConfigurationError below: the veto IS in a
+    # position to decide about this pair, and the record cannot name an
+    # initiator. Every request to such an action raises — in :report mode as
+    # well as :enforce (#133).
+    #
+    # PUBLIC for the same reason sod_veto_skipped? is: report mode's diagnosis
+    # must be able to ASK what the cause was. The alternative is inspecting the
+    # raised exception's message, which is the pattern-match-the-error-string
+    # mistake Event.missing_events_table? already exists to prevent — and here
+    # it would decide whether a host is sent after their record hook or their
+    # model. This is the single definition; sod_decision reads it too, so the
+    # diagnosis and the raise cannot drift apart.
+    def sod_initiator_missing?(permission:, record:)
+      sod_veto_applies?(permission: permission, record: record) &&
+        !record.respond_to?(INITIATOR_METHOD, true)
+    end
+
     # Does this subject hold a scoped grant that satisfies `permission` on ANY
     # record? Read-only, and deliberately unfiltered by resource — that absence
     # IS the question: the grant exists, but the gate never got a record for it
@@ -258,7 +275,7 @@ module CurrentScope
       # SoD is a structural guarantee — "cannot determine the initiator" must
       # never mean "permit". A record type where SoD genuinely doesn't apply
       # declares the hook returning nil.
-      unless record.respond_to?(INITIATOR_METHOD, true)
+      if sod_initiator_missing?(permission: permission, record: record)
         # The third fix, and the warning, exist because this message used to
         # name only the first two — and a host who reached it by declaring a
         # PARENT as current_scope_record (to make a scoped grant match, before
@@ -539,9 +556,19 @@ module CurrentScope
     # The full rationale lives on the shape guard in record_less_scoped_grant?
     # above; this predicate exists so the diagnostic labeler below refuses the
     # exact same shapes the gate refused, and cannot drift from it.
+    #
     def collection_type?(type)
       type.is_a?(Class) && type < ActiveRecord::Base && !type.abstract_class?
     end
+    # PUBLIC since #133, for that same reason one hop further out: SodPreflight
+    # asks the identical question of a declared current_scope_model, and an
+    # inline copy of the three terms is precisely the re-derivation #74 keeps
+    # charging this codebase for. One definition, three consumers.
+    #
+    # Spelled as a standalone `public :`, matching Event.missing_events_table? —
+    # this repo's one other "expose a single method out of the private section"
+    # case — so there is one idiom for it rather than two.
+    public :collection_type?
 
     # Would a (correct) current_scope_model declaration have given this
     # record-less deny a chance? True only for the exact cell the #50

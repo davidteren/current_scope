@@ -44,6 +44,11 @@ namespace :current_scope do
       # Surface them as a separate section so the survey is complete.
       blind_rows = CurrentScope::Event.where(event: "access.sod_blind_spot")
                                       .pluck(:subject, :target_label, :details)
+      # #133: an SoD action whose model defines no current_scope_initiator did
+      # not 403 — it RAISED. Its own section, because it is the one report-mode
+      # outcome that is a 500, and neither granting nor the record hook fixes it.
+      initiator_rows = CurrentScope::Event.where(event: "access.sod_initiator_missing")
+                                          .pluck(:subject, :target_label, :details)
     rescue ActiveRecord::StatementInvalid => e
       # Report mode without the migration records nothing (the ledger degrades and
       # warns once). Reaching for this summary is exactly how a host discovers
@@ -61,6 +66,15 @@ namespace :current_scope do
     # find_each, not a full load: a host's grants table can be large and this is
     # a scan. Verdict computed once and handed to the advisory, which would
     # otherwise recompute it (and re-query role_permissions) per grant.
+    # #133: static too, and for the same reason the grant scans are — an SoD
+    # action with no initiator behind it exists before report mode is ever
+    # exercised, which is exactly when the ledger is empty. Never raises; it
+    # degrades to no findings and logs.
+    # One scan, carried as a value. Nothing below has to reason about whether
+    # some other call has since reset a flag on the module.
+    preflight = CurrentScope::SodPreflight.scan
+    preflight_rows = preflight.rows
+
     dead_grants = []
     untargeted_grants = []
     begin
@@ -103,9 +117,60 @@ namespace :current_scope do
       "    #{who} — role \"#{grant.role&.name}\" on #{grant.resource_type}##{grant.resource_id}"
     end
 
-    # Still the ledger guard, but it no longer RETURNS: the two sections below
-    # are derived from the grants table, not the ledger. (#134)
-    if rows.empty? && blind_rows.empty?
+    # One running flag, not a per-section list of every section before it. That
+    # chain grew a term each time a section was added (#134 added two, #133 two
+    # more), and it made every new section an edit to every LATER section's
+    # guard — miss one and the task prints a wrong blank line that no test
+    # catches. `separate` emits the blank only when something already printed.
+    printed_section = false
+    separate = lambda do
+      puts if printed_section
+      printed_section = true
+    end
+
+    # THE QUESTION THIS TASK IS RUN TO ANSWER is "can I flip to :enforce yet?",
+    # and six independently-gated sections made the reader OR them together by
+    # hand. One count line first, so the answer is on screen before the detail.
+    #
+    # Deliberately NOT a verdict. "Safe to enforce" is not a claim this task can
+    # make: the preflight is partial by construction, the ledger is historical
+    # and only as complete as the traffic that has run, and neither can see a
+    # controller nobody exercised. It reports what it FOUND and names what it
+    # cannot see — the same rule the preflight caveat and the ungated task
+    # follow. (#133 review)
+    signals = {
+      "would-be denials (grant these)" => rows.count,
+      "scoped grants that can never match" => dead_grants.count,
+      "scoped grants worth checking" => untargeted_grants.count,
+      "SoD actions that will RAISE (500, not grantable)" => preflight_rows.count,
+      "SoD blind-spot denials (not grantable)" => blind_rows.count,
+      "SoD actions that already RAISED (500, not grantable)" => initiator_rows.count
+    }.reject { |_label, count| count.zero? }
+
+    separate.call
+    if signals.empty?
+      puts "CurrentScope report: nothing found in any category."
+    else
+      puts "CurrentScope report — #{signals.count} category(ies) with something in them:"
+      signals.each { |label, count| puts "  #{count.to_s.rjust(6)}  #{label}" }
+    end
+    puts
+    # The SoD clause only when the host opted into SoD. A project that never set
+    # config.sod_actions has no preflight to qualify, and naming one is noise
+    # about a feature they do not use — pinned by "no SoD config means no
+    # preflight section at all".
+    caveat_line = +"  This is a survey, not a clearance: the ledger only knows traffic that " \
+                   "has already run."
+    if CurrentScope.config.sod_actions.any?
+      caveat_line << " The SoD preflight is also partial by construction (its own note says how)."
+      caveat_line << " It could not complete this run." if preflight.degraded?
+    end
+    puts caveat_line
+
+    # Still the ledger guard, but it no longer RETURNS: the sections below are
+    # derived from the grants table, not the ledger. (#134)
+    if rows.empty? && blind_rows.empty? && initiator_rows.empty?
+      separate.call
       # "No output" is indistinguishable from "the task is broken", and the two
       # likeliest causes are both SILENT: report mode never on, or audit off.
       # Name them — this is the first thing a host runs, and an unexplained blank
@@ -118,13 +183,14 @@ namespace :current_scope do
            "(needs true or :strict — the ledger is where these rows live)"
       puts
       puts "With both on, exercise the app or run your suite, then re-run this."
-      # NOT `next`. The two sections below are derived from the grants table, not
-      # the ledger, so they are present with zero traffic — which is exactly when
-      # a grant that can never match is most likely to exist. Returning here
-      # would hide them in that case. The config explanation above still prints,
-      # because "nothing was recorded" stays true and unexplained silence is how
-      # a host concludes the feature does not work. (#134)
-      puts if dead_grants.any? || untargeted_grants.any?
+      # NOT `next`. The sections below are derived from the grants table and the
+      # routes, not the ledger, so they are present with zero traffic — which is
+      # exactly when a grant that can never match is most likely to exist.
+      # Returning here would hide them in that case. The config explanation
+      # above still prints, because "nothing was recorded" stays true and
+      # unexplained silence is how a host concludes the feature does not
+      # work. (#134) The blank line before whatever follows is `separate`'s job
+      # now, so this branch no longer has to look ahead at the other sections.
     end
 
     # ponytail: group in Ruby, not SQL. `details` is a JSON column and querying
@@ -142,6 +208,7 @@ namespace :current_scope do
     end
 
     unless rows.empty?
+      separate.call
       grouped = rows.group_by { |subject, _label, _details| subject }
 
       puts "Would-be denials — grant these to stop them (most-denied first):"
@@ -158,7 +225,7 @@ namespace :current_scope do
     end
 
     unless dead_grants.empty?
-      puts if rows.any?
+      separate.call
       puts "Scoped grants that can never match — granting more will not help:"
       puts
       dead_grants.group_by { |_g, verdict| verdict }.each do |verdict, pairs|
@@ -171,7 +238,7 @@ namespace :current_scope do
     end
 
     unless untargeted_grants.empty?
-      puts if rows.any? || dead_grants.any?
+      separate.call
       puts "Worth checking — no ticked key targets this grant's type:"
       puts
       untargeted_grants.each { |grant| puts grant_line.call(grant) }
@@ -179,14 +246,90 @@ namespace :current_scope do
       puts "  #{CurrentScope::GrantDiagnosis.untargeted_caveat}"
     end
 
+    # An EMPTY preflight still speaks when SoD is on. Suppressing the section
+    # entirely made a check that blew up (a host hook that raises, no database
+    # connection yet, a controller that will not load) look identical on stdout
+    # to a check that ran clean — and the PARTIAL caveat, the thing that stops
+    # this being read as a verdict, lived inside the suppressed branch. The
+    # degrade warning goes to the log, not to the terminal the operator is
+    # reading right before an enforce flip. Same rule as the ungated task: a
+    # vacuous all-clear is worse than a blank. (#133 review)
+    if preflight_rows.empty? && CurrentScope.config.sod_actions.any?
+      separate.call
+      if preflight.degraded?
+        puts "Separation-of-duties preflight: COULD NOT COMPLETE — this section is incomplete."
+        puts
+        # The reason printed HERE rather than "see the log": an operator reading
+        # a terminal must not be sent off to find a log file.
+        puts "  #{CurrentScope::SodPreflight.skip_summary(preflight)}"
+        puts "  Do NOT read the absence of findings below as an all-clear."
+      else
+        puts "Separation-of-duties preflight: inspected #{preflight.inspected} of " \
+             "#{preflight.in_scope} routed SoD action(s); none named a model missing " \
+             "#{CurrentScope::Resolver::INITIATOR_METHOD}."
+        if preflight.blind?
+          puts
+          puts "  NOTHING was inspected — none of those controllers declares " \
+               "current_scope_model, so there was nothing for this check to read. This is " \
+               "not an all-clear."
+        end
+      end
+      puts
+      puts "  #{CurrentScope::SodPreflight.caveat}"
+    end
+
+    unless preflight_rows.empty?
+      separate.call
+      puts "Separation-of-duties actions that will RAISE (500) — not a denial, a misconfiguration:"
+      puts
+      preflight_rows.each do |permission, model|
+        puts "    #{permission} — #{model.name} defines no " \
+             "#{CurrentScope::Resolver::INITIATOR_METHOD}"
+      end
+      puts
+      # SHARED with the boot warning, not re-spelled. The remedies are not
+      # coequal on a list that can be wrong — defining the hook wires a control,
+      # removing the action deletes one — and a private copy here is how that
+      # correction reached one surface and not the other for a commit. (#133)
+      puts "  #{CurrentScope::SodPreflight.fix_line}"
+      puts "  Report mode does NOT downgrade these — the request 500s exactly as it would " \
+           "under :enforce."
+      puts
+      puts "  #{CurrentScope::SodPreflight.caveat}"
+    end
+
     unless blind_rows.empty?
-      puts if rows.any? || dead_grants.any? || untargeted_grants.any?
+      separate.call
       puts "SoD blind-spot denials — NOT fixed by granting (declare current_scope_record):"
       puts
       print_permission_counts.call(blind_rows)
       puts
       puts "Total: #{blind_rows.count} blind-spot 403(s). Granting these permissions will not " \
            "clear them — fix the record hook (or remove the action from config.sod_actions)."
+    end
+
+    # #133: the traffic-found half. The static section above catches these only
+    # where a controller declares current_scope_model; these rows are the ones
+    # that reached a real request first, so they name the model the gate ACTUALLY
+    # held — a proof where the static list is a lead.
+    unless initiator_rows.empty?
+      separate.call
+      puts "SoD actions that RAISED (500s) — NOT fixed by granting, a missing " \
+           "current_scope_initiator:"
+      puts
+      initiator_rows
+        .group_by { |_s, _l, details| details.is_a?(Hash) ? [ details["permission"], details["model"] ] : nil }
+        .transform_values(&:count)
+        .sort_by { |pair, count| [ -count, pair.to_a.map(&:to_s) ] }
+        .each do |pair, count|
+          permission, model = pair
+          puts "    #{count.to_s.rjust(5)}x  #{permission || '(unknown)'} — " \
+               "#{model || '(unknown model)'}"
+        end
+      puts
+      puts "Total: #{initiator_rows.count} raised request(s). These are NOT denials and granting " \
+           "changes nothing — define #{CurrentScope::Resolver::INITIATOR_METHOD} on each model " \
+           "listed (return nil to exempt a record), or remove the action from config.sod_actions."
     end
   end
 

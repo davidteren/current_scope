@@ -280,7 +280,9 @@ different seams and can run side by side:
 
 A workable order:
 
-1. Turn on `Context` + `Guard` in **report mode**. Nothing changes for users.
+1. Turn on `Context` + `Guard` in **report mode**. Nothing changes for users,
+   with three named exceptions:
+   [what report mode will not downgrade](#three-things-report-mode-will-not-downgrade).
 2. Seed roles from `current_scope:report` until the list is empty.
 3. Flip to `:enforce`. Both systems now run; the gate admits, your policies still
    decide records.
@@ -328,7 +330,10 @@ correct. See [Dev diagnostics](configuration-reference.md#dev-diagnostics).
 
 ## A rollout ladder
 
-Roughly in order. Steps 1–3 change nothing for users.
+Roughly in order. Steps 1–3 change nothing for users, with three named
+exceptions: see
+[the three things report mode will not downgrade](#three-things-report-mode-will-not-downgrade)
+after the ladder.
 
 1. **Install, mount, and set `config.enforcement = :report`.** Fix the callback
    ordering above; add your Devise/engine skips + exclusions.
@@ -338,12 +343,9 @@ Roughly in order. Steps 1–3 change nothing for users.
    `bin/rails current_scope:report`. Seed the roles it names. If any of your
    controllers use **scoped grants** for their list pages, declare
    `def current_scope_model = TheType` on each — a scoped grant opens a
-   collection gate only for the type the controller names. Report mode does
-   **not** downgrade this one: a controller missing the declaration 403s a
-   scoped subject even under `:report` (the reason is `model_undeclared`, not
-   `no_grant`, and only `no_grant` is downgraded), and the dev nudge names it
-   in the log. So watch for a `403` carrying `X-Current-Scope-Reason:
-   model_undeclared` and the log line, not a `current_scope:report` row.
+   collection gate only for the type the controller names. Then read
+   [the three things report mode will not downgrade](#three-things-report-mode-will-not-downgrade)
+   below: none of them is fixed by granting, and all three land in live traffic.
 4. **Flip one namespace to `:enforce`?** You can't — enforcement is global. What
    you *can* do is watch `current_scope:report` empty out and flip once. If you
    want a narrower blast radius, roll out `Guard` itself one base controller at a
@@ -352,6 +354,36 @@ Roughly in order. Steps 1–3 change nothing for users.
    default and they're how the next mistake tells on itself.
 6. **Broaden `excluded_controllers` only deliberately.** Every entry is a
    controller that can never be granted; that's a decision, not a cleanup.
+
+
+### Three things report mode will not downgrade
+
+Report mode lifts exactly one wall: "nobody has granted this yet". These three
+are refusals about something else, so they survive it — and **granting fixes
+none of them.** Each names a different fix.
+
+| What you see | Why report mode keeps it | The fix |
+|---|---|---|
+| **403**, reason `model_undeclared` | The controller never declared the type its collection lists, so a scoped grant has nothing to bind to. Only `no_grant` is downgraded. | `def current_scope_model = TheType` on that controller. Watch the reason header and the dev nudge — there is no `current_scope:report` row for it. |
+| **403**, reason `no_grant`, on an SoD action | The **blind spot**: `current_scope_record` returned `nil` or a non-record, so the four-eyes veto never ran. The subject could be the person who raised the record and nobody asked. | Return the record from `current_scope_record` on that member action. The engine logs it, writes an `access.sod_blind_spot` row, and `current_scope:report` gives it its own heading. |
+| **500**, `CurrentScope::ConfigurationError` | An SoD-listed action reached a model with no `current_scope_initiator`, so the veto cannot be measured and the engine refuses to guess. This is the fail-loud contract, and it is the one that can look like an outage mid-survey. | `def current_scope_initiator = <who raised it>` on that model (`nil` exempts a record). Audit `config.sod_actions` against your models **before** turning report mode on. |
+
+You do not have to audit that last one by hand. The engine logs a **preflight
+warning** naming every SoD action whose declared model cannot answer the hook —
+at boot in production and staging, on the first request in development, whose
+route set is lazy — and `bin/rails current_scope:report` lists both that set and
+the requests that actually raised (`access.sod_initiator_missing` rows).
+`CurrentScope::SodPreflight.scan` returns the same list programmatically (a
+Result with `.rows`; ask `.blind?` before reading an empty one as an all-clear).
+
+The `access.sod_initiator_missing` rows need the ledger: `config.audit` on (the
+default) and the `current_scope_events` table migrated. Without those the raises
+still happen and are still logged, but nothing is recorded — so an empty section
+means "nothing recorded", not "nothing found".
+
+Read the preflight list as a **lead, not a verdict**: it can only inspect
+controllers that declare `current_scope_model`, and it states that limit in its
+own output. Full detail in [Limitations](../site/limitations.md) (A17).
 
 ---
 

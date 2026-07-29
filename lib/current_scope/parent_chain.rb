@@ -133,17 +133,48 @@ module CurrentScope
       # mean "on the first gated request", because that is a deploy that boots
       # green and 500s on real traffic. (cubic P2, ie-predictability P1)
       #
-      # In production this is complete: eager loading has run, so every
-      # declaring class is registered. In development it can only see the
-      # classes loaded so far, which is the same partial-coverage bargain the
-      # permission catalog already makes, and it is stated rather than implied.
+      # It sees only the classes loaded so far — in EVERY environment, not just
+      # development. That is the same partial-coverage bargain the permission
+      # catalog already makes, and it is stated rather than implied. (This
+      # sentence used to claim production was complete because eager loading had
+      # run; see the correction below, and #139.)
+      #
+      # WORKS IN WAVES, and both halves of that are load-bearing.
+      #
+      # It cannot iterate the Set directly: validate_key! resolves
+      # reflection.klass, which AUTOLOADS the parent model, and a parent that
+      # declares a chain of its own registers itself from its class body —
+      # mutating the very Set being iterated. Ruby answers that with "can't add
+      # a new key into hash during iteration", a RuntimeError out of to_prepare
+      # for any host whose declared chain points at another declaring model. The
+      # dummy's Report -> Project is exactly that shape.
+      #
+      # It cannot iterate ONE snapshot either: a model that registers mid-pass
+      # would then wait for a later pass, and in production there is no later
+      # pass. So it keeps taking snapshots until no new name appears — the walk
+      # is what loads those models, so it is also what must finish checking
+      # them. Terminates because the registry is finite and `validated` only
+      # grows. (#133 review — cubic)
+      #
+      # This does NOT close the bigger gap: models nothing has loaded at all are
+      # still invisible here, because railties runs :run_prepare_callbacks
+      # BEFORE :eager_load! ("This needs to happen before eager load so it
+      # happens in exactly the same point regardless of config.eager_load"). So
+      # declared_names starts thin in every environment, and a second pass after
+      # eager loading is the fix — tracked as #139, because it changes WHEN a
+      # bad declaration raises.
       def validate_declarations!
-        declared_names.each do |name|
-          klass = name.safe_constantize
-          next if klass.nil?
+        validated = Set.new
 
-          reflection = klass.reflect_on_association(klass.current_scope_parent_association)
-          validate_key!(klass, reflection) if reflection
+        while (pending = declared_names.to_a.reject { |name| validated.include?(name) }).any?
+          pending.each do |name|
+            validated << name
+            klass = name.safe_constantize
+            next if klass.nil?
+
+            reflection = klass.reflect_on_association(klass.current_scope_parent_association)
+            validate_key!(klass, reflection) if reflection
+          end
         end
       end
 

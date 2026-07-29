@@ -164,10 +164,7 @@ module CurrentScope
       # deny answer. Org-role *lookup* may use Current.memoized_org_role (a
       # per-request cache, not a decision input). Actor only widens SoD under
       # :either while impersonating; otherwise actor == subject.
-      allowed, reason = CurrentScope.resolver.decide(
-        subject: CurrentScope::Current.user, permission: permission,
-        record: record, model: model, actor: CurrentScope::Current.actor
-      )
+      allowed, reason = decide_with_report_diagnosis(permission, record, model)
       unless allowed
         # The nudge runs BEFORE the report-mode branch, and that ordering is the
         # whole point of it in a retrofit. Report mode downgrades a :no_grant to
@@ -200,6 +197,110 @@ module CurrentScope
 
       record_sod_bypass(permission, record) if reason == :sod_bypassed
       nudge_on_nil_sod_record(permission, record)
+    end
+
+    # The gate decision, plus report mode's account of the one failure it cannot
+    # downgrade and cannot pass through: a model with no current_scope_initiator
+    # on an SoD action, which raises and 500s the request (#133).
+    #
+    # The raise STAYS. Report mode's promise is "nothing changes for users", and
+    # this breaks it — but the two candidate repairs are worse. Passing the
+    # request through executes an SoD action with the four-eyes veto never
+    # consulted, which is #73's escalation with the safety catch removed;
+    # downgrading to a 403 dresses a misconfiguration up as an ordinary denial,
+    # the silent-weakening pattern this engine keeps getting burned by. So the
+    # 500 stands, and what changes is that it stops being the loudest failure
+    # with the least reporting: it now names itself in the log and in the ledger,
+    # so `rails current_scope:report` accounts for it instead of leaving a host
+    # to correlate 500s by hand. SodPreflight is the other half — it finds most
+    # of these at boot, before any traffic arrives here at all.
+    #
+    # Rescues the CLASS and asks the resolver WHY, rather than matching the
+    # message: ConfigurationError is raised for more than one cause, and the
+    # cause decides which fix the host is sent after.
+    def decide_with_report_diagnosis(permission, record, model)
+      CurrentScope.resolver.decide(
+        subject: CurrentScope::Current.user, permission: permission,
+        record: record, model: model, actor: CurrentScope::Current.actor
+      )
+    rescue CurrentScope::ConfigurationError
+      diagnose_report_sod_initiator(permission, record)
+      raise
+    end
+
+    # #133: report mode only. In :enforce a host has committed to the engine and
+    # meets this in their error tracker; report mode is the survey, so the survey
+    # is where it has to appear. Mirrors diagnose_report_sod_blind_spot — same
+    # shape, same report-only scope, a distinct event because the fix is
+    # different (the MODEL's hook, not the controller's).
+    def diagnose_report_sod_initiator(permission, record)
+      return unless CurrentScope.config.report_only?
+
+      gate_record = record.equal?(NO_RECORD) ? nil : record
+      # Ask the resolver (#74) — no second copy of the condition, and no reading
+      # of the exception's message.
+      return unless CurrentScope.resolver.sod_initiator_missing?(
+        permission: permission, record: gate_record
+      )
+
+      Rails.logger&.warn(
+        "[CurrentScope] report-only: \"#{permission}\" RAISED rather than being reported — " \
+        "#{gate_record.class.name} defines no #{CurrentScope::Resolver::INITIATOR_METHOD}, and " \
+        "\"#{permission}\" is a separation-of-duties action (config.sod_actions), so the veto " \
+        "cannot run and the engine refuses to guess. Report mode does NOT downgrade this: the " \
+        "request 500s here exactly as it would under :enforce. Define " \
+        "#{CurrentScope::Resolver::INITIATOR_METHOD} on #{gate_record.class.name} (return nil to " \
+        "exempt a record), or remove \"#{permission.split('#').last}\" from config.sod_actions. " \
+        "See also rails current_scope:report (access.sod_initiator_missing events)."
+      )
+      record_sod_initiator_missing_event(permission, gate_record)
+    end
+
+    def record_sod_initiator_missing_event(permission, record)
+      subject = CurrentScope::Current.user
+      return if subject.nil?
+
+      # Building the row is rescued SEPARATELY from writing it, and the reason is
+      # the latch rather than the rescue. warn_ledger_failure_once is one
+      # per-PROCESS one-shot shared by all three report-mode recorders
+      # (would_deny, sod_blind_spot, and this one), so a failure that never
+      # reached the ledger would consume the single warning the OTHER two still
+      # need — and label itself "could not record", sending an operator after a
+      # ledger problem that does not exist. Only Event.record! may trip that
+      # latch. (#133 — qodo, PR #141)
+      begin
+        # An unsaved record has no GlobalID, so attribute the row to the subject
+        # instead — the model NAME is the fix-carrying detail here, and it rides
+        # in details either way.
+        target = record if record.respond_to?(:to_gid) && record.try(:persisted?)
+        details = {
+          permission: permission,
+          model: record.class.name,
+          fix: "define #{CurrentScope::Resolver::INITIATOR_METHOD} on #{record.class.name}"
+        }
+      rescue StandardError => e
+        Rails.logger&.warn(
+          "[CurrentScope] report-only: could not BUILD the access.sod_initiator_missing row " \
+          "(#{safe_error_description(e)}) — this is not a ledger failure, so the " \
+          "ledger warning is left armed. The request RAISED " \
+          "CurrentScope::ConfigurationError (500) either way."
+        )
+        return nil
+      end
+
+      CurrentScope::Event.record!(
+        event: "access.sod_initiator_missing", target: target || subject, details: details
+      )
+    rescue StandardError => e
+      # The request is about to 500 on the ConfigurationError being re-raised —
+      # say that, rather than claiming an outcome this path does not produce.
+      warn_ledger_failure_once(
+        e,
+        event: "access.sod_initiator_missing",
+        request_outcome: "The request RAISED CurrentScope::ConfigurationError (500) — only the " \
+                         "access.sod_initiator_missing row is missing."
+      )
+      nil
     end
 
     # Report mode lifts EXACTLY ONE wall: :no_grant — "nobody has granted this
@@ -401,8 +502,23 @@ module CurrentScope
         "`rails current_scope:install:migrations && rails db:migrate`, or set " \
         "config.audit = false if you don't want the ledger."
       else
-        "could not record #{event} (#{error.class}: #{error.message.to_s.truncate(120)})."
+        "could not record #{event} (#{safe_error_description(error)})."
       end
+    end
+
+    # "Class: message", with a fallback when the exception itself is hostile.
+    #
+    # `e.message` is host-overridable and can raise. Every use of it here is
+    # inside a rescue on a path that is ABOUT to re-raise something more
+    # important — the ConfigurationError that names the model and both fixes, or
+    # a 403 — so a second exception raised while formatting the first would
+    # replace it, and the host would lose the message that tells them what to do.
+    # This codebase already accepted that argument once for `model.inspect`
+    # (PR #93); the same reasoning covers `message`. (#133 — cubic, PR #141)
+    def safe_error_description(error)
+      "#{error.class}: #{error.message.to_s.truncate(120)}"
+    rescue StandardError
+      "#{error.class}: (message unavailable)"
     end
 
     # Why a gated permission is missing from the catalog: excluded by config
@@ -514,7 +630,7 @@ module CurrentScope
         rescue StandardError => e
           Rails.logger&.warn(
             "[CurrentScope] warn_on_inert_scoped_grant could not check scoped grants " \
-            "(#{e.class}: #{e.message}); skipping diagnostic for \"#{permission}\"."
+            "(#{safe_error_description(e)}); skipping diagnostic for \"#{permission}\"."
           )
           false
         end

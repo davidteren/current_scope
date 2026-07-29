@@ -300,4 +300,45 @@ class ParentChainTest < ActiveSupport::TestCase
     assert_match(/INSTANCE method/, error.message)
     assert_match(/current_scope_parent :the_association/, error.message)
   end
+
+  # --- Boot-time validation must survive its own autoloading ---
+
+  # validate_declarations! runs on engine to_prepare, and resolving a
+  # reflection AUTOLOADS the parent model. A parent that declares a chain of its
+  # own registers itself from its class body — mutating the Set being iterated,
+  # which Ruby answers with "can't add a new key into hash during iteration".
+  # That is a RuntimeError out of to_prepare: a boot crash, on any host whose
+  # declared chain points at another declaring model. The dummy's Report ->
+  # Project is exactly that shape, and it showed up as a seed-dependent error
+  # while pinning #133's boot hook — so it gets a deterministic pin here rather
+  # than a flake somewhere else.
+  #
+  # The swap stands in for the autoload: what matters is a registration landing
+  # DURING the walk, not which line performed it.
+  test "a model registering itself mid-walk does not crash the boot-time validation" do
+    chain = CurrentScope::ParentChain
+    singleton = chain.singleton_class
+    original_names = chain.instance_variable_get(:@declared_names)
+    original_validate = chain.method(:validate_key!)
+    chain.instance_variable_set(:@declared_names, Set.new([ "Report" ]))
+
+    validated = []
+    singleton.define_method(:validate_key!) do |klass, reflection|
+      validated << klass.name
+      declared_names << "Project"
+      original_validate.call(klass, reflection)
+    end
+
+    assert_nothing_raised { chain.validate_declarations! }
+
+    # And the model that registered DURING the walk is validated in the same
+    # pass, not deferred: in production there is no later pass to defer to, so a
+    # single snapshot would drop it silently. (#133 review — cubic)
+    assert_includes validated, "Project",
+                    "the walk is what loaded this model, so the walk must also check it"
+  ensure
+    singleton.define_method(:validate_key!, original_validate)
+    singleton.send(:private, :validate_key!)
+    chain.instance_variable_set(:@declared_names, original_names)
+  end
 end

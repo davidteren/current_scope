@@ -178,6 +178,202 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  # #133: report mode's other broken promise. A model with no
+  # current_scope_initiator on an SoD action does not 403 — it RAISES, and the
+  # request 500s in :report exactly as it would in :enforce. The raise is
+  # correct and stays (passing it through executes an SoD action with the veto
+  # never asked; downgrading it to a 403 dresses a misconfiguration up as an
+  # ordinary denial). What #133 fixes is that report mode now ACCOUNTS for it.
+  #
+  # sod_actions = %w[show] is deliberate and not a plausible four-eyes rule: it
+  # is the one config the dummy can express both sides of in one line, because
+  # DocumentsController declares current_scope_model = Document (no initiator)
+  # while ReportsController declares Report (has one).
+  test "report mode records and explains an SoD action with no initiator (#133)" do
+    # Captured BEFORE anything that can raise: an exception between here and the
+    # swap would leave `original` nil and the ensure below would null the logger
+    # for every test after this one.
+    original = Rails.logger
+    io = StringIO.new
+    Rails.logger = ActiveSupport::Logger.new(io)
+
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[show]
+    CurrentScope::Event.delete_all
+    # An Invoice, not a Document: documents.type is NOT NULL, so only the STI
+    # subclasses are creatable. Neither defines current_scope_initiator.
+    document = Invoice.create!(title: "Contract")
+
+    assert_difference -> { CurrentScope::Event.where(event: "access.sod_initiator_missing").count }, 1 do
+      assert_no_difference -> { CurrentScope::Event.where(event: "access.would_deny").count } do
+        assert_raises(CurrentScope::ConfigurationError) do
+          get document_url(document), headers: sign_in(@alice)
+        end
+      end
+    end
+
+    logs = io.string
+    assert_match "report-only:", logs
+    assert_match "RAISED rather than being reported", logs
+    assert_match "documents#show", logs
+    assert_match "current_scope_initiator", logs
+    assert_match "does NOT downgrade this", logs,
+                 "the operator must not be left expecting report mode to have absorbed it"
+
+    event = CurrentScope::Event.where(event: "access.sod_initiator_missing").last
+    assert_equal "documents#show", event.details["permission"]
+    # "Invoice", not the declared "Document": this row names the class the gate
+    # ACTUALLY held, which is the difference between this half of #133 and
+    # SodPreflight's. The static list reads a declaration and is a lead; a row
+    # here was produced by a real request and is a proof.
+    assert_equal "Invoice", event.details["model"],
+                 "the MODEL is the fix-carrying detail — its hook is what is missing"
+  ensure
+    Rails.logger = original
+  end
+
+  test "enforce mode raises the same way and records nothing extra (#133)" do
+    CurrentScope.config.enforcement = :enforce
+    CurrentScope.config.sod_actions = %w[show]
+    CurrentScope::Event.delete_all
+    document = Invoice.create!(title: "Contract")
+
+    assert_no_difference -> { CurrentScope::Event.where(event: "access.sod_initiator_missing").count } do
+      assert_raises(CurrentScope::ConfigurationError) do
+        get document_url(document), headers: sign_in(@alice)
+      end
+    end
+  end
+
+  # The diagnosis must ASK the resolver why, never match the exception's text.
+  # A ConfigurationError raised for a DIFFERENT reason gets no SoD row.
+  #
+  # The raise has to come from INSIDE decide, or it never enters the rescue this
+  # pins. An earlier version of this test posted to the excluded `webhooks`
+  # controller — but that catalog miss raises in current_scope_check! well
+  # before decide_with_report_diagnosis is called, so the rescue never ran and
+  # the test would have stayed green with the diagnosis removed entirely. A test
+  # that cannot fail for its stated reason is the shape STATUS.md's SystemExit
+  # incident is about. (#133 review)
+  test "an unrelated ConfigurationError is not diagnosed as a missing initiator (#133)" do
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[show]
+    CurrentScope::Event.delete_all
+    # A REPORT, not a Document: Report defines current_scope_initiator, so
+    # sod_initiator_missing? is honestly false here and the only thing that could
+    # write a row is the diagnosis matching on the exception instead of asking.
+    report = Report.create!(title: "Q3", requested_by: @bob)
+
+    resolver = CurrentScope.resolver
+    resolver.define_singleton_method(:decide) do |**|
+      raise CurrentScope::ConfigurationError, "something else entirely"
+    end
+
+    assert_no_difference -> { CurrentScope::Event.where(event: "access.sod_initiator_missing").count } do
+      error = assert_raises(CurrentScope::ConfigurationError) do
+        get report_url(report), headers: sign_in(@alice)
+      end
+      assert_equal "something else entirely", error.message,
+                   "the original error must reach the host, not one the diagnosis replaced"
+    end
+  ensure
+    resolver&.singleton_class&.send(:remove_method, :decide)
+  end
+
+  # The ledger write is best-effort, but the request still 500s — so the warning
+  # must not claim an outcome this path does not produce. Its two siblings say
+  # "was allowed through" and "was DENIED (403)"; this one has to say RAISED.
+  test "a failed sod_initiator_missing ledger write warns with the right outcome (#133)" do
+    original_logger = Rails.logger
+    io = StringIO.new
+    Rails.logger = ActiveSupport::Logger.new(io)
+
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[show]
+    document = Invoice.create!(title: "Contract")
+
+    with_broken_ledger do
+      assert_raises(CurrentScope::ConfigurationError) do
+        get document_url(document), headers: sign_in(@alice)
+      end
+    end
+
+    logs = io.string
+    assert_match "access.sod_initiator_missing", logs
+    assert_match(/RAISED CurrentScope::ConfigurationError \(500\)/, logs)
+    refute_match(/WAS allowed through/, logs,
+                 "this path does not allow the request — saying so sends the operator elsewhere")
+  ensure
+    Rails.logger = original_logger
+  end
+
+  # qodo: warn_ledger_failure_once is ONE per-process one-shot shared by all
+  # three report-mode recorders. A failure that never reached the ledger must not
+  # consume it — the other two still need that warning, and "could not record"
+  # would send an operator after a ledger problem that does not exist.
+  test "a failure building the row leaves the ledger warning armed (#133)" do
+    original_logger = Rails.logger
+    io = StringIO.new
+    Rails.logger = ActiveSupport::Logger.new(io)
+
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[show]
+    CurrentScope::Guard.reset_ledger_warning!
+    document = Invoice.create!(title: "Contract")
+    # Raises while the row is being BUILT, before Event.record! is reached.
+    Invoice.define_method(:persisted?) { raise "cannot answer that" }
+
+    assert_raises(CurrentScope::ConfigurationError) do
+      get document_url(document), headers: sign_in(@alice)
+    end
+
+    logs = io.string
+    assert_match(/could not BUILD the access.sod_initiator_missing row/, logs)
+    assert_match(/not a ledger failure/, logs)
+    refute CurrentScope::Guard.ledger_warning_emitted?,
+           "the shared one-shot belongs to real ledger failures; spending it here silences " \
+           "the warning would_deny and sod_blind_spot still need"
+  ensure
+    Invoice.send(:remove_method, :persisted?)
+    Rails.logger = original_logger
+    CurrentScope::Guard.reset_ledger_warning!
+  end
+
+  # cubic: every `e.message` here sits inside a rescue on a path that is about to
+  # re-raise something MORE important. `message` is host-overridable and can
+  # raise, so formatting the first exception could replace the ConfigurationError
+  # that names the model and both fixes — losing the only thing that tells the
+  # host what to do. Same argument PR #93 accepted for `model.inspect`.
+  test "a hostile exception cannot mask the ConfigurationError while being logged (#133)" do
+    original_logger = Rails.logger
+    io = StringIO.new
+    Rails.logger = ActiveSupport::Logger.new(io)
+
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[show]
+    CurrentScope::Guard.reset_ledger_warning!
+    document = Invoice.create!(title: "Contract")
+
+    hostile = Class.new(StandardError) do
+      def self.name = "HostileError"
+      def message = raise("even my message raises")
+    end
+    Invoice.define_method(:persisted?) { raise hostile }
+
+    error = assert_raises(CurrentScope::ConfigurationError) do
+      get document_url(document), headers: sign_in(@alice)
+    end
+
+    assert_match(/current_scope_initiator is not defined/, error.message,
+                 "the host must still get the error that names the model and both fixes")
+    assert_match(/\(message unavailable\)/, io.string,
+                 "and the log says it could not read the message, rather than dying trying")
+  ensure
+    Invoice.send(:remove_method, :persisted?)
+    Rails.logger = original_logger
+    CurrentScope::Guard.reset_ledger_warning!
+  end
+
   test "report mode still reports ordinary would-be denials on non-SoD actions" do
     CurrentScope.config.enforcement = :report
     CurrentScope.config.sod_actions = %w[approve]

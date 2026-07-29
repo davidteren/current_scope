@@ -67,10 +67,55 @@ module CurrentScope
       # truncation warning would hide the one the edit just created.
       CurrentScope::ParentChain.reset_warnings!
       # Declaration validation that needs reflection.klass runs HERE, not on the
-      # request path: a deploy must not boot green and 500 on the first gated
-      # request. to_prepare rather than after_initialize so a reload re-checks a
-      # chain the edit just changed.
+      # request path, so a bad declaration is caught before traffic. Its REACH is
+      # narrower than that sentence used to imply: to_prepare runs before
+      # :eager_load!, so this pass only sees models something else already
+      # loaded — in production, close to none. ParentChain#validate_declarations!
+      # documents that in full, and #139 tracks the second pass that would close
+      # it. Do not restore the old "a deploy must not boot green and 500 on the
+      # first gated request" claim here without that second pass; one release
+      # must not ship two comments asserting opposite things. (#133 review)
       CurrentScope::ParentChain.validate_declarations!
+    end
+
+    # #133: a deploy must not boot green and 500 on the first gated request. An
+    # SoD action whose model defines no current_scope_initiator raises per
+    # request — in :report mode too, which is where it hurts most, because
+    # report mode is what a host turns on to survey live traffic without
+    # changing anything for users.
+    #
+    # WHEN this fires is "as soon as the routes exist", which is boot only where
+    # routes load during initialization. Railties ends set_routes_reloader_hook
+    # with `reloader.execute_unless_loaded if !app.routes.is_a?(Engine::
+    # LazyRouteSet) || app.config.eager_load` — so an eager-loading environment
+    # (production, staging, the environments a bake actually runs in) warns at
+    # boot, while development's lazy route set defers it to the first request or
+    # reload. Forcing the routes early to make "boot" literally true would
+    # defeat LazyRouteSet for every host to make one log line punctual.
+    #
+    # after_routes_loaded, NOT to_prepare, and that is load-bearing. The
+    # preflight reads CurrentScope.catalog, and the catalog MEMOIZES its
+    # derivation — so asking it before the routes are drawn caches an EMPTY
+    # permission set for the life of the process, and every gated request then
+    # raises "not in the permission catalog". Measured, not reasoned: the dummy
+    # app booted with 44 catalog keys and 0 with the check on to_prepare. This
+    # hook is the one place Rails guarantees the route set is complete, and it
+    # re-runs on every routes reload, so a dev edit is re-checked.
+    #
+    # WHAT THIS ACTUALLY EXECUTES, because "log-only" undersold it: one
+    # `klass.new` per routed SoD controller, to read its current_scope_model
+    # declaration (an instance method — there is no other way to ask). Declared
+    # MODELS are answered from the class and are NOT instantiated unless the
+    # scan is about to name one, so a host's `after_initialize` runs only for a
+    # model that is already a candidate finding. Failures are absorbed and surfaced through
+    # the scan Result's skipped list, so the risk is not a crash — it is that a side
+    # effect in a host constructor has already happened by the time the rescue
+    # runs. Nothing here writes to the database, and it is a no-op until a host
+    # opts into SoD (config.sod_actions defaults to []).
+    initializer "current_scope.sod_preflight" do |app|
+      app.config.after_routes_loaded do
+        CurrentScope::SodPreflight.warn!
+      end
     end
   end
 end

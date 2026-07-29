@@ -5,11 +5,13 @@
 > **This is:** CurrentScope, a Rails authorization engine (gem `current_scope`,
 > 0.4.0 published) being driven to a "solid v1" bar so the README's
 > not-production-ready banner can come down.
-> **What we finished:** #108 parent-record resolution (PR #135, `ab63832`) and
-> #134's unresolvable-grant guardrail (PR #137, `561734f`) are both on `main`.
-> Every coded item in tracking issue **#116** is now done.
-> **What you do next:** flip one real host to `:enforce` on this `main`. That
-> bake is the last thing before the banner drops, and only a human can do it.
+> **What we finished:** #133 is built — the engine now warns at boot about an
+> SoD action whose model has no `current_scope_initiator`, and records the ones
+> traffic finds. It also uncovered and fixed a boot crash in #108's chain
+> validation.
+> **What you do next:** review the #133 branch, then flip one real host to
+> `:report` and on to `:enforce`. That bake is the last thing before the banner
+> drops, and only a human can do it.
 
 > ## 🔴 ONLY REMAINING BLOCKER — the real-host bake (#116 Wave 3)
 >
@@ -25,12 +27,25 @@
 > Do not drop the banner on "the fix shipped". The bar is a real app running
 > enforced, because that is the claim the banner makes.
 >
-> **[#133](https://github.com/davidteren/current_scope/issues/133) sits ON this
-> path, not after it.** Report mode is the bake's FIRST phase, and #133 is a
-> live-traffic 500 in report mode: a model reached by an SoD action with no
-> `current_scope_initiator` raises for every subject. A host attempting the bake
-> can hit it before they ever reach the flip. Treat it as a bake risk to weigh
-> before starting, not a post-banner polish item.
+> **[#133](https://github.com/davidteren/current_scope/issues/133) sat ON this
+> path, and is now BUILT** (branch `feat/sod-initiator-preflight`, not yet
+> merged). Report mode is the bake's FIRST phase, and #133 was a live-traffic
+> 500 in report mode: a model reached by an SoD action with no
+> `current_scope_initiator` raises for every subject.
+>
+> **The 500 still happens, deliberately** — passing the request through would
+> run a four-eyes action with the veto never consulted, and a 403 would make a
+> wiring mistake read as an ordinary denial. What changed is that the engine now
+> warns about the ones it can see coming as soon as the routes load (boot in
+> production; the first request in development), and records
+> `access.sod_initiator_missing` for the ones traffic finds, so
+> `bin/rails current_scope:report` accounts for them. Audit
+> `config.sod_actions` against your models before starting the bake; the boot
+> warning does most of that for you. Decision record:
+> [docs/plans/2026-07-29-033-feat-sod-initiator-preflight-plan.md](docs/plans/2026-07-29-033-feat-sod-initiator-preflight-plan.md).
+>
+> #132 (the adoption guide's two undocumented report-mode outcomes) rode along
+> on the same branch.
 
 > ## Open, post-banner (opened 2026-07-28 from the #135/#137 work)
 >

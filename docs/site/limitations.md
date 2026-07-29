@@ -30,6 +30,38 @@ contract. Do not plan a SPA cutover expecting that to exist today.
 These are deliberate product choices, not forgotten bugs. Documented so
 operators and auditors know what to expect.
 
+### A17 — Report mode does not absorb a missing `current_scope_initiator` (#133)
+
+An action listed in `config.sod_actions` that reaches a model defining no
+`current_scope_initiator` raises `CurrentScope::ConfigurationError`, and the
+request returns **500 — under `config.enforcement = :report` exactly as under
+`:enforce`**. Report mode downgrades a missing grant; it does not downgrade a
+misconfiguration. Letting the request through would run a separation-of-duties
+action with the veto never consulted, and answering 403 instead would make a
+wiring mistake look like an ordinary denial.
+
+**Host should:** audit `config.sod_actions` against your models before turning
+report mode on. Since #133 the engine helps: it logs a **preflight warning when
+the route set loads** — at boot in an eager-loading environment (production,
+staging), and on the first request in development, whose route set is lazy —
+naming every SoD action whose declared model cannot answer the hook. And
+`bin/rails current_scope:report` lists both that static set and the requests
+that actually raised (`access.sod_initiator_missing` rows).
+
+Those ledger rows depend on the ledger: `config.audit` must be on (the default)
+and the `current_scope_events` table must exist. With audit off or the migration
+not yet run, the raises still happen and are still logged, but **no rows are
+recorded** — so an empty section means "nothing recorded", never "nothing
+happened". `bin/rails current_scope:report` prints your current `enforcement`
+and `audit` settings whenever the ledger is empty, for exactly this reason.
+
+**Operators should know:** the boot list is **partial by construction**, for the
+same reason A16 is advisory. It can only inspect controllers that declare
+`current_scope_model`, so an action without that declaration is *absent* from the
+list rather than cleared; and the declared type names what the collection lists,
+so a member action loading a different type is named against the wrong model. The
+ledger rows are the proof the boot list cannot be.
+
 ### A16 — "check hooks" is advisory, not a verdict (#134)
 
 The engine cannot prove which records a controller resolves to:
@@ -95,6 +127,9 @@ An org-wide grant can then allow the initiator through.
 nudges (`warn_on_nil_sod_record`) and report-mode `access.sod_blind_spot`
 surface the mistake. See the
 [SoD guide](separation-of-duties.md).
+
+Returning the record is only half of it — the model it belongs to must define
+`current_scope_initiator`, or the gate raises instead of skipping. See A17.
 
 ### A2 — `actor_method` is only loud at boundary APIs
 

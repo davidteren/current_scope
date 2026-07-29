@@ -84,6 +84,24 @@ instead of silently permitting. Return `nil` from the hook to deliberately
 exempt a record type, or trim `sod_actions`. With `sod_actions` empty this
 error can never fire — no model needs the hook until you opt in.
 
+**That raise is a 500, and `config.enforcement = :report` does not soften it.**
+Report mode downgrades a missing grant; it never downgrades a
+misconfiguration. So the engine tells you first instead: as soon as the route
+set loads (boot in production and staging, the first request in development) it
+logs a preflight warning naming every routed SoD action whose controller declares a
+`current_scope_model` that cannot answer the hook, and a request that does
+raise in report mode records an `access.sod_initiator_missing` ledger row —
+provided the ledger is on: `config.audit` must be enabled (the default) and the
+`current_scope_events` table must exist. Otherwise the raise still happens and
+is still logged, but nothing is recorded, so an empty section means "nothing
+recorded" rather than "nothing found".
+`bin/rails current_scope:report` prints both, and
+`CurrentScope::SodPreflight.scan` returns the boot list programmatically, as a
+Result carrying `.rows`, `.inspected`, `.in_scope` and `.skipped`. Read it as a
+lead, not a verdict — and empty `.rows` is not an all-clear by itself. Ask
+`result.blind?`: true when a check failed (`.degraded?`) or when nothing was
+read at all. Full limits: [Limitations A17](limitations.md).
+
 ### The one asymmetry you must know
 
 **An SoD-gated member action must return its record from

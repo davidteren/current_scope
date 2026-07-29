@@ -1,0 +1,96 @@
+lib/generators/current_scope/install/templates/initializer.rb
+  s_c80c0efb3a316a::t_8933f3fed25647 109-111
+lib/current_scope/parent_chain.rb
+  s_c80c0efb3a316a::t_50099ea7a8141d 151-160
+  s_c80c0efb3a316a::t_6a8ae1798c8a60 161
+  s_c80c0efb3a316a::t_b99186b65e33c5 136-140
+docs/site/separation-of-duties.md
+  s_c80c0efb3a316a::t_8933f3fed25647 89-91
+  s_c80c0efb3a316a::t_a28716754c065b 87-88,92-99
+docs/site/llms.txt
+  s_c80c0efb3a316a::t_33d2f83b36e1f6 17-19
+test/report_task_test.rb
+  s_c80c0efb3a316a::t_0ccfa3010fc7c5 286-327
+docs/plans/2026-07-29-033-feat-sod-initiator-preflight-plan.md
+  s_c80c0efb3a316a::t_f0c668e1b3e93d 102-111
+  s_c80c0efb3a316a::t_5894f51e78f335 227
+  s_c80c0efb3a316a::t_6a8ae1798c8a60 149-150
+  s_c80c0efb3a316a::t_8933f3fed25647 41
+  s_c80c0efb3a316a::t_6d505edc0b1839 188-192
+  s_c80c0efb3a316a::t_de168bf6a987b1 136-148
+  s_c80c0efb3a316a::t_4c56a273b44533 196-226,228
+CHANGELOG.md
+  s_c80c0efb3a316a::t_dda4f07d1ed986 29-36
+lib/tasks/current_scope_tasks.rake
+  s_c80c0efb3a316a::t_de88ae5f8d5d5d 169,186,199,232,248,262
+  s_c80c0efb3a316a::t_ab53e8b4d24aa5 207-230
+  s_c80c0efb3a316a::t_18456321888670 144-151
+  s_c80c0efb3a316a::t_7a8c4a0ad1fc7b 117-129,131
+docs/guides/adopting-in-an-existing-app.md
+  s_c80c0efb3a316a::t_8933f3fed25647 374-375
+docs/site/ai-agents.md
+  s_c80c0efb3a316a::t_cd4665cf9919db 48-52,55-59
+  s_c80c0efb3a316a::t_8933f3fed25647 53-54
+README.md
+  s_c80c0efb3a316a::t_8933f3fed25647 234
+lib/current_scope/sod_preflight.rb
+  s_c80c0efb3a316a::t_26d9fa369976e4 41,59-72,77-82
+  s_c80c0efb3a316a::t_35ccd8e4780b55 108-116
+  s_c80c0efb3a316a::t_e0feaf5c5fa3e3 181-188
+  s_c80c0efb3a316a::t_ba4f1696b1ec75 9-14
+  s_c80c0efb3a316a::t_25d02c21b1d241 42,48,55-56
+  s_c80c0efb3a316a::t_42eaa012b7fe7c 152-158
+  s_c80c0efb3a316a::t_069affa3d5e884 163-173
+  s_c80c0efb3a316a::t_e3eeedf8c22c7e 194,198-230
+  s_c80c0efb3a316a::t_1fc3cc066628b7 232
+  s_c80c0efb3a316a::t_6aba75506645cf 83
+STATUS.md
+  s_c80c0efb3a316a::t_8933f3fed25647 8,39-40
+test/sod_preflight_test.rb
+  s_c80c0efb3a316a::t_2cfc1c734f3b5e 132-138,149-151
+  s_c80c0efb3a316a::t_dd916b8b2026fb 115
+  s_c80c0efb3a316a::t_ac6b9fe4531151 188-197
+  s_c80c0efb3a316a::t_0584e9063a1090 152,154-187
+  s_c80c0efb3a316a::t_ead1ca6e59be85 99-102,106
+  s_c80c0efb3a316a::t_4168290467b27e 91-97,104,107-111
+  s_c80c0efb3a316a::t_838cf16dc743e5 98,153
+test/integration/report_only_test.rb
+  s_c80c0efb3a316a::t_c433ac5cf5fc96 262-265,274
+  s_c80c0efb3a316a::t_6074e4dcfc64e3 283-295,297,300-307
+  s_c80c0efb3a316a::t_909dc9423b9513 250-257,267-270,273,276-280
+  s_c80c0efb3a316a::t_e048203bf3719c 266
+  s_c80c0efb3a316a::t_198df3f5afde9f 275
+  s_c80c0efb3a316a::t_9dfbb025c952fc 281-282
+lib/current_scope/resolver.rb
+  s_c80c0efb3a316a::t_35c7accd4855ad 559-564
+docs/guides/separation-of-duties-and-break-glass.md
+  s_c80c0efb3a316a::t_f60c9be7de2b6f 28-30,33-38
+  s_c80c0efb3a316a::t_8933f3fed25647 31-32
+lib/current_scope/engine.rb
+  s_c80c0efb3a316a::t_a8d3ae9d726fb0 76-79,82-89
+  s_c3b50974b4fe07::t_b54fc0f884087d 90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "35807a1d9093388d136faf52f3d2edf230f538f0",
+  "prompts": {},
+  "sessions": {
+    "s_c3b50974b4fe07": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3b0704a9-36ec-4a11-9287-5d697e7789d6",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    },
+    "s_c80c0efb3a316a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e897c493-a8bf-4c03-bd8f-f6dc3bd783fa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

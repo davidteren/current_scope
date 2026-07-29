@@ -376,6 +376,11 @@ the requests that actually raised (`access.sod_initiator_missing` rows).
 `CurrentScope::SodPreflight.scan` returns the same list programmatically (a
 Result with `.rows`; ask `.blind?` before reading an empty one as an all-clear).
 
+The `access.sod_initiator_missing` rows need the ledger: `config.audit` on (the
+default) and the `current_scope_events` table migrated. Without those the raises
+still happen and are still logged, but nothing is recorded — so an empty section
+means "nothing recorded", not "nothing found".
+
 Read the preflight list as a **lead, not a verdict**: it can only inspect
 controllers that declare `current_scope_model`, and it states that limit in its
 own output. Full detail in [Limitations](../site/limitations.md) (A17).

@@ -90,7 +90,11 @@ misconfiguration. So the engine tells you first instead: as soon as the route
 set loads (boot in production and staging, the first request in development) it
 logs a preflight warning naming every routed SoD action whose controller declares a
 `current_scope_model` that cannot answer the hook, and a request that does
-raise in report mode records an `access.sod_initiator_missing` ledger row.
+raise in report mode records an `access.sod_initiator_missing` ledger row —
+provided the ledger is on: `config.audit` must be enabled (the default) and the
+`current_scope_events` table must exist. Otherwise the raise still happens and
+is still logged, but nothing is recorded, so an empty section means "nothing
+recorded" rather than "nothing found".
 `bin/rails current_scope:report` prints both, and
 `CurrentScope::SodPreflight.scan` returns the boot list programmatically, as a
 Result carrying `.rows`, `.inspected`, `.in_scope` and `.skipped`. Read it as a

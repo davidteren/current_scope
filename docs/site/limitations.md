@@ -41,10 +41,19 @@ action with the veto never consulted, and answering 403 instead would make a
 wiring mistake look like an ordinary denial.
 
 **Host should:** audit `config.sod_actions` against your models before turning
-report mode on. Since #133 the engine helps: it logs a **preflight warning at
-boot** naming every SoD action whose declared model cannot answer the hook, and
-`bin/rails current_scope:report` lists both that static set and the requests that
-actually raised (`access.sod_initiator_missing` rows).
+report mode on. Since #133 the engine helps: it logs a **preflight warning when
+the route set loads** — at boot in an eager-loading environment (production,
+staging), and on the first request in development, whose route set is lazy —
+naming every SoD action whose declared model cannot answer the hook. And
+`bin/rails current_scope:report` lists both that static set and the requests
+that actually raised (`access.sod_initiator_missing` rows).
+
+Those ledger rows depend on the ledger: `config.audit` must be on (the default)
+and the `current_scope_events` table must exist. With audit off or the migration
+not yet run, the raises still happen and are still logged, but **no rows are
+recorded** — so an empty section means "nothing recorded", never "nothing
+happened". `bin/rails current_scope:report` prints your current `enforcement`
+and `audit` settings whenever the ledger is empty, for exactly this reason.
 
 **Operators should know:** the boot list is **partial by construction**, for the
 same reason A16 is advisory. It can only inspect controllers that declare

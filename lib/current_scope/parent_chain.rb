@@ -24,9 +24,10 @@ module CurrentScope
   # column — no code change at all — could 500 a live request, escape report
   # mode's "never breaks a request" promise, and print a fix ("remove one of the
   # current_scope_parent declarations") pointing at code that was correct. So:
-  # a bad DECLARATION raises at declaration time, where the host can only hit it
-  # by writing it; bad or over-deep DATA truncates the walk, denies (fail-closed),
-  # and warns once.
+  # a bad DECLARATION raises when the host writes it (at the macro for most
+  # shapes; from validate_declarations! after load for a custom association
+  # primary key, which needs reflection.klass); bad or over-deep DATA truncates
+  # the walk, denies (fail-closed), and warns once.
   module ParentChain
     # A private ceiling, not a config knob: nobody can pick a default for a knob
     # before a host declares a chain deep enough to need it. Raise it when one
@@ -147,21 +148,23 @@ module CurrentScope
       # dummy's Report -> Project is exactly that shape.
       #
       # It cannot iterate ONE snapshot either: a model that registers mid-pass
-      # would then wait for a later pass, and in production there is no later
-      # pass. So it keeps taking snapshots until no new name appears — the walk
-      # is what loads those models, so it is also what must finish checking
-      # them. Terminates because the registry is finite and `validated` only
-      # grows. (#133 review — cubic)
+      # would then wait for a later call of this method. Within one call there
+      # is no second chance, so it keeps taking snapshots until no new name
+      # appears — the walk is what loads those models, so it is also what must
+      # finish checking them. Terminates because the registry is finite and
+      # `validated` only grows. (#133 review — cubic)
       #
       # CALLED TWICE, on purpose (#139). From to_prepare, which railties runs
       # BEFORE :eager_load! ("This needs to happen before eager load so it
       # happens in exactly the same point regardless of config.eager_load") — so
       # that pass sees only what was already loaded, and earns its keep in
       # development by re-running on every reload. And from after_initialize
-      # where eager loading is on, which is the authoritative pass: the registry
-      # is complete there, so a production deploy validates every declaring
-      # model. Idempotent, so running twice costs a second walk over a set that
-      # raises on the first bad entry either way.
+      # where eager loading is on, which is the authoritative pass: every
+      # declaring model that was eager-loaded (and thus registered) is
+      # validated. Models outside eager_load_paths or marked do_not_eager_load
+      # still register only when first loaded, and nothing on the request path
+      # re-checks them. Idempotent, so running twice costs a second walk over a
+      # set that raises on the first bad entry either way.
       def validate_declarations!
         validated = Set.new
 

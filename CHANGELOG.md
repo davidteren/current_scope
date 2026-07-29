@@ -132,8 +132,6 @@ changed. Not cut yet; the README banner stays up pending the real-host
   collection actions in `sod_actions` as no-ops (bulk recipe), `full_access`
   holding break-glass bypass, and that advisory `allowed_to?` never consults
   the catalog.
-
-### Changed
 - **A mis-declared `current_scope_parent` now fails the deploy instead of
   serving wrong rows (#139).** BREAKING for one narrow, already-broken shape:
   a chain declared on a `belongs_to` with a custom `primary_key:`.

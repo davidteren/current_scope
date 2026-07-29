@@ -75,7 +75,7 @@ module CurrentScope
       CurrentScope::ParentChain.validate_declarations!
     end
 
-    # #139: the pass that actually sees everything.
+    # #139: the pass that sees every declaring model that was eager-loaded.
     #
     # Railties runs :run_prepare_callbacks (the to_prepare above) BEFORE
     # :eager_load!, with the source comment "This needs to happen before eager

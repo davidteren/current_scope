@@ -123,14 +123,19 @@ parent instance cannot give it one. Writing `def current_scope_parent = project`
 raises rather than being ignored.
 
 **Declaration errors raise; data never does.** A missing association, a
-`has_many`, a polymorphic or scoped `belongs_to`, a custom association primary
-key, or a declaration on an STI subclass all raise `ConfigurationError` with the
-fix named. But the *shape of your rows* is not a misconfiguration: a chain
-longer than five hops, or a `parent_id` loop, stops the walk where it runs out,
-**denies**, and logs one warning per model. It never raises, because a loop in
-the data is two `UPDATE`s and must not turn a live request into a 500. If a
-subject is missing access they should have, look for
-"current_scope_parent stopped walking" in the log.
+`has_many`, a polymorphic or scoped `belongs_to`, or a declaration on an STI
+subclass all raise `ConfigurationError` at the macro with the fix named. A
+custom association primary key is refused later by
+`ParentChain.validate_declarations!` (on `to_prepare`, plus after initialize
+when `config.eager_load` is true), because the check needs `reflection.klass`
+and resolving that inside the macro breaks ordinary forward references — see
+[UPGRADING.md](../../UPGRADING.md) for when that pass does and does not see a
+model. The *shape of your rows* is not a misconfiguration: a chain longer than
+five hops, or a `parent_id` loop, stops the walk where it runs out, **denies**,
+and logs one warning per model. It never raises, because a loop in the data is
+two `UPDATE`s and must not turn a live request into a 500. If a subject is
+missing access they should have, look for "current_scope_parent stopped walking"
+in the log.
 
 ### When a scoped grant reaches nothing
 

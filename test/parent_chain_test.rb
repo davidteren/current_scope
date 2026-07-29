@@ -312,7 +312,9 @@ class ParentChainTest < ActiveSupport::TestCase
   # PARENT's primary key. This test pins both halves of what that does, and the
   # second half is the reason the check raises rather than warns.
   test "an unvalidated custom-primary-key chain matches the wrong rows entirely (#139)" do
-    original_names = CurrentScope::ParentChain.instance_variable_get(:@declared_names)
+    # Snapshot the set — capturing the live reference lets register mutate the
+    # "original" in place, and the ensure restore becomes a no-op.
+    original_names = CurrentScope::ParentChain.declared_names.dup
     klass = Class.new(ApplicationRecord) do
       def self.name = "CustomKeyReport"
       self.table_name = "reports"
@@ -377,7 +379,7 @@ class ParentChainTest < ActiveSupport::TestCase
 
   test "the custom-primary-key chain is refused by the boot pass (#139)" do
     chain = CurrentScope::ParentChain
-    original_names = chain.instance_variable_get(:@declared_names)
+    original_names = chain.declared_names.dup
 
     # A REAL constant, because validate_declarations! walks names and resolves
     # them with safe_constantize — an anonymous class with a stubbed `.name`
@@ -406,7 +408,7 @@ class ParentChainTest < ActiveSupport::TestCase
   # differs between the two runs.
   test "the authoritative pass runs on after_initialize, and only when eager loading (#139)" do
     chain = CurrentScope::ParentChain
-    original_names = chain.instance_variable_get(:@declared_names)
+    original_names = chain.declared_names.dup
     original_eager = Rails.application.config.eager_load
     singleton = chain.singleton_class
     original = chain.method(:validate_declarations!)

@@ -289,19 +289,50 @@ module CurrentScope
       # condition another component owns is the defect this codebase keeps paying
       # for (#74).
       #
-      # Model.new issues no QUERY, but it is not connection-free: the first
+      # When an instance IS built (only for a candidate finding, see below),
+      # Model.new issues no QUERY but is not connection-free: the first
       # instantiation loads the schema to build the attribute set. On a boot with
       # no reachable database (asset precompile, a container started before its
-      # DB) that raises, every model reads as compliant, and the list is empty
+      # DB) that raises, the model reads as compliant, and the list is quieter
       # for a reason the operator cannot see — which is why the caveat names it
-      # and #degraded? reports it.
+      # and the Result reports it as skipped.
+      # CHEAP CHECK FIRST, exact check only before accusing.
+      #
+      # The resolver asks `record.respond_to?(INITIATOR_METHOD, true)`, and
+      # matching it exactly would mean instantiating every declared model at
+      # boot — running whatever the host put in `initialize` and
+      # `after_initialize`, for models that are almost all fine. So ask the CLASS
+      # first: for an ordinary `def`, an `alias`, or an association reader (all
+      # defined as real methods when the class body runs) the class-level answer
+      # and the instance-level answer are identical, and the overwhelming
+      # majority of models stop here having executed no host code at all.
+      #
+      # They diverge only for a hook reachable through respond_to_missing? /
+      # method_missing. That divergence can only produce a FALSE ACCUSATION —
+      # the class says "not defined" when an instance would say otherwise — so
+      # the instance check is kept exactly there, as the confirmation before this
+      # module names a model. A model that is fine is never built; a model about
+      # to be flagged is, because an accusation must be right. (#133 review —
+      # cubic)
       def defines_initiator?(model, skipped)
+        return true if class_level_initiator?(model)
+
         model.new.respond_to?(Resolver::INITIATOR_METHOD, true)
       rescue StandardError => e
         # Could not tell (a custom initialize, an after_initialize that needs a
-        # request) ⇒ say nothing. Prove or stay silent.
+        # request, no database connection yet) ⇒ say nothing. Prove or stay
+        # silent, and mark the run so its silence is not read as a clean bill.
         skipped << [ model.name || model.inspect, e ]
         true
+      end
+
+      # All three visibilities, because the resolver's respond_to?(…, true) sees
+      # all three and a public-only check would flag a model whose hook is
+      # private — which is how the engine's own docs suggest writing host hooks.
+      def class_level_initiator?(model)
+        m = Resolver::INITIATOR_METHOD
+        model.method_defined?(m) || model.private_method_defined?(m) ||
+          model.protected_method_defined?(m)
       end
     end
   end

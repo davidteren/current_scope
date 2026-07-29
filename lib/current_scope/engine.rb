@@ -103,9 +103,11 @@ module CurrentScope
     # re-runs on every routes reload, so a dev edit is re-checked.
     #
     # WHAT THIS ACTUALLY EXECUTES, because "log-only" undersold it: one
-    # `klass.new` per routed SoD controller and one `model.new` per declared
-    # model, which runs whatever the host put in `initialize`, `after_initialize`
-    # and `respond_to_missing?`. Failures are absorbed and surfaced through
+    # `klass.new` per routed SoD controller, to read its current_scope_model
+    # declaration (an instance method — there is no other way to ask). Declared
+    # MODELS are answered from the class and are NOT instantiated unless the
+    # scan is about to name one, so a host's `after_initialize` runs only for a
+    # model that is already a candidate finding. Failures are absorbed and surfaced through
     # the scan Result's skipped list, so the risk is not a crash — it is that a side
     # effect in a host constructor has already happened by the time the rescue
     # runs. Nothing here writes to the database, and it is a no-op until a host

@@ -179,6 +179,39 @@ class SodPreflightTest < ActiveSupport::TestCase
     assert_match "documents#show", logs
   end
 
+  # cubic: the preflight ran host constructors for every declared model at boot.
+  # A model that is FINE must now never be built — the class-level answer settles
+  # it — while a model about to be NAMED still is, because the class check
+  # diverges from the resolver exactly where it would produce a false accusation.
+  test "a compliant model is never instantiated (#133)" do
+    CurrentScope.config.sod_actions = %w[show]
+    built = 0
+    Report.define_singleton_method(:new) { |*a, **k, &b| built += 1; super(*a, **k, &b) }
+
+    CurrentScope::SodPreflight.scan
+
+    assert_equal 0, built,
+                 "Report defines current_scope_initiator as a real method, so the class " \
+                 "answers it — running host initialize/after_initialize to learn that is a " \
+                 "side effect at boot for nothing"
+  ensure
+    Report.singleton_class.send(:remove_method, :new)
+  end
+
+  test "a hook reachable only through respond_to_missing? is not falsely accused (#133)" do
+    CurrentScope.config.sod_actions = %w[show]
+    # Document has no real current_scope_initiator, so the class check says
+    # "missing" — the one case where the instance check must still run, because
+    # this is the moment the module would name a model.
+    Document.define_method(:respond_to_missing?) { |name, _priv = false| name.to_sym == :current_scope_initiator }
+
+    refute_includes permissions, "documents#show",
+                    "the instance check is the confirmation before an accusation; skipping " \
+                    "it here would name a model that answers the hook at runtime"
+  ensure
+    Document.send(:remove_method, :respond_to_missing?)
+  end
+
   # The model half of the degrade path. defines_initiator? answers TRUE when it
   # cannot tell, which CLEARS the model — so an uninstantiable model (no database
   # connection during an asset precompile, a custom initialize) silently reads as

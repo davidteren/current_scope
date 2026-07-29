@@ -87,10 +87,13 @@ constants the first reload then makes stale. So:
 
 Models excluded from eager load (`do_not_eager_load`, paths outside
 `eager_load_paths`) still register only when first loaded, and nothing on the
-request path re-runs this check. If you deploy with `eager_load = false`, or
-keep declaring models off the eager-load surface, this check does **not** fully
-protect you. That is the same partial-coverage bargain the permission catalog
-makes, and it is stated rather than implied.
+request path re-runs this check. The same is true of a model first loaded from
+a host `after_initialize` block that runs *after* this engine's pass (callback
+order among `after_initialize` blocks is registration order, not "after every
+host hook"). If you deploy with `eager_load = false`, or keep declaring models
+off the eager-load surface, this check does **not** fully protect you. That is
+the same partial-coverage bargain the permission catalog makes, and it is
+stated rather than implied.
 
 ### Why it is worth a broken deploy
 

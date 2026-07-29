@@ -100,6 +100,11 @@ module CurrentScope
     # constants during initialization — the thing Rails tells you not to do, and
     # which pins constants that the first reload then makes stale. Development
     # keeps the to_prepare pass, which re-runs and catches up.
+    # after_initialize (not after: :eager_load!) so we sit in the same finisher
+    # window as other boot checks. Order among after_initialize blocks is
+    # registration order: a host that first loads a declaring model from a
+    # *later* after_initialize still misses this pass — same residual as
+    # do_not_eager_load, documented in UPGRADING.md.
     config.after_initialize do |app|
       CurrentScope::ParentChain.validate_declarations! if app.config.eager_load
     end

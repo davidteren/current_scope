@@ -209,11 +209,46 @@ class SodPreflightTest < ActiveSupport::TestCase
 
     logs = capture_warn_log { CurrentScope::SodPreflight.warn! }
 
-    assert_match(/COULD NOT COMPLETE/, logs)
-    assert_match(/do NOT read that as an all-clear/, logs)
+    assert_match(/not able to look properly/, logs)
+    assert_match(/Do NOT read that as an all-clear/, logs)
   ensure
     Document.singleton_class.send(:remove_method, :new)
     Report.singleton_class.send(:remove_method, :new)
+  end
+
+  # The third variant of the vacuous all-clear, and the only one that is not an
+  # error state: every routed SoD controller declares no current_scope_model, so
+  # findings is empty and nothing FAILED — the run simply read nothing. A flat
+  # "none found" there is a confident answer off an empty inspection.
+  test "warn! refuses an all-clear when it inspected nothing at all (#133)" do
+    # Five controllers route `approve`; exactly one (ReportsController) declares
+    # current_scope_model. Drop that declaration and the run is fully in scope
+    # and inspects zero — the shape of a host that never adopted #50, which is
+    # exactly the host doing a rollout bake.
+    CurrentScope.config.sod_actions = %w[approve]
+    ReportsController.send(:remove_method, :current_scope_model)
+
+    logs = capture_warn_log { CurrentScope::SodPreflight.warn! }
+
+    assert_equal 0, CurrentScope::SodPreflight.coverage[:inspected]
+    assert_operator CurrentScope::SodPreflight.coverage[:in_scope], :>, 0
+    assert_match(/inspected NONE/, logs)
+    assert_match(/Do NOT read that as an all-clear/, logs)
+  ensure
+    ReportsController.send(:define_method, :current_scope_model) { Report }
+    ReportsController.send(:private, :current_scope_model)
+  end
+
+  test "coverage reports what was actually read (#133)" do
+    CurrentScope.config.sod_actions = %w[show]
+
+    CurrentScope::SodPreflight.findings
+    cov = CurrentScope::SodPreflight.coverage
+
+    assert_operator cov[:inspected], :>, 0
+    assert_operator cov[:in_scope], :>=, cov[:inspected],
+                    "in_scope counts every routed SoD action; inspected only those whose " \
+                    "controller declared a model"
   end
 
   # The two remedies are not coequal on a list that can be wrong: defining the
@@ -235,6 +270,17 @@ class SodPreflightTest < ActiveSupport::TestCase
     CurrentScope::SodPreflight.findings
 
     refute CurrentScope::SodPreflight.degraded?
+  end
+
+  # Asking before any run is a question about nothing, and the fail-closed answer
+  # is "I cannot vouch for it". Answering `false` there would hand back a clean
+  # bill of health for a check that never happened — the same vacuous all-clear
+  # this module refuses to print, one layer up in the API.
+  test "degraded? does not claim clean before any run has happened (#133)" do
+    CurrentScope::SodPreflight.instance_variable_set(:@degraded, nil)
+
+    assert CurrentScope::SodPreflight.degraded?,
+           "a never-run check must not read as a passing one"
   end
 
   # A bug in THIS module must not be reported as a host misconfiguration. The

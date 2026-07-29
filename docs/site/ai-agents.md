@@ -54,9 +54,12 @@ Add the current_scope gem to this Rails app (Rails >= 8.1, < 9 required).
    production; on the first request in development, whose routes are lazy),
    `bin/rails current_scope:report` lists them, and
    `CurrentScope::SodPreflight.findings` returns them programmatically as
-   [permission, model_class] pairs. That list is PARTIAL by construction —
-   it only sees controllers declaring current_scope_model — so an empty
-   list is not proof.
+   [permission, model_class] pairs. An EMPTY list is not an all-clear on its
+   own: read `CurrentScope::SodPreflight.degraded?` (false = the run completed)
+   and `.coverage` (which returns {inspected:, in_scope:}) AFTER calling
+   findings — both describe that last run. inspected == 0 means nothing was
+   read at all, because the list only sees controllers declaring
+   current_scope_model.
 5. Bootstrap the first admin (the management UI only admits full-access
    subjects): `bin/rails current_scope:grant SUBJECT_ID=<id>` — or, in
    seeds, `CurrentScope.grant!(user)` (it creates the default

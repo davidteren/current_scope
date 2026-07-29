@@ -557,13 +557,18 @@ module CurrentScope
     # above; this predicate exists so the diagnostic labeler below refuses the
     # exact same shapes the gate refused, and cannot drift from it.
     #
+    def collection_type?(type)
+      type.is_a?(Class) && type < ActiveRecord::Base && !type.abstract_class?
+    end
     # PUBLIC since #133, for that same reason one hop further out: SodPreflight
     # asks the identical question of a declared current_scope_model, and an
     # inline copy of the three terms is precisely the re-derivation #74 keeps
     # charging this codebase for. One definition, three consumers.
-    public def collection_type?(type)
-      type.is_a?(Class) && type < ActiveRecord::Base && !type.abstract_class?
-    end
+    #
+    # Spelled as a standalone `public :`, matching Event.missing_events_table? —
+    # this repo's one other "expose a single method out of the private section"
+    # case — so there is one idiom for it rather than two.
+    public :collection_type?
 
     # Would a (correct) current_scope_model declaration have given this
     # record-less deny a chance? True only for the exact cell the #50

@@ -37,17 +37,26 @@ module CurrentScope
       # declared model cannot answer current_scope_initiator. Empty, and free,
       # for the default config: sod_actions is [] until a host opts in, and
       # nothing here touches a controller until it is not.
+      # NOTE: this LOGS when checks were skipped (report_skipped), so it is not a
+      # pure query despite the noun. That is deliberate — a check that could not
+      # look must say so wherever it is called from, including a host calling
+      # this directly — but it means calling it twice reports twice.
       def findings
         @degraded = false
         @skipped = []
+        @inspected = 0
+        @in_scope = 0
         return [] if CurrentScope.config.sod_actions.empty?
 
         reflection = CurrentScope::GatingReflection.new
         models = {}
 
         rows = sod_permissions.filter_map do |controller, permission|
+          @in_scope += 1
           model = models.fetch(controller) { models[controller] = declared_model_for(controller, reflection) }
           next if model.nil?
+
+          @inspected += 1
           next if defines_initiator?(model)
 
           [ permission, model ]
@@ -79,7 +88,24 @@ module CurrentScope
       # operator is never shown an empty section that looks like an all-clear
       # when it is really a broken check — the vacuous-all-clear rule the
       # ungated task already follows.
-      def degraded? = !!@degraded
+      #
+      # NEVER RUN answers true, not false. `nil` here means no run has happened,
+      # and the one thing this predicate must never do is hand back "clean" for
+      # a check that did not occur — that is the same vacuous all-clear it
+      # exists to prevent, one layer up in the API. Callers pair it with
+      # #findings (which resets the flag); asking first is a question about
+      # nothing, and the fail-closed answer to that is "I cannot vouch for it".
+      def degraded? = @degraded.nil? || @degraded
+
+      # "Inspected N of M routed SoD action(s)" — the coverage behind an empty
+      # list. WITHOUT this, a host whose controllers declare no
+      # current_scope_model at all (the common shape before #50, and exactly the
+      # host doing a rollout bake) gets findings == [] and degraded? == false,
+      # and reads a confident all-clear off a run that inspected NOTHING. That is
+      # the third variant of the vacuous all-clear this module keeps refusing,
+      # and unlike the other two it is not an error state — so only a count
+      # exposes it. (#133 review)
+      def coverage = { inspected: @inspected.to_i, in_scope: @in_scope.to_i }
 
       # One message listing every action that will raise. Log-only.
       def warn!
@@ -89,8 +115,10 @@ module CurrentScope
         # nothing, and would otherwise say nothing at all — the vacuous
         # all-clear, on the one surface a host reads at deploy time. The report
         # task already refuses that; so does this. (#133 review)
-        return if rows.empty? && !degraded?
-        return Rails.logger&.warn(blind_message) if rows.empty?
+        cov = coverage
+        blind = degraded? || (cov[:inspected].zero? && cov[:in_scope].positive?)
+        return if rows.empty? && !blind
+        return Rails.logger&.warn(blind_message(cov)) if rows.empty?
 
         listed = rows.map { |permission, model|
           "  #{permission} — #{model.name} defines no #{Resolver::INITIATOR_METHOD}"
@@ -109,20 +137,26 @@ module CurrentScope
       # the boot warning and `rails current_scope:report` so the two cannot drift
       # into different versions of the same hedge (the drift #134 fixed for the
       # untargeted-grant caveat).
+      # LINE-BROKEN on purpose. All five limits are real and two were added by
+      # review, so the answer to "this is a wall" is never fewer limits — it is
+      # structure. An unread caveat protects nobody, and this one is the only
+      # thing standing between a fallible list and a host deleting a four-eyes
+      # control. Its sibling GrantDiagnosis.untargeted_caveat is short for the
+      # same reason. (#133 review)
       def caveat
-        "This list is PARTIAL — read it as a lead, not a verdict. It can be silent when it " \
-        "should not be: a controller that declares no current_scope_model is never inspected " \
-        "(ABSENT here is not cleared), and a model that cannot be instantiated right now (no " \
-        "database connection yet, a custom initialize) is passed over. It can also name the " \
-        "wrong thing: the declared type is what the COLLECTION lists, so a member action " \
-        "loading a different type is named against the wrong model; the declaration is read " \
-        "with no action in hand, so a current_scope_model that branches on action_name answers " \
-        "from its nil-action branch; and an action that turns out to be a COLLECTION action at " \
-        "runtime can never reach the veto at all, so a finding against one is a false alarm. " \
-        "Confirm against the model before you change config.sod_actions."
+        [
+          "This list is PARTIAL — a lead, not a verdict. Confirm against the model before " \
+          "you change config.sod_actions.",
+          "  Silent when: the controller declares no current_scope_model (ABSENT is not " \
+          "cleared), or the model cannot be instantiated right now (no database connection " \
+          "yet, a custom initialize).",
+          "  Names the wrong thing when: the declared type is what the COLLECTION lists and " \
+          "a member action loads a different one; or current_scope_model branches on " \
+          "action_name, which is read here with no action in hand.",
+          "  Cannot happen at all: a finding against an action that turns out to be a " \
+          "COLLECTION action — the veto never reaches those."
+        ].join("\n")
       end
-
-      private
 
       # The two remedies are NOT coequal here, and this message must not present
       # them as if they were. Defining the hook restores a control; removing the
@@ -131,7 +165,11 @@ module CurrentScope
       # right. This list can be wrong — it reads a declaration, not the record —
       # so leading with "or just turn the veto off" invites a host to disable
       # four-eyes on a false accusation. Lead with the hook; qualify the rest.
-      # (#133 review)
+      #
+      # PUBLIC beside #caveat, and for the identical reason: `rails
+      # current_scope:report` renders the SAME finding, so a private copy here
+      # guaranteed the correction reached one surface and not the other. It did
+      # exactly that for one commit. (#133 review)
       def fix_line
         "Fix: define #{Resolver::INITIATOR_METHOD} on each model listed (return nil to exempt a " \
         "record). Only if the action was never meant to be four-eyes gated should you remove it " \
@@ -139,10 +177,19 @@ module CurrentScope
         "the finding first."
       end
 
-      def blind_message
-        "[CurrentScope] separation-of-duties preflight COULD NOT COMPLETE — it found nothing, " \
-        "and it was not able to look properly, so do NOT read that as an all-clear. The skipped " \
-        "checks are logged above. Re-run `rails current_scope:report` once the app is fully " \
+      private
+
+      def blind_message(cov)
+        reason =
+          if cov[:inspected].zero? && cov[:in_scope].positive?
+            "it inspected NONE of the #{cov[:in_scope]} routed SoD action(s) — none of those " \
+            "controllers declares current_scope_model, so there was nothing to read"
+          else
+            "it was not able to look properly (some checks were skipped; see the lines above)"
+          end
+
+        "[CurrentScope] separation-of-duties preflight found nothing, and #{reason}. Do NOT " \
+        "read that as an all-clear. Re-run `rails current_scope:report` once the app is fully " \
         "up.\n#{caveat}"
       end
 
@@ -198,7 +245,7 @@ module CurrentScope
         # into the same "could not inspect" line as a params-reading hook would
         # report a broken controller exactly like a fine one, which is the
         # distinction that reflection exists to keep. (#133 review)
-        skip(controller_path, e, broken_controller: e.is_a?(NameError))
+        skip(controller_path, e)
         nil
       end
 
@@ -231,9 +278,11 @@ module CurrentScope
       # engine throttles for that reason (Guard.warn_ledger_failure_once,
       # Event.warn_missing_events_table_once, the cross-controller nudge's
       # once-per-site set). One aggregated line per run instead. (#133 review)
-      def skip(subject, error, broken_controller: false)
+      def skip(subject, error)
         @degraded = true
-        (@skipped ||= []) << [ subject, error, broken_controller ]
+        # No ||= — findings sets @skipped on its first line and is this method's
+        # only reachable caller.
+        @skipped << [ subject, error ]
       end
 
       # One line per run, naming the count and the distinct causes. Broken
@@ -242,8 +291,13 @@ module CurrentScope
       def report_skipped
         return if @skipped.nil? || @skipped.empty?
 
-        broken = @skipped.select { |_s, _e, is_broken| is_broken }
-        detail = @skipped.map { |subject, error, _b| "#{subject} (#{error.class})" }.uniq.join(", ")
+        # Derived from the error class rather than carried as a per-row flag: a
+        # NameError can only arrive from inside a controller's own body, because
+        # a missing controller CONSTANT became MissingController and returned nil
+        # before this. That is the distinction GatingReflection was made public
+        # to preserve, and it needs no third tuple element to keep.
+        broken = @skipped.select { |_s, error| error.is_a?(NameError) }
+        detail = @skipped.map { |subject, error| "#{subject} (#{error.class})" }.uniq.join(", ")
 
         message = +"[CurrentScope] SodPreflight skipped #{@skipped.size} check(s), so its list " \
                    "is INCOMPLETE — absence below is not an all-clear: #{detail}."

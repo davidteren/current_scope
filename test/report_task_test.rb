@@ -245,6 +245,30 @@ class ReportTaskTest < ActiveSupport::TestCase
     assert_match(/No would-be denials recorded/, out)
   end
 
+  # The task's whole reason for being run is "can I flip to :enforce yet?", and
+  # six independently-gated sections made the reader answer that by hand. The
+  # summary must lead — and must NOT claim a clearance it cannot prove.
+  test "the report leads with a count summary, and refuses to call it a clearance (#133)" do
+    would_deny(@alice, "reports#index", count: 2)
+    sod_blind_spot(@bob, "sod_nil#approve")
+
+    out = run_task
+
+    assert_operator out.index("CurrentScope report"), :<, out.index("Would-be denials"),
+                    "the answer goes before the detail, not after six sections of it"
+    assert_match(/2\s+would-be denials/, out)
+    assert_match(/1\s+SoD blind-spot denials/, out)
+    assert_match(/survey, not a clearance/, out,
+                 "neither the ledger nor the preflight can prove it is safe to enforce; " \
+                 "claiming so would be the vacuous all-clear this repo keeps refusing")
+  end
+
+  test "the summary counts nothing when there is nothing (#133)" do
+    out = run_task
+
+    assert_match(/nothing found in any category/, out)
+  end
+
   # --- #133: the SoD-initiator sections, one static and one ledger-driven ---
 
   def sod_initiator_missing(subject, permission, model, count: 1)
@@ -299,9 +323,11 @@ class ReportTaskTest < ActiveSupport::TestCase
 
     out = run_task
 
-    assert_match(/no routed SoD action named a model missing/, out)
+    assert_match(/inspected 1 of \d+ routed SoD action/, out,
+                 "an empty list means nothing without the coverage behind it: four of the five " \
+                 "controllers routing `approve` declare no model, so they were never read")
     assert_match(/PARTIAL/, out, "the caveat must not be trapped inside the non-empty branch")
-    refute_match(/COULD NOT COMPLETE/, out, "a clean run must not claim it degraded")
+    refute_match(/COULD NOT COMPLETE/, out, "nothing FAILED here — it just had nothing to read")
   ensure
     CurrentScope.config.sod_actions = []
     CurrentScope.reset_catalog!
@@ -335,7 +361,9 @@ class ReportTaskTest < ActiveSupport::TestCase
 
     assert_match "Would-be denials", out
     assert_match(/2x\s+reports#index/, out)
-    assert_match(/RAISED in report mode/, out)
+    assert_match(/RAISED \(500s\) — NOT fixed by granting/, out,
+                 "its three sibling sections put non-fixability in the header; a reader " \
+                 "scanning headers must not have to read the Total line to learn it here")
     assert_match(/3x\s+documents#show — Invoice/, out)
     assert_match "NOT denials and granting changes nothing", out,
                  "an operator reading this next to would_deny must not try to grant their way out"
@@ -347,7 +375,7 @@ class ReportTaskTest < ActiveSupport::TestCase
     out = run_task
 
     refute_match(/Would-be denials/, out)
-    assert_match(/RAISED in report mode/, out)
+    assert_match(/RAISED \(500s\) — NOT fixed by granting/, out)
     assert_match "documents#show", out
   end
 end

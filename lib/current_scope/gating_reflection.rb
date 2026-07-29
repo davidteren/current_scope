@@ -65,6 +65,17 @@ module CurrentScope
       nil
     end
 
+    # The controller class routed at this path, or nil when none is (a stale
+    # route, a not-yet-written controller). PUBLIC because SodPreflight (#133)
+    # asks the same path→class question, and a second copy would have to
+    # reimplement the NameError triage described below — the one thing that
+    # keeps a broken controller from being reported as a clean one.
+    def controller_class(controller_path)
+      controller_class_for(controller_path)
+    rescue ActionDispatch::MissingController
+      nil
+    end
+
     private
 
     # Rails owns the path→class rule — camelize, namespacing, the Controller

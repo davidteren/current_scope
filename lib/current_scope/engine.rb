@@ -72,5 +72,29 @@ module CurrentScope
       # chain the edit just changed.
       CurrentScope::ParentChain.validate_declarations!
     end
+
+    # #133, and here for the same reason ParentChain.validate_declarations! runs
+    # on to_prepare: a deploy must not boot green and 500 on the first gated
+    # request. An SoD action whose model defines no current_scope_initiator
+    # raises per request — in :report mode too, which is where it hurts most,
+    # because report mode is what a host turns on to survey live traffic without
+    # changing anything for users.
+    #
+    # after_routes_loaded, NOT to_prepare, and that is load-bearing. The
+    # preflight reads CurrentScope.catalog, and the catalog MEMOIZES its
+    # derivation — so asking it before the routes are drawn caches an EMPTY
+    # permission set for the life of the process, and every gated request then
+    # raises "not in the permission catalog". Measured, not reasoned: the dummy
+    # app booted with 44 catalog keys and 0 with the check on to_prepare. This
+    # hook is the one place Rails guarantees the route set is complete, and it
+    # re-runs on every routes reload, so a dev edit is re-checked.
+    #
+    # Log-only, so the worst it can cost is a log line, and a no-op until a host
+    # opts into SoD (config.sod_actions defaults to []).
+    initializer "current_scope.sod_preflight" do |app|
+      app.config.after_routes_loaded do
+        CurrentScope::SodPreflight.warn!
+      end
+    end
   end
 end

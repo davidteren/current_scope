@@ -178,6 +178,89 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  # #133: report mode's other broken promise. A model with no
+  # current_scope_initiator on an SoD action does not 403 — it RAISES, and the
+  # request 500s in :report exactly as it would in :enforce. The raise is
+  # correct and stays (passing it through executes an SoD action with the veto
+  # never asked; downgrading it to a 403 dresses a misconfiguration up as an
+  # ordinary denial). What #133 fixes is that report mode now ACCOUNTS for it.
+  #
+  # sod_actions = %w[show] is deliberate and not a plausible four-eyes rule: it
+  # is the one config the dummy can express both sides of in one line, because
+  # DocumentsController declares current_scope_model = Document (no initiator)
+  # while ReportsController declares Report (has one).
+  test "report mode records and explains an SoD action with no initiator (#133)" do
+    # Captured BEFORE anything that can raise: an exception between here and the
+    # swap would leave `original` nil and the ensure below would null the logger
+    # for every test after this one.
+    original = Rails.logger
+    io = StringIO.new
+    Rails.logger = ActiveSupport::Logger.new(io)
+
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[show]
+    CurrentScope::Event.delete_all
+    # An Invoice, not a Document: documents.type is NOT NULL, so only the STI
+    # subclasses are creatable. Neither defines current_scope_initiator.
+    document = Invoice.create!(title: "Contract")
+
+    assert_difference -> { CurrentScope::Event.where(event: "access.sod_initiator_missing").count }, 1 do
+      assert_no_difference -> { CurrentScope::Event.where(event: "access.would_deny").count } do
+        assert_raises(CurrentScope::ConfigurationError) do
+          get document_url(document), headers: sign_in(@alice)
+        end
+      end
+    end
+
+    logs = io.string
+    assert_match "report-only:", logs
+    assert_match "RAISED rather than being reported", logs
+    assert_match "documents#show", logs
+    assert_match "current_scope_initiator", logs
+    assert_match "does NOT downgrade this", logs,
+                 "the operator must not be left expecting report mode to have absorbed it"
+
+    event = CurrentScope::Event.where(event: "access.sod_initiator_missing").last
+    assert_equal "documents#show", event.details["permission"]
+    # "Invoice", not the declared "Document": this row names the class the gate
+    # ACTUALLY held, which is the difference between this half of #133 and
+    # SodPreflight's. The static list reads a declaration and is a lead; a row
+    # here was produced by a real request and is a proof.
+    assert_equal "Invoice", event.details["model"],
+                 "the MODEL is the fix-carrying detail — its hook is what is missing"
+  ensure
+    Rails.logger = original
+  end
+
+  test "enforce mode raises the same way and records nothing extra (#133)" do
+    CurrentScope.config.enforcement = :enforce
+    CurrentScope.config.sod_actions = %w[show]
+    CurrentScope::Event.delete_all
+    document = Invoice.create!(title: "Contract")
+
+    assert_no_difference -> { CurrentScope::Event.where(event: "access.sod_initiator_missing").count } do
+      assert_raises(CurrentScope::ConfigurationError) do
+        get document_url(document), headers: sign_in(@alice)
+      end
+    end
+  end
+
+  # The diagnosis must ASK the resolver why, never match the exception's text.
+  # A ConfigurationError raised for a DIFFERENT reason gets no SoD row.
+  test "an unrelated ConfigurationError is not diagnosed as a missing initiator (#133)" do
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[show]
+    CurrentScope::Event.delete_all
+
+    # webhooks is excluded by config yet still includes the gate — the catalog
+    # miss raises ConfigurationError before any SoD question is asked.
+    assert_no_difference -> { CurrentScope::Event.where(event: "access.sod_initiator_missing").count } do
+      assert_raises(CurrentScope::ConfigurationError) do
+        post webhooks_url, headers: sign_in(@alice)
+      end
+    end
+  end
+
   test "report mode still reports ordinary would-be denials on non-SoD actions" do
     CurrentScope.config.enforcement = :report
     CurrentScope.config.sod_actions = %w[approve]

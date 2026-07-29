@@ -244,4 +244,69 @@ class ReportTaskTest < ActiveSupport::TestCase
     refute_match(/Worth checking/, out)
     assert_match(/No would-be denials recorded/, out)
   end
+
+  # --- #133: the SoD-initiator sections, one static and one ledger-driven ---
+
+  def sod_initiator_missing(subject, permission, model, count: 1)
+    count.times do
+      CurrentScope::Event.create!(
+        event: "access.sod_initiator_missing", subject: subject.to_gid.to_s,
+        actor: subject.to_gid.to_s, target: subject.to_gid.to_s, target_label: subject.name,
+        details: { "permission" => permission, "model" => model }
+      )
+    end
+  end
+
+  test "the static preflight section appears with ZERO ledger rows (#133)" do
+    # Same reasoning as the grant sections above: an SoD action with no
+    # initiator behind it exists BEFORE report mode is ever exercised, which is
+    # exactly when the ledger is empty. sod_actions = %w[show] is the one config
+    # the dummy expresses both sides of — DocumentsController declares
+    # current_scope_model = Document (no initiator), ReportsController declares
+    # Report (has one).
+    CurrentScope.config.sod_actions = %w[show]
+    CurrentScope.reset_catalog!
+
+    out = run_task
+
+    assert_match(/will RAISE/, out)
+    assert_match "documents#show", out
+    assert_match "Document defines no current_scope_initiator", out
+    refute_match(/reports#show/, out, "Report defines the hook — flagging it would be a false alarm")
+    assert_match(/PARTIAL/, out, "an advisory that reads as a verdict gets trusted for what it cannot prove")
+    assert_match(/No would-be denials recorded/, out)
+  ensure
+    CurrentScope.config.sod_actions = []
+    CurrentScope.reset_catalog!
+  end
+
+  test "no SoD config means no preflight section at all (#133)" do
+    CurrentScope.config.sod_actions = []
+
+    refute_match(/will RAISE/, run_task)
+  end
+
+  test "raised requests get their own section, apart from denials (#133)" do
+    would_deny(@alice, "reports#index", count: 2)
+    sod_initiator_missing(@bob, "documents#show", "Invoice", count: 3)
+
+    out = run_task
+
+    assert_match "Would-be denials", out
+    assert_match(/2x\s+reports#index/, out)
+    assert_match(/RAISED in report mode/, out)
+    assert_match(/3x\s+documents#show — Invoice/, out)
+    assert_match "NOT denials and granting changes nothing", out,
+                 "an operator reading this next to would_deny must not try to grant their way out"
+  end
+
+  test "a raised-request ledger alone still surfaces its section (#133)" do
+    sod_initiator_missing(@alice, "documents#show", "Invoice")
+
+    out = run_task
+
+    refute_match(/Would-be denials/, out)
+    assert_match(/RAISED in report mode/, out)
+    assert_match "documents#show", out
+  end
 end

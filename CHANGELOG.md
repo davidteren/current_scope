@@ -13,6 +13,38 @@ changed. Not cut yet; the README banner stays up pending the real-host
 `:enforce` bake (#116 Wave 3).
 
 ### Added
+- **A missing `current_scope_initiator` is now found before traffic finds it,
+  and accounted for when traffic does (#133).** An action listed in
+  `config.sod_actions` reaching a model that defines no `current_scope_initiator`
+  raises `CurrentScope::ConfigurationError` on every request — in
+  `config.enforcement = :report` exactly as in `:enforce`. That breaks report
+  mode's "nothing changes for users" promise at the worst moment, because the
+  host cannot see the mistake until live traffic reaches the action.
+
+  **The raise is unchanged**, and deliberately so. Letting the request through
+  would execute a separation-of-duties action with the four-eyes veto never
+  consulted, and downgrading it to a 403 would dress a misconfiguration up as an
+  ordinary denial. What changed is when a host learns about it:
+
+  - **At boot.** `CurrentScope::SodPreflight` walks `config.sod_actions` against
+    the route-derived catalog and logs one warning naming every action whose
+    controller declares a `current_scope_model` that cannot answer
+    `current_scope_initiator`. Log-only, and a no-op until a host opts into SoD
+    (`config.sod_actions` defaults to `[]`).
+  - **In the survey.** `bin/rails current_scope:report` gains two sections: the
+    static preflight list (present with zero recorded traffic) and the requests
+    that actually raised, recorded in report mode as `access.sod_initiator_missing`
+    ledger rows naming the permission and the model.
+
+  **The boot list is PARTIAL and says so in its own output.** Only controllers
+  declaring `current_scope_model` are inspected, so an action without that
+  declaration is absent rather than cleared; and the declared type names what
+  the collection lists, so a member action loading a different type is named
+  against the wrong model. This is the same limit #134 recorded: which record a
+  member action decides about comes from `current_scope_record`, whose value
+  exists only mid-request and is not statically knowable. The ledger rows are
+  the proof the boot list cannot be.
+
 - **Unresolvable scoped grants are surfaced before the enforce flip (#134).**
   `bin/rails current_scope:report` and the role members view now separate a
   grant that **cannot match** (proven: the role ticks nothing, or only unrouted
@@ -97,6 +129,17 @@ changed. Not cut yet; the README banner stays up pending the real-host
   collection actions in `sod_actions` as no-ops (bulk recipe), `full_access`
   holding break-glass bypass, and that advisory `allowed_to?` never consults
   the catalog.
+
+### Fixed
+- **Boot could crash validating a declared parent chain (#108, found while
+  building #133).** `ParentChain.validate_declarations!` iterated its registry
+  of declaring models while resolving each reflection, and resolving one
+  autoloads the parent model — whose own `current_scope_parent` declaration
+  registers it, mutating the collection mid-walk. Ruby answers that with
+  `RuntimeError: can't add a new key into hash during iteration`, raised out of
+  `to_prepare`, so any host whose declared chain points at another declaring
+  model could crash on boot or on a development reload. It now walks a snapshot;
+  a model that registers mid-walk is validated on the next pass.
 
 ## [0.4.0] - 2026-07-23
 

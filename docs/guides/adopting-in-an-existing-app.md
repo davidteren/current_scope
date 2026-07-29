@@ -280,7 +280,9 @@ different seams and can run side by side:
 
 A workable order:
 
-1. Turn on `Context` + `Guard` in **report mode**. Nothing changes for users.
+1. Turn on `Context` + `Guard` in **report mode**. Nothing changes for users,
+   with three named exceptions the ladder below spells out: `model_undeclared`,
+   the separation-of-duties blind spot, and a missing `current_scope_initiator`.
 2. Seed roles from `current_scope:report` until the list is empty.
 3. Flip to `:enforce`. Both systems now run; the gate admits, your policies still
    decide records.
@@ -328,7 +330,9 @@ correct. See [Dev diagnostics](configuration-reference.md#dev-diagnostics).
 
 ## A rollout ladder
 
-Roughly in order. Steps 1–3 change nothing for users.
+Roughly in order. Steps 1–3 change nothing for users, except for the three
+outcomes step 3 names — report mode refuses to downgrade a `model_undeclared`
+403, a separation-of-duties blind-spot 403, and a missing-initiator 500.
 
 1. **Install, mount, and set `config.enforcement = :report`.** Fix the callback
    ordering above; add your Devise/engine skips + exclusions.
@@ -344,6 +348,34 @@ Roughly in order. Steps 1–3 change nothing for users.
    `no_grant`, and only `no_grant` is downgraded), and the dev nudge names it
    in the log. So watch for a `403` carrying `X-Current-Scope-Reason:
    model_undeclared` and the log line, not a `current_scope:report` row.
+
+   Two more report-mode outcomes belong on this step, because both land in live
+   traffic and neither is fixed by granting (#132):
+
+   **The separation-of-duties blind spot — a 403 report mode keeps.** When a
+   gated action is listed in `config.sod_actions` and `current_scope_record`
+   returns `nil` (or something that is not a record), the veto has no record to
+   measure and cannot run. Report mode refuses to downgrade that denial: the
+   subject could be the very person who raised the record, and nobody asked. The
+   reason header still reads `no_grant`, but granting the permission will never
+   clear it — the record hook is the fix. The engine logs the cause, writes an
+   `access.sod_blind_spot` ledger row, and `bin/rails current_scope:report`
+   prints these under their own heading. See also
+   [Limitations](../site/limitations.md).
+
+   **A missing `current_scope_initiator` — a 500 report mode keeps.** When an
+   SoD-listed action reaches a model that defines no `current_scope_initiator`,
+   the engine raises `CurrentScope::ConfigurationError` rather than guess at the
+   veto, and the request returns 500 — under `:report` exactly as under
+   `:enforce`. This is the intended fail-loud contract for a misconfiguration,
+   and it is the one outcome that can look like an outage during a survey, so
+   audit `config.sod_actions` against your models **before** you turn report mode
+   on. Since #133 you do not have to do that by hand: the engine logs a preflight
+   warning **at boot** naming every SoD action whose declared model cannot answer
+   the hook, and `bin/rails current_scope:report` lists them too, alongside the
+   requests that actually raised (`access.sod_initiator_missing` rows). Read the
+   boot list as a lead rather than a verdict — it can only inspect controllers
+   that declare `current_scope_model`, and it says so in its own output.
 4. **Flip one namespace to `:enforce`?** You can't — enforcement is global. What
    you *can* do is watch `current_scope:report` empty out and flip once. If you
    want a narrower blast radius, roll out `Guard` itself one base controller at a

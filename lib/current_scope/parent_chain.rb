@@ -137,8 +137,21 @@ module CurrentScope
       # declaring class is registered. In development it can only see the
       # classes loaded so far, which is the same partial-coverage bargain the
       # permission catalog already makes, and it is stated rather than implied.
+      #
+      # Iterates a SNAPSHOT, and that is load-bearing rather than defensive:
+      # validate_key! resolves reflection.klass, which AUTOLOADS the parent
+      # model, and a parent that declares a chain of its own registers itself
+      # from its class body — mutating the very Set being iterated. Ruby answers
+      # that with "can't add a new key into hash during iteration", i.e. a
+      # RuntimeError out of to_prepare on any host whose declared chain points at
+      # another declaring model. The dummy's Report -> Project is exactly that
+      # shape; it surfaced while pinning #133's boot hook.
+      #
+      # A class registered mid-pass is therefore not validated in THIS pass. That
+      # is the partial-coverage bargain above, unchanged: production has eager
+      # loaded before this runs, and development re-validates on the next reload.
       def validate_declarations!
-        declared_names.each do |name|
+        declared_names.to_a.each do |name|
           klass = name.safe_constantize
           next if klass.nil?
 

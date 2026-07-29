@@ -44,6 +44,11 @@ namespace :current_scope do
       # Surface them as a separate section so the survey is complete.
       blind_rows = CurrentScope::Event.where(event: "access.sod_blind_spot")
                                       .pluck(:subject, :target_label, :details)
+      # #133: an SoD action whose model defines no current_scope_initiator did
+      # not 403 — it RAISED. Its own section, because it is the one report-mode
+      # outcome that is a 500, and neither granting nor the record hook fixes it.
+      initiator_rows = CurrentScope::Event.where(event: "access.sod_initiator_missing")
+                                          .pluck(:subject, :target_label, :details)
     rescue ActiveRecord::StatementInvalid => e
       # Report mode without the migration records nothing (the ledger degrades and
       # warns once). Reaching for this summary is exactly how a host discovers
@@ -61,6 +66,12 @@ namespace :current_scope do
     # find_each, not a full load: a host's grants table can be large and this is
     # a scan. Verdict computed once and handed to the advisory, which would
     # otherwise recompute it (and re-query role_permissions) per grant.
+    # #133: static too, and for the same reason the grant scans are — an SoD
+    # action with no initiator behind it exists before report mode is ever
+    # exercised, which is exactly when the ledger is empty. Never raises; it
+    # degrades to no findings and logs.
+    preflight_rows = CurrentScope::SodPreflight.findings
+
     dead_grants = []
     untargeted_grants = []
     begin
@@ -105,7 +116,7 @@ namespace :current_scope do
 
     # Still the ledger guard, but it no longer RETURNS: the two sections below
     # are derived from the grants table, not the ledger. (#134)
-    if rows.empty? && blind_rows.empty?
+    if rows.empty? && blind_rows.empty? && initiator_rows.empty?
       # "No output" is indistinguishable from "the task is broken", and the two
       # likeliest causes are both SILENT: report mode never on, or audit off.
       # Name them — this is the first thing a host runs, and an unexplained blank
@@ -124,7 +135,7 @@ namespace :current_scope do
       # would hide them in that case. The config explanation above still prints,
       # because "nothing was recorded" stays true and unexplained silence is how
       # a host concludes the feature does not work. (#134)
-      puts if dead_grants.any? || untargeted_grants.any?
+      puts if dead_grants.any? || untargeted_grants.any? || preflight_rows.any?
     end
 
     # ponytail: group in Ruby, not SQL. `details` is a JSON column and querying
@@ -179,14 +190,54 @@ namespace :current_scope do
       puts "  #{CurrentScope::GrantDiagnosis.untargeted_caveat}"
     end
 
-    unless blind_rows.empty?
+    unless preflight_rows.empty?
       puts if rows.any? || dead_grants.any? || untargeted_grants.any?
+      puts "Separation-of-duties actions that will RAISE (500) — not a denial, a misconfiguration:"
+      puts
+      preflight_rows.each do |permission, model|
+        puts "    #{permission} — #{model.name} defines no " \
+             "#{CurrentScope::Resolver::INITIATOR_METHOD}"
+      end
+      puts
+      puts "  Define #{CurrentScope::Resolver::INITIATOR_METHOD} on each model listed (return nil " \
+           "to exempt a record), or remove the action from config.sod_actions. Report mode does " \
+           "NOT downgrade these — the request 500s exactly as it would under :enforce."
+      puts
+      puts "  #{CurrentScope::SodPreflight.caveat}"
+    end
+
+    unless blind_rows.empty?
+      puts if rows.any? || dead_grants.any? || untargeted_grants.any? || preflight_rows.any?
       puts "SoD blind-spot denials — NOT fixed by granting (declare current_scope_record):"
       puts
       print_permission_counts.call(blind_rows)
       puts
       puts "Total: #{blind_rows.count} blind-spot 403(s). Granting these permissions will not " \
            "clear them — fix the record hook (or remove the action from config.sod_actions)."
+    end
+
+    # #133: the traffic-found half. The static section above catches these only
+    # where a controller declares current_scope_model; these rows are the ones
+    # that reached a real request first, so they name the model the gate ACTUALLY
+    # held — a proof where the static list is a lead.
+    unless initiator_rows.empty?
+      puts if rows.any? || dead_grants.any? || untargeted_grants.any? ||
+              preflight_rows.any? || blind_rows.any?
+      puts "SoD actions that RAISED in report mode — a missing current_scope_initiator (500s):"
+      puts
+      initiator_rows
+        .group_by { |_s, _l, details| details.is_a?(Hash) ? [ details["permission"], details["model"] ] : nil }
+        .transform_values(&:count)
+        .sort_by { |pair, count| [ -count, pair.to_a.map(&:to_s) ] }
+        .each do |pair, count|
+          permission, model = pair
+          puts "    #{count.to_s.rjust(5)}x  #{permission || '(unknown)'} — " \
+               "#{model || '(unknown model)'}"
+        end
+      puts
+      puts "Total: #{initiator_rows.count} raised request(s). These are NOT denials and granting " \
+           "changes nothing — define #{CurrentScope::Resolver::INITIATOR_METHOD} on each model " \
+           "listed (return nil to exempt a record), or remove the action from config.sod_actions."
     end
   end
 

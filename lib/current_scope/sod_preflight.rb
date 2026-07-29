@@ -63,48 +63,57 @@ module CurrentScope
       # Free for the default config: sod_actions is [] until a host opts in, and
       # nothing here touches a controller until it is not.
       def scan
-        return Result.new(rows: [], inspected: 0, in_scope: 0, skipped: []) if
-          CurrentScope.config.sod_actions.empty?
-
-        reflection = CurrentScope::GatingReflection.new
-        models = {}
+        rows = []
         skipped = []
         inspected = 0
         in_scope = 0
 
-        rows = sod_permissions.filter_map do |controller, permission|
-          in_scope += 1
-          model = models.fetch(controller) {
-            models[controller] = declared_model_for(controller, reflection, skipped)
-          }
-          next if model.nil?
+        unless CurrentScope.config.sod_actions.empty?
+          begin
+            reflection = CurrentScope::GatingReflection.new
+            models = {}
 
-          inspected += 1
-          next if defines_initiator?(model, skipped)
+            sod_permissions.each do |controller, permission|
+              in_scope += 1
+              model = models.fetch(controller) {
+                models[controller] = declared_model_for(controller, reflection, skipped)
+              }
+              next if model.nil?
 
-          [ permission, model ]
+              inspected += 1
+              next if defines_initiator?(model, skipped)
+
+              rows << [ permission, model ]
+            end
+          rescue StandardError => e
+            # An advisory must never be the thing that breaks a boot.
+            #
+            # NoMethodError re-raises, matching GrantDiagnosis: at THIS level it
+            # can only be our own bug. Every call into host code — building the
+            # controller, reading the hook, instantiating the model — is wrapped
+            # by the two helpers below, which own those failures and never let
+            # them reach here. So a NoMethodError that escapes to this line came
+            # from the catalog walk or the loop, i.e. from us, and swallowing it
+            # would report a gem bug as a host misconfiguration. The helpers
+            # deliberately do NOT copy this re-raise: a hook reading `params` on
+            # a request-less controller raises NoMethodError, and that is the
+            # single likeliest host failure here — exactly what they must
+            # absorb. (The sibling can rescue narrowly throughout because it
+            # calls no host code at all.)
+            raise if e.instance_of?(NoMethodError)
+
+            # KEEP WHAT WAS FOUND. `rows` is built outside the begin precisely so
+            # a failure partway through cannot discard the findings already
+            # collected — in a large app one bad controller would otherwise hide
+            # every earlier SoD miss from both surfaces, which is the exact case
+            # this check exists to surface. The run is still marked as skipped,
+            # so an incomplete list never reads as a clean one. (#133 review —
+            # cubic)
+            skipped << [ "the scan itself", e ]
+          end
         end
 
         Result.new(rows: rows, inspected: inspected, in_scope: in_scope, skipped: skipped)
-      rescue StandardError => e
-        # An advisory must never be the thing that breaks a boot.
-        #
-        # NoMethodError re-raises, matching GrantDiagnosis: at THIS level it can
-        # only be our own bug. Every call into host code — building the
-        # controller, reading the hook, instantiating the model — is wrapped by
-        # the two helpers below, which own those failures and never let them
-        # reach here. So a NoMethodError that escapes to this line came from the
-        # catalog walk or the loop, i.e. from us, and swallowing it would report
-        # a gem bug as a host misconfiguration. The helpers deliberately do NOT
-        # copy this re-raise: a hook reading `params` on a request-less
-        # controller raises NoMethodError, and that is the single likeliest host
-        # failure here — exactly what they must absorb. (The sibling can rescue
-        # narrowly throughout because it calls no host code at all.)
-        raise if e.instance_of?(NoMethodError)
-
-        # A whole run that died is a run that proves nothing: report it as one
-        # skipped check so the Result reads blind rather than clean.
-        Result.new(rows: [], inspected: 0, in_scope: 0, skipped: [ [ "the scan itself", e ] ])
       end
 
       # One message listing every action that will raise, plus the coverage

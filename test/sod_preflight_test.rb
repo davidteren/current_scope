@@ -212,6 +212,33 @@ class SodPreflightTest < ActiveSupport::TestCase
     Document.send(:remove_method, :respond_to_missing?)
   end
 
+  # cubic: the top-level rescue used to return a fresh empty Result, so a failure
+  # partway through the walk discarded every finding collected before it. In a
+  # large app one bad controller would hide every earlier SoD miss from both
+  # surfaces — the exact case this check exists to surface.
+  test "a failure partway through the walk keeps what was already found (#133)" do
+    CurrentScope.config.sod_actions = %w[show]
+    singleton = CurrentScope::SodPreflight.singleton_class
+    original = CurrentScope::SodPreflight.method(:declared_model_for)
+    # `slug_reports` sorts after `documents`, so documents#show is already
+    # collected when this blows up. Raising from declared_model_for (rather than
+    # inside it) is what escapes the helper's own rescue and reaches the walk.
+    singleton.define_method(:declared_model_for) do |path, reflection, skipped|
+      raise "blew up mid-walk" if path == "slug_reports"
+
+      original.call(path, reflection, skipped)
+    end
+
+    result = CurrentScope::SodPreflight.scan
+
+    assert_includes result.rows.map(&:first), "documents#show",
+                    "findings collected before the failure must survive it"
+    assert result.degraded?, "and the run must still say it is incomplete"
+  ensure
+    singleton.define_method(:declared_model_for, original)
+    singleton.send(:private, :declared_model_for)
+  end
+
   # The model half of the degrade path. defines_initiator? answers TRUE when it
   # cannot tell, which CLEARS the model — so an uninstantiable model (no database
   # connection during an asset precompile, a custom initialize) silently reads as

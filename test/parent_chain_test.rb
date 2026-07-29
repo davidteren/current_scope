@@ -343,8 +343,25 @@ class ParentChainTest < ActiveSupport::TestCase
                     "silently does nothing for the rows it was meant to cover"
     assert_includes visible, collides,
                     "and an unrelated record IS reachable, purely because its foreign-key value " \
-                    "collides with the granted parent's id. That is the fail-open half, and it " \
-                    "is why validate_key! raises instead of warning"
+                    "collides with the granted parent's id"
+
+    # AND IT IS NOT A LIST COSMETIC. Since #65 the record-less gate for a
+    # collection_read_action IS scope_for(...).exists?, so the wrong rows do not
+    # merely render — they OPEN the gate for a subject holding no grant on this
+    # type at all. That is the fail-open half, and it is why validate_key!
+    # raises rather than warns.
+    assert_includes CurrentScope.config.collection_read_actions, "index",
+                    "the next assertion only means something while index is a listed read"
+    assert CurrentScope.resolver.allow?(
+      subject: subject, permission: "custom_key_reports#index", record: nil, model: klass
+    ), "the collection-read GATE opens off the colliding row"
+
+    # The per-record gate is NOT affected: ancestors_for walks the association,
+    # which Rails resolves using the declared primary_key correctly. Pinned so
+    # the blast radius stays honest in both directions.
+    refute CurrentScope.resolver.allow?(
+      subject: subject, permission: "custom_key_reports#show", record: collides
+    ), "the member gate walks the association and is unaffected — do not overstate this bug"
   ensure
     # The macro registered this class; leaving it in the shared registry makes
     # every later validate_declarations! walk a name that no longer resolves.

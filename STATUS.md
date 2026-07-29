@@ -5,11 +5,12 @@
 > **This is:** CurrentScope, a Rails authorization engine (gem `current_scope`,
 > 0.4.0 published) being driven to a "solid v1" bar so the README's
 > not-production-ready banner can come down.
-> **What we finished:** #133 is built — the engine now warns at boot about an
+> **What we finished:** #133 shipped (`c68feaf`) — the engine now warns, as soon
+> as the routes load, about an
 > SoD action whose model has no `current_scope_initiator`, and records the ones
 > traffic finds. It also uncovered and fixed a boot crash in #108's chain
 > validation.
-> **What you do next:** review the #133 branch, then flip one real host to
+> **What you do next:** flip one real host to
 > `:report` and on to `:enforce`. That bake is the last thing before the banner
 > drops, and only a human can do it.
 
@@ -28,8 +29,8 @@
 > enforced, because that is the claim the banner makes.
 >
 > **[#133](https://github.com/davidteren/current_scope/issues/133) sat ON this
-> path, and is now BUILT** (branch `feat/sod-initiator-preflight`, not yet
-> merged). Report mode is the bake's FIRST phase, and #133 was a live-traffic
+> path, and SHIPPED** (`c68feaf`). Report mode is the bake's FIRST phase, and
+> #133 was a live-traffic
 > 500 in report mode: a model reached by an SoD action with no
 > `current_scope_initiator` raises for every subject.
 >

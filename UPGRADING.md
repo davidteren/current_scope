@@ -75,6 +75,20 @@ models something else had already loaded. In production that is close to none,
 so the check could be skipped entirely for the model that needed it. It now also
 runs after eager loading, where the registry is complete.
 
+**Where it still does not look.** That second pass is gated on
+`config.eager_load`, because with eager loading off it would autoload reloadable
+models during initialization — which Rails warns against, and which pins
+constants the first reload then makes stale. So:
+
+| `config.eager_load` | Coverage |
+|---|---|
+| `true` (production, staging by default) | every declaring model is validated at boot |
+| `false` (development, test, and any environment that turns it off) | only models already loaded when `to_prepare` runs — which grows across reloads, but is never a guarantee |
+
+If you deploy an environment with `eager_load = false`, this check does **not**
+protect it. That is the same partial-coverage bargain the permission catalog
+makes, and it is stated rather than implied.
+
 ### Why it is worth a broken deploy
 
 An unvalidated chain of this shape does not fail safely. `scope_for` joins the

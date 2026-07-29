@@ -81,10 +81,16 @@ module CurrentScope
       # ungated task already follows.
       def degraded? = !!@degraded
 
-      # One message at boot listing every action that will raise. Log-only.
+      # One message listing every action that will raise. Log-only.
       def warn!
         rows = findings
-        return if rows.empty?
+        # Silence is only honest when the run was CLEAN. A container that boots
+        # before its database is reachable fails every model check, finds
+        # nothing, and would otherwise say nothing at all — the vacuous
+        # all-clear, on the one surface a host reads at deploy time. The report
+        # task already refuses that; so does this. (#133 review)
+        return if rows.empty? && !degraded?
+        return Rails.logger&.warn(blind_message) if rows.empty?
 
         listed = rows.map { |permission, model|
           "  #{permission} — #{model.name} defines no #{Resolver::INITIATOR_METHOD}"
@@ -95,8 +101,7 @@ module CurrentScope
           "raise CurrentScope::ConfigurationError on the first request that reaches them — in " \
           "config.enforcement = :report exactly as in :enforce.\n" \
           "#{listed.join("\n")}\n" \
-          "Fix: define #{Resolver::INITIATOR_METHOD} on each model listed (return nil to exempt " \
-          "a record), or remove the action from config.sod_actions.\n#{caveat}"
+          "#{fix_line}\n#{caveat}"
         )
       end
 
@@ -105,18 +110,41 @@ module CurrentScope
       # into different versions of the same hedge (the drift #134 fixed for the
       # untargeted-grant caveat).
       def caveat
-        "This list is PARTIAL, in four ways. Only controllers that declare " \
-        "current_scope_model are inspected, so an action on a controller without that " \
-        "declaration is ABSENT here rather than cleared. The declared type names what " \
-        "the COLLECTION lists, so a member action loading a different type is named " \
-        "against the wrong model. The hook is read with no action in progress, so a " \
-        "current_scope_model that branches on action_name is answered from whichever " \
-        "branch a nil action_name takes. And a model that cannot be instantiated here " \
-        "(no database connection yet, a custom initialize) is passed over rather than " \
-        "flagged. Read it as a lead, not a verdict."
+        "This list is PARTIAL — read it as a lead, not a verdict. It can be silent when it " \
+        "should not be: a controller that declares no current_scope_model is never inspected " \
+        "(ABSENT here is not cleared), and a model that cannot be instantiated right now (no " \
+        "database connection yet, a custom initialize) is passed over. It can also name the " \
+        "wrong thing: the declared type is what the COLLECTION lists, so a member action " \
+        "loading a different type is named against the wrong model; the declaration is read " \
+        "with no action in hand, so a current_scope_model that branches on action_name answers " \
+        "from its nil-action branch; and an action that turns out to be a COLLECTION action at " \
+        "runtime can never reach the veto at all, so a finding against one is a false alarm. " \
+        "Confirm against the model before you change config.sod_actions."
       end
 
       private
+
+      # The two remedies are NOT coequal here, and this message must not present
+      # them as if they were. Defining the hook restores a control; removing the
+      # action from config.sod_actions DELETES a fraud control. On the raise in
+      # Resolver#sod_decision the cause is proven, so offering both plainly is
+      # right. This list can be wrong — it reads a declaration, not the record —
+      # so leading with "or just turn the veto off" invites a host to disable
+      # four-eyes on a false accusation. Lead with the hook; qualify the rest.
+      # (#133 review)
+      def fix_line
+        "Fix: define #{Resolver::INITIATOR_METHOD} on each model listed (return nil to exempt a " \
+        "record). Only if the action was never meant to be four-eyes gated should you remove it " \
+        "from config.sod_actions — that removes the control rather than wiring it, so confirm " \
+        "the finding first."
+      end
+
+      def blind_message
+        "[CurrentScope] separation-of-duties preflight COULD NOT COMPLETE — it found nothing, " \
+        "and it was not able to look properly, so do NOT read that as an all-clear. The skipped " \
+        "checks are logged above. Re-run `rails current_scope:report` once the app is fully " \
+        "up.\n#{caveat}"
+      end
 
       # [[controller_path, permission], ...] for every ROUTED SoD action.
       #

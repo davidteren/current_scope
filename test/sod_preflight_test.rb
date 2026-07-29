@@ -151,6 +151,33 @@ class SodPreflightTest < ActiveSupport::TestCase
     scopeable&.each { |name| CurrentScope.register_scopeable(name) }
   end
 
+  # THE FEATURE'S HEADLINE HALF WAS UNPINNED. Every test above exercises the
+  # module; none asserted the engine ever CALLS it. A reviewer deleted the whole
+  # `initializer "current_scope.sod_preflight"` block and ran the suite: 724
+  # runs, 0 failures. So a bad merge — or a Rails change to when
+  # :after_routes_loaded fires — could remove the boot warning entirely and
+  # every test would still pass. Two assertions: the wiring exists, and firing
+  # the hook actually produces the warning.
+  test "the engine wires the preflight to the routes-loaded hook (#133)" do
+    assert_includes Rails.application.initializers.map(&:name),
+                    "current_scope.sod_preflight",
+                    "the boot half of #133 is this initializer; without it the feature is " \
+                    "a module nobody calls"
+  end
+
+  test "firing the routes-loaded hook emits the preflight warning (#133)" do
+    CurrentScope.config.sod_actions = %w[show]
+
+    logs = capture_warn_log do
+      ActiveSupport.run_load_hooks(:after_routes_loaded, Rails.application)
+    end
+
+    assert_match "separation-of-duties preflight", logs,
+                 "the registered hook must actually reach warn! — asserting the initializer " \
+                 "exists proves it was registered, not that it does anything"
+    assert_match "documents#show", logs
+  end
+
   # The model half of the degrade path. defines_initiator? answers TRUE when it
   # cannot tell, which CLEARS the model — so an uninstantiable model (no database
   # connection during an asset precompile, a custom initialize) silently reads as
@@ -168,6 +195,38 @@ class SodPreflightTest < ActiveSupport::TestCase
            "the operator has to be able to tell this list is incomplete"
   ensure
     Document.singleton_class.send(:remove_method, :new)
+  end
+
+  # Silence is only honest when the run was clean. A container that boots before
+  # its database is reachable fails every check, finds nothing, and would
+  # otherwise print nothing at all — a vacuous all-clear on the surface a host
+  # reads at deploy time.
+  test "warn! speaks when it found nothing BECAUSE it could not look (#133)" do
+    CurrentScope.config.sod_actions = %w[show]
+
+    Document.define_singleton_method(:new) { |*| raise "no connection" }
+    Report.define_singleton_method(:new) { |*| raise "no connection" }
+
+    logs = capture_warn_log { CurrentScope::SodPreflight.warn! }
+
+    assert_match(/COULD NOT COMPLETE/, logs)
+    assert_match(/do NOT read that as an all-clear/, logs)
+  ensure
+    Document.singleton_class.send(:remove_method, :new)
+    Report.singleton_class.send(:remove_method, :new)
+  end
+
+  # The two remedies are not coequal on a list that can be wrong: defining the
+  # hook wires a control, removing the action DELETES one.
+  test "the fix line leads with the hook, not with disabling the veto (#133)" do
+    CurrentScope.config.sod_actions = %w[show]
+
+    logs = capture_warn_log { CurrentScope::SodPreflight.warn! }
+
+    assert_operator logs.index("define current_scope_initiator"), :<,
+                    logs.index("remove it from config.sod_actions"),
+                    "an advisory that can be wrong must not offer turning off four-eyes first"
+    assert_match(/removes the control rather than wiring it/, logs)
   end
 
   test "a clean run does not report itself as degraded (#133)" do

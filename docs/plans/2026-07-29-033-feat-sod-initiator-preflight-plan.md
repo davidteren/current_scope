@@ -190,6 +190,9 @@ component owns is #74's defect, and this repo has paid for it three times.
 | A NoMethodError from our own code re-raises rather than degrading | same |
 | An empty preflight still prints, and says whether it was clean or blind | `test/report_task_test.rb` |
 | A failed ledger write names the RAISED outcome, not an allow or a deny | `test/integration/report_only_test.rb` |
+| The engine actually WIRES the preflight, and firing the hook warns | `test/sod_preflight_test.rb` |
+| A blind run speaks instead of printing nothing | same |
+| The fix line leads with the hook, not with disabling the veto | same |
 
 Mutations re-run red before shipping: `sod_initiator_missing?` forced to
 `false`; the `report_only?` guard removed from the diagnosis; the boot hook moved
@@ -223,8 +226,21 @@ and a plan that reads as if it arrived correct teaches the next reader nothing.
   like a check that came back clean.
 - **Per-controller degrade logging would flood** the multi-tenant host it is
   meant to help; it aggregates into one line per run now.
+- **The feature's headline half was unpinned.** A reviewer deleted the entire
+  `initializer "current_scope.sod_preflight"` block and the suite stayed green,
+  so a bad merge could have removed the boot warning silently. Two pins now:
+  the initializer is registered, and firing `:after_routes_loaded` reaches
+  `warn!`.
+- **`warn!` stayed silent when every check had failed** — the same vacuous
+  all-clear the report task had just been taught to refuse, left standing on the
+  surface a host reads at deploy time.
+- **The fix line offered "remove the action from `config.sod_actions`" as a
+  coequal remedy.** On a list that can be wrong, that invites a host to delete a
+  fraud control on a false accusation. It leads with the hook now and qualifies
+  the removal. The raise in `Resolver#sod_decision` still offers both plainly —
+  there the cause is proven.
 
-Suite after the review pass: **725 unit + 28 system green, RuboCop clean**,
+Suite after the review pass: **729 unit + 28 system green, RuboCop clean**,
 stable across seeds.
 
 ## What this does not do

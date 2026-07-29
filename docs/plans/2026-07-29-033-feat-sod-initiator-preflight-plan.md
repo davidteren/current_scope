@@ -256,8 +256,16 @@ and a plan that reads as if it arrived correct teaches the next reader nothing.
 - **The `ParentChain` snapshot deferred work to a pass that does not exist.**
   cubic caught that a model registering mid-walk waited for "a later pass",
   which production never runs. It validates in waves now.
+- **It instantiated a host model for every declared type, just to ask whether a
+  method exists.** The class answers identically for every real spelling of that
+  hook, so a compliant model is never built; an instance is only constructed for
+  a model the scan is about to NAME, where the class/instance divergence could
+  otherwise produce a false accusation.
+- **One failing controller erased every finding before it.** The top-level
+  rescue returned a fresh empty Result; rows are accumulated outside the begin
+  now, so a partial list survives and is still marked incomplete.
 
-Suite after the review pass: **734 unit + 28 system green, RuboCop clean**,
+Suite after the review pass: **737 unit + 28 system green, RuboCop clean**,
 stable across seeds.
 
 ## What this does not do

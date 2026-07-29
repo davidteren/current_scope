@@ -94,17 +94,26 @@ module CurrentScope
     # numeric custom key that collision space is dense. See the
     # characterization test in test/parent_chain_test.rb.
     #
-    # Gated on eager_load, which is the whole point: where it is on, the registry
-    # is complete and nothing here autoloads. Where it is off (development), the
-    # registry is partial anyway and running this would autoload reloadable
-    # constants during initialization — the thing Rails tells you not to do, and
-    # which pins constants that the first reload then makes stale. Development
-    # keeps the to_prepare pass, which re-runs and catches up.
+    # Gated on eager_load, which is the whole point: where it is on, declaring
+    # models that were eager-loaded are already in the registry, so this pass
+    # does not walk the autoloader looking for *new* declarers. Where it is off
+    # (development), the registry is partial anyway and running this would
+    # safe_constantize reloadable names during initialization — the thing Rails
+    # tells you not to do, and which pins constants that the first reload then
+    # makes stale. Development keeps the to_prepare pass, which re-runs and
+    # catches up.
+    #
+    # Residual autoload of association TARGETS still exists: validate_key!
+    # resolves reflection.klass, so a parent model kept off the eager-load
+    # surface can load on first validation. That is the same partial-coverage
+    # bargain as do_not_eager_load for declaring models, and it is named in
+    # UPGRADING.md rather than implied away by "nothing here autoloads".
+    #
     # after_initialize (not after: :eager_load!) so we sit in the same finisher
     # window as other boot checks. Order among after_initialize blocks is
     # registration order: a host that first loads a declaring model from a
-    # *later* after_initialize still misses this pass — same residual as
-    # do_not_eager_load, documented in UPGRADING.md.
+    # *later* after_initialize still misses this pass — same residual family,
+    # documented in UPGRADING.md.
     config.after_initialize do |app|
       CurrentScope::ParentChain.validate_declarations! if app.config.eager_load
     end

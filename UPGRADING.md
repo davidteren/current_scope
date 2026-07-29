@@ -90,10 +90,18 @@ Models excluded from eager load (`do_not_eager_load`, paths outside
 request path re-runs this check. The same is true of a model first loaded from
 a host `after_initialize` block that runs *after* this engine's pass (callback
 order among `after_initialize` blocks is registration order, not "after every
-host hook"). If you deploy with `eager_load = false`, or keep declaring models
-off the eager-load surface, this check does **not** fully protect you. That is
-the same partial-coverage bargain the permission catalog makes, and it is
-stated rather than implied.
+host hook").
+
+When the pass *does* run, `validate_key!` resolves `reflection.klass` on each
+declaring model's parent association. A parent type kept off the eager-load
+surface can still be autoloaded at that moment so the primary-key comparison
+can run. That is intentional (skipping it would leave the dangerous chain
+unchecked) and only bites hosts with a partial eager-load surface.
+
+If you deploy with `eager_load = false`, or keep declaring models (or their
+parent types) off the eager-load surface, this check does **not** fully protect
+you without that residual load. That is the same partial-coverage bargain the
+permission catalog makes, and it is stated rather than implied.
 
 ### Why it is worth a broken deploy
 

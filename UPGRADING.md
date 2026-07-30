@@ -51,6 +51,80 @@ the migration toolkit. No intended host API break. Boot now **raises** if
 `sod_bypass_permission` is listed in `sod_actions` (#40) instead of 500ing on
 the first real bypass.
 
+## 0.4 → 0.5: a mis-declared `current_scope_parent` now fails the deploy (#139)
+
+**If your app boots today and stops booting after upgrading**, you have a
+`current_scope_parent` declared on a `belongs_to` with a custom `primary_key:`.
+That was already broken; it was just never checked. The error names the model
+and the association.
+
+```ruby
+# The shape that now refuses to boot:
+class Report < ApplicationRecord
+  belongs_to :project, primary_key: :slug, foreign_key: :project_slug
+  current_scope_parent :project        # <- refused
+end
+```
+
+### What changed
+
+The check itself is not new — `ParentChain.validate_declarations!` has always
+refused this. What changed is **when it runs**. It used to run only from
+`to_prepare`, which railties executes *before* eager loading, so it saw only the
+models something else had already loaded. In production that is close to none,
+so the check could be skipped entirely for the model that needed it. It now also
+runs after eager loading, where the registry is complete.
+
+**Where it still does not look.** That second pass is gated on
+`config.eager_load`, because with eager loading off it would autoload reloadable
+models during initialization — which Rails warns against, and which pins
+constants the first reload then makes stale. So:
+
+| `config.eager_load` | Coverage |
+|---|---|
+| `true` (production, staging by default) | every declaring model that was **eager-loaded** (and thus registered) is validated at boot |
+| `false` (development, test, and any environment that turns it off) | only models already loaded when `to_prepare` runs — which grows across reloads, but is never a guarantee |
+
+Models excluded from eager load (`do_not_eager_load`, paths outside
+`eager_load_paths`) still register only when first loaded, and nothing on the
+request path re-runs this check. The same is true of a model first loaded from
+a host `after_initialize` block that runs *after* this engine's pass (callback
+order among `after_initialize` blocks is registration order, not "after every
+host hook").
+
+When the pass *does* run, `validate_key!` resolves `reflection.klass` on each
+declaring model's parent association. A parent type kept off the eager-load
+surface can still be autoloaded at that moment so the primary-key comparison
+can run. That is intentional (skipping it would leave the dangerous chain
+unchecked) and only bites hosts with a partial eager-load surface.
+
+If you deploy with `eager_load = false`, or keep declaring models (or their
+parent types) off the eager-load surface, this check does **not** fully protect
+you without that residual load. That is the same partial-coverage bargain the
+permission catalog makes, and it is stated rather than implied.
+
+### Why it is worth a broken deploy
+
+An unvalidated chain of this shape does not fail safely. Both the collection
+query (`scope_for`) and the unloaded member walk (`load_parent`) key the parent
+on its **primary key**, so they compare values from two different columns. The
+result is wrong in both directions on both surfaces:
+
+- records the grant *should* reach are **not** returned / denied, and
+- unrelated records **are** returned / allowed whenever their foreign-key value
+  collides with a granted parent's id — with a numeric custom key, a dense
+  collision space.
+
+That second half is a subject seeing (and opening) records nobody granted them.
+Failing the deploy is the correct outcome; the alternative is continuing to
+serve wrong authorization answers quietly.
+
+### If you need to ship right now
+
+Remove the `current_scope_parent` declaration to restore the previous
+behaviour (flat matching, no chain), fix the association to key on the primary
+key, and re-declare.
+
 ## Related silent-security docs (not version-specific)
 
 - Collection actions in `sod_actions` are **no-ops** for the veto (no record →

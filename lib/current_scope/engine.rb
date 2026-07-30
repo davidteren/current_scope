@@ -67,15 +67,55 @@ module CurrentScope
       # truncation warning would hide the one the edit just created.
       CurrentScope::ParentChain.reset_warnings!
       # Declaration validation that needs reflection.klass runs HERE, not on the
-      # request path, so a bad declaration is caught before traffic. Its REACH is
-      # narrower than that sentence used to imply: to_prepare runs before
-      # :eager_load!, so this pass only sees models something else already
-      # loaded — in production, close to none. ParentChain#validate_declarations!
-      # documents that in full, and #139 tracks the second pass that would close
-      # it. Do not restore the old "a deploy must not boot green and 500 on the
-      # first gated request" claim here without that second pass; one release
-      # must not ship two comments asserting opposite things. (#133 review)
+      # request path, so a bad declaration is caught before traffic. This pass is
+      # the DEVELOPMENT one: to_prepare runs before :eager_load!, so it sees only
+      # models something else already loaded — but it re-runs on every reload, so
+      # a dev's coverage grows as they work. The authoritative pass is the
+      # eager-load one below. (#139)
       CurrentScope::ParentChain.validate_declarations!
+    end
+
+    # #139: the pass that sees every declaring model that was eager-loaded.
+    #
+    # Railties runs :run_prepare_callbacks (the to_prepare above) BEFORE
+    # :eager_load!, with the source comment "This needs to happen before eager
+    # load so it happens in exactly the same point regardless of
+    # config.eager_load". So that pass reads a registry holding only whatever
+    # was already loaded — in production, close to nothing — and the ONE check
+    # it performs could be skipped entirely for a model nobody had touched yet.
+    #
+    # That check is not cosmetic. validate_key! is the only guard anywhere
+    # against a current_scope_parent on a belongs_to with a custom
+    # `primary_key:`, and nothing on the request path repeats it. Unvalidated,
+    # both scope_for and the unloaded load_parent walk key the parent on its
+    # primary key — comparing values from different columns. Both hide records
+    # the grant should reach AND surface / open unrelated ones whose
+    # foreign-key value happens to collide with a granted parent's id. With a
+    # numeric custom key that collision space is dense. See the
+    # characterization test in test/parent_chain_test.rb.
+    #
+    # Gated on eager_load, which is the whole point: where it is on, declaring
+    # models that were eager-loaded are already in the registry, so this pass
+    # does not walk the autoloader looking for *new* declarers. Where it is off
+    # (development), the registry is partial anyway and running this would
+    # safe_constantize reloadable names during initialization — the thing Rails
+    # tells you not to do, and which pins constants that the first reload then
+    # makes stale. Development keeps the to_prepare pass, which re-runs and
+    # catches up.
+    #
+    # Residual autoload of association TARGETS still exists: validate_key!
+    # resolves reflection.klass, so a parent model kept off the eager-load
+    # surface can load on first validation. That is the same partial-coverage
+    # bargain as do_not_eager_load for declaring models, and it is named in
+    # UPGRADING.md rather than implied away by "nothing here autoloads".
+    #
+    # after_initialize (not after: :eager_load!) so we sit in the same finisher
+    # window as other boot checks. Order among after_initialize blocks is
+    # registration order: a host that first loads a declaring model from a
+    # *later* after_initialize still misses this pass — same residual family,
+    # documented in UPGRADING.md.
+    config.after_initialize do |app|
+      CurrentScope::ParentChain.validate_declarations! if app.config.eager_load
     end
 
     # #133: a deploy must not boot green and 500 on the first gated request. An

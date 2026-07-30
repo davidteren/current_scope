@@ -46,17 +46,24 @@ RubyGems; not production-ready.
 **Do not run `gh pr create` (or any skill that opens a new PR) until this
 gate has completed on the exact commit that will be the PR head.**
 
-Use skill **`/dt-ship-pre-pr-gate`**, which runs in order:
+On that commit, in order:
 
 1. `/ce-code-review` — fix findings (may commit)
 2. `/ie-review` — fix findings (may commit)
 3. `/cubic-loop` (**local** mode) — fix findings until clean / residual P3 only
    (`/run-review` is a lighter one-shot cubic pass; it is **not** a substitute
    for step 3 of this gate)
+4. **Local CI green** — run the suite and lint the way CI does before any push
+   or PR create (unit/integration as CI does; `bin/rubocop` clean; system
+   tests when the change touches UI or when CI would run them). Never open a
+   PR on a red suite.
+
+Prefer skill **`/dt-ship-pre-pr-gate`** for steps 1 to 3; still run step 4
+yourself if the skill does not.
 
 **Stale-gate rule:** if anything is committed after the gate finishes,
-the gate is void — re-run `/dt-ship-pre-pr-gate` on the new `HEAD` before
-create. An earlier pass on an older SHA does **not** count.
+the gate is void — re-run steps 1 to 4 on the new `HEAD` before create. An
+earlier pass on an older SHA does **not** count.
 
 **Waive only if the user explicitly waives it in chat for that PR** —
 never self-waive for "small" or "docs-only" diffs.
@@ -64,19 +71,36 @@ never self-waive for "small" or "docs-only" diffs.
 Milestone / release gate (before any version bump or RubyGems tag):
 `dte-deep-reviewer` + `dte-test-auditor` + `/security-review`.
 
-**After opening a PR (mandatory — never skip):**
+## After opening a PR (mandatory — never skip)
 
-1. **Wait** for PR review agents (cubic, qodo, Devin, etc.) to finish.
-2. **Address every comment** — valid ones: fix in code/docs; invalid ones:
-   still reply (do not ignore).
-3. **Reply inline on every thread** before resolving — agents use those
-   replies to self-learn. Fixed: agreement + what changed + fix commit SHA.
-   Not fixed: rationale (false positive / intended / already covered — and
-   where). Never resolve silently. Confirm the fix commit is on the remote
-   before resolving (see PR #64/#71).
-4. **CI green** — lint, test, and other required workflows must pass before
-   declaring ready (skills: `check-pr-comments`, `dt-ship-pr-readiness`).
+Never merge, never suggest merge, and never treat the PR as ready until all
+of the following are done on the **current** head:
+
+1. **Wait** for remote CI and agentic reviewers to settle on the head SHA
+   (cubic, qodo, Devin, and any other required checks). Do not declare ready
+   while a review bot is still pending.
+2. **Re-review the open PR** with the same three lenses (PR-aware where the
+   skill supports it): `/ce-code-review`, `/ie-review`, `/cubic-loop` in
+   **PR mode** (or local cubic on that branch if PR mode cannot run). Fix
+   real findings; commit + push; re-run after material HEAD moves.
+3. **Address every review comment / thread** (human or bot):
+   - Fetch unresolved threads (GraphQL `reviewThreads` preferred)
+   - Fix when warranted; commit + push; confirm the SHA is on the remote
+     before replying
+   - **Reply inline on every thread** with agent prefix first
+     (`**Grok:**`, `**Claude:**`, … — `gh` posts under David's account)
+   - Fixed: what changed + commit SHA
+   - Not fixed: rationale (false positive / intended / already covered —
+     and where)
+   - **Deferred:** must name the **GitHub issue** that tracks the deferral
+     (number + link or full title). "Later" alone is not allowed
+   - Never resolve a thread silently (reply first, then resolve if tooling
+     does). See PR #64/#71.
+4. **CI green** on the head SHA after the last push (lint, test, other
+   required workflows). Skills: `check-pr-comments`, `dt-ship-pr-readiness`.
 5. **Never merge** unless the human asks — report readiness only.
+
+Roll up review counts in chat, not as a separate PR-level summary comment.
 
 ## Tool & skill playbook
 

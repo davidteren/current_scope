@@ -24,9 +24,10 @@ module CurrentScope
   # column — no code change at all — could 500 a live request, escape report
   # mode's "never breaks a request" promise, and print a fix ("remove one of the
   # current_scope_parent declarations") pointing at code that was correct. So:
-  # a bad DECLARATION raises at declaration time, where the host can only hit it
-  # by writing it; bad or over-deep DATA truncates the walk, denies (fail-closed),
-  # and warns once.
+  # a bad DECLARATION raises when the host writes it (at the macro for most
+  # shapes; from validate_declarations! after load for a custom association
+  # primary key, which needs reflection.klass); bad or over-deep DATA truncates
+  # the walk, denies (fail-closed), and warns once.
   module ParentChain
     # A private ceiling, not a config knob: nobody can pick a default for a knob
     # before a host declares a chain deep enough to need it. Raise it when one
@@ -133,11 +134,8 @@ module CurrentScope
       # mean "on the first gated request", because that is a deploy that boots
       # green and 500s on real traffic. (cubic P2, ie-predictability P1)
       #
-      # It sees only the classes loaded so far — in EVERY environment, not just
-      # development. That is the same partial-coverage bargain the permission
-      # catalog already makes, and it is stated rather than implied. (This
-      # sentence used to claim production was complete because eager loading had
-      # run; see the correction below, and #139.)
+      # A single call sees only the classes loaded so far — in EVERY environment,
+      # not just development. That is why the engine calls it twice; see below.
       #
       # WORKS IN WAVES, and both halves of that are load-bearing.
       #
@@ -150,19 +148,23 @@ module CurrentScope
       # dummy's Report -> Project is exactly that shape.
       #
       # It cannot iterate ONE snapshot either: a model that registers mid-pass
-      # would then wait for a later pass, and in production there is no later
-      # pass. So it keeps taking snapshots until no new name appears — the walk
-      # is what loads those models, so it is also what must finish checking
-      # them. Terminates because the registry is finite and `validated` only
-      # grows. (#133 review — cubic)
+      # would then wait for a later call of this method. Within one call there
+      # is no second chance, so it keeps taking snapshots until no new name
+      # appears — the walk is what loads those models, so it is also what must
+      # finish checking them. Terminates because the registry is finite and
+      # `validated` only grows. (#133 review — cubic)
       #
-      # This does NOT close the bigger gap: models nothing has loaded at all are
-      # still invisible here, because railties runs :run_prepare_callbacks
+      # CALLED TWICE, on purpose (#139). From to_prepare, which railties runs
       # BEFORE :eager_load! ("This needs to happen before eager load so it
-      # happens in exactly the same point regardless of config.eager_load"). So
-      # declared_names starts thin in every environment, and a second pass after
-      # eager loading is the fix — tracked as #139, because it changes WHEN a
-      # bad declaration raises.
+      # happens in exactly the same point regardless of config.eager_load") — so
+      # that pass sees only what was already loaded, and earns its keep in
+      # development by re-running on every reload. And from after_initialize
+      # where eager loading is on, which is the authoritative pass: every
+      # declaring model that was eager-loaded (and thus registered) is
+      # validated. Models outside eager_load_paths or marked do_not_eager_load
+      # still register only when first loaded, and nothing on the request path
+      # re-checks them. Idempotent, so running twice costs a second walk over a
+      # set that raises on the first bad entry either way.
       def validate_declarations!
         validated = Set.new
 

@@ -152,6 +152,8 @@ chain validation has always been much thinner than its own comment implies, and
 the snapshot neither causes nor worsens that. Closing it needs a second pass
 after eager loading, which changes *when* a bad declaration raises and is
 therefore its own change, filed as **#139** rather than smuggled into this PR.
+*(#139 has since shipped: the engine also validates after eager loading, gated
+on `config.eager_load`.)*
 The comment in `parent_chain.rb` now says the true thing.
 
 ## KTD-3 — Ask the resolver why; never read the exception's message

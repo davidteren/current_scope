@@ -1,0 +1,23 @@
+docs/intent-engineering/20260731-040821-review-pr143-parent-chain-eager-load.md
+  s_5408cb5b483cdf::t_718e78d60f8f45 1-171
+docs/intent-engineering/20260731-040944-audit-lib-current-scope.md
+  s_5408cb5b483cdf::t_1d2defaa46600a 2-151,168-258
+  s_5408cb5b483cdf::t_d9a2bceb406e86 152-167
+  s_5408cb5b483cdf::t_5809115d80b34b 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "cf03ca05b5978fc72b7cf4c1ae35706507599fae",
+  "prompts": {},
+  "sessions": {
+    "s_5408cb5b483cdf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "54a55d62-279d-4b53-b355-c072aa52d8c3",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

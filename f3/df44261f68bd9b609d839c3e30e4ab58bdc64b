@@ -1,0 +1,19 @@
+docs/intent-engineering/20260731-040944-audit-lib-current-scope.md
+  s_5408cb5b483cdf::t_31ed658572b7cd 243-279
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "f3df44261f68bd9b609d839c3e30e4ab58bdc64b",
+  "prompts": {},
+  "sessions": {
+    "s_5408cb5b483cdf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "54a55d62-279d-4b53-b355-c072aa52d8c3",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

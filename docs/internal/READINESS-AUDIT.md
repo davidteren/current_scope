@@ -218,6 +218,14 @@ regression tests rather than loosening them:**
   mutation.
 - `scope_for` fail-closed (nil subject → `.none`) and never lists a record the per-record
   gate would deny.
+- `roles_ticking` **excludes `full_access` roles** — a scoped `full_access` grant must never
+  cascade privilege to descendants, nor open the record-less write gate across a type. This
+  is deliberately non-monotonic and is the #49 escalation with a multiplier if loosened
+  (KTD-2, #108, pinned by tests in #148). Note the trap that hid it for three releases:
+  `roles_ticking` filters on `permission_key` **first**, so a test whose role ticks
+  nothing — or ticks a *different* key from the one under test — never reaches the
+  exclusion and passes either way. Only a role that is `full_access` **and** ticks the
+  key being checked exercises it.
 
 ---
 

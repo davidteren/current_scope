@@ -220,6 +220,26 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
     assert @resolver.allow?(subject: @alice, permission: "reports#index", record: @report)
   end
 
+  # The test above ticks reports#index but asserts on reports#create, so
+  # roles_ticking drops the role on the permission_key filter and the full_access
+  # exclusion never runs — the same blind spot #148 found in the parent-chain
+  # tests. Ticking the key under test is what actually exercises the exclusion.
+  test "a scoped full_access role that ticks the WRITE key still fails the record-less gate" do
+    owner = role("Owner", "reports#create", full_access: true)
+    scope_grant(@alice, owner, @report)
+
+    # Control that the grant row exists and is honoured — by the PER-RECORD arm,
+    # which is a different arm from the record-less one asserted below. It proves
+    # the denial is not simply a missing grant; the record-less positive is pinned
+    # separately by the collection-key tests above.
+    assert @resolver.allow?(subject: @alice, permission: "reports#create", record: @report),
+      "control: full_access on the record it was granted on is unchanged"
+
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#create", record: Report),
+      "roles_ticking must exclude full_access even when the role ticks the write key; " \
+      "otherwise one scoped grant opens #create across the type"
+  end
+
   test "a scoped full_access role still grants everything on its OWN record" do
     scope_grant(@alice, role("Owner", full_access: true), @report)
 

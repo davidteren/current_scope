@@ -26,6 +26,11 @@ return if ENV["COVERAGE"] == "0"
 # drops back to ~35%. So assert the ordering here, loudly. `CurrentScope::Engine`
 # is defined only once the engine has loaded; the gemspec's `version.rb` does not
 # define it, so this stays quiet on the legitimate paths.
+#
+# A plain RuntimeError on purpose, not `CurrentScope::ConfigurationError`: this runs
+# before the engine is loaded, so that class does not exist yet. Keep this block
+# above `require "simplecov"` — test/coverage_setup_test.rb loads this file to prove
+# the guard fires, which is only safe while nothing starts SimpleCov before it.
 if defined?(CurrentScope::Engine)
   raise "Coverage bootstrap ran too late: CurrentScope::Engine is already loaded, " \
         "so Ruby's Coverage cannot instrument lib/ and the reported figure will be " \
@@ -46,17 +51,19 @@ SimpleCov.start do
   # SimpleCov 1.x (pinned 1.0.2): cover = include + track unloaded files;
   # skip = exclude. See simplecov/configuration/filters.rb.
   cover "{app,lib}/**/*.rb"
-  skip %r{/test/}
-  skip %r{/dummy/}
-  # Generator templates are copied into a host app, never executed here — counting
-  # them would put lines in the denominator that no test could ever reach.
-  skip %r{/generators/.*/templates/}
-  # version.rb is unmeasurable, not untested: `require "bundler/setup"` evaluates the
-  # gemspec, which require_relatives it, so it is always loaded before any bootstrap
-  # could start and can only ever report 0%. Same reason as the templates above —
-  # lines no test could reach. Anchored with \A because SimpleCov matches against
-  # `project_filename`, which is root-relative with NO leading slash
-  # ("lib/current_scope/version.rb"); a %r{/lib/...} pattern silently never matches.
+  # NOTE ON PATTERNS: SimpleCov matches filters against `project_filename`, which is
+  # root-relative with NO leading slash ("lib/current_scope/version.rb"). A pattern
+  # written as %r{/lib/...} therefore never matches and fails silently. Anchor with \A.
+  # (The previous `skip %r{/test/}` here was dead for exactly that reason; it is gone,
+  # and the `cover` glob above already restricts the set to app/ and lib/ anyway.)
+  #
+  # Both exclusions below are lines no test could ever reach, for different reasons.
+  # Generator templates are host-app code, copied out and executed there, never here:
+  skip %r{\Alib/generators/.*/templates/}
+  # version.rb is shipped runtime code that the tool cannot see rather than code
+  # nothing exercises: `require "bundler/setup"` evaluates the gemspec, which
+  # require_relatives it, so it is always loaded before any bootstrap could start and
+  # can only ever report 0%. If real logic is ever added there, it will not be measured.
   skip %r{\Alib/current_scope/version\.rb\z}
   # Merging `unit` into `system` must not depend on how long the two runs are apart.
   # The 600s default silently drops the earlier result and reports the later run

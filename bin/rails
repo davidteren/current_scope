@@ -20,7 +20,11 @@ require "bundler/setup" if File.exist?(ENV["BUNDLE_GEMFILE"])
 # further down the stack than this line — so match it here or `bin/rails t`
 # silently reproduces the bug. test/coverage_setup.rb raises if this ordering
 # is ever broken again.
-require_relative "../test/coverage_setup" if ARGV.first == "t" || ARGV.first&.start_with?("test")
+#
+# Anchored on a word boundary rather than a bare prefix: this matches `test`,
+# `t`, and every `test:*` subcommand, without arming coverage for some future
+# command that merely starts with those letters.
+require_relative "../test/coverage_setup" if ARGV.first&.match?(/\A(t|test)(:|\z)/)
 
 require "rails/all"
 require "rails/engine/commands"

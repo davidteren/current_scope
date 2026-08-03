@@ -51,5 +51,9 @@ SimpleCov.start do
   # Generator templates are copied into a host app, never executed here — counting
   # them would put lines in the denominator that no test could ever reach.
   skip %r{/generators/.*/templates/}
+  # No skip for version.rb, though `require "bundler/setup"` does load it (via the
+  # gemspec) before coverage can start. It has no coverage entry at all as a
+  # result, so it never reaches the report and needs no filter — verified by
+  # A/B-ing the skip: identical output, 1501/1545 either way.
   # No minimum_coverage until a baseline is established from CI runs.
 end

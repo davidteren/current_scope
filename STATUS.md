@@ -607,7 +607,10 @@ confident, well-argued, wrong.
 ### This session (2026-07-25 → 2026-07-27) — the solid-v1 sprint, merged
 
 **Suite on `main`: 635 unit + 24 system green, RuboCop clean, SimpleCov
-44.49% line / 31.91% branch.** No open PRs.
+44.49% line / 31.91% branch.** No open PRs. *(Corrected 2026-08-03: that
+SimpleCov figure was an artifact — the bootstrap ran after `bin/rails` had
+already loaded `lib/`, so the engine counted as zero. Real coverage is 97.40%
+line; see the Unreleased CHANGELOG entry.)*
 
 The remaining solid-v1 gap was scoped into tracking issue **#116** (four new
 issues filed alongside it: **#112** E5, **#113** T2, **#114** T6, **#115** D10),

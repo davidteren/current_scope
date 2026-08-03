@@ -135,6 +135,14 @@ reviewer/planner.
   for tests only — never CSS structure or text. Renaming an id is a breaking
   change: update specs in the same commit.
 - Non-trivial logic ships with its test in the same commit.
+- Coverage (SimpleCov) is bootstrapped by `test/coverage_setup.rb`, which
+  **must load before the engine does** — Ruby's `Coverage` cannot instrument an
+  already-loaded file, so a late start silently reports `lib/` at 0%. Any new
+  test entry point must require it first; `bin/rails` and `test/test_helper.rb`
+  both do. That file raises if the ordering is ever broken, and
+  `test/coverage_setup_test.rb` pins both require sites. `COVERAGE=0` opts out.
+  Do **not** rename it to `coverage.rb` — `ruby -Itest` would then shadow the
+  stdlib `coverage` extension SimpleCov itself requires.
 - Integration-test gotcha: after requesting the mounted engine, SCRIPT_NAME
   sticks in the session — use literal paths (`"/session"`) for host routes.
 

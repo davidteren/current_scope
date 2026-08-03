@@ -1,0 +1,35 @@
+test/test_helper.rb
+  s_b6526dcf3b998e::t_00cf46fd8bb3a2 7
+  s_b6526dcf3b998e::t_8fcdc3dae12e25 6
+  s_b6526dcf3b998e::t_b9ea3992e48dff 4-5
+bin/rails
+  s_b6526dcf3b998e::t_b9ea3992e48dff 13-16,18
+  s_b6526dcf3b998e::t_00cf46fd8bb3a2 17
+test/coverage_setup.rb
+  s_b6526dcf3b998e::t_c2115617c80137 5,13,16-22
+  s_b6526dcf3b998e::t_7babf27b63d7f1 2-4
+  s_b6526dcf3b998e::t_4cd396da53cafb 6-8,10-12
+  s_b6526dcf3b998e::t_9d36c81958f238 14-15
+  s_b6526dcf3b998e::t_0bba60e8d53595 23-25
+  s_b6526dcf3b998e::t_71d9aa3c23dc30 1,9,26-41
+CHANGELOG.md
+  s_b6526dcf3b998e::t_47d67e9d3f61fc 158-181
+STATUS.md
+  s_b6526dcf3b998e::t_af1de2d5b06e0c 612-615
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "7230aa1f8bbd1f9f91e2defb501b9ce9ec7c8506",
+  "prompts": {},
+  "sessions": {
+    "s_b6526dcf3b998e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb848af8-9fd5-4158-95e7-b22c92679504",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

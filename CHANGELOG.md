@@ -155,6 +155,35 @@ changed. Not cut yet; the README banner stays up pending the real-host
   [UPGRADING.md](UPGRADING.md) for the fix.
 
 ### Fixed
+- **The "scoped `full_access` does not cascade" rule is now actually tested
+  (#148).** No behavior changed; the guarantee was simply unguarded. `roles_ticking`
+  excludes `full_access` roles precisely so one scoped grant on a parent cannot open
+  every permission on every descendant, and deleting that exclusion left the entire
+  suite green.
+
+  Three tests looked like they covered it and none of them ran the exclusion, all for
+  the same reason: `roles_ticking` filters on `permission_key` first, so a role that
+  ticks nothing (or ticks a *different* key from the one under test) is dropped one
+  step earlier and the test passes either way. The shape the exclusion actually stops
+  is a role that is `full_access` **and** ticks the key being checked, which the
+  resolver names as real since a host can tick grid cells and then flip the flag.
+
+  Now pinned at all three places where the exclusion decides an allow or a deny: the
+  parent-chain gate (`parent_scoped_grant_test.rb`), the parent-chain list
+  (`parent_scope_for_test.rb`), and the record-less write gate
+  (`collection_scope_gate_test.rb`, where a `full_access` role ticking `reports#create`
+  would otherwise open `#create` across the type). The same deletion now fails three
+  tests instead of none. A fourth consumer, `record_less_denied_for_unknown_type?`,
+  only labels a denial rather than deciding one, and stays unpinned.
+
+  Each parent-chain test carries a positive control, because the denial also holds when
+  the ancestor arm is dead — "excluded" and "the chain never resolved" are
+  indistinguishable from the assertion alone. The invariant is now recorded in the
+  do-not-regress list in
+  [docs/internal/READINESS-AUDIT.md](docs/internal/READINESS-AUDIT.md), which AGENTS.md
+  hard rule 3 points at, together with the `collection_read_actions` residual that
+  makes it non-absolute.
+
 - **Boot could crash validating a declared parent chain (#108, found while
   building #133).** `ParentChain.validate_declarations!` iterated its registry
   of declaring models while resolving each reflection, and resolving one

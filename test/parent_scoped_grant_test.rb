@@ -74,6 +74,27 @@ class ParentScopedGrantTest < ActiveSupport::TestCase
                  "root record would otherwise open every permission on every descendant"
   end
 
+  # The test above never runs the exclusion: its Owner role ticks nothing, so
+  # roles_ticking drops it on the permission_key filter first. Only a role that is
+  # full_access AND ticks the key under test reaches the exclusion. See
+  # READINESS-AUDIT's do-not-regress list for the full trap (#148).
+  test "a scoped full_access grant that ALSO ticks the key opens nothing on its children" do
+    scope_grant(@lead, role("Owner", "reports#approve", full_access: true), @project)
+
+    assert_equal [ false, :no_grant ], decide(@lead, "reports#approve", @report),
+                 "roles_ticking must exclude full_access roles even when they tick the " \
+                 "key; otherwise one scoped grant on a parent cascades to every child"
+
+    # POSITIVE CONTROL, per the R8 idiom in parent_scope_for_test.rb. Asserted
+    # second so it needs no teardown: the denial above holds with only the
+    # full_access grant present, and this proves the @report → @project hop is
+    # live, so the denial is the exclusion rather than a dead ancestor arm.
+    scope_grant(@lead, role("Lead", "reports#approve"), @project)
+
+    assert_equal [ true, nil ], decide(@lead, "reports#approve", @report),
+                 "control: an ordinary ticking role on the parent MUST reach the child"
+  end
+
   test "that same scoped full_access grant still opens the parent record itself" do
     scope_grant(@lead, role("Owner", full_access: true), @project)
 

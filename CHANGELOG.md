@@ -157,9 +157,8 @@ changed. Not cut yet; the README banner stays up pending the real-host
 ### Fixed
 - **Coverage measured only `app/` and reported the whole engine as dead code
   (#114 follow-up).** SimpleCov started from `test/test_helper.rb`, but the
-  engine's `bin/rails` dispatches the test command through
-  `require "rails/engine/commands"`, which loads the engine and the dummy app
-  before the run ever reaches that file. Ruby's `Coverage` only instruments files
+  test command's own prepare step boots the dummy app, and with it the engine,
+  before the runner requires a single test file. Ruby's `Coverage` only instruments files
   loaded after it starts, so every file under `lib/` recorded zero covered lines
   while `cover "{app,lib}/**/*.rb"` kept counting them in the total. Files the
   suite plainly exercises, `resolver.rb` and `guard.rb` among them, read 0%.
@@ -179,13 +178,21 @@ changed. Not cut yet; the README banner stays up pending the real-host
   The bootstrap **raises if it ever runs after the engine has loaded**, because
   nothing else would notice: the suite still passes and the number just quietly
   drops back. `bin/rails` matches railties' `t` alias as well as `test`, so
-  `bin/rails t` measures the same as `bin/rails test`.
+  `bin/rails t` measures the same as `bin/rails test`. `test/coverage_setup_test.rb`
+  pins both require sites and proves the guard actually fires; deleting either
+  `require_relative` now turns the suite red instead of silently halving the number.
+  `merge_timeout` is raised to an hour so a gap between the unit and system runs
+  cannot drop the earlier result and publish the later one alone.
 
-  **No test changed; only the measurement did.** True coverage is **97.28% line
-  (1503 of 1545) and about 85% branch**, unit and system merged, against the
-  34.95% previously reported. The denominator now also excludes the install
-  generator's `templates/`, which is copied into a host app and never executed
-  here, so no test could ever reach those lines.
+  **No test of the engine changed; only the measurement did.** True coverage is
+  **97.40% line (1503 of 1543) and about 85% branch**, unit and system merged,
+  against the 34.95% previously reported. Two kinds of line are out of the
+  denominator because no test could ever reach them: the install generator's
+  `templates/`, which is copied into a host app rather than executed here, and
+  `version.rb`, which `bundler/setup` loads through the gemspec before any
+  bootstrap could start. No `minimum_coverage` floor yet — that needs a decision
+  about CI failure behavior and is tracked in
+  [#146](https://github.com/davidteren/current_scope/issues/146).
 
 - **Boot could crash validating a declared parent chain (#108, found while
   building #133).** `ParentChain.validate_declarations!` iterated its registry

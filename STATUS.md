@@ -609,7 +609,7 @@ confident, well-argued, wrong.
 **Suite on `main`: 635 unit + 24 system green, RuboCop clean, SimpleCov
 44.49% line / 31.91% branch.** No open PRs. *(Corrected 2026-08-03: that
 SimpleCov figure was an artifact — the bootstrap ran after `bin/rails` had
-already loaded `lib/`, so the engine counted as zero. Real coverage is 97.28%
+already loaded `lib/`, so the engine counted as zero. Real coverage is 97.40%
 line; see the Unreleased CHANGELOG entry.)*
 
 The remaining solid-v1 gap was scoped into tracking issue **#116** (four new

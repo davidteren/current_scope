@@ -51,9 +51,17 @@ SimpleCov.start do
   # Generator templates are copied into a host app, never executed here — counting
   # them would put lines in the denominator that no test could ever reach.
   skip %r{/generators/.*/templates/}
-  # No skip for version.rb, though `require "bundler/setup"` does load it (via the
-  # gemspec) before coverage can start. It has no coverage entry at all as a
-  # result, so it never reaches the report and needs no filter — verified by
-  # A/B-ing the skip: identical output, 1501/1545 either way.
-  # No minimum_coverage until a baseline is established from CI runs.
+  # version.rb is unmeasurable, not untested: `require "bundler/setup"` evaluates the
+  # gemspec, which require_relatives it, so it is always loaded before any bootstrap
+  # could start and can only ever report 0%. Same reason as the templates above —
+  # lines no test could reach. Anchored with \A because SimpleCov matches against
+  # `project_filename`, which is root-relative with NO leading slash
+  # ("lib/current_scope/version.rb"); a %r{/lib/...} pattern silently never matches.
+  skip %r{\Alib/current_scope/version\.rb\z}
+  # Merging `unit` into `system` must not depend on how long the two runs are apart.
+  # The 600s default silently drops the earlier result and reports the later run
+  # alone — a wrong number with only a warning, which is the failure class this
+  # whole file exists to prevent.
+  merge_timeout 3600
+  # No minimum_coverage yet — tracked in #146.
 end

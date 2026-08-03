@@ -155,6 +155,30 @@ changed. Not cut yet; the README banner stays up pending the real-host
   [UPGRADING.md](UPGRADING.md) for the fix.
 
 ### Fixed
+- **Coverage measured only `app/` and reported the whole engine as dead code
+  (#114 follow-up).** SimpleCov started from `test/test_helper.rb`, but the
+  engine's `bin/rails` loads `ENGINE_PATH` — all of `lib/current_scope` — before
+  the test command reaches that file. Ruby's `Coverage` only instruments files
+  loaded after it starts, so every file under `lib/` recorded zero covered lines
+  while `cover "{app,lib}/**/*.rb"` kept counting them in the total. Files the
+  suite plainly exercises, `resolver.rb` and `guard.rb` among them, read 0%.
+
+  The reported number therefore fell as the engine grew rather than as tests
+  lapsed: 44.49% at the #124 baseline, 34.95% once #108, #133, #134 and #139
+  added files to `lib/`. For an authorization gem it was measuring the wrong
+  half — the mounted management UI, not the decision path.
+
+  The bootstrap moved to `test/coverage_setup.rb`, required from `bin/rails`
+  before the engine loads and still from `test_helper.rb` for runners that load
+  a test file directly (`require_relative` makes the second call a no-op). Not
+  named `coverage.rb`: `ruby -Itest` puts that directory on the load path, and
+  SimpleCov's own `require "coverage"` would then find it instead of the stdlib
+  extension. `COVERAGE=0` still skips.
+
+  **No test changed; only the measurement did.** True coverage is **97.21% line
+  / 85.34% branch** (unit + system merged), against the 34.95% previously
+  reported.
+
 - **Boot could crash validating a declared parent chain (#108, found while
   building #133).** `ParentChain.validate_declarations!` iterated its registry
   of declaring models while resolving each reflection, and resolving one

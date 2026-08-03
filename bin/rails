@@ -10,5 +10,11 @@ APP_PATH = File.expand_path("../test/dummy/config/application", __dir__)
 ENV["BUNDLE_GEMFILE"] ||= File.expand_path("../Gemfile", __dir__)
 require "bundler/setup" if File.exist?(ENV["BUNDLE_GEMFILE"])
 
+# Coverage must start before `rails/engine/commands` loads ENGINE_PATH, which
+# pulls in all of lib/current_scope. Starting it from test/test_helper.rb alone
+# was too late: the engine was already loaded, so SimpleCov reported 0% for
+# every file in lib/ while still counting its lines. Only on a test run.
+require_relative "../test/coverage_setup" if ARGV.first&.start_with?("test")
+
 require "rails/all"
 require "rails/engine/commands"

@@ -178,8 +178,11 @@ changed. Not cut yet; the README banner stays up pending the real-host
 
   Each parent-chain test carries a positive control, because the denial also holds when
   the ancestor arm is dead — "excluded" and "the chain never resolved" are
-  indistinguishable from the assertion alone. The invariant is now recorded in
-  READINESS-AUDIT's do-not-regress list, which AGENTS.md hard rule 3 points at.
+  indistinguishable from the assertion alone. The invariant is now recorded in the
+  do-not-regress list in
+  [docs/internal/READINESS-AUDIT.md](docs/internal/READINESS-AUDIT.md), which AGENTS.md
+  hard rule 3 points at, together with the `collection_read_actions` residual that
+  makes it non-absolute.
 
 - **Boot could crash validating a declared parent chain (#108, found while
   building #133).** `ParentChain.validate_declarations!` iterated its registry

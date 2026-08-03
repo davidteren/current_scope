@@ -228,16 +228,19 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
     owner = role("Owner", "reports#create", full_access: true)
     scope_grant(@alice, owner, @report)
 
-    # Control that the grant row exists and is honoured — by the PER-RECORD arm,
-    # which is a different arm from the record-less one asserted below. It proves
-    # the denial is not simply a missing grant; the record-less positive is pinned
-    # separately by the collection-key tests above.
-    assert @resolver.allow?(subject: @alice, permission: "reports#create", record: @report),
-      "control: full_access on the record it was granted on is unchanged"
-
     assert_not @resolver.allow?(subject: @alice, permission: "reports#create", record: Report),
       "roles_ticking must exclude full_access even when the role ticks the write key; " \
       "otherwise one scoped grant opens #create across the type"
+
+    # POSITIVE CONTROL through the SAME record-less arm, and it depends on the tick:
+    # an ordinary role ticking reports#create does open this gate, while one ticking
+    # a different key does not. A full_access role would not do here — it matches the
+    # direct arm via roles_granting whatever it ticks, so it could pass with the
+    # role_permissions row missing entirely and prove nothing about the setup.
+    scope_grant(@bob, role("Editor", "reports#create"), @report)
+
+    assert @resolver.allow?(subject: @bob, permission: "reports#create", record: Report),
+      "control: an ordinary role ticking the write key MUST open the record-less gate"
   end
 
   test "a scoped full_access role still grants everything on its OWN record" do

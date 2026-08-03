@@ -68,11 +68,26 @@ class CoverageSetupTest < ActiveSupport::TestCase
   test "the run measures lib/ and excludes only what no test could reach" do
     skip "coverage is disabled" if ENV["COVERAGE"] == "0"
 
+    # Deliberately against SimpleCov's internals: there is no public API that answers
+    # "what would this configuration measure" without running a whole suite. Pinned at
+    # 1.0.2, so this is safe until a major upgrade — at which point re-derive it from
+    # SimpleCov::Result#apply_cover_filters! rather than deleting the test.
+    assert SimpleCov.respond_to?(:cover_filters) && SimpleCov.respond_to?(:filters),
+           "SimpleCov's filter API moved; re-derive this pin, do not drop it"
+
     measured = lambda do |relative|
-      file = SimpleCov::SourceFile.new(File.join(ROOT, relative), { "lines" => [ 1 ] })
+      path = File.join(ROOT, relative)
+      # Otherwise a renamed or deleted file turns these assertions into vacuous passes.
+      assert File.exist?(path), "#{relative} no longer exists — update this pin"
+      file = SimpleCov::SourceFile.new(path, { "lines" => [ 1 ] })
       SimpleCov.cover_filters.any? { |f| f.matches?(file) } &&
         SimpleCov.filters.none? { |f| f.matches?(file) }
     end
+
+    # `cover` must stay a string glob. Only globs drive SimpleCov's unloaded-file
+    # injection, so an equivalent Regexp would silently drop never-loaded lib/ files
+    # out of the denominator entirely and quietly raise the percentage.
+    assert SimpleCov.cover_globs.any?, "cover must be configured with a string glob"
 
     # The decision path — the whole point of measuring this gem at all.
     assert measured.call("lib/current_scope/resolver.rb"),

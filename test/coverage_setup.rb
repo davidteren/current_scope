@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 # Coverage bootstrap (#114 / worklist T6). Loaded by BOTH test entry points,
 # because Ruby's Coverage library only instruments files loaded after it starts:
 #
@@ -50,5 +48,8 @@ SimpleCov.start do
   cover "{app,lib}/**/*.rb"
   skip %r{/test/}
   skip %r{/dummy/}
+  # Generator templates are copied into a host app, never executed here — counting
+  # them would put lines in the denominator that no test could ever reach.
+  skip %r{/generators/.*/templates/}
   # No minimum_coverage until a baseline is established from CI runs.
 end

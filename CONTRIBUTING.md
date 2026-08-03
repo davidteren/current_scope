@@ -15,6 +15,18 @@ the way CI does.
 
 Coverage is on by default (`simplecov`). Set `COVERAGE=0` to skip.
 
+The two runs above share one result name, so the second replaces the first. Name
+them the way CI does to get the combined figure:
+
+```bash
+SIMPLECOV_COMMAND_NAME=unit bin/rails test
+SIMPLECOV_COMMAND_NAME=system bin/rails test:system
+```
+
+The bootstrap (`test/coverage_setup.rb`) has to load before the engine does, or
+Ruby's `Coverage` cannot instrument `lib/`. It aborts the run if it ever starts
+too late, rather than reporting a figure that is far too low.
+
 ## Regenerating screenshots
 
 README and docs-site screenshots come from the system suite:

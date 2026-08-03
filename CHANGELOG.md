@@ -181,9 +181,11 @@ changed. Not cut yet; the README banner stays up pending the real-host
   drops back. `bin/rails` matches railties' `t` alias as well as `test`, so
   `bin/rails t` measures the same as `bin/rails test`.
 
-  **No test changed; only the measurement did.** True coverage is **97.21% line
-  (1503 of 1546) and about 85% branch**, unit and system merged, against the
-  34.95% previously reported.
+  **No test changed; only the measurement did.** True coverage is **97.28% line
+  (1503 of 1545) and about 85% branch**, unit and system merged, against the
+  34.95% previously reported. The denominator now also excludes the install
+  generator's `templates/`, which is copied into a host app and never executed
+  here, so no test could ever reach those lines.
 
 - **Boot could crash validating a declared parent chain (#108, found while
   building #133).** `ParentChain.validate_declarations!` iterated its registry

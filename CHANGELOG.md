@@ -179,10 +179,9 @@ changed. Not cut yet; the README banner stays up pending the real-host
   nothing else would notice: the suite still passes and the number just quietly
   drops back. `bin/rails` matches railties' `t` alias as well as `test`, so
   `bin/rails t` measures the same as `bin/rails test`. `test/coverage_setup_test.rb`
-  pins both require sites and proves the guard actually fires; deleting either
-  `require_relative` now turns the suite red instead of silently halving the number.
-  `merge_timeout` is raised to an hour so a gap between the unit and system runs
-  cannot drop the earlier result and publish the later one alone.
+  pins both require sites, pins which files the run actually measures, and proves
+  the guard fires; deleting either `require_relative`, or narrowing `cover` back to
+  `app/`, now turns the suite red instead of silently halving the number.
 
   **No test of the engine changed; only the measurement did.** True coverage is
   **97.40% line (1503 of 1543) and about 85% branch**, unit and system merged,
@@ -191,8 +190,7 @@ changed. Not cut yet; the README banner stays up pending the real-host
   `templates/`, which is copied into a host app rather than executed here, and
   `version.rb`, which `bundler/setup` loads through the gemspec before any
   bootstrap could start. No `minimum_coverage` floor yet — that needs a decision
-  about CI failure behavior and is tracked in
-  [#146](https://github.com/davidteren/current_scope/issues/146).
+  about CI failure behavior and is tracked in (#146).
 
 - **Boot could crash validating a declared parent chain (#108, found while
   building #133).** `ParentChain.validate_declarations!` iterated its registry

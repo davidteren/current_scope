@@ -23,8 +23,8 @@ SIMPLECOV_COMMAND_NAME=unit bin/rails test
 SIMPLECOV_COMMAND_NAME=system bin/rails test:system
 ```
 
-Results merge for up to an hour, so delete `coverage/` before re-measuring if you
-changed code between the two runs.
+Delete `coverage/` before re-measuring. Results older than ten minutes are dropped
+from the merge with a warning, and fresher stale ones are merged silently.
 
 The bootstrap (`test/coverage_setup.rb`) has to load before the engine does, or
 Ruby's `Coverage` cannot instrument `lib/`. It aborts the run if it ever starts

@@ -46,11 +46,44 @@ class CoverageSetupTest < ActiveSupport::TestCase
     end
   end
 
-  test "test_helper requires the bootstrap for runners that skip bin/rails" do
+  test "test_helper requires the bootstrap before it loads the app" do
     source = File.read(File.join(__dir__, "test_helper.rb"))
-    assert_match %r{require_relative ["']coverage_setup["']}, source,
-                 "test_helper must require the bootstrap too — `ruby -Itest foo_test.rb` " \
-                 "never touches bin/rails, and would record no coverage at all"
+
+    # Line-anchored so a mention inside a comment cannot satisfy it.
+    require_line = source.index(/^require_relative ["']coverage_setup["']/)
+    app_line = source.index(%r{^require_relative ["']\.\./test/dummy/config/environment["']})
+
+    assert require_line, "test_helper must require the bootstrap too — " \
+                         "`ruby -Itest foo_test.rb` never touches bin/rails, " \
+                         "and would record no coverage at all"
+    assert app_line, "test_helper should still load the dummy app"
+    assert require_line < app_line,
+           "the bootstrap must be required before the dummy app loads the engine"
+  end
+
+  # The two tests above pin the WIRING. This one pins the OUTCOME: which files the
+  # run actually measures. Without it, narrowing `cover` to "app/**/*.rb" would
+  # reproduce the original bug — lib/ unmeasured — with the whole suite still green,
+  # because nothing else looks at the SimpleCov.start block.
+  test "the run measures lib/ and excludes only what no test could reach" do
+    skip "coverage is disabled" if ENV["COVERAGE"] == "0"
+
+    measured = lambda do |relative|
+      file = SimpleCov::SourceFile.new(File.join(ROOT, relative), { "lines" => [ 1 ] })
+      SimpleCov.cover_filters.any? { |f| f.matches?(file) } &&
+        SimpleCov.filters.none? { |f| f.matches?(file) }
+    end
+
+    # The decision path — the whole point of measuring this gem at all.
+    assert measured.call("lib/current_scope/resolver.rb"),
+           "lib/ must be measured; this is the regression the bootstrap exists to prevent"
+    assert measured.call("lib/current_scope/guard.rb"), "lib/ must be measured"
+
+    # Excluded because no test could reach them, not because they are untested.
+    assert_not measured.call("lib/current_scope/version.rb"),
+               "version.rb loads before coverage starts and can only ever report 0%"
+    assert_not measured.call("lib/generators/current_scope/install/templates/initializer.rb"),
+               "generator templates run in a host app, never here"
   end
 
   test "the bootstrap refuses to run after the engine has loaded" do

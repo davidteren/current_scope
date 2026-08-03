@@ -52,10 +52,14 @@ SimpleCov.start do
   # skip = exclude. See simplecov/configuration/filters.rb.
   cover "{app,lib}/**/*.rb"
   # NOTE ON PATTERNS: SimpleCov matches filters against `project_filename`, which is
-  # root-relative with NO leading slash ("lib/current_scope/version.rb"). A pattern
-  # written as %r{/lib/...} therefore never matches and fails silently. Anchor with \A.
-  # (The previous `skip %r{/test/}` here was dead for exactly that reason; it is gone,
-  # and the `cover` glob above already restricts the set to app/ and lib/ anyway.)
+  # root-relative with NO leading slash ("lib/current_scope/version.rb"). An unanchored
+  # pattern still matches mid-path, but one meant to be root-anchored needs \A and must
+  # not start with a slash: %r{/lib/current_scope/version\.rb\z} matches nothing and
+  # fails silently, which is how a filter here was once dead while looking correct.
+  # (The removed `skip %r{/test/}` was dead for a plainer reason — no app/ or lib/ path
+  # has a "/test/" segment, and the `cover` glob already restricts the set to those
+  # two trees.) test/coverage_setup_test.rb pins the resulting set, so a dead filter
+  # now fails loudly instead of quietly changing the number.
   #
   # Both exclusions below are lines no test could ever reach, for different reasons.
   # Generator templates are host-app code, copied out and executed there, never here:
@@ -65,10 +69,10 @@ SimpleCov.start do
   # require_relatives it, so it is always loaded before any bootstrap could start and
   # can only ever report 0%. If real logic is ever added there, it will not be measured.
   skip %r{\Alib/current_scope/version\.rb\z}
-  # Merging `unit` into `system` must not depend on how long the two runs are apart.
-  # The 600s default silently drops the earlier result and reports the later run
-  # alone — a wrong number with only a warning, which is the failure class this
-  # whole file exists to prevent.
-  merge_timeout 3600
+  # merge_timeout is left at SimpleCov's 600s default on purpose. Raising it was
+  # tried and reverted: an expired result is DROPPED with a warning naming it, but a
+  # merged stale one is silent, so a wider window trades a loud wrong-low figure for
+  # a quiet wrong-high one. CI runs the two commands back to back, so the window is
+  # never binding there. Locally, delete coverage/ rather than widening this.
   # No minimum_coverage yet — tracked in #146.
 end

@@ -218,6 +218,19 @@ regression tests rather than loosening them:**
   mutation.
 - `scope_for` fail-closed (nil subject → `.none`) and never lists a record the per-record
   gate would deny.
+- `roles_ticking` **excludes `full_access` roles** — a scoped `full_access` grant must never
+  cascade privilege to descendants, nor open the record-less **non-read** gate across a type.
+  The read arm is the deliberate exception (#65): an action named in
+  `config.collection_read_actions` (default `["index"]`) takes the `scope_for` arm, where a
+  scoped `full_access` grant does open its own type's listed read. **That is the residual to
+  keep in mind** — a host that adds a mutating action to `collection_read_actions` moves it
+  to the permissive arm and makes it type-wide. This
+  is deliberately non-monotonic and is the #49 escalation with a multiplier if loosened
+  (KTD-2, #108, pinned by tests in #148). Note the trap that hid it for three releases:
+  `roles_ticking` filters on `permission_key` **first**, so a test whose role ticks
+  nothing — or ticks a *different* key from the one under test — never reaches the
+  exclusion and passes either way. Only a role that is `full_access` **and** ticks the
+  key being checked exercises it.
 
 ---
 

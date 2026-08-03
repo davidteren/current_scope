@@ -76,6 +76,25 @@ class ParentScopeForTest < ActiveSupport::TestCase
                  "be the same escalation as in the gate, one query later"
   end
 
+  # Same gap as the gate side (#148): the test above never runs the exclusion,
+  # because its Owner role ticks nothing and roles_ticking drops it on the
+  # permission_key filter first.
+  test "a scoped full_access grant that ALSO ticks the key lists nothing of its children" do
+    scope_grant(@lead, role("Owner", "reports#index", full_access: true), @project)
+
+    assert_empty listed,
+                 "roles_ticking must exclude full_access roles even when they tick the " \
+                 "key; otherwise one scoped grant on a parent cascades to every child"
+
+    # POSITIVE CONTROL, per R8 below. Asserted second so it needs no teardown:
+    # `assert_empty` above also passes when the ancestor arm is dead, since
+    # "excluded" and "the chain never resolved" are indistinguishable from here.
+    scope_grant(@lead, role("Lead", "reports#index"), @project)
+
+    assert_includes listed, "mine",
+                    "control: an ordinary ticking role on the parent MUST list the child"
+  end
+
   test "a direct scoped full_access grant on a child still lists that child" do
     scope_grant(@lead, role("Owner", full_access: true), @mine)
 

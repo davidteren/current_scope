@@ -1,0 +1,27 @@
+test/collection_scope_gate_test.rb
+  s_b6526dcf3b998e::t_111cfcb713e2a4 223-245
+docs/internal/READINESS-AUDIT.md
+  s_b6526dcf3b998e::t_111cfcb713e2a4 221-233
+CHANGELOG.md
+  s_b6526dcf3b998e::t_8170d7dd57cd71 158-186
+test/parent_scope_for_test.rb
+  s_b6526dcf3b998e::t_111cfcb713e2a4 79-97
+test/parent_scoped_grant_test.rb
+  s_b6526dcf3b998e::t_111cfcb713e2a4 77-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "9cc47a03ae332aa6a120c24d1ec8a2af583b0052",
+  "prompts": {},
+  "sessions": {
+    "s_b6526dcf3b998e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb848af8-9fd5-4158-95e7-b22c92679504",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

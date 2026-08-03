@@ -1,0 +1,24 @@
+test/parent_scope_for_test.rb
+  s_b6526dcf3b998e::t_937ec329b44d74 79-90
+CHANGELOG.md
+  s_b6526dcf3b998e::t_9e9034d298ed05 158-174
+test/parent_scoped_grant_test.rb
+  s_b6526dcf3b998e::t_d2bb9d7ae01949 77-91,99-105
+  s_b6526dcf3b998e::t_eaeb3908abe63b 106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "c33054e7149c256a7d61e23d20338d17aa0a8a79",
+  "prompts": {},
+  "sessions": {
+    "s_b6526dcf3b998e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb848af8-9fd5-4158-95e7-b22c92679504",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+test/coverage_setup_test.rb
+  s_b6526dcf3b998e::t_fa134763756ce7 71-77,79-82,87-90
+  s_b6526dcf3b998e::t_97ed1e8e5df29b 91
+CONTRIBUTING.md
+  s_b6526dcf3b998e::t_19ac4e3b5a1786 26-28
+test/coverage_setup.rb
+  s_b6526dcf3b998e::t_d6eaa3bfe0d82b 67-68
+  s_b6526dcf3b998e::t_40808b2629d72f 54-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "c6967a9d89053b7e46c17c46575a53777fd13f19",
+  "prompts": {},
+  "sessions": {
+    "s_b6526dcf3b998e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb848af8-9fd5-4158-95e7-b22c92679504",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

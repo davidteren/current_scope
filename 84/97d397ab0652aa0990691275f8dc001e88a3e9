@@ -1,0 +1,51 @@
+test/dummy/db/schema.rb
+  s_b6526dcf3b998e::t_2a70e47602fe03 13,74-78,90,92
+  s_b6526dcf3b998e::t_66def4f0a140c0 79-81
+  s_b6526dcf3b998e::t_323272d7525ab9 88-89
+  s_b6526dcf3b998e::t_4f50ec911beb68 91
+  s_b6526dcf3b998e::t_aa6c743fae164f 93-95
+UPGRADING.md
+  s_b6526dcf3b998e::t_3a87c41e921d11 54-78
+test/dummy/app/models/entry.rb
+  s_b6526dcf3b998e::t_9e44c22b89bdb0 1-10
+test/dummy/app/controllers/entries_controller.rb
+  s_b6526dcf3b998e::t_d22b359677fbcf 2,9-10
+  s_b6526dcf3b998e::t_9e44c22b89bdb0 3,7,11
+  s_b6526dcf3b998e::t_9c88b29f3464f8 1,4-6,8
+test/dummy/config/routes.rb
+  s_b6526dcf3b998e::t_842c1328fbc1c4 59-61
+  s_b6526dcf3b998e::t_0785db220e4ce7 57-58
+lib/current_scope/resolver.rb
+  s_b6526dcf3b998e::t_b4550381fda1ed 396-405
+  s_b6526dcf3b998e::t_8cb556f1b0e2c5 127-128,130
+test/dummy/app/models/ledger.rb
+  s_b6526dcf3b998e::t_9e44c22b89bdb0 1-9
+CHANGELOG.md
+  s_b6526dcf3b998e::t_d344d9e0ad0153 158-181
+test/dummy/db/migrate/20260804000100_create_ledgers_and_entries.rb
+  s_b6526dcf3b998e::t_a062624791b923 1-24
+test/parent_chain_custom_primary_key_test.rb
+  s_b6526dcf3b998e::t_d8f895d7c82c37 45-47,54
+  s_b6526dcf3b998e::t_7c879b8148668b 1-21,34-44,48-53,55-56,65-103
+  s_b6526dcf3b998e::t_99e753a9dccc31 57
+  s_b6526dcf3b998e::t_dba8e5ecd9cc8d 22-33
+  s_b6526dcf3b998e::t_c4cef5f1666cb3 58-64
+Gemfile.lock
+  s_b6526dcf3b998e::t_046e58f0704435 12-14,18-23,25-29,32-34,42,44-47,50-51,56-57,59-63,65-69,71,194-205,207,215-217
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "8497d397ab0652aa0990691275f8dc001e88a3e9",
+  "prompts": {},
+  "sessions": {
+    "s_b6526dcf3b998e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb848af8-9fd5-4158-95e7-b22c92679504",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

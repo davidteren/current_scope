@@ -1,0 +1,31 @@
+lib/current_scope/schema_guard.rb
+  s_b6526dcf3b998e::t_1c1f5f8cfa5090 164
+  s_b6526dcf3b998e::t_30a3f65aba3886 145-150,152-156,159-161,168-180,192-194
+app/models/current_scope/scoped_role_assignment.rb
+  s_b6526dcf3b998e::t_1e34b505b7b0f9 58-62
+db/migrate/20260805000001_widen_current_scope_polymorphic_ids.rb
+  s_b6526dcf3b998e::t_cd52929ac95d86 105-109,112
+  s_b6526dcf3b998e::t_89598e258db202 56-57
+  s_b6526dcf3b998e::t_95301afe16dac6 94-104,110-111,113-121
+  s_b6526dcf3b998e::t_be2c7aaa457580 55
+test/widen_polymorphic_ids_migration_test.rb
+  s_b6526dcf3b998e::t_7bf70de279788c 96-121
+test/uuid_key_collision_test.rb
+  s_b6526dcf3b998e::t_bb76f09213cd89 311,316-321
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "512ba02132a98ec634470a06dc452cd7f3295dc4",
+  "prompts": {},
+  "sessions": {
+    "s_b6526dcf3b998e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb848af8-9fd5-4158-95e7-b22c92679504",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

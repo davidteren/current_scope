@@ -10,19 +10,24 @@
 # underneath it — and ActiveRecord's schema API is used rather than raw SQL
 # because `id varchar PRIMARY KEY` is valid SQLite and a syntax error on MySQL.
 # The suite runs on all three adapters (bin/db).
-ActiveRecord::Base.connection.create_table(:uuid_users, id: :string, force: true) do |t|
-  t.string :name
+# The table name is prefixed and the class name is not. `force: true` drops
+# whatever it finds, and this loads for every test run — against whatever
+# database DATABASE_URL points at — so it must not be able to collide with a
+# table a developer actually has. The CLASS keeps the short name because it is
+# what lands in the polymorphic *_type column, where the tests read it.
+class UuidUser < ActiveRecord::Base
+  self.table_name = "current_scope_test_uuid_users"
 end
 
-class UuidUser < ActiveRecord::Base
-  self.table_name = "uuid_users"
+ActiveRecord::Base.connection.create_table(UuidUser.table_name, id: :string, force: true) do |t|
+  t.string :name
 end
 
 # Drop the table when the whole run ends, not per test: any later test that
 # inspects ActiveRecord::Base.descendants or the table list would otherwise be
 # order-dependent on this file having loaded.
 Minitest.after_run do
-  ActiveRecord::Base.connection.drop_table(:uuid_users, if_exists: true)
+  ActiveRecord::Base.connection.drop_table(UuidUser.table_name, if_exists: true)
 rescue StandardError
   nil
 end

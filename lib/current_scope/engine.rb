@@ -268,7 +268,25 @@ module CurrentScope
     # wrong collation, which is the common case for a new app and for CI.
     def self.check_collation!(model, column)
       info = model.columns_hash[column]
-      return if info.nil? || info.collation.nil? || info.collation.end_with?("_bin")
+      return if info.nil? || info.collation.nil?
+
+      if info.collation.end_with?("_bin")
+        # Binary, but not necessarily NO PAD. utf8mb4_bin is PAD SPACE, so it
+        # still compares "abc" equal to "abc " — a narrower relative of the same
+        # collision. The migration prefers utf8mb4_0900_bin for that reason and
+        # falls back only where the server (MySQL < 8.0.17) offers nothing
+        # better. Refusing to boot there would strand a host on a shortcoming
+        # they cannot fix, so say it plainly once instead.
+        if info.collation == "utf8mb4_bin"
+          Rails.logger&.warn(
+            "[CurrentScope] #{model.table_name}.#{column} uses utf8mb4_bin, which is " \
+            "case-sensitive but PAD SPACE — a key with a trailing space would still " \
+            "match one without. Upgrade to MySQL 8.0.17+ and re-run " \
+            "`bin/rails current_scope:repair_schema` to move to utf8mb4_0900_bin (#151)."
+          )
+        end
+        return
+      end
 
       # NOT db:migrate. A database loaded from schema.rb has every migration
       # version already stamped, so db:migrate finds nothing pending and prints
@@ -322,15 +340,24 @@ module CurrentScope
     # exactly the writes that collapse two subjects into one. A deny list rather
     # than an allow list of every db: task, so a Rails release that adds a new
     # schema task does not silently start refusing to boot.
+    # PREFIXES, not exact names: db:seed:replant is as much host code as db:seed,
+    # and a host's own db:seed:demo would be too.
+    #
+    # db:reset and db:setup also end up seeding, and are deliberately NOT here —
+    # refusing them by name would accomplish nothing. They run against a database
+    # that does not exist yet, so this check has already passed (there is no
+    # column to judge) long before the schema load and the seed happen inside the
+    # same process. What protects that path is running current_scope:repair_schema
+    # after the schema load, which is what UPGRADING, bin/db and CI all do.
     BOOT_REFUSED_TASKS = %w[
-      db:seed db:fixtures:load app:db:seed app:db:fixtures:load
+      db:seed db:fixtures: app:db:seed app:db:fixtures:
     ].freeze
 
     def self.running_a_database_task?
       return false unless defined?(Rake) && Rake.respond_to?(:application)
 
       tasks = Rake.application.top_level_tasks
-      return false if tasks.any? { |task| BOOT_REFUSED_TASKS.include?(task) }
+      return false if tasks.any? { |task| task.start_with?(*BOOT_REFUSED_TASKS) }
 
       tasks.any? { |task| task.start_with?(*BOOT_EXEMPT_TASKS) }
     rescue StandardError

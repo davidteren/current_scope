@@ -53,16 +53,24 @@ up() {
 down() { docker rm -f cs-pg cs-mysql >/dev/null 2>&1; echo "removed cs-pg and cs-mysql"; }
 
 # Both servers accept TCP before they accept queries; poll rather than sleep.
+#
+# READY means "the SERVER answers", not "the database exists". run_one drops and
+# recreates the database moments later, so a missing one is the expected state
+# after any previous run — treating it as not-ready made this loop spin for two
+# minutes and then report a perfectly healthy server as dead.
 wait_for() {
-  local adapter="$1" url; url="$(url_for "$adapter")" || return 1
+  local adapter="$1" url out; url="$(url_for "$adapter")" || return 1
   for _ in $(seq 1 60); do
-    if RAILS_ENV=test DATABASE_URL="$url" CURRENT_SCOPE_SKIP_SCHEMA_CHECK=1 \
-       bin/rails runner 'ActiveRecord::Base.connection.execute("SELECT 1")' >/dev/null 2>&1; then
-      return 0
-    fi
+    out=$(RAILS_ENV=test DATABASE_URL="$url" CURRENT_SCOPE_SKIP_SCHEMA_CHECK=1 \
+          bin/rails runner 'ActiveRecord::Base.connection.execute("SELECT 1")' 2>&1) && return 0
+    # The server is up and answered; it just has no such database yet.
+    case "$out" in
+      *NoDatabaseError*|*"Unknown database"*|*"does not exist"*) return 0 ;;
+    esac
     sleep 2
   done
   echo "!! $adapter never became ready" >&2
+  echo "$out" >&2
   return 1
 }
 

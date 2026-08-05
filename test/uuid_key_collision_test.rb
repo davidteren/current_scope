@@ -284,6 +284,7 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       # own code — seeds routinely create grants, and on the pre-migration schema
       # those are the writes that collapse two subjects into one.
       "db:seed" => false,
+      "db:seed:replant" => false,                # Rails ships this one; a host may add more
       "db:fixtures:load" => false,
       "app:db:seed" => false,
       "test" => false,                           # and everything else is still refused

@@ -308,10 +308,17 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       "db:seed:replant" => false,                # Rails ships this one; a host may add more
       "db:fixtures:load" => false,
       "app:db:seed" => false,
+      "db:migrate:up" => true,                   # a real Rails child task
       # A host's OWN db:-namespaced task is host code, not schema tooling, and an
       # allow list is what keeps it from inheriting the repair path's exemption.
       "db:import_users" => false,
       "db:backfill" => false,
+      # Names that START with an exempt task. Prefix matching would wave all of
+      # these through, which is how an allow list quietly becomes `db:` again.
+      "db:create_tenant" => false,
+      "db:migrate_legacy_users" => false,
+      "db:dropbears" => false,
+      "db:setup_hostile" => false,
       "test" => false,                           # and everything else is still refused
       "current_scope:report" => false,
       "middleware" => false

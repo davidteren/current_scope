@@ -54,9 +54,12 @@ module CurrentScope
         # .canonical_key?); a dropped id simply stays unloaded, which is exactly
         # what orphaned_resource? then labels.
         ids = rows.map(&:resource_id).uniq.select { |id| CurrentScope.canonical_key?(klass, id) }
-        next if ids.empty?
 
-        records = klass.where(key => ids).index_by { |r| r[key].to_s }
+        # When NOTHING in the group is a legal key, skip the query but still mark
+        # every row loaded-as-nil below. Returning early instead would leave the
+        # associations lazy, so the first orphaned_resource? call would go and do
+        # per-row exactly the load this method exists to do safely and in bulk.
+        records = ids.empty? ? {} : klass.where(key => ids).index_by { |r| r[key].to_s }
         rows.each do |row|
           assoc = row.association(:resource)
           assoc.target = records[row.resource_id.to_s]

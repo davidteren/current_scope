@@ -53,6 +53,9 @@ class WidenCurrentScopePolymorphicIds < ActiveRecord::Migration[7.1]
 
   def up
     COLUMNS.each do |table, columns|
+      columns.each { |column| refuse_if_any_key_too_long(table, column) }
+    end
+    COLUMNS.each do |table, columns|
       columns.each { |column| widen(table, column) }
     end
     return unless mysql?
@@ -86,6 +89,34 @@ class WidenCurrentScopePolymorphicIds < ActiveRecord::Migration[7.1]
       else
         FALLBACK_COLLATION
       end
+  end
+
+  # Look BEFORE narrowing. Coming from the integer column this migration was
+  # written for, nothing can be too long — but a host arriving from a wider
+  # string column is a different story, and MySQL outside strict mode truncates
+  # silently rather than refusing. A truncated key names the wrong record, which
+  # is the whole of #151. Stop with the count and the column named, so the
+  # operator decides, rather than discovering it afterwards.
+  def refuse_if_any_key_too_long(table, column)
+    existing = connection.columns(table).find { |c| c.name == column.to_s }
+    return if existing.nil? || existing.type != :string
+
+    quoted = "#{connection.quote_table_name(table)}.#{connection.quote_column_name(column)}"
+    # CHAR_LENGTH on MySQL, where LENGTH counts BYTES and would refuse a
+    # perfectly short key that happens to be multi-byte. SQLite has no
+    # CHAR_LENGTH at all, and its LENGTH already counts characters; so does
+    # PostgreSQL's.
+    length_fn = mysql? ? "CHAR_LENGTH" : "LENGTH"
+    too_long = connection.select_value(
+      "SELECT COUNT(*) FROM #{connection.quote_table_name(table)} " \
+      "WHERE #{length_fn}(#{quoted}) > #{KEY_LIMIT}"
+    ).to_i
+    return if too_long.zero?
+
+    raise ActiveRecord::IrreversibleMigration,
+          "#{table}.#{column} holds #{too_long} value(s) longer than #{KEY_LIMIT} characters. " \
+          "Narrowing the column would truncate them, and a truncated key names the WRONG " \
+          "record (#151). Shorten or remove those grants first."
   end
 
   def already_correct?(table, column)

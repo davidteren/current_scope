@@ -142,45 +142,42 @@ module CurrentScope
 
     # Rake tasks that may BOOT even against an unrepaired schema.
     #
-    # The check above raises from after_initialize, which every Rails command
-    # runs — including `db:migrate`, the command its own error message tells the
-    # host to run. Without an exemption an upgrading host is stuck: the app
-    # refuses to boot and the repair refuses to run, for the same reason.
-    # `assets:` is the same trap one step less obvious — a deploy pipeline that
-    # precompiles before migrating dies before it ever reaches the fix.
+    # The check raises from after_initialize, which every Rails command runs —
+    # including `db:migrate`, the command its own error message tells the host to
+    # run. Without an exemption an upgrading host is stuck: the app refuses to
+    # boot and the repair refuses to run, for the same reason. `assets:` is the
+    # same trap one step less obvious — a deploy pipeline that precompiles before
+    # migrating dies before it ever reaches the fix.
     #
-    # An ALLOW list of the tasks Rails actually ships, NOT a bare `db:` prefix.
-    # `db:` exempted anything a host chose to name that way — `db:import_users`,
-    # `db:backfill` — and that is host code running against a schema this check
-    # has not cleared, which is the one thing the exemption is not for. A host
-    # whose own task genuinely must boot first gets a refusal naming
-    # CURRENT_SCOPE_SKIP_SCHEMA_CHECK=1, rather than silent permission.
+    # EXACT NAMES, not prefixes, and that distinction is load-bearing: matching
+    # `db:create` as a prefix also matches a host's `db:create_tenant`, and
+    # `db:migrate` matches `db:migrate_legacy_users`. Prefix matching turned an
+    # allow list back into the `db:` free-for-all it replaced. Namespaces that
+    # legitimately have children are listed separately, ending in a colon.
     #
     # Anything that serves traffic or runs host code — server, console, runner —
-    # is deliberately absent. Refusing those is what actually protects the host.
-    #
-    # Matched after stripping a leading `app:`, which is how these same tasks are
-    # spelled from inside an engine (rails/tasks/engine.rake), so each one is
-    # listed once rather than twice.
+    # is deliberately absent. db:setup, db:reset and db:prepare are present
+    # despite seeding: they are how a host REBUILDS a database, and refusing them
+    # would leave a broken schema with no way to replace it.
     BOOT_EXEMPT_TASKS = %w[
       db:create db:drop db:migrate db:rollback db:version db:prepare db:setup
-      db:reset db:schema: db:structure: db:test: db:environment:
-      db:abort_if_pending_migrations db:_dump
+      db:reset db:abort_if_pending_migrations db:_dump
       current_scope:install current_scope:repair_schema
-      assets:
     ].freeze
 
-    # …minus these, which the list above would otherwise cover. db:setup,
-    # db:reset and db:prepare all end up seeding, and they stay exempt because
-    # they are how a host REBUILDS a database — refusing them would leave a
-    # broken schema with no way to replace it, and they run before there is
-    # anything to judge anyway. A bare `db:seed` is different: it repairs
-    # nothing and runs host code, and seeds routinely create grants through this
-    # engine — on the pre-migration schema, exactly the writes that collapse two
-    # subjects into one.
-    #
-    # PREFIXES, so db:seed:replant (which Rails ships) and a host's own
-    # db:seed:demo are covered too.
+    # Namespaces whose children are all schema tooling (db:migrate:up,
+    # db:schema:load, assets:precompile, …).
+    BOOT_EXEMPT_NAMESPACES = %w[
+      db:migrate: db:schema: db:structure: db:test: db:environment:
+      current_scope:install: assets:
+    ].freeze
+
+    # …minus these, which the lists above would otherwise cover. A bare `db:seed`
+    # repairs nothing and runs host code, and seeds routinely create grants
+    # through this engine — on the pre-migration schema, exactly the writes that
+    # collapse two subjects into one. Prefixes here on purpose: db:seed:replant
+    # (which Rails ships) and a host's own db:seed_users are both host code, and
+    # over-refusing is the safe direction for a deny list.
     BOOT_REFUSED_TASKS = %w[db:seed db:fixtures:].freeze
 
     def self.running_a_database_task?
@@ -192,7 +189,9 @@ module CurrentScope
       tasks = Rake.application.top_level_tasks.map { |task| task.delete_prefix("app:") }
       return false if tasks.any? { |task| task.start_with?(*BOOT_REFUSED_TASKS) }
 
-      tasks.any? { |task| task.start_with?(*BOOT_EXEMPT_TASKS) }
+      tasks.any? do |task|
+        BOOT_EXEMPT_TASKS.include?(task) || task.start_with?(*BOOT_EXEMPT_NAMESPACES)
+      end
     rescue StandardError
       # No rake application in scope (a server or console): not a database task.
       false

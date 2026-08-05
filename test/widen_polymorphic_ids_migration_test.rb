@@ -93,6 +93,32 @@ class WidenPolymorphicIdsMigrationTest < ActiveSupport::TestCase
                  "route. The migration forces utf8mb4_bin for exactly this."
   end
 
+  # Coming from the integer column this migration was written for, nothing can be
+  # too long. A host arriving from a WIDER string column is the case that matters:
+  # MySQL outside strict mode narrows by truncating, silently, and a truncated key
+  # names the wrong record — #151 caused by the migration meant to end it.
+  test "it refuses to narrow a column holding a key that would not survive" do
+    widen!
+    connection.execute(
+      "INSERT INTO #{connection.quote_table_name(TABLE)} " \
+      "(subject_type, subject_id) VALUES ('User', #{connection.quote('a' * 10)})"
+    )
+    # Widen past the limit so there is room for an over-long value to exist.
+    connection.change_column(TABLE, :subject_id, :string, limit: 200)
+    connection.execute(
+      "INSERT INTO #{connection.quote_table_name(TABLE)} " \
+      "(subject_type, subject_id) VALUES ('User', #{connection.quote('x' * (CurrentScope::KEY_LIMIT + 1))})"
+    )
+
+    migration = WidenCurrentScopePolymorphicIds.new
+    migration.verbose = false
+    error = assert_raises(ActiveRecord::IrreversibleMigration) do
+      migration.send(:refuse_if_any_key_too_long, TABLE, :subject_id)
+    end
+    assert_match(/1 value\(s\) longer than #{CurrentScope::KEY_LIMIT}/, error.message)
+    assert_match(/truncated key names the WRONG record/, error.message)
+  end
+
   test "the migration refuses to run backwards rather than truncating keys" do
     assert_raises(ActiveRecord::IrreversibleMigration) do
       WidenCurrentScopePolymorphicIds.new.migrate(:down)

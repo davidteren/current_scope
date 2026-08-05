@@ -1,0 +1,19 @@
+test/uuid_key_collision_test.rb
+  s_b6526dcf3b998e::t_6628229ffe73e7 180-186,189,215-217,219,222
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "73d5c69c19b18d5153b7ba4e5a6c8638108a512e",
+  "prompts": {},
+  "sessions": {
+    "s_b6526dcf3b998e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb848af8-9fd5-4158-95e7-b22c92679504",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

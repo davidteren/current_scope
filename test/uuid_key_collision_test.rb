@@ -201,7 +201,7 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
   test "the engine refuses to boot if the widening migration has not run" do
     # A gem upgrade does not run migrations. Without this check a host would keep
     # integer columns, keep the escalation, and see nothing wrong.
-    assert_nothing_raised { CurrentScope::Engine.grant_columns_widened! }
+    assert_nothing_raised { CurrentScope::SchemaGuard.check! }
 
     # Present the pre-migration schema by overriding the reader the check uses.
     # A plain singleton method rather than a mocking library, which this suite
@@ -210,7 +210,7 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     CurrentScope::RoleAssignment.define_singleton_method(:columns_hash) { fake }
     begin
       error = assert_raises(CurrentScope::ConfigurationError) do
-        CurrentScope::Engine.grant_columns_widened!
+        CurrentScope::SchemaGuard.check!
       end
       assert_match(/still integer/, error.message)
       assert_match(/db:migrate/, error.message, "the message must name the fix")
@@ -233,7 +233,7 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     CurrentScope::RoleAssignment.define_singleton_method(:columns_hash) { half_applied }
     with_mysql(true) do
       error = assert_raises(CurrentScope::ConfigurationError) do
-        CurrentScope::Engine.grant_columns_widened!
+        CurrentScope::SchemaGuard.check!
       end
       assert_match(/subject_type/, error.message,
                    "the id columns are already correct — the TYPE column is what is still folding case")
@@ -252,7 +252,7 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     CurrentScope::RoleAssignment.define_singleton_method(:columns_hash) { narrow }
     begin
       error = assert_raises(CurrentScope::ConfigurationError) do
-        CurrentScope::Engine.grant_columns_widened!
+        CurrentScope::SchemaGuard.check!
       end
       assert_match(/holds 32 characters/, error.message)
       assert_match(/repair_schema/, error.message, "the message must name the fix")
@@ -274,12 +274,12 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       # behind, which would make this assertion depend on file order.
       with_database_task(false) do
         assert_raises(CurrentScope::ConfigurationError, "serving must still be refused") do
-          CurrentScope::Engine.grant_columns_widened!
+          CurrentScope::SchemaGuard.check!
         end
       end
 
       with_database_task(true) do
-        assert_nothing_raised { CurrentScope::Engine.grant_columns_widened! }
+        assert_nothing_raised { CurrentScope::SchemaGuard.check! }
       end
     ensure
       CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
@@ -317,7 +317,7 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       "middleware" => false
     }.each do |task, exempt|
       with_top_level_tasks([ task ]) do
-        assert_equal exempt, CurrentScope::Engine.send(:running_a_database_task?),
+        assert_equal exempt, CurrentScope::SchemaGuard.send(:running_a_database_task?),
                      "#{task} should #{exempt ? '' : 'NOT '}be allowed to boot on an unmigrated schema"
       end
     end
@@ -346,13 +346,13 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
   # that uses the actual rake tasks. The original method object is saved and put
   # back, visibility included.
   def with_database_task(answer)
-    engine = CurrentScope::Engine
-    original = engine.method(:running_a_database_task?)
-    engine.define_singleton_method(:running_a_database_task?) { answer }
+    guard = CurrentScope::SchemaGuard
+    original = guard.method(:running_a_database_task?)
+    guard.define_singleton_method(:running_a_database_task?) { answer }
     yield
   ensure
-    engine.define_singleton_method(:running_a_database_task?, original)
-    engine.singleton_class.send(:private, :running_a_database_task?)
+    guard.define_singleton_method(:running_a_database_task?, original)
+    guard.singleton_class.send(:private, :running_a_database_task?)
   end
 
   # Stand a double in for the whole Rake application, and put back whatever was
@@ -383,12 +383,12 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
   # on MySQL, and the suite must pin it on every adapter rather than only when it
   # happens to be pointed at MySQL.
   def with_mysql(answer)
-    engine = CurrentScope::Engine
-    original = engine.method(:mysql?)
-    engine.define_singleton_method(:mysql?) { answer }
+    guard = CurrentScope::SchemaGuard
+    original = guard.method(:mysql?)
+    guard.define_singleton_method(:mysql?) { answer }
     yield
   ensure
-    engine.define_singleton_method(:mysql?, original)
-    engine.singleton_class.send(:private, :mysql?)
+    guard.define_singleton_method(:mysql?, original)
+    guard.singleton_class.send(:private, :mysql?)
   end
 end

@@ -13,6 +13,7 @@ require "current_scope/guard"
 require "current_scope/gating_tripwire"
 require "current_scope/gating_reflection"
 require "current_scope/sod_preflight"
+require "current_scope/schema_guard"
 require "current_scope/engine"
 
 module  CurrentScope

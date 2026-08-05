@@ -72,7 +72,7 @@ class RepairSchemaTaskTest < ActiveSupport::TestCase
   # repair. If its own name were not exempt, running it would be impossible for
   # exactly the reason it exists — the dead end this fix removed.
   test "the task's own name is exempt from the boot refusal" do
-    exempt = CurrentScope::Engine::BOOT_EXEMPT_TASKS
+    exempt = CurrentScope::SchemaGuard::BOOT_EXEMPT_TASKS
     assert exempt.any? { |prefix| "current_scope:repair_schema".start_with?(prefix) },
            "the repair task must be able to boot, or it could never run"
     # The `app:` spelling is handled by stripping that prefix before matching,

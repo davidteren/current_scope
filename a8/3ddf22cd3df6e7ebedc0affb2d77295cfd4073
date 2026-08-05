@@ -1,0 +1,67 @@
+CONTRIBUTING.md
+  s_b6526dcf3b998e::t_6c0378e69fab38 51-68
+.github/workflows/ci.yml
+  s_b6526dcf3b998e::t_fb0ba426a6699b 163-168
+  s_b6526dcf3b998e::t_390af0cf854223 171
+lib/current_scope/engine.rb
+  s_b6526dcf3b998e::t_7d9b02611dc551 278-282,284
+  s_b6526dcf3b998e::t_82729805a30f81 303-306
+  s_b6526dcf3b998e::t_25464f87b5fdef 263-267,272-274
+  s_b6526dcf3b998e::t_707c5a6234944c 172-177,180-190
+  s_b6526dcf3b998e::t_48423e576dd1a3 226-233
+  s_b6526dcf3b998e::t_02cf38bff3cab2 277,288-302,312
+  s_b6526dcf3b998e::t_84c98533560983 208-213,215-219,222-225,234-235,237-239,241-243,245-251,253,255-262,268-271,275-276
+  s_b6526dcf3b998e::t_f3038207f28c53 307
+test/support/uuid_user.rb
+  s_b6526dcf3b998e::t_63e61852a2265a 1-28
+app/controllers/current_scope/roles_controller.rb
+  s_b6526dcf3b998e::t_1874f45c5a72da 238
+UPGRADING.md
+  s_b6526dcf3b998e::t_8abeae0bb0d161 77-88
+  s_b6526dcf3b998e::t_563dbe36ff9cff 96-118
+lib/current_scope/resolver.rb
+  s_b6526dcf3b998e::t_e3786ebd0f5ff5 419-428,432
+  s_b6526dcf3b998e::t_284a06a8eaaae6 395-396
+  s_b6526dcf3b998e::t_14f4cb9d344fad 582-587,590-591
+  s_b6526dcf3b998e::t_d7840580e558ae 226
+  s_b6526dcf3b998e::t_507e3b19736332 133-134
+app/models/concerns/current_scope/storable_keys.rb
+  s_b6526dcf3b998e::t_2d6c582ad3c85b 35-38,40-51
+test/integration/role_members_test.rb
+  s_b6526dcf3b998e::t_3ebc067dba52fc 32-59
+bin/db
+  s_b6526dcf3b998e::t_36889754b98a8d 88-92,97
+  s_b6526dcf3b998e::t_390af0cf854223 93-96
+test/uuid_key_collision_test.rb
+  s_b6526dcf3b998e::t_b9d2c9accd9ef3 302-314
+  s_b6526dcf3b998e::t_735912c3383340 15-16
+  s_b6526dcf3b998e::t_b1e0680221b68c 147-200
+  s_b6526dcf3b998e::t_20dd6c26560d94 130-146
+  s_b6526dcf3b998e::t_77537a79c87685 222-245
+test/test_helper.rb
+  s_b6526dcf3b998e::t_4272b64b42dd72 14-17
+lib/tasks/current_scope_tasks.rake
+  s_b6526dcf3b998e::t_2cc781672ebb82 2-28
+lib/current_scope.rb
+  s_b6526dcf3b998e::t_86d831fd94b7a5 280-292
+  s_b6526dcf3b998e::t_3b8e0641f6e0b6 293-319
+db/migrate/20260805000001_widen_current_scope_polymorphic_ids.rb
+  s_b6526dcf3b998e::t_2a272b98072318 32-38
+  s_b6526dcf3b998e::t_3897d771078b06 78-90,96,102,105,125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "a83ddf22cd3df6e7ebedc0affb2d77295cfd4073",
+  "prompts": {},
+  "sessions": {
+    "s_b6526dcf3b998e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb848af8-9fd5-4158-95e7-b22c92679504",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

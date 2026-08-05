@@ -181,6 +181,11 @@ module CurrentScope
       # migrate, no adapter configured, connection down. Deliberately broad: a
       # missed error class costs a deploy, an over-broad rescue costs only a
       # late warning, and the write validations remain the guarantee either way.
+      #
+      # Say so rather than passing silently: this check runs once, so a host whose
+      # database was unreachable at boot gets no second attempt, and a quiet skip
+      # would read as a clean bill of health.
+      Rails.logger&.warn("[CurrentScope] key check skipped — could not introspect the database (#151). It will not run again until the next boot.")
       nil
     end
 

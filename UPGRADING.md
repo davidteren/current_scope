@@ -65,19 +65,28 @@ resolved, to the wrong record.
 Audit on the version you are running now, before upgrading:
 
 ```ruby
-# Grants whose stored id matches no real record — the collapsed rows. Both
-# tables, and both sides of a scoped grant: a UUID-keyed RESOURCE collapses the
-# same way a subject does.
+# Any grant held on a type that is not integer-keyed is suspect — not just the
+# ones that now point at nothing. A collapsed value can also land ON a real
+# record ("7f00…" -> 7, where another record's key is "7"), which is the
+# dangerous case and the one an orphan check misses entirely.
 [[CurrentScope::RoleAssignment, %w[subject]],
  [CurrentScope::ScopedRoleAssignment, %w[subject resource]]].each do |model, sides|
-  model.find_each do |row|
-    sides.each do |side|
-      type = row.public_send("#{side}_type")
-      id   = row.public_send("#{side}_id")
-      klass = type&.safe_constantize or next
-      next if klass.exists?(id: id)
+  sides.each do |side|
+    model.distinct.pluck(:"#{side}_type").compact.each do |type|
+      # polymorphic_class_for, not safe_constantize: the column stores a Rails
+      # TOKEN, which a custom polymorphic_name or store_full_class_name = false
+      # can shorten. safe_constantize returns nil for those and skips them.
+      klass = begin
+        ActiveRecord::Base.polymorphic_class_for(type)
+      rescue NameError
+        next
+      end
+      key = klass.primary_key
+      next if key.is_a?(String) && klass.type_for_attribute(key).type == :integer
 
-      puts "SUSPECT #{model.name}##{row.id}: #{side} #{type}##{id}"
+      count = model.where("#{side}_type" => type).count
+      puts "AFFECTED: #{count} #{model.name} row(s) with #{side}_type=#{type} " \
+           "(#{klass.name} keys on #{key.inspect}) — review and re-grant every one"
     end
   end
 end

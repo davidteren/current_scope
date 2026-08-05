@@ -28,12 +28,14 @@ module CurrentScope
 
         # A write fails CLOSED either way, but the two causes get different
         # messages: claiming a model has a composite key when the truth is "its
-        # table is missing" sends the reader hunting the wrong problem.
+        # table is missing" sends the reader hunting the wrong problem. Only
+        # ActiveRecord errors are converted — a NoMethodError here is a bug in
+        # this gem and must surface as one, not as a validation message.
         begin
           next if CurrentScope.storable_key?(klass)
 
           errors.add(:base, CurrentScope.unstorable_key_error(klass, role: side))
-        rescue StandardError => e
+        rescue ActiveRecord::ActiveRecordError => e
           errors.add(:base,
             "#{klass.name}'s primary key could not be read (#{e.class}: #{e.message}), so " \
             "CurrentScope cannot prove this #{side} names one record. Refusing the grant " \

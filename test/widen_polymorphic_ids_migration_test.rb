@@ -98,4 +98,31 @@ class WidenPolymorphicIdsMigrationTest < ActiveSupport::TestCase
       WidenCurrentScopePolymorphicIds.new.migrate(:down)
     end
   end
+
+  # The probe-table cases above drive `widen` directly. This one drives the actual
+  # entry point against the actual grant tables, which is where the gap was: the
+  # idempotence guard used to short-circuit on type and width alone, so a
+  # schema-loaded database kept the server's case-insensitive collation and the
+  # #151 collision stayed live. `up` is idempotent, so running it here is safe.
+  test "up leaves every grant id and type column correct on this adapter" do
+    WidenCurrentScopePolymorphicIds.new.tap { |m| m.verbose = false }.migrate(:up)
+
+    mysql = connection.adapter_name.match?(/mysql|trilogy|maria/i)
+    {
+      "current_scope_role_assignments" => %w[subject_id subject_type],
+      "current_scope_scoped_role_assignments" => %w[subject_id resource_id subject_type resource_type]
+    }.each do |table, columns|
+      columns.each do |name|
+        info = connection.columns(table).find { |c| c.name == name }
+        assert_equal :string, info.type, "#{table}.#{name} must be a string column"
+        assert_equal CurrentScope::KEY_LIMIT, info.limit, "#{table}.#{name} width" if name.end_with?("_id")
+
+        next unless mysql
+
+        assert info.collation.to_s.end_with?("_bin"),
+               "#{table}.#{name} is #{info.collation}: a case-insensitive collation means " \
+               "\"ABC\" and \"abc\" are the same record, which is #151 by another column"
+      end
+    end
+  end
 end

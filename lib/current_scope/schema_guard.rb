@@ -196,8 +196,6 @@ module CurrentScope
       # No rake application in scope (a server or console): not a database task.
       false
     end
-    private_class_method :running_a_database_task?
-
     private_class_method :check_id_column!, :check_collation!, :mysql?,
                          :running_a_database_task?
   end

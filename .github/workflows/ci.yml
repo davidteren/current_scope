@@ -105,3 +105,68 @@ jobs:
           name: screenshots
           path: ${{ github.workspace }}/tmp/screenshots
           if-no-files-found: ignore
+
+  # #151 widened the polymorphic grant id columns to string so a UUID primary key
+  # survives. Adapters disagree about comparing a string column to an integer one:
+  # SQLite coerces silently, MySQL coerces, PostgreSQL raises outright. The
+  # SQLite-only job above cannot see that class of bug — it is exactly how the UUID
+  # collision reached three releases — so the same suite runs on both server
+  # databases. `bin/db test` runs these locally against Docker.
+  adapters:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - adapter: postgres
+            url: postgresql://cs:cs@127.0.0.1:5432/cs_test
+          - adapter: mysql
+            url: trilogy://root:cs@127.0.0.1:3306/cs_test
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: cs
+          POSTGRES_PASSWORD: cs
+          POSTGRES_DB: cs_test
+        ports: [ "5432:5432" ]
+        options: >-
+          --health-cmd "pg_isready -U cs" --health-interval 5s
+          --health-timeout 5s --health-retries 20
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: cs
+          MYSQL_DATABASE: cs_test
+        ports: [ "3306:3306" ]
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -pcs" --health-interval 5s
+          --health-timeout 5s --health-retries 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.4.9
+          bundler-cache: true
+
+      # Unit only: the system suite needs headless Chrome and adds nothing about
+      # column types, which is what this job exists to check. COVERAGE=0 because
+      # the SQLite job owns the coverage artifact.
+      - name: Run the suite on ${{ matrix.adapter }}
+        env:
+          RAILS_ENV: test
+          DATABASE_URL: ${{ matrix.url }}
+          COVERAGE: "0"
+        # schema.rb cannot express MySQL's collation, so a freshly-loaded schema
+        # has the right column type and the wrong collation — and db:migrate
+        # cannot fix it, because loading a schema stamps every version as
+        # applied. This is the same repair task an upgrading host runs, which is
+        # the point: CI exercises the documented recovery path rather than a
+        # private one-liner that could drift from it (#151).
+        run: |
+          bin/rails db:test:prepare
+          bundle exec rake app:current_scope:repair_schema
+          bin/rails test

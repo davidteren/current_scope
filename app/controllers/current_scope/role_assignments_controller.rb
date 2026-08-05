@@ -150,7 +150,10 @@ module CurrentScope
     def same_subject?(assignment, subject)
       # Match the polymorphic storage name the subjects page uses (not only
       # base_class.name — hosts can customize polymorphic_name).
-      assignment.subject_type == subject.class.polymorphic_name && assignment.subject_id == subject.id
+      # to_s on both: subject_id is a string column (#151) while a record keyed on
+      # an integer answers 1, so a raw == silently never matches.
+      assignment.subject_type == subject.class.polymorphic_name &&
+        assignment.subject_id.to_s == subject.id.to_s
     end
 
     # Returns true when a role was actually cleared, false when there was nothing

@@ -154,6 +154,68 @@ changed. Not cut yet; the README banner stays up pending the real-host
   a numeric custom key. A subject sees records nobody granted them. See
   [UPGRADING.md](UPGRADING.md) for the fix.
 
+### Security
+- **A subject could inherit another subject's roles when primary keys are not
+  integers (#151).** `subject_id` and `resource_id` were integer columns
+  (`t.references`), so a UUID or other non-numeric primary key was cast by
+  `String#to_i` on write. `"7f00aaaa-…"` and `"7f00bbbb-…"` both stored as `7`; a
+  key beginning with a letter stored as `0`. Distinct records collapsed into one
+  identity, and a subject held a role nobody granted them — `full_access`
+  included. **This affects 0.2, 0.3 and 0.4 as published.**
+
+  Nothing surfaced it: the association still resolved (to the wrong record), the
+  per-subject uniqueness index saw the collapsed value as a single subject, and no
+  test failed. Reproduced before fixing, and the reproduction is pinned in
+  `test/uuid_key_collision_test.rb`.
+
+  **The columns are now `varchar(64)`, so integer, UUID and ULID keys are all
+  stored whole.** This is support, not a guard: nothing is refused for being a
+  UUID. Only a key that is not ONE value — composite, or absent — is refused,
+  because it names no single record.
+
+  **Upgrading requires the migration**, and a gem upgrade does not run one:
+
+  ```bash
+  bin/rails current_scope:install:migrations && bin/rails db:migrate
+  ```
+
+  The engine refuses to serve until it has run, because every code path behaves
+  correctly against the schema it is given and the escalation would otherwise
+  persist silently. Database, installer and `assets:` tasks are exempt so the
+  repair and the asset build are not blocked; `db:seed` is not, because it runs
+  host code. A database built from `schema.rb` cannot be repaired by
+  `db:migrate` (schema load stamps every version as applied), so
+  `bin/rails current_scope:repair_schema` applies the shape idempotently.
+
+  Details that each closed a way the collision survived widening:
+  - **MySQL gets a binary collation** — `utf8mb4_0900_bin` where the server has
+    it, else `utf8mb4_bin`. The default is case AND accent insensitive, so
+    `"ABC"` and `"abc"` — or `"jose"` and `"josé"` — still compared equal. The
+    `0900` variant is also `NO PAD`, so `"abc"` and `"abc "` stay distinct. A
+    primary key is an identifier, not prose.
+  - **An id that is not a legal key for the model it names is refused**, on
+    write and on read. The columns take any string now, so a grant could name a
+    bigint-keyed model with a UUID — and the read path would cast it back to a
+    different record's id, which is the same collapse one layer along.
+  - **Grant ids read back as `String` for every host**, integer keys included:
+    `grant.subject_id == user.id` is now `false`. Compare `.to_s` on both sides.
+  - **Keys longer than 64 characters are rejected, not truncated**, checked in
+    Ruby so every adapter fails the same way instead of depending on `sql_mode`.
+  - **The suite now runs on SQLite, PostgreSQL and MySQL** (`bin/db`, plus a CI
+    matrix job). A SQLite-only suite is how this reached three releases: it
+    coerces the string/integer comparisons the other two refuse. The first
+    PostgreSQL run produced 106 errors.
+
+  **Rows written before the upgrade are not repaired** — once `"7f00aaaa-…"` was
+  stored as `7`, the original value is gone. After migrating they match nobody, so
+  they fail closed (access lost, not gained) and show as inert grants. See
+  [UPGRADING.md](UPGRADING.md) for the audit query and the re-grant step.
+
+  `scope_for` is now **eager**: it reads the granted ids when the relation is
+  built rather than leaving a subquery, because comparing a string column to a
+  bigint one is what PostgreSQL refuses. The returned relation is still lazy and
+  chainable, but it is a snapshot of the grants at call time.
+
 ### Fixed
 - **The "scoped `full_access` does not cascade" rule is now actually tested
   (#148).** No behavior changed; the guarantee was simply unguarded. `roles_ticking`

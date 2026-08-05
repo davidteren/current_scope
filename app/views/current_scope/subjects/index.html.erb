@@ -56,7 +56,7 @@
           not subject.class.name — an STI subject (AdminUser < User) is saved as
           "User", and keying on the subclass name would show its roles as
           "— none —" while the resolver happily enforces them. %>
-      <% key = [ subject.class.polymorphic_name, subject.id ] %>
+      <% key = [ subject.class.polymorphic_name, subject.id.to_s ] %>
       <% label = current_scope_subject_label(subject) %>
       <%# Filter against a precise text set — subject label, current org role, and
           scoped roles/records — NOT the row's textContent: every row embeds a

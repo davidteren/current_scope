@@ -13,6 +13,7 @@ require "current_scope/guard"
 require "current_scope/gating_tripwire"
 require "current_scope/gating_reflection"
 require "current_scope/sod_preflight"
+require "current_scope/schema_guard"
 require "current_scope/engine"
 
 module  CurrentScope
@@ -65,6 +66,11 @@ module  CurrentScope
   # raised loudly — an authorization library must never turn a configuration
   # mistake into a silent allow or an undiagnosable deny.
   class ConfigurationError < StandardError; end
+
+  # The width of the polymorphic grant id columns (#151). Named here so the
+  # length guard and the migration cannot drift apart; the migration keeps its own
+  # copy because a migration must not depend on the gem's runtime constants.
+  KEY_LIMIT = 64
 
   class << self
     def config
@@ -246,6 +252,91 @@ module  CurrentScope
 
         assignment
       end
+    end
+
+    # Resolve a stored polymorphic type token to its class. `*_type` is a Rails
+    # STORAGE TOKEN, not necessarily a constant name: `polymorphic_name` can be
+    # overridden and `store_full_class_name = false` shortens it, so
+    # `safe_constantize` would return nil or resolve the wrong class.
+    # Returns nil for a token that no longer resolves, which callers treat as
+    # "nothing to check" — a stale type is #90's inert grant, not a key problem.
+    def polymorphic_class(type, owner: ActiveRecord::Base)
+      return if type.blank?
+
+      owner.polymorphic_class_for(type)
+    rescue NameError
+      nil
+    end
+
+    # #151. `subject_id` and `resource_id` are string columns, so ANY single-value
+    # primary key stores whole — an integer as "1", a UUID as "7f00aaaa-…". What
+    # still cannot be stored is a key that is not one value: a composite key is an
+    # array, and a model with no primary key names no record at all. Grants on
+    # those are refused rather than written as something that identifies the wrong
+    # row, or nothing.
+    def storable_key?(klass)
+      klass.primary_key.is_a?(String)
+    end
+
+    # Whether a connection speaks MySQL, in one place. MySQL is the only adapter
+    # #151 has to treat specially (its default collation folds case and accents,
+    # and it needs CHAR rather than TEXT in a cast), and three separate copies of
+    # this regex would be three chances to disagree.
+    #
+    # Takes a CONNECTION rather than reading ActiveRecord::Base's: in a host that
+    # puts the grant tables on a different database from its subject models, the
+    # answer differs per connection, and asking the wrong one produces a cast or
+    # a collation the target server rejects.
+    def mysql?(connection = ActiveRecord::Base.connection)
+      connection.adapter_name.match?(/mysql|trilogy|maria/i)
+    end
+
+    # #151, VALUE side. storable_key? asks whether the CLASS can be named by one
+    # id; this asks whether THIS id is a legal one for that class.
+    #
+    # The columns hold any string now, so a grant can be written naming a
+    # bigint-keyed model with a UUID. Nothing about the write looks wrong — and
+    # the read path then casts that string back into the model's own key type,
+    # where String#to_i turns "7f00aaaa-…" into 7 and the grant reaches record 7,
+    # which it never named. That is #151 again, moved from the write side to the
+    # read side by the very widening that fixed the write side.
+    #
+    # A canonical id is one that survives a round trip through its own key type.
+    # Every id the engine itself writes is canonical by construction (it stores
+    # `record.id` through exactly this cast), so this rejects only ids that could
+    # not have come from a real record: "7f00aaaa-…" for a bigint key, "007" for
+    # any key (it would match record 7), "7" for a Postgres uuid key.
+    def canonical_key?(klass, value)
+      key = klass.primary_key
+      return false unless key.is_a?(String)
+
+      klass.type_for_attribute(key).cast(value).to_s == value.to_s
+    rescue StandardError
+      # Cannot introspect the key type (no connection, no table, exotic type):
+      # refuse rather than guess. Callers use this to DENY, so failing here
+      # fails closed.
+      false
+    end
+
+    # A key that does not FIT is as dangerous as one that is not a single value.
+    # MySQL outside strict mode truncates silently, so two keys sharing a 64-char
+    # prefix would collapse into one identity — #151 by another route. Checked in
+    # Ruby so every adapter fails the same way instead of depending on sql_mode.
+    def key_too_long?(value)
+      value.to_s.length > KEY_LIMIT
+    end
+
+    def unstorable_key_error(klass, role: "subject")
+      key = begin
+        klass.primary_key
+      rescue StandardError
+        nil
+      end
+      shape = key.is_a?(Array) ? "a composite primary key (#{key.inspect})" : "no primary key"
+
+      "#{klass.name} has #{shape}, and CurrentScope stores a #{role} id as one value. " \
+        "A grant needs to name exactly one record. Use a model with a single-column " \
+        "primary key — integer or UUID both work."
     end
 
     private

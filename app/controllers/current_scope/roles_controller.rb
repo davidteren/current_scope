@@ -48,10 +48,17 @@ module CurrentScope
       @scoped_holders = ScopedRoleAssignment.where(role: @role).includes(role: :role_permissions).to_a
       ScopedRoleAssignment.preload_resolvable_resources!(@scoped_holders)
 
-      # Exclude via a subquery, not a plucked Ruby array, so a role with many
-      # holders doesn't build a huge NOT IN bind list.
-      held = RoleAssignment.where(role: @role, subject_type: subject_class.name).select(:subject_id)
-      remaining = subject_class.where.not(id: held).order(:id)
+      # Still a subquery, not a plucked array: every subject holds exactly one
+      # org-wide role, so a default role is held by the WHOLE user table and a
+      # plucked NOT IN would carry one bind per subject. The cast is what makes it
+      # work now that subject_id is a string column (#151) while subject_class
+      # keys on a bigint — PostgreSQL refuses that comparison outright rather than
+      # coercing. Cast the candidate side, so the stored value is never altered.
+      held = RoleAssignment.where(role: @role, subject_type: subject_class.polymorphic_name)
+                           .select(:subject_id)
+      remaining = subject_class.where.not(
+        Arel::Nodes::In.new(candidate_key_as_text, held.arel)
+      ).order(:id)
       @candidates = remaining.limit(ADD_LIMIT).to_a
       @more_candidates = remaining.offset(ADD_LIMIT).exists?
     end
@@ -214,6 +221,25 @@ module CurrentScope
         .where(current_scope_roles: { full_access: true })
         .pluck(:id)
       RoleAssignment.where(id: ids).lock.load if ids.any?
+    end
+
+    # The candidate's primary key, rendered as text so it can be compared to the
+    # string subject_id column (#151). Adapters differ twice over: MySQL spells the
+    # cast CHAR where the others spell it TEXT, AND it refuses to compare two
+    # different collations.
+    #
+    # The collation is READ FROM THE COLUMN rather than hardcoded, so this cannot
+    # drift from what the migration set — and a host that chose a different binary
+    # collation still works.
+    def candidate_key_as_text
+      connection = subject_class.connection
+      column = "#{connection.quote_table_name(subject_class.table_name)}." \
+               "#{connection.quote_column_name(subject_class.primary_key)}"
+      return Arel.sql("CAST(#{column} AS TEXT)") unless CurrentScope.mysql?(connection)
+
+      collation = RoleAssignment.columns_hash["subject_id"]&.collation
+      cast = "CAST(#{column} AS CHAR)"
+      Arel.sql(collation.present? ? "#{cast} COLLATE #{collation}" : cast)
     end
 
     def role_params

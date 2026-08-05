@@ -47,6 +47,12 @@ module CurrentScope
     # does not change on code reload). #40.
     config.after_initialize do
       CurrentScope.config.validate!
+      # Two separate checks. The schema guard asks whether the DATABASE has the
+      # shape #151 requires (SchemaGuard); this one asks whether the configured
+      # subject CLASS can be named by one id. Different questions, different
+      # failure messages, so they are not folded together.
+      CurrentScope::SchemaGuard.check!
+      CurrentScope::Engine.validate_subject_key!
     end
 
     # Routes (and therefore the derived permission catalog) can change on
@@ -156,6 +162,31 @@ module CurrentScope
       app.config.after_routes_loaded do
         CurrentScope::SodPreflight.warn!
       end
+    end
+
+    # #151. subject_id/resource_id are string columns now, so an integer key and a
+    # UUID both store whole and there is nothing left to scan stored rows for.
+    # What a config value CAN still name is a subject class whose primary key is
+    # not one value — composite, or absent — which no grant could ever identify.
+    # Cheap early warning; the write validations are the guarantee.
+    #
+    # Silent when it cannot introspect (no connection, no table, unresolved
+    # class): "unknown" must not become "broken", or `rails db:create` on a fresh
+    # checkout would raise.
+    def self.validate_subject_key!
+      klass = CurrentScope.config.subject_class
+      klass = klass.to_s.safe_constantize if klass.is_a?(String) || klass.is_a?(Symbol)
+      return unless klass.respond_to?(:primary_key)
+      return if CurrentScope.storable_key?(klass)
+
+      raise ConfigurationError, CurrentScope.unstorable_key_error(klass, role: "subject")
+    rescue ActiveRecord::ActiveRecordError
+      # This rescue is scoped to THIS check on purpose. It exists to keep an
+      # unknown subject class quiet; the schema guard must never share it, or a
+      # transient database error at boot would read as "all clear" and the host
+      # would serve with the escalation live — a security guard failing open.
+      Rails.logger&.warn("[CurrentScope] subject key check skipped — could not introspect the database (#151).")
+      nil
     end
   end
 end

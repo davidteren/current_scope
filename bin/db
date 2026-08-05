@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# Run the suite against sqlite, postgres or mysql — or all three.
+#
+# #151 widened the polymorphic grant id columns to string. Adapters disagree about
+# comparing a string column to an integer one: SQLite coerces silently, MySQL
+# coerces (at an index cost), PostgreSQL raises outright. A SQLite-only suite
+# cannot see that class of bug, which is exactly how it reached a release.
+#
+#   bin/db up                 start the postgres + mysql containers
+#   bin/db down               stop and remove them
+#   bin/db test [adapter]     run the suite (default: all three)
+#   bin/db url <adapter>      print the DATABASE_URL for ad-hoc use
+#
+# Containers are disposable; nothing here touches a database you already run.
+set -uo pipefail
+cd "$(dirname "$0")/.."
+
+PG_URL="postgresql://cs:cs@127.0.0.1:55432/cs_test"
+MY_URL="trilogy://root:cs@127.0.0.1:33306/cs_test"
+# tmp/ is not committed, so a fresh checkout has none and SQLite cannot create
+# the file. Make it before anyone asks for the URL.
+mkdir -p tmp
+SQLITE_URL="sqlite3://$(pwd)/tmp/adapter_test.sqlite3"
+
+
+url_for() {
+  case "$1" in
+    postgres|postgresql|pg) echo "$PG_URL" ;;
+    mysql|trilogy|my)       echo "$MY_URL" ;;
+    sqlite|sqlite3)         echo "$SQLITE_URL" ;;
+    *) echo "unknown adapter: $1" >&2; return 1 ;;
+  esac
+}
+
+ensure_container() {
+  local name="$1" args="$2"
+  if docker inspect "$name" >/dev/null 2>&1; then
+    docker start "$name" >/dev/null || { echo "could not start $name" >&2; return 1; }
+  else
+    # shellcheck disable=SC2086 -- args is a deliberate word-split argument list
+    docker run -d --name "$name" $args >/dev/null || { echo "could not create $name" >&2; return 1; }
+  fi
+}
+
+up() {
+  docker info >/dev/null 2>&1 || {
+    echo "Docker is not reachable. Start Docker (or OrbStack) and retry." >&2
+    return 1
+  }
+  # Per container, so a half-created setup recovers instead of needing bin/db down.
+  ensure_container cs-pg "-e POSTGRES_PASSWORD=cs -e POSTGRES_USER=cs -e POSTGRES_DB=cs_test -p 55432:5432 postgres:17-alpine" || return 1
+  ensure_container cs-mysql "-e MYSQL_ROOT_PASSWORD=cs -e MYSQL_DATABASE=cs_test -p 33306:3306 mysql:8.4" || return 1
+  echo "cs-pg and cs-mysql are up"
+}
+
+down() { docker rm -f cs-pg cs-mysql >/dev/null 2>&1; echo "removed cs-pg and cs-mysql"; }
+
+# Both servers accept TCP before they accept queries; poll rather than sleep.
+#
+# READY means "the SERVER answers", not "the database exists". run_one drops and
+# recreates the database moments later, so a missing one is the expected state
+# after any previous run — treating it as not-ready made this loop spin for two
+# minutes and then report a perfectly healthy server as dead.
+wait_for() {
+  local adapter="$1" url out; url="$(url_for "$adapter")" || return 1
+  for _ in $(seq 1 60); do
+    out=$(RAILS_ENV=test DATABASE_URL="$url" CURRENT_SCOPE_SKIP_SCHEMA_CHECK=1 \
+          bin/rails runner 'ActiveRecord::Base.connection.execute("SELECT 1")' 2>&1) && return 0
+    # The server is up and answered; it just has no such database yet.
+    case "$out" in
+      *NoDatabaseError*|*"Unknown database"*|*"does not exist"*) return 0 ;;
+    esac
+    sleep 2
+  done
+  echo "!! $adapter never became ready" >&2
+  echo "$out" >&2
+  return 1
+}
+
+run_one() {
+  local adapter="$1" url; url="$(url_for "$adapter")" || return 1
+  echo
+  echo "=============== $adapter ==============="
+  wait_for "$adapter" || return 1
+  # Rebuild from schema.rb each time: these are throwaway databases, and a stale
+  # one would hide exactly the column-type differences this script exists to find.
+  # Setup failures must not read as a passing run: show them and skip the adapter.
+  # One command per invocation: the engine's bin/rails is rails/engine/commands,
+  # which dispatches a single command and ignores the rest (CONTRIBUTING says so
+  # about db:test:prepare test). `db:drop db:create` silently ran only db:drop.
+  for task in db:drop db:create; do
+    if ! out=$(RAILS_ENV=test DATABASE_URL="$url" bin/rails "$task" 2>&1); then
+      echo "!! $task failed on $adapter" >&2; echo "$out" >&2; return 1
+    fi
+  done
+  if ! out=$(RAILS_ENV=test DATABASE_URL="$url" bin/rails db:test:prepare 2>&1); then
+    echo "!! db:test:prepare failed on $adapter" >&2; echo "$out" >&2; return 1
+  fi
+  # schema.rb cannot carry MySQL's collation, so a freshly-loaded schema has the
+  # right column type and the WRONG collation — and db:migrate cannot fix it,
+  # because loading a schema stamps every version as applied. Run the same repair
+  # task a host runs, so this script and the documented recovery path cannot
+  # drift apart.
+  # `app:` prefix because rails/tasks/engine.rake namespaces the dummy app's
+  # tasks that way from the engine root. A host runs the same task without it:
+  # bin/rails current_scope:repair_schema
+  if ! out=$(RAILS_ENV=test DATABASE_URL="$url" bundle exec rake app:current_scope:repair_schema 2>&1); then
+    echo "!! current_scope:repair_schema failed on $adapter" >&2; echo "$out" >&2; return 1
+  fi
+  RAILS_ENV=test DATABASE_URL="$url" COVERAGE=0 bin/rails test
+}
+
+case "${1:-test}" in
+  up)    up ;;
+  down)  down ;;
+  url)   url_for "${2:?adapter required}" ;;
+  test)
+    shift || true
+    failed=0
+    for adapter in ${*:-sqlite postgres mysql}; do
+      run_one "$adapter" || failed=1
+    done
+    exit "$failed"
+    ;;
+  *) echo "usage: bin/db {up|down|test [adapter...]|url <adapter>}" >&2; exit 2 ;;
+esac

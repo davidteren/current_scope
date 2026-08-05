@@ -1,0 +1,28 @@
+test/repair_schema_task_test.rb
+  s_b6526dcf3b998e::t_b0e826ded4f468 75
+test/uuid_key_collision_test.rb
+  s_b6526dcf3b998e::t_b0e826ded4f468 204,213,236,255,277,282,320
+  s_b6526dcf3b998e::t_66612e1e42c1ef 349-351,354-355,386-388,391-392
+lib/current_scope/engine.rb
+  s_b6526dcf3b998e::t_b25344e725c188 50-54
+lib/current_scope.rb
+  s_b6526dcf3b998e::t_b25344e725c188 16
+lib/current_scope/schema_guard.rb
+  s_b6526dcf3b998e::t_fb231b09a40f08 1-205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "c9e73be878755b5e8cb920260813756891267e26",
+  "prompts": {},
+  "sessions": {
+    "s_b6526dcf3b998e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb848af8-9fd5-4158-95e7-b22c92679504",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

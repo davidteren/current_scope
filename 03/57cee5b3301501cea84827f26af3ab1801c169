@@ -1,0 +1,40 @@
+bin/db
+  s_b6526dcf3b998e::t_8113601306b47f 1-80
+.github/workflows/ci.yml
+  s_b6526dcf3b998e::t_c1f6204b0e1bcb 108-165
+db/migrate/20260805000001_widen_current_scope_polymorphic_ids.rb
+  s_b6526dcf3b998e::t_c9a97aee109024 11-15,21-22,46,53,59
+Gemfile
+  s_b6526dcf3b998e::t_dbf4f7e6240d10 21-26
+lib/current_scope/resolver.rb
+  s_b6526dcf3b998e::t_18b2db196f43bc 127-129,388-390,392,401-419
+app/controllers/current_scope/roles_controller.rb
+  s_b6526dcf3b998e::t_195d8736251563 51-57
+test/dummy/db/schema.rb
+  s_b6526dcf3b998e::t_5ccae31208d6ef 30,55,58
+  s_b6526dcf3b998e::t_ef562603abb8bd 29,39,57,83,90-91
+test/uuid_key_collision_test.rb
+  s_b6526dcf3b998e::t_d3a03b04aec3ea 15-38,45-47
+app/controllers/current_scope/subjects_controller.rb
+  s_b6526dcf3b998e::t_195d8736251563 20-24,29-31
+test/parent_chain_test.rb
+  s_b6526dcf3b998e::t_f5d28daeab59f3 340-354
+Gemfile.lock
+  s_b6526dcf3b998e::t_d3e36c60d47ec5 174-180,286-287,319,325
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "0357cee5b3301501cea84827f26af3ab1801c169",
+  "prompts": {},
+  "sessions": {
+    "s_b6526dcf3b998e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb848af8-9fd5-4158-95e7-b22c92679504",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

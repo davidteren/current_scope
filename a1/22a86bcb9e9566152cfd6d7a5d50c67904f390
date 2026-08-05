@@ -1,0 +1,41 @@
+test/uuid_key_collision_test.rb
+  s_b6526dcf3b998e::t_02376ac72a24ac 184,209,218-219
+  s_b6526dcf3b998e::t_d10727852f9de9 172-179,183,185-191,222
+  s_b6526dcf3b998e::t_014d7dbaca83de 180-182
+  s_b6526dcf3b998e::t_80e1329a663f55 210-217,220-221
+UPGRADING.md
+  s_b6526dcf3b998e::t_f6c3b629da69bf 119
+  s_b6526dcf3b998e::t_575efd2b01d4c7 91-118
+bin/db
+  s_b6526dcf3b998e::t_d10727852f9de9 12,32-35,38,40,66,76-77,84,93
+  s_b6526dcf3b998e::t_ec1931b057f638 50,71,75,78
+  s_b6526dcf3b998e::t_02cfca9f1cbd22 67-70,72-74
+app/controllers/current_scope/roles_controller.rb
+  s_b6526dcf3b998e::t_575efd2b01d4c7 229-233,235,238,240-242
+CHANGELOG.md
+  s_b6526dcf3b998e::t_fb452fecbc5be7 159-164,169-206
+CONTRIBUTING.md
+  s_b6526dcf3b998e::t_f6c3b629da69bf 34-50
+lib/current_scope/engine.rb
+  s_b6526dcf3b998e::t_b467240a7df13e 192-193,214-233
+db/migrate/20260805000001_widen_current_scope_polymorphic_ids.rb
+  s_b6526dcf3b998e::t_f6c3b629da69bf 26-30
+test/dummy/db/schema.rb
+  s_b6526dcf3b998e::t_573e580ea22677 23-24,33-34,40-41,50,61-64,85,94-95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "a122a86bcb9e9566152cfd6d7a5d50c67904f390",
+  "prompts": {},
+  "sessions": {
+    "s_b6526dcf3b998e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb848af8-9fd5-4158-95e7-b22c92679504",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

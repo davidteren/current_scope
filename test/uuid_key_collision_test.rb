@@ -177,11 +177,16 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     fake = { "subject_id" => Struct.new(:type).new(:integer) }
     CurrentScope::RoleAssignment.define_singleton_method(:columns_hash) { fake }
     begin
-      assert_raises(CurrentScope::ConfigurationError, "serving must still be refused") do
-        CurrentScope::Engine.validate_subject_key!
+      # Drive the seam in BOTH directions rather than reading the ambient Rake
+      # state: other task tests in this suite leave their own top-level tasks
+      # behind, which would make this assertion depend on file order.
+      with_database_task(false) do
+        assert_raises(CurrentScope::ConfigurationError, "serving must still be refused") do
+          CurrentScope::Engine.validate_subject_key!
+        end
       end
 
-      with_rake_task("db:migrate") do
+      with_database_task(true) do
         assert_nothing_raised { CurrentScope::Engine.validate_subject_key! }
       end
     ensure
@@ -207,14 +212,14 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     CurrentScope.config.subject_class = original
   end
 
-  # Stand in for a `rails db:migrate` invocation WITHOUT touching the real Rake:
-  # an earlier version removed Rake.application in its ensure and broke every test
-  # that uses the actual rake tasks. Save the original method object and put it
+  # Force the "is this a database task?" answer WITHOUT touching the real Rake: an
+  # earlier version removed Rake.application in its ensure and broke every test
+  # that uses the actual rake tasks. The original method object is saved and put
   # back, visibility included.
-  def with_rake_task(_task)
+  def with_database_task(answer)
     engine = CurrentScope::Engine
     original = engine.method(:running_a_database_task?)
-    engine.define_singleton_method(:running_a_database_task?) { true }
+    engine.define_singleton_method(:running_a_database_task?) { answer }
     yield
   ensure
     engine.define_singleton_method(:running_a_database_task?, original)

@@ -51,51 +51,42 @@ the migration toolkit. No intended host API break. Boot now **raises** if
 `sod_bypass_permission` is listed in `sod_actions` (#40) instead of 500ing on
 the first real bypass.
 
-## 0.4 → 0.5: non-integer primary keys are now refused (security, #151)
+## 0.4 → 0.5: run the migrations, or the engine will not boot (security, #151)
 
-**If your subject or scoped-resource models use UUID or other string primary
-keys, you are affected — and you were affected on 0.2, 0.3 and 0.4 too.**
+**This release fixes a privilege escalation. If your subject or scoped-resource
+models use UUID or other string primary keys, you were affected on 0.2, 0.3 and
+0.4.**
 
-Grant ids live in integer columns, so a non-numeric key was cast on write:
+Grant ids lived in integer columns, so a non-numeric key was cast on write:
 `"7f00aaaa-…"` and `"7f00bbbb-…"` both stored as `7`, and a key starting with a
 letter stored as `0`. Two subjects became one, and one inherited the other's
 org-wide role, `full_access` included. Nothing failed; the association still
 resolved, to the wrong record.
 
-Audit on the version you are running now, before upgrading:
+### What you must do
 
-```ruby
-# Any grant held on a type that is not integer-keyed is suspect — not just the
-# ones that now point at nothing. A collapsed value can also land ON a real
-# record ("7f00…" -> 7, where another record's key is "7"), which is the
-# dangerous case and the one an orphan check misses entirely.
-[[CurrentScope::RoleAssignment, %w[subject]],
- [CurrentScope::ScopedRoleAssignment, %w[subject resource]]].each do |model, sides|
-  sides.each do |side|
-    model.distinct.pluck(:"#{side}_type").compact.each do |type|
-      # polymorphic_class_for, not safe_constantize: the column stores a Rails
-      # TOKEN, which a custom polymorphic_name or store_full_class_name = false
-      # can shorten. safe_constantize returns nil for those and skips them.
-      klass = begin
-        ActiveRecord::Base.polymorphic_class_for(type)
-      rescue NameError
-        next
-      end
-      key = klass.primary_key
-      next if key.is_a?(String) && klass.type_for_attribute(key).type == :integer
-
-      count = model.where("#{side}_type" => type).count
-      puts "AFFECTED: #{count} #{model.name} row(s) with #{side}_type=#{type} " \
-           "(#{klass.name} keys on #{key.inspect}) — review and re-grant every one"
-    end
-  end
-end
+```bash
+bin/rails current_scope:install:migrations
+bin/rails db:migrate
 ```
 
-On 0.5 the gem refuses such a grant, and refuses to boot when
-`config.subject_class` has a non-integer key, rather than continuing to serve one
-subject another's role. Move those models to integer primary keys, or stay on your
-current version until #150 widens the columns.
+The columns become `varchar(64)`, so integer, UUID and ULID keys are all stored
+whole. **The engine raises at boot until this migration has run** — a gem upgrade
+alone would leave the escalation in place while every code path looked correct.
+
+On MySQL the columns are given `utf8mb4_bin`. The server default is case- and
+accent-insensitive, which would make `"ABC"` and `"abc"` — or `"jose"` and
+`"josé"` — the same subject. A primary key is an identifier, not prose.
+
+Keys longer than 64 characters are rejected rather than truncated, because a
+truncated key names the wrong record.
+
+### Audit the rows you already have
+
+**Widening the column does not repair rows already written.** Once `"7f00aaaa-…"`
+was stored as `7`, the original value is gone. After migrating, those grants match
+nobody, so they fail closed (access lost, not gained) and appear as inert grants.
+They must be re-granted.
 
 ## 0.4 → 0.5: a mis-declared `current_scope_parent` now fails the deploy (#139)
 

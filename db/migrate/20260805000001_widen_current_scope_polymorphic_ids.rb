@@ -8,6 +8,12 @@
 # these columns ever see (the resolver never orders or ranges on them), so string
 # storage costs nothing but index width.
 #
+# COLLATION IS FORCED BINARY ON MYSQL. Its default (utf8mb4_0900_ai_ci) is case
+# AND accent insensitive, so "ABC" and "abc" — or "jose" and "josé" — compare
+# equal. A grant to one would then match the other, which is #151 all over again
+# with a different mechanism. A record's primary key is an identifier, not prose;
+# it must compare byte for byte. PostgreSQL and SQLite already do.
+#
 # LENGTH IS BOUNDED AT 64 ON PURPOSE. These columns sit in a five-column unique
 # index, and MySQL caps an index at 3072 bytes; four unbounded varchar(255)
 # columns at utf8mb4 exceed that and the table will not create at all. 64 holds a
@@ -19,6 +25,7 @@
 # query that lists them.
 class WidenCurrentScopePolymorphicIds < ActiveRecord::Migration[8.1]
   KEY_LIMIT = 64
+  BINARY_COLLATION = "utf8mb4_bin".freeze
 
   COLUMNS = {
     current_scope_role_assignments: [ :subject_id ],
@@ -53,9 +60,12 @@ class WidenCurrentScopePolymorphicIds < ActiveRecord::Migration[8.1]
         ALTER COLUMN #{connection.quote_column_name(column)} TYPE character varying(#{KEY_LIMIT})
         USING #{connection.quote_column_name(column)}::character varying
       SQL
+    elsif connection.adapter_name.match?(/mysql|trilogy|maria/i)
+      change_column table, column, :string, limit: KEY_LIMIT,
+                    null: false, collation: BINARY_COLLATION
+      return
     else
-      # SQLite rebuilds the table; MySQL/MariaDB emit MODIFY COLUMN. Both cast
-      # integer to text without help.
+      # SQLite rebuilds the table and compares BINARY by default.
       change_column table, column, :string, limit: KEY_LIMIT
     end
 

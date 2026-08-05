@@ -19,7 +19,6 @@ module CurrentScope
     include CurrentScope::StorableKeys
     validates_storable_polymorphic_keys "subject", "resource"
 
-
     # Batch-load polymorphic resources for resolvable types only. A global
     # includes(:resource) NameErrors when any resource_type is stale; this
     # constantizes per type and skips unresolvable ones so they stay lazy

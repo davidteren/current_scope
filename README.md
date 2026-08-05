@@ -99,13 +99,14 @@ Screenshot regenerate command: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Installation
 
-> **Requires integer primary keys** on your subject model and on any model you
-> hold scoped grants against. Grant ids are stored in integer columns, so a UUID
-> or other string key is cast on write and distinct records collapse into one
-> identity (#151). CurrentScope refuses such a grant, and fails the boot if
-> `config.subject_class` is one — it will not run with keys it cannot store.
-> Widening the columns is tracked in
-> [#150](https://github.com/davidteren/current_scope/issues/150).
+> **Upgrading from 0.4 or earlier? Run the migrations.** 0.5 widens the columns
+> that store a grant's subject and resource id, so UUID and other string primary
+> keys are stored whole instead of being truncated to an integer
+> ([#151](https://github.com/davidteren/current_scope/issues/151) — two subjects
+> could collapse into one identity, and one inherit the other's roles). Run
+> `bin/rails current_scope:install:migrations && bin/rails db:migrate`; the engine
+> refuses to boot until you do. Integer, UUID and ULID keys all work, up to 64
+> characters. See [UPGRADING.md](UPGRADING.md).
 
 This is the **canonical greenfield quickstart** (new app, or install before
 users hit gated controllers). The same numbered path lives on the

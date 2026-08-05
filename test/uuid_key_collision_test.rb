@@ -131,6 +131,44 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     assert_match(/no primary key/, CurrentScope.unstorable_key_error(keyless))
   end
 
+  test "a key too long for the column is refused, not truncated" do
+    long = "x" * (CurrentScope::KEY_LIMIT + 1)
+    holder = UuidUser.create!(id: long[0, CurrentScope::KEY_LIMIT], name: "Fits")
+    role = CurrentScope::Role.create!(name: "Owner", full_access: true)
+
+    grant = CurrentScope::RoleAssignment.new(role: role)
+    grant.subject_type = "UuidUser"
+    grant.subject_id = long
+
+    assert_not grant.valid?,
+               "MySQL outside strict mode truncates silently, so two keys sharing a " \
+               "#{CurrentScope::KEY_LIMIT}-character prefix would collapse into one identity"
+    assert_match(/characters/, grant.errors.full_messages.to_sentence)
+    assert CurrentScope::RoleAssignment.new(subject: holder, role: role).valid?,
+           "and a key that fits is unaffected"
+  end
+
+  test "the engine refuses to boot if the widening migration has not run" do
+    # A gem upgrade does not run migrations. Without this check a host would keep
+    # integer columns, keep the escalation, and see nothing wrong.
+    assert_nothing_raised { CurrentScope::Engine.validate_subject_key! }
+
+    # Present the pre-migration schema by overriding the reader the check uses.
+    # A plain singleton method rather than a mocking library, which this suite
+    # does not carry.
+    fake = { "subject_id" => Struct.new(:type).new(:integer) }
+    CurrentScope::RoleAssignment.define_singleton_method(:columns_hash) { fake }
+    begin
+      error = assert_raises(CurrentScope::ConfigurationError) do
+        CurrentScope::Engine.validate_subject_key!
+      end
+      assert_match(/still integer/, error.message)
+      assert_match(/db:migrate/, error.message, "the message must name the fix")
+    ensure
+      CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
+    end
+  end
+
   test "the boot check does not refuse a UUID subject class" do
     original = CurrentScope.config.subject_class
     CurrentScope.config.subject_class = "UuidUser"

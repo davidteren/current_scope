@@ -48,13 +48,17 @@ module CurrentScope
       @scoped_holders = ScopedRoleAssignment.where(role: @role).includes(role: :role_permissions).to_a
       ScopedRoleAssignment.preload_resolvable_resources!(@scoped_holders)
 
-      # Read the ids out rather than leaving a subquery. subject_id is a string
-      # column (#151) while subject_class keys on a bigint, and PostgreSQL will not
-      # compare the two: `operator does not exist: character varying = bigint`.
-      # An array lets ActiveRecord cast each value to the target column's own type.
-      # The set is the holders of ONE role, so the bind list stays bounded.
-      held = RoleAssignment.where(role: @role, subject_type: subject_class.name).pluck(:subject_id)
-      remaining = subject_class.where.not(subject_class.primary_key => held).order(:id)
+      # Still a subquery, not a plucked array: every subject holds exactly one
+      # org-wide role, so a default role is held by the WHOLE user table and a
+      # plucked NOT IN would carry one bind per subject. The cast is what makes it
+      # work now that subject_id is a string column (#151) while subject_class
+      # keys on a bigint — PostgreSQL refuses that comparison outright rather than
+      # coercing. Cast the candidate side, so the stored value is never altered.
+      held = RoleAssignment.where(role: @role, subject_type: subject_class.polymorphic_name)
+                           .select(:subject_id)
+      remaining = subject_class.where.not(
+        Arel::Nodes::In.new(candidate_key_as_text, held.arel)
+      ).order(:id)
       @candidates = remaining.limit(ADD_LIMIT).to_a
       @more_candidates = remaining.offset(ADD_LIMIT).exists?
     end
@@ -217,6 +221,23 @@ module CurrentScope
         .where(current_scope_roles: { full_access: true })
         .pluck(:id)
       RoleAssignment.where(id: ids).lock.load if ids.any?
+    end
+
+    # The candidate's primary key, rendered as text so it can be compared to the
+    # string subject_id column (#151). Adapters differ twice over: MySQL spells the
+    # cast CHAR where the others spell it TEXT, AND it refuses to compare two
+    # different collations — the grant columns are utf8mb4_bin, so the cast has to
+    # say so or the query dies with "Illegal mix of collations".
+    def candidate_key_as_text
+      connection = ActiveRecord::Base.connection
+      column = "#{connection.quote_table_name(subject_class.table_name)}." \
+               "#{connection.quote_column_name(subject_class.primary_key)}"
+
+      if connection.adapter_name.match?(/mysql|trilogy|maria/i)
+        Arel.sql("CAST(#{column} AS CHAR) COLLATE utf8mb4_bin")
+      else
+        Arel.sql("CAST(#{column} AS TEXT)")
+      end
     end
 
     def role_params

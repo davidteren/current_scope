@@ -37,6 +37,21 @@ module CurrentScope
 
         errors.add(:base, CurrentScope.unstorable_key_error(klass, role: side))
       end
+      check_key_lengths(sides)
+    end
+
+    # Length is a correctness guard, not cosmetics: a truncated key is a key that
+    # names the wrong record (#151).
+    def check_key_lengths(sides)
+      sides.each do |side|
+        value = public_send("#{side}_id")
+        next unless CurrentScope.key_too_long?(value)
+
+        errors.add(:base,
+          "#{side} id is #{value.to_s.length} characters; CurrentScope stores it in a " \
+          "#{CurrentScope::KEY_LIMIT}-character column, and a truncated key would name the " \
+          "wrong record. Use a shorter primary key.")
+      end
     end
   end
 end

@@ -66,6 +66,11 @@ module  CurrentScope
   # mistake into a silent allow or an undiagnosable deny.
   class ConfigurationError < StandardError; end
 
+  # The width of the polymorphic grant id columns (#151). Named here so the
+  # length guard and the migration cannot drift apart; the migration keeps its own
+  # copy because a migration must not depend on the gem's runtime constants.
+  KEY_LIMIT = 64
+
   class << self
     def config
       @config ||= Configuration.new
@@ -270,6 +275,14 @@ module  CurrentScope
     # row, or nothing.
     def storable_key?(klass)
       klass.primary_key.is_a?(String)
+    end
+
+    # A key that does not FIT is as dangerous as one that is not a single value.
+    # MySQL outside strict mode truncates silently, so two keys sharing a 64-char
+    # prefix would collapse into one identity — #151 by another route. Checked in
+    # Ruby so every adapter fails the same way instead of depending on sql_mode.
+    def key_too_long?(value)
+      value.to_s.length > KEY_LIMIT
     end
 
     def unstorable_key_error(klass, role: "subject")

@@ -169,6 +169,7 @@ module CurrentScope
     # class): "unknown" must not become "broken", or `rails db:create` on a fresh
     # checkout would raise.
     def self.validate_subject_key!
+      grant_columns_widened!
       klass = CurrentScope.config.subject_class
       klass = klass.to_s.safe_constantize if klass.is_a?(String) || klass.is_a?(Symbol)
       return unless klass.respond_to?(:primary_key)
@@ -179,5 +180,34 @@ module CurrentScope
       Rails.logger&.warn("[CurrentScope] subject key check skipped — could not introspect the database (#151).")
       nil
     end
+
+    # #151 is fixed by a MIGRATION, and a gem upgrade does not run it. A host that
+    # bundles 0.5 and deploys without `current_scope:install:migrations && db:migrate`
+    # keeps integer id columns and keeps the full escalation — silently, because
+    # every code path here behaves correctly against the schema it is given.
+    #
+    # So check the schema itself and refuse to boot. This is the one check that
+    # cannot be a validation: the damage is in the column type, not the next write.
+    def self.grant_columns_widened!
+      {
+        CurrentScope::RoleAssignment => %w[subject_id],
+        CurrentScope::ScopedRoleAssignment => %w[subject_id resource_id]
+      }.each do |model, columns|
+        next unless model.table_exists?
+
+        columns.each do |column|
+          type = model.columns_hash[column]&.type
+          next if type.nil? || type == :string
+
+          raise ConfigurationError,
+                "#{model.table_name}.#{column} is still #{type}. CurrentScope stores a " \
+                "record's primary key there, and an integer column silently truncates a " \
+                "UUID — two subjects collapse into one identity and one inherits the " \
+                "other's roles (#151). Run `bin/rails current_scope:install:migrations && " \
+                "bin/rails db:migrate` to widen it."
+        end
+      end
+    end
+    private_class_method :grant_columns_widened!
   end
 end

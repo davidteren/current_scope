@@ -29,7 +29,6 @@ module CurrentScope
     end
     private :one_org_role_per_subject
 
-
     # Bust the per-request org-role memo (CurrentScope::Current) whenever an
     # assignment changes, so a grant/clear and a later gate check in the SAME
     # request never disagree. after_save/after_destroy fire inside the

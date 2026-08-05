@@ -122,8 +122,13 @@ module CurrentScope
       # passed model's name — otherwise scope_for(STISubclass) returns nothing
       # while the per-record gate (also keyed on base_class) would allow it. The
       # `model.where` still applies STI's own type predicate, so a subclass query
-      # can't over-list sibling-subclass rows. An empty subquery yields an empty
+      # can't over-list sibling-subclass rows. An empty id list yields an empty
       # (still chainable) relation.
+      #
+      # NOTE scope_for is EAGER since #151: granted_ids runs its query when the
+      # relation is BUILT, not when it is enumerated, so the result is a snapshot
+      # of the grants at call time and the method needs a connection. The returned
+      # relation is still lazy and chainable.
       direct = model.where(model.primary_key => granted_ids(
         subject: subject, type: model.base_class.name, roles: roles_granting(permission)
       ))
@@ -396,8 +401,6 @@ module CurrentScope
       arms
     end
 
-    # Build `model.where(fk1 => Parent.where(fk2 => ...))` from the outside in, so
-    # a grant N hops up still narrows to the right rows of `model`.
     # The granted resource ids, READ OUT rather than left as a subquery.
     #
     # `resource_id` is a string column (#151) so that a UUID key survives, but a
@@ -417,6 +420,8 @@ module CurrentScope
         .pluck(:resource_id)
     end
 
+    # Build `model.where(fk1 => Parent.where(fk2 => ...))` from the outside in, so
+    # a grant N hops up still narrows to the right rows of `model`.
     def narrow_through(path, innermost:)
       # The reduce already ENDS on `model.where(...)`, because the first path
       # entry pushed by ancestor_scope_for is always [model, its own fk] and

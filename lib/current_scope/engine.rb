@@ -249,6 +249,18 @@ module CurrentScope
       return if info.nil?
 
       if info.type == :string
+        # STRING IS NOT ENOUGH — the width has to be right too. A varchar(32)
+        # passes "is it a string?" and then truncates every UUID written to it,
+        # which is the original collision with a different cause. limit is nil on
+        # an unbounded text column, which holds any key and is fine.
+        if !info.limit.nil? && info.limit < CurrentScope::KEY_LIMIT
+          raise ConfigurationError,
+                "#{model.table_name}.#{column} holds #{info.limit} characters; CurrentScope " \
+                "needs #{CurrentScope::KEY_LIMIT}. A UUID is 36 and a narrower column would " \
+                "truncate it, so two keys sharing a prefix would name one record (#151). Run " \
+                "`bin/rails current_scope:repair_schema` to widen it."
+        end
+
         check_collation!(model, column) if mysql?
         return
       end
@@ -277,11 +289,13 @@ module CurrentScope
         # falls back only where the server (MySQL < 8.0.17) offers nothing
         # better. Refusing to boot there would strand a host on a shortcoming
         # they cannot fix, so say it plainly once instead.
-        if info.collation == "utf8mb4_bin"
+        # Every _bin collation EXCEPT the 0900 family is PAD SPACE, not just
+        # utf8mb4_bin — latin1_bin and friends fold trailing spaces too.
+        unless info.collation.start_with?("utf8mb4_0900")
           Rails.logger&.warn(
-            "[CurrentScope] #{model.table_name}.#{column} uses utf8mb4_bin, which is " \
+            "[CurrentScope] #{model.table_name}.#{column} uses #{info.collation}, which is " \
             "case-sensitive but PAD SPACE — a key with a trailing space would still " \
-            "match one without. Upgrade to MySQL 8.0.17+ and re-run " \
+            "match one without. On MySQL 8.0.17+ run " \
             "`bin/rails current_scope:repair_schema` to move to utf8mb4_0900_bin (#151)."
           )
         end
@@ -313,50 +327,56 @@ module CurrentScope
     end
     private_class_method :mysql?
 
-    # Rake tasks that must be allowed to BOOT even against an unmigrated schema.
+    # Rake tasks that may BOOT even against an unrepaired schema.
     #
     # The check above raises from after_initialize, which every Rails command
     # runs — including `db:migrate`, the command its own error message tells the
     # host to run. Without an exemption an upgrading host is stuck: the app
     # refuses to boot and the repair refuses to run, for the same reason.
+    # `assets:` is the same trap one step less obvious — a deploy pipeline that
+    # precompiles before migrating dies before it ever reaches the fix.
     #
-    # `assets:` is here for the same reason, one step less obvious: a deploy
-    # pipeline that precompiles before migrating boots the app with a live
-    # connection to the not-yet-migrated database, so the build dies before it
-    # ever reaches db:migrate.
+    # An ALLOW list of the tasks Rails actually ships, NOT a bare `db:` prefix.
+    # `db:` exempted anything a host chose to name that way — `db:import_users`,
+    # `db:backfill` — and that is host code running against a schema this check
+    # has not cleared, which is the one thing the exemption is not for. A host
+    # whose own task genuinely must boot first gets a refusal naming
+    # CURRENT_SCOPE_SKIP_SCHEMA_CHECK=1, rather than silent permission.
     #
-    # What is deliberately NOT exempt is anything that goes on to serve or run
-    # host code — server, console, runner. Refusing those is what actually
-    # protects the host; only the build-and-repair path is let through.
+    # Anything that serves traffic or runs host code — server, console, runner —
+    # is deliberately absent. Refusing those is what actually protects the host.
+    #
+    # Matched after stripping a leading `app:`, which is how these same tasks are
+    # spelled from inside an engine (rails/tasks/engine.rake), so each one is
+    # listed once rather than twice.
     BOOT_EXEMPT_TASKS = %w[
-      db: app:db: current_scope:install current_scope:repair_schema
-      app:current_scope:repair_schema assets:
+      db:create db:drop db:migrate db:rollback db:version db:prepare db:setup
+      db:reset db:schema: db:structure: db:test: db:environment:
+      db:abort_if_pending_migrations db:_dump
+      current_scope:install current_scope:repair_schema
+      assets:
     ].freeze
 
-    # …except these. The `db:` prefix is there for the REPAIR path, and two db:
-    # tasks repair nothing — they run the host's own code. Seeding an unmigrated
-    # database is the worst case this guard exists for: seeds routinely create
-    # grants through this engine, and on the pre-migration schema those are
-    # exactly the writes that collapse two subjects into one. A deny list rather
-    # than an allow list of every db: task, so a Rails release that adds a new
-    # schema task does not silently start refusing to boot.
-    # PREFIXES, not exact names: db:seed:replant is as much host code as db:seed,
-    # and a host's own db:seed:demo would be too.
+    # …minus these, which the list above would otherwise cover. db:setup,
+    # db:reset and db:prepare all end up seeding, and they stay exempt because
+    # they are how a host REBUILDS a database — refusing them would leave a
+    # broken schema with no way to replace it, and they run before there is
+    # anything to judge anyway. A bare `db:seed` is different: it repairs
+    # nothing and runs host code, and seeds routinely create grants through this
+    # engine — on the pre-migration schema, exactly the writes that collapse two
+    # subjects into one.
     #
-    # db:reset and db:setup also end up seeding, and are deliberately NOT here —
-    # refusing them by name would accomplish nothing. They run against a database
-    # that does not exist yet, so this check has already passed (there is no
-    # column to judge) long before the schema load and the seed happen inside the
-    # same process. What protects that path is running current_scope:repair_schema
-    # after the schema load, which is what UPGRADING, bin/db and CI all do.
-    BOOT_REFUSED_TASKS = %w[
-      db:seed db:fixtures: app:db:seed app:db:fixtures:
-    ].freeze
+    # PREFIXES, so db:seed:replant (which Rails ships) and a host's own
+    # db:seed:demo are covered too.
+    BOOT_REFUSED_TASKS = %w[db:seed db:fixtures:].freeze
 
     def self.running_a_database_task?
       return false unless defined?(Rake) && Rake.respond_to?(:application)
 
-      tasks = Rake.application.top_level_tasks
+      # `app:` is how an engine's host tasks are namespaced from inside the
+      # engine (rails/tasks/engine.rake), so strip it once here instead of
+      # spelling every entry twice in both lists.
+      tasks = Rake.application.top_level_tasks.map { |task| task.delete_prefix("app:") }
       return false if tasks.any? { |task| task.start_with?(*BOOT_REFUSED_TASKS) }
 
       tasks.any? { |task| task.start_with?(*BOOT_EXEMPT_TASKS) }

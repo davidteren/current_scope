@@ -225,10 +225,10 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
   # that reads only the id columns blesses exactly that state, and a grant on
   # `Widget#5` then matches a check for `WIDGET#5`.
   test "the boot check refuses a half-applied MySQL schema, not just an unmigrated one" do
-    column = Struct.new(:type, :collation)
+    column = Struct.new(:type, :limit, :collation)
     half_applied = {
-      "subject_id" => column.new(:string, "utf8mb4_bin"),
-      "subject_type" => column.new(:string, "utf8mb4_0900_ai_ci")
+      "subject_id" => column.new(:string, CurrentScope::KEY_LIMIT, "utf8mb4_0900_bin"),
+      "subject_type" => column.new(:string, nil, "utf8mb4_0900_ai_ci")
     }
     CurrentScope::RoleAssignment.define_singleton_method(:columns_hash) { half_applied }
     with_mysql(true) do
@@ -238,6 +238,24 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       assert_match(/subject_type/, error.message,
                    "the id columns are already correct — the TYPE column is what is still folding case")
       assert_match(/utf8mb4_0900_ai_ci/, error.message)
+    ensure
+      CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
+    end
+  end
+
+  # "Is it a string?" is not the whole question. A varchar(32) answers yes and
+  # then truncates every UUID written to it — the original collision, reached by
+  # a column that passed the guard meant to prevent it.
+  test "the boot check refuses a string column too narrow to hold a key" do
+    column = Struct.new(:type, :limit, :collation)
+    narrow = { "subject_id" => column.new(:string, 32, nil) }
+    CurrentScope::RoleAssignment.define_singleton_method(:columns_hash) { narrow }
+    begin
+      error = assert_raises(CurrentScope::ConfigurationError) do
+        CurrentScope::Engine.grant_columns_widened!
+      end
+      assert_match(/holds 32 characters/, error.message)
+      assert_match(/repair_schema/, error.message, "the message must name the fix")
     ensure
       CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
     end
@@ -283,10 +301,17 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       # db: is for the REPAIR path. These two repair nothing and run the host's
       # own code — seeds routinely create grants, and on the pre-migration schema
       # those are the writes that collapse two subjects into one.
+      "db:schema:load" => true,
+      "db:setup" => true,                        # rebuilds; refusing it strands a broken schema
+      "db:reset" => true,
       "db:seed" => false,
       "db:seed:replant" => false,                # Rails ships this one; a host may add more
       "db:fixtures:load" => false,
       "app:db:seed" => false,
+      # A host's OWN db:-namespaced task is host code, not schema tooling, and an
+      # allow list is what keeps it from inheriting the repair path's exemption.
+      "db:import_users" => false,
+      "db:backfill" => false,
       "test" => false,                           # and everything else is still refused
       "current_scope:report" => false,
       "middleware" => false

@@ -75,7 +75,9 @@ class RepairSchemaTaskTest < ActiveSupport::TestCase
     exempt = CurrentScope::Engine::BOOT_EXEMPT_TASKS
     assert exempt.any? { |prefix| "current_scope:repair_schema".start_with?(prefix) },
            "the repair task must be able to boot, or it could never run"
-    assert exempt.any? { |prefix| "app:current_scope:repair_schema".start_with?(prefix) },
+    # The `app:` spelling is handled by stripping that prefix before matching,
+    # not by a second entry — so assert the BEHAVIOUR, not the list's contents.
+    assert exempt.any? { |prefix| "app:current_scope:repair_schema".delete_prefix("app:").start_with?(prefix) },
            "and the same under the app: prefix an engine's host uses"
   end
 end

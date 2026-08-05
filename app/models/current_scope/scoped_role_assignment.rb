@@ -45,8 +45,18 @@ module CurrentScope
         key = klass.primary_key
         next unless key.is_a?(String)
 
-        records = klass.where(key => rows.map(&:resource_id).uniq)
-                       .index_by { |r| r[key].to_s }
+        # Only ids that are legal keys for THIS model reach the query. A legacy
+        # collapsed value ("7", left by the pre-#151 integer column) sent at a
+        # PostgreSQL uuid column does not come back empty — it RAISES
+        # `invalid input syntax for type uuid`, and the console page an
+        # administrator opens to find these very grants 500s instead of listing
+        # them as inert. Same rule the resolver applies (CurrentScope
+        # .canonical_key?); a dropped id simply stays unloaded, which is exactly
+        # what orphaned_resource? then labels.
+        ids = rows.map(&:resource_id).uniq.select { |id| CurrentScope.canonical_key?(klass, id) }
+        next if ids.empty?
+
+        records = klass.where(key => ids).index_by { |r| r[key].to_s }
         rows.each do |row|
           assoc = row.association(:resource)
           assoc.target = records[row.resource_id.to_s]

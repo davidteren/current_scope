@@ -156,39 +156,54 @@ changed. Not cut yet; the README banner stays up pending the real-host
 
 ### Security
 - **A subject could inherit another subject's roles when primary keys are not
-  integers (#151).** `subject_id` and `resource_id` are integer columns
-  (`t.references`), so a UUID or other non-numeric primary key is cast by
-  `String#to_i` on write. `"7f00aaaa-…"` and `"7f00bbbb-…"` both store as `7`;
-  a key beginning with a letter stores as `0`. Distinct records collapse into one
-  identity, and a subject holds a role nobody granted them — including
-  `full_access`.
+  integers (#151).** `subject_id` and `resource_id` were integer columns
+  (`t.references`), so a UUID or other non-numeric primary key was cast by
+  `String#to_i` on write. `"7f00aaaa-…"` and `"7f00bbbb-…"` both stored as `7`; a
+  key beginning with a letter stored as `0`. Distinct records collapsed into one
+  identity, and a subject held a role nobody granted them — `full_access`
+  included. **This affects 0.2, 0.3 and 0.4 as published.**
 
   Nothing surfaced it: the association still resolved (to the wrong record), the
   per-subject uniqueness index saw the collapsed value as a single subject, and no
   test failed. Reproduced before fixing, and the reproduction is pinned in
-  `test/uuid_key_collision_test.rb` — one case deliberately writes the bad row with
-  `save(validate: false)` and asserts the escalation still happens, so the guard is
-  measured against a demonstrated failure rather than a hypothesis.
+  `test/uuid_key_collision_test.rb`.
 
-  **This affects 0.2, 0.3 and 0.4 as published.** If you run any of those with
-  non-integer primary keys on your subject or scoped-resource models, audit
-  `current_scope_role_assignments` and `current_scope_scoped_role_assignments` for
-  rows whose `subject_id`/`resource_id` do not match a real record.
+  **The columns are now `varchar(64)`, so integer, UUID and ULID keys are all
+  stored whole.** This is support, not a guard: nothing is refused for being a
+  UUID. Only a key that is not ONE value — composite, or absent — is refused,
+  because it names no single record.
 
-  Both assignment models now refuse a subject or resource whose primary key is not
-  integer-typed. They resolve the class from the stored TYPE column rather than the
-  association, because on an already-collapsed row the association resolves to
-  nothing — reading it would skip exactly the rows the guard exists for, and let
-  `CurrentScope.grant!` re-escalate them. The configured `subject_class` is also
-  checked once at boot so a
-  host holding already-collapsed rows fails the deploy rather than keeping the
-  escalation. Composite and absent primary keys are refused for the same reason:
-  neither fits a single integer column. The boot check stays silent when it cannot
-  introspect (no connection, no table, unresolved class), so a boot before migrate
-  is unaffected.
+  **Upgrading requires the migration**, and a gem upgrade does not run one:
 
-  This is a guard, not support. Making non-integer keys work means widening the
-  columns, which is tracked with the related business-key problem in #150.
+  ```bash
+  bin/rails current_scope:install:migrations && bin/rails db:migrate
+  ```
+
+  The engine refuses to serve until it has run, because every code path behaves
+  correctly against the schema it is given and the escalation would otherwise
+  persist silently. Database and installer tasks are exempt so the repair itself
+  is not blocked.
+
+  Three details that each closed a way the collision survived widening:
+  - **MySQL gets `utf8mb4_bin`.** Its default collation is case AND accent
+    insensitive, so `"ABC"` and `"abc"` — or `"jose"` and `"josé"` — still
+    compared equal. A primary key is an identifier, not prose.
+  - **Keys longer than 64 characters are rejected, not truncated**, checked in
+    Ruby so every adapter fails the same way instead of depending on `sql_mode`.
+  - **The suite now runs on SQLite, PostgreSQL and MySQL** (`bin/db`, plus a CI
+    matrix job). A SQLite-only suite is how this reached three releases: it
+    coerces the string/integer comparisons the other two refuse. The first
+    PostgreSQL run produced 106 errors.
+
+  **Rows written before the upgrade are not repaired** — once `"7f00aaaa-…"` was
+  stored as `7`, the original value is gone. After migrating they match nobody, so
+  they fail closed (access lost, not gained) and show as inert grants. See
+  [UPGRADING.md](UPGRADING.md) for the audit query and the re-grant step.
+
+  `scope_for` is now **eager**: it reads the granted ids when the relation is
+  built rather than leaving a subquery, because comparing a string column to a
+  bigint one is what PostgreSQL refuses. The returned relation is still lazy and
+  chainable, but it is a snapshot of the grants at call time.
 
 ### Fixed
 - **The "scoped `full_access` does not cascade" rule is now actually tested

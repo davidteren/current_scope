@@ -189,6 +189,8 @@ module CurrentScope
     # So check the schema itself and refuse to boot. This is the one check that
     # cannot be a validation: the damage is in the column type, not the next write.
     def self.grant_columns_widened!
+      return if running_a_database_task?
+
       {
         CurrentScope::RoleAssignment => %w[subject_id],
         CurrentScope::ScopedRoleAssignment => %w[subject_id resource_id]
@@ -209,5 +211,25 @@ module CurrentScope
       end
     end
     private_class_method :grant_columns_widened!
+
+    # The check above raises from after_initialize, which every Rails command runs
+    # — including `db:migrate`, the command the error message tells the host to
+    # run. Without this, an upgrading host is stuck: the app refuses to boot, and
+    # the fix refuses to run for the same reason.
+    #
+    # So stand down for database and installer tasks. Serving traffic is still
+    # refused, which is what actually protects the host; only the repair path is
+    # let through.
+    def self.running_a_database_task?
+      return false unless defined?(Rake) && Rake.respond_to?(:application)
+
+      Rake.application.top_level_tasks.any? do |task|
+        task.start_with?("db:", "app:db:", "current_scope:install")
+      end
+    rescue StandardError
+      # No rake application in scope (a server or console): not a database task.
+      false
+    end
+    private_class_method :running_a_database_task?
   end
 end

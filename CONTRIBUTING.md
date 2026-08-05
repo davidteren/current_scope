@@ -31,6 +31,23 @@ The bootstrap (`test/coverage_setup.rb`) has to load before the engine does, or
 Ruby's `Coverage` cannot instrument `lib/`. It aborts the run if it ever starts
 too late, rather than reporting a figure that is far too low.
 
+## Running against PostgreSQL and MySQL
+
+The suite defaults to SQLite, which coerces comparisons the other two refuse — a
+SQLite-only suite is how the #151 privilege escalation reached three releases. CI
+runs all three, and so should you before opening a PR that touches queries or the
+schema.
+
+```bash
+bin/db up            # postgres + mysql containers (Docker/OrbStack)
+bin/db test          # the suite against all three
+bin/db test postgres # or just one
+bin/db down
+```
+
+Containers use non-default ports (55432, 33306) so they cannot collide with a
+database you already run.
+
 ## Regenerating screenshots
 
 README and docs-site screenshots come from the system suite:

@@ -88,7 +88,35 @@ was stored as `7`, the original value is gone. After migrating, those grants mat
 nobody, so they fail closed (access lost, not gained) and appear as inert grants.
 They must be re-granted.
 
-## 0.4 → 0.5: a mis-declared `current_scope_parent` now fails the deploy (#139)
+Every grant held on a type whose key is not an integer is suspect — not only the
+ones now pointing at nothing. A collapsed value could also land ON a real record
+(`"7f00…"` becomes `7`, and another record's key is `7`), which is the dangerous
+case an orphan check misses:
+
+```ruby
+[[CurrentScope::RoleAssignment, %w[subject]],
+ [CurrentScope::ScopedRoleAssignment, %w[subject resource]]].each do |model, sides|
+  sides.each do |side|
+    model.distinct.pluck(:"#{side}_type").compact.each do |type|
+      # polymorphic_class_for, not safe_constantize: the column stores a Rails
+      # TOKEN, which a custom polymorphic_name or store_full_class_name = false
+      # can shorten.
+      klass = begin
+        ActiveRecord::Base.polymorphic_class_for(type)
+      rescue NameError
+        next
+      end
+      key = klass.primary_key
+      next if key.is_a?(String) && klass.type_for_attribute(key).type == :integer
+
+      count = model.where("#{side}_type" => type).count
+      puts "RE-GRANT: #{count} #{model.name} row(s) with #{side}_type=#{type} (#{klass.name} keys on #{key.inspect})"
+    end
+  end
+end
+```
+
+### 0.4 → 0.5 also: a mis-declared `current_scope_parent` now fails the deploy (#139)
 
 **If your app boots today and stops booting after upgrading**, you have a
 `current_scope_parent` declared on a `belongs_to` with a custom `primary_key:`.

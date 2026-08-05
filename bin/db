@@ -9,7 +9,7 @@
 #   bin/db up                 start the postgres + mysql containers
 #   bin/db down               stop and remove them
 #   bin/db test [adapter]     run the suite (default: all three)
-#   bin/db shell <adapter>    print the DATABASE_URL for ad-hoc use
+#   bin/db url <adapter>      print the DATABASE_URL for ad-hoc use
 #
 # Containers are disposable; nothing here touches a database you already run.
 set -uo pipefail
@@ -29,11 +29,15 @@ url_for() {
 }
 
 up() {
+  docker info >/dev/null 2>&1 || {
+    echo "Docker is not reachable. Start Docker (or OrbStack) and retry." >&2
+    return 1
+  }
   docker start cs-pg cs-mysql >/dev/null 2>&1 && { echo "containers already exist, started"; return; }
   docker run -d --name cs-pg -e POSTGRES_PASSWORD=cs -e POSTGRES_USER=cs \
-    -e POSTGRES_DB=cs_test -p 55432:5432 postgres:17-alpine >/dev/null
+    -e POSTGRES_DB=cs_test -p 55432:5432 postgres:17-alpine >/dev/null || return 1
   docker run -d --name cs-mysql -e MYSQL_ROOT_PASSWORD=cs -e MYSQL_DATABASE=cs_test \
-    -p 33306:3306 mysql:8.4 >/dev/null
+    -p 33306:3306 mysql:8.4 >/dev/null || return 1
   echo "started cs-pg and cs-mysql"
 }
 
@@ -43,7 +47,7 @@ down() { docker rm -f cs-pg cs-mysql >/dev/null 2>&1; echo "removed cs-pg and cs
 wait_for() {
   local adapter="$1" url; url="$(url_for "$adapter")" || return 1
   for _ in $(seq 1 60); do
-    if DATABASE_URL="$url" bin/rails runner 'ActiveRecord::Base.connection.execute("SELECT 1")' >/dev/null 2>&1; then
+    if RAILS_ENV=test DATABASE_URL="$url" bin/rails runner 'ActiveRecord::Base.connection.execute("SELECT 1")' >/dev/null 2>&1; then
       return 0
     fi
     sleep 2
@@ -59,15 +63,25 @@ run_one() {
   wait_for "$adapter" || return 1
   # Rebuild from schema.rb each time: these are throwaway databases, and a stale
   # one would hide exactly the column-type differences this script exists to find.
-  DATABASE_URL="$url" bin/rails db:drop db:create >/dev/null 2>&1
-  DATABASE_URL="$url" bin/rails db:test:prepare >/dev/null 2>&1
-  DATABASE_URL="$url" COVERAGE=0 bin/rails test 2>&1 | tail -25
+  # Setup failures must not read as a passing run: show them and skip the adapter.
+  # One command per invocation: the engine's bin/rails is rails/engine/commands,
+  # which dispatches a single command and ignores the rest (CONTRIBUTING says so
+  # about db:test:prepare test). `db:drop db:create` silently ran only db:drop.
+  for task in db:drop db:create; do
+    if ! out=$(RAILS_ENV=test DATABASE_URL="$url" bin/rails "$task" 2>&1); then
+      echo "!! $task failed on $adapter" >&2; echo "$out" >&2; return 1
+    fi
+  done
+  if ! out=$(RAILS_ENV=test DATABASE_URL="$url" bin/rails db:test:prepare 2>&1); then
+    echo "!! db:test:prepare failed on $adapter" >&2; echo "$out" >&2; return 1
+  fi
+  RAILS_ENV=test DATABASE_URL="$url" COVERAGE=0 bin/rails test
 }
 
 case "${1:-test}" in
   up)    up ;;
   down)  down ;;
-  shell) url_for "${2:?adapter required}" ;;
+  url)   url_for "${2:?adapter required}" ;;
   test)
     shift || true
     failed=0
@@ -76,5 +90,5 @@ case "${1:-test}" in
     done
     exit "$failed"
     ;;
-  *) echo "usage: bin/db {up|down|test [adapter...]|shell <adapter>}" >&2; exit 2 ;;
+  *) echo "usage: bin/db {up|down|test [adapter...]|url <adapter>}" >&2; exit 2 ;;
 esac

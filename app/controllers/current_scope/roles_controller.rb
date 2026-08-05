@@ -226,18 +226,20 @@ module CurrentScope
     # The candidate's primary key, rendered as text so it can be compared to the
     # string subject_id column (#151). Adapters differ twice over: MySQL spells the
     # cast CHAR where the others spell it TEXT, AND it refuses to compare two
-    # different collations — the grant columns are utf8mb4_bin, so the cast has to
-    # say so or the query dies with "Illegal mix of collations".
+    # different collations.
+    #
+    # The collation is READ FROM THE COLUMN rather than hardcoded, so this cannot
+    # drift from what the migration set — and a host that chose a different binary
+    # collation still works.
     def candidate_key_as_text
-      connection = ActiveRecord::Base.connection
+      connection = subject_class.connection
       column = "#{connection.quote_table_name(subject_class.table_name)}." \
                "#{connection.quote_column_name(subject_class.primary_key)}"
+      return Arel.sql("CAST(#{column} AS TEXT)") unless connection.adapter_name.match?(/mysql|trilogy|maria/i)
 
-      if connection.adapter_name.match?(/mysql|trilogy|maria/i)
-        Arel.sql("CAST(#{column} AS CHAR) COLLATE utf8mb4_bin")
-      else
-        Arel.sql("CAST(#{column} AS TEXT)")
-      end
+      collation = RoleAssignment.columns_hash["subject_id"]&.collation
+      cast = "CAST(#{column} AS CHAR)"
+      Arel.sql(collation.present? ? "#{cast} COLLATE #{collation}" : cast)
     end
 
     def role_params

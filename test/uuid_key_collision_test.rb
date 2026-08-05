@@ -169,6 +169,26 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     end
   end
 
+  test "the boot refusal stands down for database tasks, or the fix could not be run" do
+    # grant_columns_widened! raises from after_initialize, which EVERY rails
+    # command runs — including the db:migrate its own message tells the host to
+    # run. Without the exemption an upgrading host is stuck: the app will not
+    # boot and the repair will not run, for the same reason.
+    fake = { "subject_id" => Struct.new(:type).new(:integer) }
+    CurrentScope::RoleAssignment.define_singleton_method(:columns_hash) { fake }
+    begin
+      assert_raises(CurrentScope::ConfigurationError, "serving must still be refused") do
+        CurrentScope::Engine.validate_subject_key!
+      end
+
+      with_rake_task("db:migrate") do
+        assert_nothing_raised { CurrentScope::Engine.validate_subject_key! }
+      end
+    ensure
+      CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
+    end
+  end
+
   test "the boot check does not refuse a UUID subject class" do
     original = CurrentScope.config.subject_class
     CurrentScope.config.subject_class = "UuidUser"
@@ -185,5 +205,19 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     assert_nothing_raised { CurrentScope::Engine.validate_subject_key! }
   ensure
     CurrentScope.config.subject_class = original
+  end
+
+  # Stand in for a `rails db:migrate` invocation WITHOUT touching the real Rake:
+  # an earlier version removed Rake.application in its ensure and broke every test
+  # that uses the actual rake tasks. Save the original method object and put it
+  # back, visibility included.
+  def with_rake_task(_task)
+    engine = CurrentScope::Engine
+    original = engine.method(:running_a_database_task?)
+    engine.define_singleton_method(:running_a_database_task?) { true }
+    yield
+  ensure
+    engine.define_singleton_method(:running_a_database_task?, original)
+    engine.singleton_class.send(:private, :running_a_database_task?)
   end
 end

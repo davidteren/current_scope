@@ -23,7 +23,11 @@
 # written as 7 the original value is gone. A host that ran 0.2 to 0.4 with
 # non-integer keys must re-grant those roles; UPGRADING.md carries the audit
 # query that lists them.
-class WidenCurrentScopePolymorphicIds < ActiveRecord::Migration[8.1]
+# Bracketed [7.1] like every other migration this engine ships. The bracket pins
+# generation-time schema defaults, not the gem's minimum Rails, and the three
+# existing migrations all use it — a mechanical bump to match the Rails floor is
+# exactly what this repo's readiness plan says not to do.
+class WidenCurrentScopePolymorphicIds < ActiveRecord::Migration[7.1]
   KEY_LIMIT = 64
   BINARY_COLLATION = "utf8mb4_bin".freeze
 

@@ -51,6 +51,32 @@ the migration toolkit. No intended host API break. Boot now **raises** if
 `sod_bypass_permission` is listed in `sod_actions` (#40) instead of 500ing on
 the first real bypass.
 
+## 0.4 → 0.5: non-integer primary keys are now refused (security, #151)
+
+**If your subject or scoped-resource models use UUID or other string primary
+keys, you are affected — and you were affected on 0.2, 0.3 and 0.4 too.**
+
+Grant ids live in integer columns, so a non-numeric key was cast on write:
+`"7f00aaaa-…"` and `"7f00bbbb-…"` both stored as `7`, and a key starting with a
+letter stored as `0`. Two subjects became one, and one inherited the other's
+org-wide role, `full_access` included. Nothing failed; the association still
+resolved, to the wrong record.
+
+Audit on the version you are running now, before upgrading:
+
+```ruby
+# Grants whose stored id matches no real record — the collapsed rows.
+CurrentScope::RoleAssignment.find_each do |ra|
+  klass = ra.subject_type.safe_constantize or next
+  puts "SUSPECT #{ra.id}: #{ra.subject_type}##{ra.subject_id}" unless klass.exists?(id: ra.subject_id)
+end
+```
+
+On 0.5 the gem refuses such a grant, and refuses to boot when
+`config.subject_class` has a non-integer key, rather than continuing to serve one
+subject another's role. Move those models to integer primary keys, or stay on your
+current version until #150 widens the columns.
+
 ## 0.4 → 0.5: a mis-declared `current_scope_parent` now fails the deploy (#139)
 
 **If your app boots today and stops booting after upgrading**, you have a

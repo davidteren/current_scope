@@ -47,6 +47,7 @@ module CurrentScope
     # does not change on code reload). #40.
     config.after_initialize do
       CurrentScope.config.validate!
+      CurrentScope::Engine.validate_subject_key!
     end
 
     # Routes (and therefore the derived permission catalog) can change on
@@ -156,6 +157,33 @@ module CurrentScope
       app.config.after_routes_loaded do
         CurrentScope::SodPreflight.warn!
       end
+    end
+
+    # #151. The write validations refuse NEW grants on a non-integer-keyed
+    # subject, but a host that already holds collapsed rows keeps escalating on
+    # every read — the damage is in the stored value, not the next insert. So the
+    # configured subject class is checked once at boot and the deploy fails,
+    # rather than serving one subject another's role.
+    #
+    # Deliberately silent when it cannot tell: no connection, no table (a boot
+    # before migrate), or a subject_class that does not resolve yet. "Unknown"
+    # must not become "broken" here, or `rails db:create` on a fresh checkout
+    # would raise. That is why this cannot replace the write validations — it is
+    # the early warning, they are the guarantee.
+    #
+    # Only the SUBJECT class is knowable at boot. Scoped grants can name any
+    # model as a resource, so that side is covered by the validation alone.
+    def self.validate_subject_key!
+      klass = CurrentScope.config.subject_class
+      klass = klass.to_s.safe_constantize if klass.is_a?(String) || klass.is_a?(Symbol)
+      return unless klass.respond_to?(:primary_key)
+      return unless klass.respond_to?(:table_exists?) && klass.table_exists?
+      return if CurrentScope.integer_keyed?(klass)
+
+      raise ConfigurationError, CurrentScope.non_integer_key_error(klass, role: "subject")
+    rescue ActiveRecord::NoDatabaseError, ActiveRecord::ConnectionNotEstablished, ActiveRecord::StatementInvalid
+      # Boot before the database exists or is reachable: nothing to check yet.
+      nil
     end
   end
 end

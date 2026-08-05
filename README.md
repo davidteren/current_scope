@@ -99,6 +99,14 @@ Screenshot regenerate command: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Installation
 
+> **Requires integer primary keys** on your subject model and on any model you
+> hold scoped grants against. Grant ids are stored in integer columns, so a UUID
+> or other string key is cast on write and distinct records collapse into one
+> identity (#151). CurrentScope refuses such a grant, and fails the boot if
+> `config.subject_class` is one — it will not run with keys it cannot store.
+> Widening the columns is tracked in
+> [#150](https://github.com/davidteren/current_scope/issues/150).
+
 This is the **canonical greenfield quickstart** (new app, or install before
 users hit gated controllers). The same numbered path lives on the
 [docs site](https://davidteren.github.io/current_scope/quickstart.html) and in

@@ -15,6 +15,19 @@ module CurrentScope
       scope: [ :subject_type, :subject_id, :resource_type, :resource_id ]
     }
 
+    # #151: both ids land in integer columns, so a non-integer primary key on
+    # EITHER side collapses distinct records into one grant identity.
+    validate :polymorphic_keys_are_integer
+
+    def polymorphic_keys_are_integer
+      { "subject" => subject&.class, "resource" => resource&.class }.each do |role, klass|
+        next if klass.nil? || CurrentScope.integer_keyed?(klass)
+
+        errors.add(:base, CurrentScope.non_integer_key_error(klass, role: role))
+      end
+    end
+    private :polymorphic_keys_are_integer
+
     # Batch-load polymorphic resources for resolvable types only. A global
     # includes(:resource) NameErrors when any resource_type is stale; this
     # constantizes per type and skips unresolvable ones so they stay lazy

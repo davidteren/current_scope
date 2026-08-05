@@ -12,6 +12,38 @@ chain sees byte-identical decisions — but the version must still say a rule
 changed. Not cut yet; the README banner stays up pending the real-host
 `:enforce` bake (#116 Wave 3).
 
+### Security
+- **A subject could inherit another subject's roles when primary keys are not
+  integers (#151).** `subject_id` and `resource_id` are integer columns
+  (`t.references`), so a UUID or other non-numeric primary key is cast by
+  `String#to_i` on write. `"7f00aaaa-…"` and `"7f00bbbb-…"` both store as `7`;
+  a key beginning with a letter stores as `0`. Distinct records collapse into one
+  identity, and a subject holds a role nobody granted them — including
+  `full_access`.
+
+  Nothing surfaced it: the association still resolved (to the wrong record), the
+  per-subject uniqueness index saw the collapsed value as a single subject, and no
+  test failed. Reproduced before fixing, and the reproduction is pinned in
+  `test/uuid_key_collision_test.rb` — one case deliberately writes the bad row with
+  `save(validate: false)` and asserts the escalation still happens, so the guard is
+  measured against a demonstrated failure rather than a hypothesis.
+
+  **This affects 0.2, 0.3 and 0.4 as published.** If you run any of those with
+  non-integer primary keys on your subject or scoped-resource models, audit
+  `current_scope_role_assignments` and `current_scope_scoped_role_assignments` for
+  rows whose `subject_id`/`resource_id` do not match a real record.
+
+  Both assignment models now refuse a subject or resource whose primary key is not
+  integer-typed, and the configured `subject_class` is checked once at boot so a
+  host holding already-collapsed rows fails the deploy rather than keeping the
+  escalation. Composite and absent primary keys are refused for the same reason:
+  neither fits a single integer column. The boot check stays silent when it cannot
+  introspect (no connection, no table, unresolved class), so a boot before migrate
+  is unaffected.
+
+  This is a guard, not support. Making non-integer keys work means widening the
+  columns, which is tracked with the related business-key problem in #150.
+
 ### Added
 - **A missing `current_scope_initiator` is now found before traffic finds it,
   and accounted for when traffic does (#133).** An action listed in

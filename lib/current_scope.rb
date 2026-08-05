@@ -248,6 +248,44 @@ module  CurrentScope
       end
     end
 
+    # #151. `subject_id` and `resource_id` are bigint (`t.references`), so a
+    # non-integer primary key is cast by String#to_i on write: "7f00aaaa-…" and
+    # "7f00bbbb-…" both become 7, and a UUID starting with a letter becomes 0.
+    # Distinct records then collapse into ONE identity, and a subject inherits a
+    # role nobody granted them. Nothing else notices — the association still
+    # resolves (to the wrong record), and the per-subject uniqueness index sees
+    # the collapsed value as one subject.
+    #
+    # Returns false for a composite or absent primary key too: neither can be
+    # stored in a single integer column, so neither is safe to grant on.
+    #
+    # This is a check on the KEY'S TYPE, not its name. A UUID host still calls
+    # its column `id`, which is exactly why a name comparison misses this.
+    def integer_keyed?(klass)
+      key = klass.primary_key
+      return false if key.nil? || key.is_a?(Array)
+
+      klass.type_for_attribute(key).type == :integer
+    rescue StandardError
+      # No table, no connection, or a model that cannot introspect: treat as
+      # unknown rather than safe. The caller decides what to do about it.
+      false
+    end
+
+    # The message both the write validations and the boot check share, so a host
+    # reads the same explanation wherever they hit it first.
+    def non_integer_key_error(klass, role: "subject")
+      key = klass.primary_key
+      shape = key.nil? ? "no primary key" : "a #{klass.type_for_attribute(key).type} primary key (#{key.inspect})"
+      shape = "a composite primary key (#{key.inspect})" if key.is_a?(Array)
+
+      "#{klass.name} has #{shape}, and CurrentScope stores a #{role} id in an integer " \
+        "column. A non-integer key is cast on write — a UUID collapses to its leading " \
+        "digits, or to 0 — so two records become one identity and a #{role} can inherit " \
+        "a grant nobody gave them. Use a model with an integer primary key. Tracked in " \
+        "https://github.com/davidteren/current_scope/issues/151."
+    end
+
     private
 
     # The documented namespaced/custom-named controller foot-gun (#41): the short

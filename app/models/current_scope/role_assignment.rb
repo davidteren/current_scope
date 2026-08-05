@@ -10,6 +10,8 @@ module CurrentScope
     # so a double-grant is a one-line fix, not a trip through gem source (#44).
     # Base error (not :subject_id) so create! does not prefix "Subject id …".
     validate :one_org_role_per_subject
+    # #151: refuse a subject whose primary key cannot survive the integer column.
+    validate :subject_key_is_integer
 
     def one_org_role_per_subject
       return if subject_type.blank? || subject_id.blank?
@@ -25,6 +27,16 @@ module CurrentScope
         "to replace, or scoped roles for additive access")
     end
     private :one_org_role_per_subject
+
+    # Reads the association's class rather than subject_type, so it fires before
+    # a bad row exists AND on a record whose type string no longer resolves.
+    def subject_key_is_integer
+      klass = subject&.class
+      return if klass.nil? || CurrentScope.integer_keyed?(klass)
+
+      errors.add(:base, CurrentScope.non_integer_key_error(klass, role: "subject"))
+    end
+    private :subject_key_is_integer
 
     # Bust the per-request org-role memo (CurrentScope::Current) whenever an
     # assignment changes, so a grant/clear and a later gate check in the SAME

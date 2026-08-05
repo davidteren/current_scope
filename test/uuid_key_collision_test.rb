@@ -26,7 +26,14 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     @resolver = CurrentScope::Resolver.new
   end
 
-  teardown { UuidUser.delete_all }
+  # Remove the constant and the table, not just the rows: leaving either behind
+  # makes any later test that inspects ActiveRecord::Base.descendants or the table
+  # list order-dependent on this file having run.
+  teardown do
+    UuidUser.delete_all
+    ActiveRecord::Base.connection.execute("DROP TABLE IF EXISTS uuid_users")
+    Object.send(:remove_const, :UuidUser) if Object.const_defined?(:UuidUser)
+  end
 
   test "the collision is real: two distinct UUIDs cast to the same integer" do
     assert_not_equal @alice.id, @bob.id, "the records are genuinely different"

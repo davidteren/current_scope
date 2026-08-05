@@ -248,26 +248,12 @@ module  CurrentScope
       end
     end
 
-    # #151. `subject_id` and `resource_id` are bigint (`t.references`), so a
-    # non-integer primary key is cast by String#to_i on write: "7f00aaaa-…" and
-    # "7f00bbbb-…" both become 7, and a UUID starting with a letter becomes 0.
-    # Distinct records then collapse into ONE identity, and a subject inherits a
-    # role nobody granted them. Nothing else notices — the association still
-    # resolves (to the wrong record), and the per-subject uniqueness index sees
-    # the collapsed value as one subject.
-    #
-    # Returns false for a composite or absent primary key too: neither can be
-    # stored in a single integer column, so neither is safe to grant on.
-    #
-    # This is a check on the KEY'S TYPE, not its name. A UUID host still calls
-    # its column `id`, which is exactly why a name comparison misses this.
     # Resolve a stored polymorphic type token to its class. `*_type` is a Rails
     # STORAGE TOKEN, not necessarily a constant name: `polymorphic_name` can be
     # overridden and `store_full_class_name = false` shortens it, so
-    # `safe_constantize` would return nil (silently skipping a guard) or resolve
-    # the wrong class. `polymorphic_class_for` is the API that owns that mapping.
+    # `safe_constantize` would return nil or resolve the wrong class.
     # Returns nil for a token that no longer resolves, which callers treat as
-    # "nothing to check" — the same way a nil association was always treated.
+    # "nothing to check" — a stale type is #90's inert grant, not a key problem.
     def polymorphic_class(type, owner: ActiveRecord::Base)
       return if type.blank?
 
@@ -276,42 +262,27 @@ module  CurrentScope
       nil
     end
 
-    def integer_keyed?(klass)
-      key = klass.primary_key
-      return false if key.nil? || key.is_a?(Array)
-
-      klass.type_for_attribute(key).type == :integer
+    # #151. `subject_id` and `resource_id` are string columns, so ANY single-value
+    # primary key stores whole — an integer as "1", a UUID as "7f00aaaa-…". What
+    # still cannot be stored is a key that is not one value: a composite key is an
+    # array, and a model with no primary key names no record at all. Grants on
+    # those are refused rather than written as something that identifies the wrong
+    # row, or nothing.
+    def storable_key?(klass)
+      klass.primary_key.is_a?(String)
     end
 
-    # The message both the write validations and the boot check share, so a host
-    # reads the same explanation wherever they hit it first.
-    def non_integer_key_error(klass, role: "subject")
-      # Defensive for the same reason integer_keyed? rescues: this is now reached
-      # for a class resolved from a stored type column, whose table may be gone.
-      # A guard must not turn its own error message into a second exception.
+    def unstorable_key_error(klass, role: "subject")
       key = begin
         klass.primary_key
       rescue StandardError
         nil
       end
+      shape = key.is_a?(Array) ? "a composite primary key (#{key.inspect})" : "no primary key"
 
-      shape =
-        if key.nil?          then "no usable primary key"
-        elsif key.is_a?(Array) then "a composite primary key (#{key.inspect})"
-        else
-          type = begin
-            klass.type_for_attribute(key).type
-          rescue StandardError
-            "non-integer"
-          end
-          "a #{type} primary key (#{key.inspect})"
-        end
-
-      "#{klass.name} has #{shape}, and CurrentScope stores a #{role} id in an integer " \
-        "column. A non-integer key is cast on write — a UUID collapses to its leading " \
-        "digits, or to 0 — so two records become one identity and a #{role} can inherit " \
-        "a grant nobody gave them. Use a model with an integer primary key. Tracked in " \
-        "https://github.com/davidteren/current_scope/issues/151."
+      "#{klass.name} has #{shape}, and CurrentScope stores a #{role} id as one value. " \
+        "A grant needs to name exactly one record. Use a model with a single-column " \
+        "primary key — integer or UUID both work."
     end
 
     private

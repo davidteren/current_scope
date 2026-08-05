@@ -1,12 +1,13 @@
 require "test_helper"
 
-# #151. `subject_id` and `resource_id` are integer columns (`t.references`), so a
-# non-integer primary key is cast by String#to_i on write. Two UUIDs that share
-# leading digits — or any two that start with a letter, both casting to 0 —
-# become ONE identity, and a subject inherits a role nobody granted them.
+# #151. `subject_id` and `resource_id` used to be integer columns, so a UUID
+# primary key was cast by String#to_i on write: "7f00aaaa-…" and "7f00bbbb-…"
+# both stored as 7. Two subjects became one identity and one inherited the
+# other's roles, `full_access` included.
 #
-# The escalation is reproduced first, against the raw columns, so the guards below
-# are pinned to a demonstrated failure rather than a hypothesis.
+# The columns are string now, so both shapes store whole and a UUID-keyed host is
+# SUPPORTED rather than refused. These tests assert that support, and pin the
+# column type so a narrowing migration could never pass quietly.
 class UuidKeyCollisionTest < ActiveSupport::TestCase
   ALICE_ID = "7f00aaaa-1111-4111-8111-aaaaaaaaaaaa".freeze
   BOB_ID   = "7f00bbbb-2222-4222-8222-bbbbbbbbbbbb".freeze
@@ -26,110 +27,80 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     @resolver = CurrentScope::Resolver.new
   end
 
-  # Remove the constant and the table, not just the rows: leaving either behind
-  # makes any later test that inspects ActiveRecord::Base.descendants or the table
-  # list order-dependent on this file having run.
+  # Drop the table and the constant, not just the rows: leaving either behind
+  # makes any later test that inspects ActiveRecord::Base.descendants or the
+  # table list order-dependent on this file having run.
   teardown do
     UuidUser.delete_all
     ActiveRecord::Base.connection.execute("DROP TABLE IF EXISTS uuid_users")
     Object.send(:remove_const, :UuidUser) if Object.const_defined?(:UuidUser)
   end
 
-  test "the collision is real: two distinct UUIDs cast to the same integer" do
-    assert_not_equal @alice.id, @bob.id, "the records are genuinely different"
-    assert_equal @alice.id.to_i, @bob.id.to_i,
-                 "but the integer column stores the same value for both — this is the bug"
-    assert_equal 7, @alice.id.to_i, "String#to_i takes the leading digits"
-  end
-
-  test "a UUID-keyed subject cannot be granted an org-wide role" do
-    role = CurrentScope::Role.create!(name: "Owner", full_access: true)
-    assignment = CurrentScope::RoleAssignment.new(subject: @alice, role: role)
-
-    assert_not assignment.valid?, "granting on a UUID-keyed subject must be refused"
-    assert_match(/collapses to its leading digits/, assignment.errors.full_messages.to_sentence)
-    assert_match(/issues\/151/, assignment.errors.full_messages.to_sentence,
-                 "the message must point at the tracking issue")
-  end
-
-  test "refusing the grant is what stops the escalation" do
-    role = CurrentScope::Role.create!(name: "Owner", full_access: true)
-
-    assert_raises(ActiveRecord::RecordInvalid) do
-      CurrentScope::RoleAssignment.create!(subject: @alice, role: role)
+  test "the id columns hold a value, not a number — this is what makes UUIDs work" do
+    %w[current_scope_role_assignments current_scope_scoped_role_assignments].each do |table|
+      column = ActiveRecord::Base.connection.columns(table).find { |c| c.name == "subject_id" }
+      assert_equal :string, column.type,
+                   "#{table}.subject_id must stay a string column; narrowing it back to " \
+                   "integer would truncate every UUID and re-open #151"
     end
-
-    # The point of the refusal: with no row written, Bob inherits nothing.
-    assert_not @resolver.full_access?(@bob),
-               "Bob was never granted anything and must not hold full_access"
-    assert_not @resolver.full_access?(@alice), "and the refused grant did not take effect"
   end
 
-  test "the escalation DOES happen if the guard is bypassed — this is what it prevents" do
+  test "a UUID-keyed subject holds an org-wide role, and only that subject holds it" do
     role = CurrentScope::Role.create!(name: "Owner", full_access: true)
-    # save(validate: false) is the only way to write the row now; it reproduces
-    # exactly what every version before this fix stored.
-    CurrentScope::RoleAssignment.new(subject: @alice, role: role).save(validate: false)
+    CurrentScope::RoleAssignment.create!(subject: @alice, role: role)
 
-    assert @resolver.full_access?(@bob),
-           "with the bad row present, Bob inherits Alice's org-wide full_access — " \
-           "the escalation #151 describes, and the reason the write is refused"
+    assert @resolver.full_access?(@alice), "the granted subject holds it"
+    assert_not @resolver.full_access?(@bob),
+               "and the OTHER subject does not — this is the escalation #151 described, " \
+               "closed by storing the whole key rather than its leading digits"
   end
 
-  test "a scoped grant is refused on either side" do
+  test "the whole UUID is stored, not its leading digits" do
+    role = CurrentScope::Role.create!(name: "Owner", full_access: true)
+    grant = CurrentScope::RoleAssignment.create!(subject: @alice, role: role)
+
+    assert_equal ALICE_ID, grant.reload.subject_id
+    assert_equal ALICE_ID.to_i, BOB_ID.to_i,
+                 "both UUIDs still cast to the same integer — the reason the column type matters"
+  end
+
+  test "a scoped grant on a UUID-keyed resource reaches only that record" do
     role = CurrentScope::Role.create!(name: "Editor")
-    role.role_permissions.create!(permission_key: "reports#index")
-    report = Report.create!(title: "Q3", requested_by: User.create!(name: "Req"))
+    role.role_permissions.create!(permission_key: "uuid_users#show")
+    holder = User.create!(name: "Holder")
+    CurrentScope::ScopedRoleAssignment.create!(subject: holder, role: role, resource: @alice)
 
-    bad_subject = CurrentScope::ScopedRoleAssignment.new(subject: @alice, role: role, resource: report)
-    assert_not bad_subject.valid?, "a UUID-keyed SUBJECT must be refused"
-    assert_match(/UuidUser/, bad_subject.errors.full_messages.to_sentence)
-
-    bad_resource = CurrentScope::ScopedRoleAssignment.new(
-      subject: User.create!(name: "Ok"), role: role, resource: @alice
-    )
-    assert_not bad_resource.valid?, "a UUID-keyed RESOURCE must be refused too"
-    assert_match(/resource id in an integer column/, bad_resource.errors.full_messages.to_sentence)
+    assert_equal [ true, nil ],
+                 @resolver.decide(subject: holder, permission: "uuid_users#show", record: @alice)
+    assert_equal [ false, :no_grant ],
+                 @resolver.decide(subject: holder, permission: "uuid_users#show", record: @bob),
+                 "the grant names one record, not every record whose key starts the same way"
   end
 
-  test "ordinary integer-keyed models are unaffected" do
+  test "integer-keyed subjects are unaffected" do
     role = CurrentScope::Role.create!(name: "Owner", full_access: true)
     user = User.create!(name: "Normal")
+    CurrentScope::RoleAssignment.create!(subject: user, role: role)
 
-    assert CurrentScope::RoleAssignment.new(subject: user, role: role).valid?,
-           "the guard must not refuse the ordinary shape"
-    assert CurrentScope.integer_keyed?(User)
-    assert CurrentScope.integer_keyed?(Report)
+    assert @resolver.full_access?(user)
+    assert_not @resolver.full_access?(User.create!(name: "Other"))
   end
 
-  # The gap that let the first version of this guard through review: it read the
-  # ASSOCIATION, which is nil on a row whose id points at nothing — precisely the
-  # rows the guard exists for. grant! then re-escalated them.
-  test "an ALREADY-collapsed row cannot be re-granted" do
-    role = CurrentScope::Role.create!(name: "Owner", full_access: true)
-    bad = CurrentScope::RoleAssignment.new(subject: @alice, role: role)
-    bad.save(validate: false)
+  test "a mixed host works: integer and UUID subjects side by side" do
+    integer_user = User.create!(name: "Integer User")
+    CurrentScope::RoleAssignment.create!(
+      subject: integer_user, role: CurrentScope::Role.create!(name: "Owner", full_access: true)
+    )
+    CurrentScope::RoleAssignment.create!(
+      subject: @alice, role: CurrentScope::Role.create!(name: "Owner2", full_access: true)
+    )
 
-    assert_nil bad.reload.subject, "the stored id resolves to no record — this is a collapsed row"
-    assert_not bad.valid?, "and it must still be refused, not skipped for having a nil association"
-    assert_match(/UuidUser/, bad.errors.full_messages.to_sentence)
+    assert @resolver.full_access?(integer_user)
+    assert @resolver.full_access?(@alice)
+    assert_not @resolver.full_access?(@bob)
   end
 
-  test "the guard skips a stale polymorphic type rather than adding a second failure" do
-    role = CurrentScope::Role.create!(name: "Owner", full_access: true)
-    assignment = CurrentScope::RoleAssignment.new(role: role)
-    assignment.subject_type = "NoLongerAModel"
-    assignment.subject_id = 1
-
-    # `valid?` on a stale type already raises NameError from Rails' own belongs_to
-    # presence validation (polymorphic_class_for), on main and before this guard —
-    # verified, not assumed. So the guard is exercised directly: it must resolve
-    # the type to nil and skip, contributing no error of its own.
-    assert_nothing_raised { assignment.send(:current_scope_check_key_types, [ "subject" ]) }
-    assert_empty assignment.errors, "a type that no longer resolves is skipped, not flagged"
-  end
-
-  test "composite and absent primary keys are refused too — neither fits one integer column" do
+  test "a key that is not ONE value is still refused — it names no single record" do
     composite = Class.new(ActiveRecord::Base) do
       self.table_name = "reports"
       self.primary_key = [ "id", "project_id" ]
@@ -141,58 +112,28 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       def self.name = "KeylessReport"
     end
 
-    assert_not CurrentScope.integer_keyed?(composite),
-               "a composite key cannot be stored in a single integer column"
-    assert_not CurrentScope.integer_keyed?(keyless), "and neither can no key at all"
+    assert_not CurrentScope.storable_key?(composite)
+    assert_not CurrentScope.storable_key?(keyless)
+    assert CurrentScope.storable_key?(UuidUser), "a UUID key is ONE value, so it is fine"
+    assert CurrentScope.storable_key?(User)
 
-    assert_match(/composite primary key/, CurrentScope.non_integer_key_error(composite))
-    assert_match(/no usable primary key/, CurrentScope.non_integer_key_error(keyless),
-                 "the message must build for the nil branch rather than raising")
+    assert_match(/composite primary key/, CurrentScope.unstorable_key_error(composite))
+    assert_match(/no primary key/, CurrentScope.unstorable_key_error(keyless))
   end
 
-  test "the boot check names the same problem as the write validation" do
+  test "the boot check does not refuse a UUID subject class" do
     original = CurrentScope.config.subject_class
     CurrentScope.config.subject_class = "UuidUser"
 
-    error = assert_raises(CurrentScope::ConfigurationError) do
-      CurrentScope::Engine.validate_subject_key!
-    end
-    assert_match(/UuidUser/, error.message)
-    assert_match(/issues\/151/, error.message)
+    assert_nothing_raised { CurrentScope::Engine.validate_subject_key! }
   ensure
     CurrentScope.config.subject_class = original
-  end
-
-  test "the boot check refuses a STORED grant on a non-integer-keyed type" do
-    # The population the write validations cannot help: rows a host already wrote
-    # on 0.2 to 0.4, which keep escalating on every read. config.subject_class does
-    # not see them, and a scoped grant can name any model as its resource.
-    role = CurrentScope::Role.create!(name: "Owner", full_access: true)
-    CurrentScope::RoleAssignment.new(subject: @alice, role: role).save(validate: false)
-
-    error = assert_raises(CurrentScope::ConfigurationError) do
-      CurrentScope::Engine.validate_subject_key!
-    end
-    assert_match(/holds grants on UuidUser/, error.message)
-    assert_match(/issues\/151/, error.message)
-  end
-
-  test "a stored grant on an unresolvable type is skipped, not refused" do
-    role = CurrentScope::Role.create!(name: "Owner", full_access: true)
-    row = CurrentScope::RoleAssignment.new(subject: User.create!(name: "Ok"), role: role)
-    row.save!
-    row.update_columns(subject_type: "LongGoneModel")
-
-    # That is #90's inert grant, a different problem with its own label.
-    assert_nothing_raised { CurrentScope::Engine.validate_subject_key! }
   end
 
   test "the boot check stays silent when it cannot introspect" do
     original = CurrentScope.config.subject_class
     CurrentScope.config.subject_class = "NoSuchSubjectModel"
 
-    # Unknown must not become broken: a boot before migrate, or a class that does
-    # not resolve yet, has to pass rather than fail the deploy.
     assert_nothing_raised { CurrentScope::Engine.validate_subject_key! }
   ensure
     CurrentScope.config.subject_class = original

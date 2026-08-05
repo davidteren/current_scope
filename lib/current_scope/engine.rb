@@ -159,75 +159,25 @@ module CurrentScope
       end
     end
 
-    # #151. The write validations refuse NEW grants on a non-integer-keyed
-    # subject, but a host that already holds collapsed rows keeps escalating on
-    # every read — the damage is in the stored value, not the next insert. So the
-    # configured subject class is checked once at boot and the deploy fails,
-    # rather than serving one subject another's role.
+    # #151. subject_id/resource_id are string columns now, so an integer key and a
+    # UUID both store whole and there is nothing left to scan stored rows for.
+    # What a config value CAN still name is a subject class whose primary key is
+    # not one value — composite, or absent — which no grant could ever identify.
+    # Cheap early warning; the write validations are the guarantee.
     #
-    # Deliberately silent when it cannot tell: no connection, no table (a boot
-    # before migrate), or a subject_class that does not resolve yet. "Unknown"
-    # must not become "broken" here, or `rails db:create` on a fresh checkout
-    # would raise. That is why this cannot replace the write validations — it is
-    # the early warning, they are the guarantee.
-    #
-    # Only the SUBJECT class is knowable at boot. Scoped grants can name any
-    # model as a resource, so that side is covered by the validation alone.
+    # Silent when it cannot introspect (no connection, no table, unresolved
+    # class): "unknown" must not become "broken", or `rails db:create` on a fresh
+    # checkout would raise.
     def self.validate_subject_key!
-      configured_subject_key!
-      stored_grant_keys!
-    rescue ActiveRecord::ActiveRecordError
-      # Any ActiveRecord error here means "cannot introspect yet" — boot before
-      # migrate, no adapter configured, connection down. Deliberately broad: a
-      # missed error class costs a deploy, an over-broad rescue costs only a
-      # late warning, and the write validations remain the guarantee either way.
-      #
-      # Say so rather than passing silently: this check runs once, so a host whose
-      # database was unreachable at boot gets no second attempt, and a quiet skip
-      # would read as a clean bill of health.
-      Rails.logger&.warn("[CurrentScope] key check skipped — could not introspect the database (#151). It will not run again until the next boot.")
-      nil
-    end
-
-    def self.configured_subject_key!
       klass = CurrentScope.config.subject_class
       klass = klass.to_s.safe_constantize if klass.is_a?(String) || klass.is_a?(Symbol)
       return unless klass.respond_to?(:primary_key)
-      return unless klass.respond_to?(:table_exists?) && klass.table_exists?
-      return if CurrentScope.integer_keyed?(klass)
+      return if CurrentScope.storable_key?(klass)
 
-      raise ConfigurationError, CurrentScope.non_integer_key_error(klass, role: "subject")
+      raise ConfigurationError, CurrentScope.unstorable_key_error(klass, role: "subject")
+    rescue ActiveRecord::ActiveRecordError
+      Rails.logger&.warn("[CurrentScope] subject key check skipped — could not introspect the database (#151).")
+      nil
     end
-    private_class_method :configured_subject_key!
-
-    # The write validations stop NEW bad grants; they cannot undo rows a host
-    # already stored on 0.2 to 0.4. Those rows keep escalating on every READ, and
-    # `config.subject_class` does not see them — a scoped grant can name ANY model
-    # as its resource. So read the type tokens actually present in the two grant
-    # tables and refuse to boot if any resolves to a class the columns cannot hold.
-    #
-    # One DISTINCT query per column, over a low-cardinality set (a handful of
-    # types, not a row per grant). Types that no longer resolve are skipped —
-    # they are #90's inert grants, not this problem.
-    def self.stored_grant_keys!
-      {
-        CurrentScope::RoleAssignment => %w[subject],
-        CurrentScope::ScopedRoleAssignment => %w[subject resource]
-      }.each do |model, sides|
-        next unless model.table_exists?
-
-        sides.each do |side|
-          model.distinct.pluck(:"#{side}_type").each do |type|
-            klass = CurrentScope.polymorphic_class(type)
-            next if klass.nil? || CurrentScope.integer_keyed?(klass)
-
-            raise ConfigurationError,
-                  "#{model.name} holds grants on #{type}, and " +
-                  CurrentScope.non_integer_key_error(klass, role: side)
-          end
-        end
-      end
-    end
-    private_class_method :stored_grant_keys!
   end
 end

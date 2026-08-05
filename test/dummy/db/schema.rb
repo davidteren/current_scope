@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_28_000100) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_05_000001) do
   create_table "current_scope_events", force: :cascade do |t|
     t.string "actor", null: false
     t.datetime "created_at", null: false
@@ -27,7 +27,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_28_000100) do
   create_table "current_scope_role_assignments", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "role_id", null: false
-    t.integer "subject_id", null: false
+    t.string "subject_id", null: false
     t.string "subject_type", null: false
     t.datetime "updated_at", null: false
     t.index [ "role_id" ], name: "index_current_scope_role_assignments_on_role_id"
@@ -52,10 +52,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_28_000100) do
 
   create_table "current_scope_scoped_role_assignments", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.integer "resource_id", null: false
+    t.string "resource_id", null: false
     t.string "resource_type", null: false
     t.integer "role_id", null: false
-    t.integer "subject_id", null: false
+    t.string "subject_id", null: false
     t.string "subject_type", null: false
     t.datetime "updated_at", null: false
     t.index [ "resource_type", "resource_id" ], name: "index_current_scope_scoped_role_assignments_on_resource"

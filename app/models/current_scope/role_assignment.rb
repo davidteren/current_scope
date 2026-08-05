@@ -10,9 +10,9 @@ module CurrentScope
     # so a double-grant is a one-line fix, not a trip through gem source (#44).
     # Base error (not :subject_id) so create! does not prefix "Subject id …".
     validate :one_org_role_per_subject
-    # #151: refuse a subject whose primary key cannot survive the integer column.
-    include CurrentScope::IntegerKeys
-    validates_integer_polymorphic_keys "subject"
+    # #151: a grant must name exactly one record.
+    include CurrentScope::StorableKeys
+    validates_storable_polymorphic_keys "subject"
 
     def one_org_role_per_subject
       return if subject_type.blank? || subject_id.blank?

@@ -15,10 +15,9 @@ module CurrentScope
       scope: [ :subject_type, :subject_id, :resource_type, :resource_id ]
     }
 
-    # #151: both ids land in integer columns, so a non-integer primary key on
-    # EITHER side collapses distinct records into one grant identity.
-    include CurrentScope::IntegerKeys
-    validates_integer_polymorphic_keys "subject", "resource"
+    # #151: a grant must name exactly one record on BOTH sides.
+    include CurrentScope::StorableKeys
+    validates_storable_polymorphic_keys "subject", "resource"
 
 
     # Batch-load polymorphic resources for resolvable types only. A global
@@ -39,10 +38,19 @@ module CurrentScope
         next if klass.nil?
         next unless klass.respond_to?(:where)
 
-        records = klass.where(id: rows.map(&:resource_id).uniq).index_by { |r| r.id }
+        # Look up by the DECLARED primary key, and index on the string form of it.
+        # resource_id is a string column (#151), so a record keyed on an integer
+        # yields 1 while the grant holds "1"; matching them raw silently misses and
+        # labels a live grant inert. `where` casts the strings back to the column's
+        # own type, so the query is still correct on every adapter.
+        key = klass.primary_key
+        next unless key.is_a?(String)
+
+        records = klass.where(key => rows.map(&:resource_id).uniq)
+                       .index_by { |r| r[key].to_s }
         rows.each do |row|
           assoc = row.association(:resource)
-          assoc.target = records[row.resource_id]
+          assoc.target = records[row.resource_id.to_s]
           assoc.loaded!
         end
       end

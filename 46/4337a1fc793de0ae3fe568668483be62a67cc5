@@ -1,0 +1,32 @@
+.github/workflows/ci.yml
+  s_b6526dcf3b998e::t_d6891d9a66408e 163-165,168
+app/models/concerns/current_scope/storable_keys.rb
+  s_b6526dcf3b998e::t_99cd3a29177500 29-33,35-41
+bin/db
+  s_b6526dcf3b998e::t_9c964ece1e57f3 63-64,95-96
+  s_b6526dcf3b998e::t_d6891d9a66408e 22-26,92-94,97
+  s_b6526dcf3b998e::t_99cd3a29177500 36-45,51-54,98
+db/migrate/20260805000001_widen_current_scope_polymorphic_ids.rb
+  s_b6526dcf3b998e::t_6e9c6603a5a285 39-47,52-56,70-71,80-87,104
+  s_b6526dcf3b998e::t_da650b8bdba16d 72-79,90-94
+  s_b6526dcf3b998e::t_8700109e9b7f92 88
+lib/current_scope/engine.rb
+  s_b6526dcf3b998e::t_da650b8bdba16d 206-207,209-225,245-249
+  s_b6526dcf3b998e::t_9c964ece1e57f3 193-197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "464337a1fc793de0ae3fe568668483be62a67cc5",
+  "prompts": {},
+  "sessions": {
+    "s_b6526dcf3b998e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb848af8-9fd5-4158-95e7-b22c92679504",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

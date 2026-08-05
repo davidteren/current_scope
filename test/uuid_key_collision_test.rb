@@ -12,29 +12,8 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
   ALICE_ID = "7f00aaaa-1111-4111-8111-aaaaaaaaaaaa".freeze
   BOB_ID   = "7f00bbbb-2222-4222-8222-bbbbbbbbbbbb".freeze
 
-  # Built ONCE, at load time, before any test transaction opens. Two reasons:
-  # MySQL cannot run DDL inside a transaction — it auto-commits and the test's
-  # savepoint vanishes underneath it — and ActiveRecord's schema API is used
-  # rather than raw SQL because `id varchar PRIMARY KEY` is valid SQLite and a
-  # syntax error on MySQL. The suite runs on all three adapters (bin/db).
-  ActiveRecord::Base.connection.create_table(:uuid_users, id: :string, force: true) do |t|
-    t.string :name
-  end
-  UuidUser = Class.new(ActiveRecord::Base) do
-    self.table_name = "uuid_users"
-    def self.name = "UuidUser"
-  end
-  Object.const_set(:UuidUser, UuidUser) unless Object.const_defined?(:UuidUser)
-
-  # Drop the table and the constant when the whole run ends, not per test: any
-  # later test that inspects ActiveRecord::Base.descendants or the table list
-  # would otherwise be order-dependent on this file having run.
-  Minitest.after_run do
-    ActiveRecord::Base.connection.drop_table(:uuid_users, if_exists: true)
-    Object.send(:remove_const, :UuidUser) if Object.const_defined?(:UuidUser)
-  rescue StandardError
-    nil
-  end
+  # UuidUser and its table live in test/support/uuid_user.rb — shared with the
+  # management-UI test that drives roles#members with a UUID-keyed subject_class.
 
   setup do
     @alice = UuidUser.create!(id: ALICE_ID, name: "Alice")
@@ -148,6 +127,77 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
            "and a key that fits is unaffected"
   end
 
+  # The RESOURCE side of the same guard. Without this, dropping "resource" from
+  # validates_storable_polymorphic_keys would break nothing in the suite.
+  test "an over-long resource id is refused too, and the message names the right side" do
+    role = CurrentScope::Role.create!(name: "Editor")
+    holder = User.create!(name: "Holder")
+
+    grant = CurrentScope::ScopedRoleAssignment.new(role: role, subject: holder)
+    grant.resource_type = "UuidUser"
+    grant.resource_id = "x" * (CurrentScope::KEY_LIMIT + 1)
+
+    assert_not grant.valid?
+    message = grant.errors.full_messages.to_sentence
+    assert_match(/resource id is #{CurrentScope::KEY_LIMIT + 1} characters/, message)
+    assert_no_match(/subject id is/, message,
+                    "the subject side fits — naming it would send the reader to the wrong column")
+  end
+
+  # The write side of the read-side collapse below: the column takes any string,
+  # so nothing about storing a UUID against a bigint-keyed model looks wrong at
+  # write time. It is wrong, and this is where it gets refused.
+  test "an id that is not a legal key for its own model is refused" do
+    role = CurrentScope::Role.create!(name: "Editor")
+    role.role_permissions.create!(permission_key: "projects#show")
+    holder = User.create!(name: "Holder")
+
+    grant = CurrentScope::ScopedRoleAssignment.new(role: role, subject: holder)
+    grant.resource_type = "Project"
+    grant.resource_id = ALICE_ID
+
+    assert_not grant.valid?,
+               "Project keys on a bigint, so this UUID would be cast back to 7 and the " \
+               "grant would open Project 7 — a record it never named (#151)"
+    assert_match(/not a valid Project primary key/, grant.errors.full_messages.to_sentence)
+
+    assert CurrentScope.canonical_key?(User, "7"), "a canonical integer key round-trips"
+    assert_not CurrentScope.canonical_key?(User, "007"),
+               "\"007\" casts to 7, so it would name a record it does not spell"
+    assert CurrentScope.canonical_key?(UuidUser, ALICE_ID), "a UUID is canonical for a string key"
+  end
+
+  # The read side. A row written before this guard existed — or by host code that
+  # grants straight from params — is already in the table, so the resolver cannot
+  # trust what it reads. This is the test that would have caught the escalation
+  # moving from the write path to the read path.
+  test "a stored id that names no record grants nothing, and the gate agrees with the list" do
+    role = CurrentScope::Role.create!(name: "Editor")
+    role.role_permissions.create!(permission_key: "projects#index")
+    role.role_permissions.create!(permission_key: "projects#show")
+    holder = User.create!(name: "Holder")
+    seven = Project.create!(name: "Seven")
+
+    # Straight past the validation, the way a legacy row got there.
+    connection = ActiveRecord::Base.connection
+    connection.execute(<<~SQL.squish)
+      INSERT INTO current_scope_scoped_role_assignments
+        (role_id, subject_type, subject_id, resource_type, resource_id, created_at, updated_at)
+      VALUES (#{role.id}, 'User', #{connection.quote(holder.id.to_s)}, 'Project',
+              #{connection.quote("#{seven.id}f00aaaa-1111-4111-8111-aaaaaaaaaaaa")},
+              #{connection.quote(Time.current)}, #{connection.quote(Time.current)})
+    SQL
+
+    assert_empty @resolver.scope_for(subject: holder, model: Project, permission: "projects#index").to_a,
+                 "String#to_i would turn that id into #{seven.id} and list a project the grant never named"
+    assert_equal [ false, :no_grant ],
+                 @resolver.decide(subject: holder, permission: "projects#index", record: nil, model: Project),
+                 "the collection gate asks scope_for, so it must deny for the same reason"
+    assert_equal [ false, :no_grant ],
+                 @resolver.decide(subject: holder, permission: "projects#show", record: seven),
+                 "and the per-record gate must not disagree with the list"
+  end
+
   test "the engine refuses to boot if the widening migration has not run" do
     # A gem upgrade does not run migrations. Without this check a host would keep
     # integer columns, keep the escalation, and see nothing wrong.
@@ -164,6 +214,30 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       end
       assert_match(/still integer/, error.message)
       assert_match(/db:migrate/, error.message, "the message must name the fix")
+    ensure
+      CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
+    end
+  end
+
+  # The migration widens the id columns and THEN re-collates the type columns,
+  # and MySQL auto-commits each statement — so a migration that dies between the
+  # two leaves binary ids beside case-insensitive types, permanently. A check
+  # that reads only the id columns blesses exactly that state, and a grant on
+  # `Widget#5` then matches a check for `WIDGET#5`.
+  test "the boot check refuses a half-applied MySQL schema, not just an unmigrated one" do
+    column = Struct.new(:type, :collation)
+    half_applied = {
+      "subject_id" => column.new(:string, "utf8mb4_bin"),
+      "subject_type" => column.new(:string, "utf8mb4_0900_ai_ci")
+    }
+    CurrentScope::RoleAssignment.define_singleton_method(:columns_hash) { half_applied }
+    with_mysql(true) do
+      error = assert_raises(CurrentScope::ConfigurationError) do
+        CurrentScope::Engine.validate_subject_key!
+      end
+      assert_match(/subject_type/, error.message,
+                   "the id columns are already correct — the TYPE column is what is still folding case")
+      assert_match(/utf8mb4_0900_ai_ci/, error.message)
     ensure
       CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
     end
@@ -224,5 +298,18 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
   ensure
     engine.define_singleton_method(:running_a_database_task?, original)
     engine.singleton_class.send(:private, :running_a_database_task?)
+  end
+
+  # Same seam, for the adapter answer: the collation half of the check only runs
+  # on MySQL, and the suite must pin it on every adapter rather than only when it
+  # happens to be pointed at MySQL.
+  def with_mysql(answer)
+    engine = CurrentScope::Engine
+    original = engine.method(:mysql?)
+    engine.define_singleton_method(:mysql?) { answer }
+    yield
+  ensure
+    engine.define_singleton_method(:mysql?, original)
+    engine.singleton_class.send(:private, :mysql?)
   end
 end

@@ -29,7 +29,13 @@
 # exactly what this repo's readiness plan says not to do.
 class WidenCurrentScopePolymorphicIds < ActiveRecord::Migration[7.1]
   KEY_LIMIT = 64
-  BINARY_COLLATION = "utf8mb4_bin".freeze
+  # utf8mb4_bin is binary but PAD SPACE, so it still compares "abc" equal to
+  # "abc " — a trailing space would make two keys one identity, the same
+  # escalation the case-folding fix closed. utf8mb4_0900_bin is binary AND NO
+  # PAD (MySQL 8.0.17+). Prefer it; fall back where the server is older, since a
+  # case-sensitive comparison is still far better than the ai_ci default.
+  PREFERRED_COLLATION = "utf8mb4_0900_bin".freeze
+  FALLBACK_COLLATION = "utf8mb4_bin".freeze
 
   COLUMNS = {
     current_scope_role_assignments: [ :subject_id ],
@@ -69,21 +75,34 @@ class WidenCurrentScopePolymorphicIds < ActiveRecord::Migration[7.1]
 
   def mysql? = connection.adapter_name.match?(/mysql|trilogy|maria/i)
 
+  # Asked once per run, not per column: it is a catalog query.
+  def binary_collation
+    @binary_collation ||=
+      if connection.select_value(
+        "SELECT 1 FROM information_schema.collations " \
+        "WHERE collation_name = #{connection.quote(PREFERRED_COLLATION)}"
+      )
+        PREFERRED_COLLATION
+      else
+        FALLBACK_COLLATION
+      end
+  end
+
   def already_correct?(table, column)
     existing = connection.columns(table).find { |c| c.name == column.to_s }
     return false if existing.nil?
     return false unless existing.type == :string && existing.limit == KEY_LIMIT
 
-    !mysql? || existing.collation == BINARY_COLLATION
+    !mysql? || existing.collation == binary_collation
   end
 
   # Collation only — the type columns are already the right type and width.
   def binary_collate(table, column)
     existing = connection.columns(table).find { |c| c.name == column.to_s }
-    return if existing.nil? || existing.collation == BINARY_COLLATION
+    return if existing.nil? || existing.collation == binary_collation
 
     change_column table, column, :string, limit: existing.limit,
-                  null: false, collation: BINARY_COLLATION
+                  null: false, collation: binary_collation
   end
 
   def widen(table, column)
@@ -103,7 +122,7 @@ class WidenCurrentScopePolymorphicIds < ActiveRecord::Migration[7.1]
       SQL
     elsif mysql?
       change_column table, column, :string, limit: KEY_LIMIT,
-                    null: false, collation: BINARY_COLLATION
+                    null: false, collation: binary_collation
       return
     else
       # SQLite rebuilds the table and compares BINARY by default.

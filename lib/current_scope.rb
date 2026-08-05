@@ -277,6 +277,46 @@ module  CurrentScope
       klass.primary_key.is_a?(String)
     end
 
+    # Whether a connection speaks MySQL, in one place. MySQL is the only adapter
+    # #151 has to treat specially (its default collation folds case and accents,
+    # and it needs CHAR rather than TEXT in a cast), and three separate copies of
+    # this regex would be three chances to disagree.
+    #
+    # Takes a CONNECTION rather than reading ActiveRecord::Base's: in a host that
+    # puts the grant tables on a different database from its subject models, the
+    # answer differs per connection, and asking the wrong one produces a cast or
+    # a collation the target server rejects.
+    def mysql?(connection = ActiveRecord::Base.connection)
+      connection.adapter_name.match?(/mysql|trilogy|maria/i)
+    end
+
+    # #151, VALUE side. storable_key? asks whether the CLASS can be named by one
+    # id; this asks whether THIS id is a legal one for that class.
+    #
+    # The columns hold any string now, so a grant can be written naming a
+    # bigint-keyed model with a UUID. Nothing about the write looks wrong — and
+    # the read path then casts that string back into the model's own key type,
+    # where String#to_i turns "7f00aaaa-…" into 7 and the grant reaches record 7,
+    # which it never named. That is #151 again, moved from the write side to the
+    # read side by the very widening that fixed the write side.
+    #
+    # A canonical id is one that survives a round trip through its own key type.
+    # Every id the engine itself writes is canonical by construction (it stores
+    # `record.id` through exactly this cast), so this rejects only ids that could
+    # not have come from a real record: "7f00aaaa-…" for a bigint key, "007" for
+    # any key (it would match record 7), "7" for a Postgres uuid key.
+    def canonical_key?(klass, value)
+      key = klass.primary_key
+      return false unless key.is_a?(String)
+
+      klass.type_for_attribute(key).cast(value).to_s == value.to_s
+    rescue StandardError
+      # Cannot introspect the key type (no connection, no table, exotic type):
+      # refuse rather than guess. Callers use this to DENY, so failing here
+      # fails closed.
+      false
+    end
+
     # A key that does not FIT is as dangerous as one that is not a single value.
     # MySQL outside strict mode truncates silently, so two keys sharing a 64-char
     # prefix would collapse into one identity — #151 by another route. Checked in

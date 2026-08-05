@@ -130,7 +130,8 @@ module CurrentScope
       # of the grants at call time and the method needs a connection. The returned
       # relation is still lazy and chainable.
       direct = model.where(model.primary_key => granted_ids(
-        subject: subject, type: model.base_class.name, roles: roles_granting(permission)
+        subject: subject, type: model.base_class.name, model: model,
+        roles: roles_granting(permission)
       ))
 
       ancestor_scope_for(subject: subject, model: model, permission: permission)
@@ -222,7 +223,7 @@ module CurrentScope
     # caller turns an unbound match into a PERMIT. Four callers, each safe for
     # its own reason: scoped_grant? binds `resource:` to the exact record;
     # scope_for binds `resource_type:` and answers in record ids
-    # (.select(:resource_id)) for the caller to narrow, never a boolean permit
+    # (granted_ids) for the caller to narrow, never a boolean permit
     # — which is also why the record-less read gate (#65) is safe: it asks
     # scope_for and takes .exists? of the id-narrowed relation, so its answer
     # is still derived from the records the subject holds, not from the grant
@@ -391,7 +392,8 @@ module CurrentScope
         break if path.size > ParentChain::MAX_PARENT_DEPTH
 
         granted = granted_ids(
-          subject: subject, type: parent.base_class.name, roles: roles_ticking(permission)
+          subject: subject, type: parent.base_class.name, model: parent,
+          roles: roles_ticking(permission)
         )
 
         arms << narrow_through(path, innermost: parent.where(parent.primary_key => granted))
@@ -414,10 +416,20 @@ module CurrentScope
     # The cost is one small extra query: the set is the grants THIS subject holds
     # on THIS type, not a row per record. bin/db runs the suite against all three
     # adapters so a regression here cannot hide behind SQLite again.
-    def granted_ids(subject:, type:, roles:)
+    #
+    # NON-CANONICAL IDS ARE DROPPED, and that filter is load-bearing. Handing the
+    # raw strings to `model.where(primary_key => ids)` lets ActiveRecord cast each
+    # one INTO the model's key type — and for a bigint key that cast is
+    # String#to_i, so a grant holding "7f00aaaa-…" would come back as 7 and open
+    # record 7, which it never named. Widening the column closed that collapse on
+    # the write path and re-opened it here; the round-trip check closes it again.
+    # Dropping (rather than matching) keeps the fail-closed direction: an id that
+    # names no record grants nothing.
+    def granted_ids(subject:, type:, model:, roles:)
       ScopedRoleAssignment
         .where(subject: subject, resource_type: type, role_id: roles)
         .pluck(:resource_id)
+        .select { |id| CurrentScope.canonical_key?(model, id) }
     end
 
     # Build `model.where(fk1 => Parent.where(fk2 => ...))` from the outside in, so
@@ -567,9 +579,16 @@ module CurrentScope
       if collection_read_action?(permission)
         scope_for(subject: subject, model: type, permission: permission).exists?
       else
+        # The grant must name a record that COULD exist, even though this branch
+        # binds to none. A row whose resource_id is not a legal key for this
+        # model identifies nothing — the read arm above already drops such ids
+        # (granted_ids), and without the same test here a grant that opens no
+        # record at all would still open every #create on the type. Same
+        # fail-closed direction, same rule, both arms.
         ScopedRoleAssignment
           .where(subject: subject, resource_type: type.base_class.name, role_id: roles_ticking(permission))
-          .exists?
+          .pluck(:resource_id)
+          .any? { |id| CurrentScope.canonical_key?(type, id) }
       end
     end
 

@@ -29,6 +29,34 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
     assert_select "select[name='subject_gids[]'] option", { text: "Alice", count: 0 }
   end
 
+  # The candidate query is the ONE place #151 left adapter-specific SQL: it casts
+  # the subject's primary key to text so a varchar subject_id can be compared to
+  # it (PostgreSQL refuses bigint = varchar outright), and on MySQL it appends a
+  # COLLATE so the comparison is not case-folded. Every other test here uses
+  # bigint-keyed User, so that cast was written for UUID keys and never run
+  # against one. bin/db drives this on all three adapters.
+  test "members offers UUID-keyed candidates, and excludes the one already holding the role" do
+    original = CurrentScope.config.subject_class
+    CurrentScope.config.subject_class = "UuidUser"
+
+    holder = UuidUser.create!(id: "7f00aaaa-1111-4111-8111-aaaaaaaaaaaa", name: "Alice")
+    free   = UuidUser.create!(id: "7f00bbbb-2222-4222-8222-bbbbbbbbbbbb", name: "Bob")
+    CurrentScope::RoleAssignment.create!(subject: holder, role: @role)
+
+    get current_scope.members_role_url(@role), headers: as(@owner)
+
+    assert_response :success
+    assert_select "td", text: "Alice", count: 1
+    assert_select "select[name='subject_gids[]'] option", text: "Bob"
+    assert_select "select[name='subject_gids[]'] option", { text: "Alice", count: 0 },
+                  "Alice already holds the role org-wide — both ids start \"7f00\", so a " \
+                  "cast that truncated them would exclude Bob instead of Alice (#151)"
+    assert_equal 2, UuidUser.count, "precondition: both candidates are distinct records"
+    assert_not_equal free.id, holder.id
+  ensure
+    CurrentScope.config.subject_class = original
+  end
+
   test "members survives a stale/renamed polymorphic resource type without 500ing" do
     folder = Folder.create!(name: "Space")
     bob = User.create!(name: "Bob")

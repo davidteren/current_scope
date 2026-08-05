@@ -32,9 +32,23 @@ module CurrentScope
         # ActiveRecord errors are converted — a NoMethodError here is a bug in
         # this gem and must surface as one, not as a validation message.
         begin
-          next if CurrentScope.storable_key?(klass)
+          unless CurrentScope.storable_key?(klass)
+            errors.add(:base, CurrentScope.unstorable_key_error(klass, role: side))
+            next
+          end
 
-          errors.add(:base, CurrentScope.unstorable_key_error(klass, role: side))
+          next if CurrentScope.canonical_key?(klass, public_send("#{side}_id"))
+
+          # The column takes any string, so a value that is not a legal key for
+          # this model stores happily — and the resolver then casts it back into
+          # that model's key type, where "7f00aaaa-…" becomes 7 and the grant
+          # reaches record 7. The resolver drops such ids too; refusing the WRITE
+          # is what stops them existing at all.
+          errors.add(:base,
+            "#{public_send("#{side}_id").inspect} is not a valid #{klass.name} primary key " \
+            "(#{klass.name}.#{klass.primary_key} is #{klass.type_for_attribute(klass.primary_key).type}). " \
+            "Stored as-is it would be cast back to a DIFFERENT record's id, so the grant would " \
+            "open a record it does not name (#151).")
         rescue ActiveRecord::ActiveRecordError => e
           errors.add(:base,
             "#{klass.name}'s primary key could not be read (#{e.class}: #{e.message}), so " \

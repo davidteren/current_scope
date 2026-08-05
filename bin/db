@@ -19,10 +19,6 @@ PG_URL="postgresql://cs:cs@127.0.0.1:55432/cs_test"
 MY_URL="trilogy://root:cs@127.0.0.1:33306/cs_test"
 SQLITE_URL="sqlite3://$(pwd)/tmp/adapter_test.sqlite3"
 
-# schema.rb is portable; a MySQL collation is not. Run the engine migration after
-# the schema load so every adapter is tested on the schema a host actually ends up
-# with. Cheap and idempotent — it no-ops where the columns are already correct.
-MIGRATE_SNIPPET='require File.expand_path("db/migrate/20260805000001_widen_current_scope_polymorphic_ids.rb", Dir.pwd); m = WidenCurrentScopePolymorphicIds.new; m.verbose = false; m.migrate(:up)' 
 
 url_for() {
   case "$1" in
@@ -89,12 +85,16 @@ run_one() {
   if ! out=$(RAILS_ENV=test DATABASE_URL="$url" bin/rails db:test:prepare 2>&1); then
     echo "!! db:test:prepare failed on $adapter" >&2; echo "$out" >&2; return 1
   fi
-  # schema.rb cannot carry MySQL's collation (utf8mb4_bin is not a SQLite
-  # collation), so a freshly-loaded schema has the right column type and the WRONG
-  # collation. Apply the engine migration on top, which is what a host does.
-  if ! out=$(RAILS_ENV=test DATABASE_URL="$url" CURRENT_SCOPE_SKIP_SCHEMA_CHECK=1 \
-             bin/rails runner "$MIGRATE_SNIPPET" 2>&1); then
-    echo "!! applying the widen migration failed on $adapter" >&2; echo "$out" >&2; return 1
+  # schema.rb cannot carry MySQL's collation, so a freshly-loaded schema has the
+  # right column type and the WRONG collation — and db:migrate cannot fix it,
+  # because loading a schema stamps every version as applied. Run the same repair
+  # task a host runs, so this script and the documented recovery path cannot
+  # drift apart.
+  # `app:` prefix because rails/tasks/engine.rake namespaces the dummy app's
+  # tasks that way from the engine root. A host runs the same task without it:
+  # bin/rails current_scope:repair_schema
+  if ! out=$(RAILS_ENV=test DATABASE_URL="$url" bundle exec rake app:current_scope:repair_schema 2>&1); then
+    echo "!! current_scope:repair_schema failed on $adapter" >&2; echo "$out" >&2; return 1
   fi
   RAILS_ENV=test DATABASE_URL="$url" COVERAGE=0 bin/rails test
 }

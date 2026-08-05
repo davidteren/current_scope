@@ -74,12 +74,47 @@ The columns become `varchar(64)`, so integer, UUID and ULID keys are all stored
 whole. **The engine raises at boot until this migration has run** — a gem upgrade
 alone would leave the escalation in place while every code path looked correct.
 
+The migration rewrites both grant tables under an exclusive lock (PostgreSQL
+`ACCESS EXCLUSIVE`, MySQL `ALGORITHM=COPY`). Grant tables are normally small, so
+this is quick; if yours is large, schedule it like any other table rewrite, or
+run it through your usual online-DDL tool.
+
+Database, installer and `assets:` tasks are exempt from the boot refusal, so the
+repair and your asset build still run on an unmigrated host. Everything that
+serves traffic or runs your code — server, console, `runner` — is refused. If
+some other build step must boot before the migration can run, set
+`CURRENT_SCOPE_SKIP_SCHEMA_CHECK=1` **for that one command**. Setting it for a
+process that serves traffic turns the guard off and puts the escalation back.
+
 On MySQL the columns are given `utf8mb4_bin`. The server default is case- and
 accent-insensitive, which would make `"ABC"` and `"abc"` — or `"jose"` and
 `"josé"` — the same subject. A primary key is an identifier, not prose.
 
 Keys longer than 64 characters are rejected rather than truncated, because a
 truncated key names the wrong record.
+
+### Every host: grant ids now read back as strings
+
+This part affects you **even if all your keys are integers**, because the column
+type changed for everyone:
+
+```ruby
+grant = CurrentScope::RoleAssignment.find_by(subject: user)
+grant.subject_id        # => "7"  (was 7)
+grant.subject_id == user.id   # => false, and it used to be true
+grant.subject_id.to_s == user.id.to_s  # => true
+```
+
+If your own code compares a grant id against a model id, compare `.to_s` on both
+sides. The engine's own queries are unaffected: `where(subject: user)` and
+`scope_for` cast for you.
+
+A grant is also now refused at write time when the id is not a legal key for the
+model it names — `resource_type: "Project"` with a UUID `resource_id`, say. Such
+a row could never identify a real `Project`, and left alone the read path would
+cast it back to a *different* project's id. If you build grants from parameters
+or an import rather than from a located record, expect that validation to start
+rejecting rows it previously accepted; those rows were never safe.
 
 ### Audit the rows you already have
 

@@ -48,6 +48,24 @@ bin/db down
 Containers use non-default ports (55432, 33306) so they cannot collide with a
 database you already run.
 
+### Do not regenerate `test/dummy/db/schema.rb` on SQLite
+
+The committed dump says `t.bigint` for every foreign key, because that is what
+`t.references` really creates on PostgreSQL and MySQL. SQLite's dumper writes
+`t.integer` for the same column. The difference is not cosmetic: MySQL refuses a
+foreign key from an `INT` column to a `BIGINT` primary key, so a schema
+regenerated on SQLite makes the MySQL leg fail to load at all.
+
+If you add a migration, dump the schema from a server adapter:
+
+```bash
+DATABASE_URL="$(bin/db url postgres)" RAILS_ENV=test bin/rails db:migrate
+```
+
+Then check the diff shows only your change. `schema.rb` also cannot carry a MySQL
+collation, which is why `bin/db` and CI apply the #151 widening migration on top
+of the loaded schema rather than trusting the dump alone.
+
 ## Regenerating screenshots
 
 README and docs-site screenshots come from the system suite:

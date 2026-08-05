@@ -169,16 +169,25 @@ module CurrentScope
     # class): "unknown" must not become "broken", or `rails db:create` on a fresh
     # checkout would raise.
     def self.validate_subject_key!
+      # OUTSIDE the rescue below, deliberately. That rescue exists to keep an
+      # UNKNOWN subject class quiet; letting it also swallow the schema check
+      # would make the security guard fail OPEN on any database hiccup — a
+      # transient connection error during boot would look exactly like "all
+      # clear" and the host would serve with the escalation live. The schema
+      # check does its own, narrower rescue for the genuinely-no-database case.
       grant_columns_widened!
-      klass = CurrentScope.config.subject_class
-      klass = klass.to_s.safe_constantize if klass.is_a?(String) || klass.is_a?(Symbol)
-      return unless klass.respond_to?(:primary_key)
-      return if CurrentScope.storable_key?(klass)
 
-      raise ConfigurationError, CurrentScope.unstorable_key_error(klass, role: "subject")
-    rescue ActiveRecord::ActiveRecordError
-      Rails.logger&.warn("[CurrentScope] subject key check skipped — could not introspect the database (#151).")
-      nil
+      begin
+        klass = CurrentScope.config.subject_class
+        klass = klass.to_s.safe_constantize if klass.is_a?(String) || klass.is_a?(Symbol)
+        return unless klass.respond_to?(:primary_key)
+        return if CurrentScope.storable_key?(klass)
+
+        raise ConfigurationError, CurrentScope.unstorable_key_error(klass, role: "subject")
+      rescue ActiveRecord::ActiveRecordError
+        Rails.logger&.warn("[CurrentScope] subject key check skipped — could not introspect the database (#151).")
+        nil
+      end
     end
 
     # #151 is fixed by a MIGRATION, and a gem upgrade does not run it. A host that
@@ -196,62 +205,111 @@ module CurrentScope
       # that sets this in production has chosen to run without the check.
       return if ENV["CURRENT_SCOPE_SKIP_SCHEMA_CHECK"] == "1"
 
+      # BOTH halves of every grant predicate, not just the ids. The migration
+      # widens the id columns and then re-collates the type columns, and MySQL
+      # auto-commits each statement — so a migration that dies between the two
+      # leaves binary ids beside case-insensitive types, permanently. Checking
+      # only the ids blesses exactly that state, and a grant on `Widget#5` then
+      # matches a check for `WIDGET#5`. Same escalation, other column.
       {
-        CurrentScope::RoleAssignment => %w[subject_id],
-        CurrentScope::ScopedRoleAssignment => %w[subject_id resource_id]
-      }.each do |model, columns|
+        CurrentScope::RoleAssignment => { ids: %w[subject_id], types: %w[subject_type] },
+        CurrentScope::ScopedRoleAssignment => {
+          ids: %w[subject_id resource_id], types: %w[subject_type resource_type]
+        }
+      }.each do |model, groups|
         next unless model.table_exists?
 
-        columns.each do |column|
-          info = model.columns_hash[column]
-          next if info.nil?
-
-          # Collation matters as much as type on MySQL: its default is case AND
-          # accent insensitive, so "ABC" and "abc" would be the same subject. A
-          # database built from schema.rb has the right type and the wrong
-          # collation, which is the common case for a new app and for CI.
-          if info.type == :string
-            next unless mysql?
-            next if info.collation.nil? || info.collation.end_with?("_bin")
-
-            raise ConfigurationError,
-                  "#{model.table_name}.#{column} uses the #{info.collation} collation, which " \
-                  "is case and accent insensitive — \"ABC\" and \"abc\" would be the same " \
-                  "record, so a grant on one reaches the other (#151). Run " \
-                  "`bin/rails current_scope:install:migrations && bin/rails db:migrate` to " \
-                  "apply a binary collation."
-          end
-
-          type = info.type
-          raise ConfigurationError,
-                "#{model.table_name}.#{column} is still #{type}. CurrentScope stores a " \
-                "record's primary key there, and an integer column silently truncates a " \
-                "UUID — two subjects collapse into one identity and one inherits the " \
-                "other's roles (#151). Run `bin/rails current_scope:install:migrations && " \
-                "bin/rails db:migrate` to widen it."
-        end
+        groups[:ids].each { |column| check_id_column!(model, column) }
+        # Type columns are varchar already; only their collation can be wrong.
+        groups[:types].each { |column| check_collation!(model, column) } if mysql?
       end
+    rescue ActiveRecord::NoDatabaseError, ActiveRecord::ConnectionNotEstablished
+      # There is genuinely no database yet (a fresh checkout running db:create,
+      # a build step with no server). Nothing to judge, so stay quiet.
+      #
+      # Narrow ON PURPOSE. Rescuing ActiveRecordError broadly here would turn any
+      # transient error into a silent all-clear, which is a security guard
+      # failing open. Anything else propagates.
+      nil
     end
     private_class_method :grant_columns_widened!
 
-    # The check above raises from after_initialize, which every Rails command runs
-    # — including `db:migrate`, the command the error message tells the host to
-    # run. Without this, an upgrading host is stuck: the app refuses to boot, and
-    # the fix refuses to run for the same reason.
-    #
-    # So stand down for database and installer tasks. Serving traffic is still
-    # refused, which is what actually protects the host; only the repair path is
-    # let through.
+    def self.check_id_column!(model, column)
+      info = model.columns_hash[column]
+      return if info.nil?
+
+      if info.type == :string
+        check_collation!(model, column) if mysql?
+        return
+      end
+
+      raise ConfigurationError,
+            "#{model.table_name}.#{column} is still #{info.type}. CurrentScope stores a " \
+            "record's primary key there, and an integer column silently truncates a " \
+            "UUID — two subjects collapse into one identity and one inherits the " \
+            "other's roles (#151). Run `bin/rails current_scope:install:migrations && " \
+            "bin/rails db:migrate` to widen it."
+    end
+    private_class_method :check_id_column!
+
+    # Collation matters as much as type on MySQL: its default is case AND accent
+    # insensitive, so "ABC" and "abc" — or "jose" and "josé" — are the same
+    # record. A database built from schema.rb has the right column type and the
+    # wrong collation, which is the common case for a new app and for CI.
+    def self.check_collation!(model, column)
+      info = model.columns_hash[column]
+      return if info.nil? || info.collation.nil? || info.collation.end_with?("_bin")
+
+      # NOT db:migrate. A database loaded from schema.rb has every migration
+      # version already stamped, so db:migrate finds nothing pending and prints
+      # nothing while the collation stays wrong — and schema.rb cannot carry a
+      # MySQL collation, so that is the normal state of a new app and of CI.
+      # Naming db:migrate here sent hosts to a command that could not work.
+      raise ConfigurationError,
+            "#{model.table_name}.#{column} uses the #{info.collation} collation, which " \
+            "is case and accent insensitive — \"ABC\" and \"abc\" would be the same " \
+            "record, so a grant on one reaches the other (#151). Run " \
+            "`bin/rails current_scope:repair_schema` to apply a binary collation " \
+            "(idempotent, and it works on a schema-loaded database where db:migrate " \
+            "has nothing pending)."
+    end
+    private_class_method :check_collation!
+
+    # The GRANT tables' connection, not ActiveRecord::Base's. The columns being
+    # judged come from RoleAssignment.columns_hash, so the adapter question has
+    # to be asked of the same database those columns live in — a host that puts
+    # the engine's tables on a second connection would otherwise be judged by the
+    # wrong server's collation rules.
     def self.mysql?
-      ActiveRecord::Base.connection.adapter_name.match?(/mysql|trilogy|maria/i)
+      CurrentScope.mysql?(CurrentScope::RoleAssignment.connection)
     end
     private_class_method :mysql?
+
+    # Rake tasks that must be allowed to BOOT even against an unmigrated schema.
+    #
+    # The check above raises from after_initialize, which every Rails command
+    # runs — including `db:migrate`, the command its own error message tells the
+    # host to run. Without an exemption an upgrading host is stuck: the app
+    # refuses to boot and the repair refuses to run, for the same reason.
+    #
+    # `assets:` is here for the same reason, one step less obvious: a deploy
+    # pipeline that precompiles before migrating boots the app with a live
+    # connection to the not-yet-migrated database, so the build dies before it
+    # ever reaches db:migrate.
+    #
+    # What is deliberately NOT exempt is anything that goes on to serve or run
+    # host code — server, console, runner. Refusing those is what actually
+    # protects the host; only the build-and-repair path is let through.
+    BOOT_EXEMPT_TASKS = %w[
+      db: app:db: current_scope:install current_scope:repair_schema
+      app:current_scope:repair_schema assets:
+    ].freeze
 
     def self.running_a_database_task?
       return false unless defined?(Rake) && Rake.respond_to?(:application)
 
       Rake.application.top_level_tasks.any? do |task|
-        task.start_with?("db:", "app:db:", "current_scope:install")
+        task.start_with?(*BOOT_EXEMPT_TASKS)
       end
     rescue StandardError
       # No rake application in scope (a server or console): not a database task.

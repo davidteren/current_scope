@@ -235,7 +235,7 @@ module CurrentScope
       connection = subject_class.connection
       column = "#{connection.quote_table_name(subject_class.table_name)}." \
                "#{connection.quote_column_name(subject_class.primary_key)}"
-      return Arel.sql("CAST(#{column} AS TEXT)") unless connection.adapter_name.match?(/mysql|trilogy|maria/i)
+      return Arel.sql("CAST(#{column} AS TEXT)") unless CurrentScope.mysql?(connection)
 
       collation = RoleAssignment.columns_hash["subject_id"]&.collation
       cast = "CAST(#{column} AS CHAR)"

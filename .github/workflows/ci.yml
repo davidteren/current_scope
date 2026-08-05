@@ -160,10 +160,13 @@ jobs:
           RAILS_ENV: test
           DATABASE_URL: ${{ matrix.url }}
           COVERAGE: "0"
-        # schema.rb cannot express MySQL's collation, so a freshly-loaded schema has
-        # the right column type and the wrong collation. Apply the engine migration
-        # on top — the schema a host actually ends up with (#151).
+        # schema.rb cannot express MySQL's collation, so a freshly-loaded schema
+        # has the right column type and the wrong collation — and db:migrate
+        # cannot fix it, because loading a schema stamps every version as
+        # applied. This is the same repair task an upgrading host runs, which is
+        # the point: CI exercises the documented recovery path rather than a
+        # private one-liner that could drift from it (#151).
         run: |
           bin/rails db:test:prepare
-          bin/rails runner 'require File.expand_path("db/migrate/20260805000001_widen_current_scope_polymorphic_ids.rb", Dir.pwd); m = WidenCurrentScopePolymorphicIds.new; m.verbose = false; m.migrate(:up)'
+          bundle exec rake app:current_scope:repair_schema
           bin/rails test

@@ -1,0 +1,44 @@
+UPGRADING.md
+  s_b6526dcf3b998e::t_7d23ff95973242 54,56-58,60,66,68-70,73-89
+app/models/concerns/current_scope/storable_keys.rb
+  s_b6526dcf3b998e::t_79e77d1d77be96 40-54
+app/controllers/current_scope/roles_controller.rb
+  s_b6526dcf3b998e::t_dbac648a18d0a5 51-58
+  s_b6526dcf3b998e::t_bf7f956b30bf8b 59-61,226-240
+  s_b6526dcf3b998e::t_7cc3c0b4f7ff20 241-242
+lib/current_scope/engine.rb
+  s_b6526dcf3b998e::t_ed031ebd204256 172,183-211
+README.md
+  s_b6526dcf3b998e::t_7d23ff95973242 102-109
+test/widen_polymorphic_ids_migration_test.rb
+  s_b6526dcf3b998e::t_c20658aad061cc 1-101
+db/migrate/20260805000001_widen_current_scope_polymorphic_ids.rb
+  s_b6526dcf3b998e::t_cc61c4b58f00af 11-16,28,63-66,68
+CHANGELOG.md
+  s_b6526dcf3b998e::t_68c11b392165f5 157-191
+  s_b6526dcf3b998e::t_17777b7e5a0653 192
+test/uuid_key_collision_test.rb
+  s_b6526dcf3b998e::t_a3c57010f13886 156-161,167-168
+  s_b6526dcf3b998e::t_f145d9cae39263 134-155,162-166,169-171
+lib/current_scope/resolver.rb
+  s_b6526dcf3b998e::t_68c11b392165f5 125,127-131,423-424
+lib/current_scope.rb
+  s_b6526dcf3b998e::t_79e77d1d77be96 69-73,280-285
+  s_b6526dcf3b998e::t_0b5607c26ee4b5 286-287
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "780ed8c74b8458ef0c9c67f231f4ab5e0d4fd66a",
+  "prompts": {},
+  "sessions": {
+    "s_b6526dcf3b998e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb848af8-9fd5-4158-95e7-b22c92679504",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

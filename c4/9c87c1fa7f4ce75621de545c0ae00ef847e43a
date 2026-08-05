@@ -1,0 +1,33 @@
+bin/db
+  s_b6526dcf3b998e::t_81becadc637e73 20-22
+test/repair_schema_task_test.rb
+  s_b6526dcf3b998e::t_1171d496a56389 78-80
+test/uuid_key_collision_test.rb
+  s_b6526dcf3b998e::t_4a04b4182e757d 228,230-231
+  s_b6526dcf3b998e::t_9dc4af3195c346 246-263
+  s_b6526dcf3b998e::t_7440d495ab4985 304-306,311-314
+lib/current_scope/engine.rb
+  s_b6526dcf3b998e::t_44aef2f98a5afe 252-263
+  s_b6526dcf3b998e::t_f6998a6df72b00 340,353-357
+  s_b6526dcf3b998e::t_2590241de36598 292-294,296,298
+  s_b6526dcf3b998e::t_9aa8458fd0fe84 376-379
+  s_b6526dcf3b998e::t_addd0d110a0b6b 330,336-337,339,341-344,346-351,360-367,369-371
+app/models/current_scope/scoped_role_assignment.rb
+  s_b6526dcf3b998e::t_4288f07f277e23 48-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "c49c87c1fa7f4ce75621de545c0ae00ef847e43a",
+  "prompts": {},
+  "sessions": {
+    "s_b6526dcf3b998e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb848af8-9fd5-4158-95e7-b22c92679504",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

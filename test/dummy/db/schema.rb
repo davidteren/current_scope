@@ -26,8 +26,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_05_000001) do
 
   create_table "current_scope_role_assignments", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.integer "role_id", null: false
-    t.string "subject_id", null: false
+    t.bigint "role_id", null: false
+    t.string "subject_id", limit: 64, null: false
     t.string "subject_type", null: false
     t.datetime "updated_at", null: false
     t.index [ "role_id" ], name: "index_current_scope_role_assignments_on_role_id"
@@ -36,7 +36,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_05_000001) do
 
   create_table "current_scope_role_permissions", force: :cascade do |t|
     t.string "permission_key", null: false
-    t.integer "role_id", null: false
+    t.bigint "role_id", null: false
     t.index [ "role_id", "permission_key" ], name: "idx_on_role_id_permission_key_5fd185cc5b", unique: true
     t.index [ "role_id" ], name: "index_current_scope_role_permissions_on_role_id"
   end
@@ -52,10 +52,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_05_000001) do
 
   create_table "current_scope_scoped_role_assignments", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.string "resource_id", null: false
+    t.string "resource_id", limit: 64, null: false
     t.string "resource_type", null: false
-    t.integer "role_id", null: false
-    t.string "subject_id", null: false
+    t.bigint "role_id", null: false
+    t.string "subject_id", limit: 64, null: false
     t.string "subject_type", null: false
     t.datetime "updated_at", null: false
     t.index [ "resource_type", "resource_id" ], name: "index_current_scope_scoped_role_assignments_on_resource"
@@ -80,15 +80,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_05_000001) do
   create_table "projects", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "name", null: false
-    t.integer "parent_id"
+    t.bigint "parent_id"
     t.datetime "updated_at", null: false
     t.index [ "parent_id" ], name: "index_projects_on_parent_id"
   end
 
   create_table "reports", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.integer "project_id"
-    t.integer "requested_by_id", null: false
+    t.bigint "project_id"
+    t.bigint "requested_by_id", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.index [ "project_id" ], name: "index_reports_on_project_id"

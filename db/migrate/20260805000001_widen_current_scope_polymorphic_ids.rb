@@ -8,11 +8,18 @@
 # these columns ever see (the resolver never orders or ranges on them), so string
 # storage costs nothing but index width.
 #
+# LENGTH IS BOUNDED AT 64 ON PURPOSE. These columns sit in a five-column unique
+# index, and MySQL caps an index at 3072 bytes; four unbounded varchar(255)
+# columns at utf8mb4 exceed that and the table will not create at all. 64 holds a
+# UUID (36), a ULID (26), and any integer key with room to spare.
+#
 # THIS MIGRATION CANNOT REPAIR ALREADY-COLLAPSED ROWS. Once "7f00aaaa-…" was
 # written as 7 the original value is gone. A host that ran 0.2 to 0.4 with
 # non-integer keys must re-grant those roles; UPGRADING.md carries the audit
 # query that lists them.
 class WidenCurrentScopePolymorphicIds < ActiveRecord::Migration[8.1]
+  KEY_LIMIT = 64
+
   COLUMNS = {
     current_scope_role_assignments: [ :subject_id ],
     current_scope_scoped_role_assignments: [ :subject_id, :resource_id ]
@@ -36,20 +43,20 @@ class WidenCurrentScopePolymorphicIds < ActiveRecord::Migration[8.1]
   private
 
   def widen(table, column)
-    return if connection.column_exists?(table, column, :string)
+    return if connection.column_exists?(table, column, :string, limit: KEY_LIMIT)
 
     if connection.adapter_name.match?(/postg/i)
       # Postgres will not cast integer to varchar implicitly in ALTER COLUMN; it
       # needs USING. change_column does not emit one, so write it directly.
       connection.execute(<<~SQL.squish)
         ALTER TABLE #{connection.quote_table_name(table)}
-        ALTER COLUMN #{connection.quote_column_name(column)} TYPE character varying
+        ALTER COLUMN #{connection.quote_column_name(column)} TYPE character varying(#{KEY_LIMIT})
         USING #{connection.quote_column_name(column)}::character varying
       SQL
     else
       # SQLite rebuilds the table; MySQL/MariaDB emit MODIFY COLUMN. Both cast
       # integer to text without help.
-      change_column table, column, :string
+      change_column table, column, :string, limit: KEY_LIMIT
     end
 
     change_column_null table, column, false

@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Run the suite against sqlite, postgres or mysql — or all three.
+#
+# #151 widened the polymorphic grant id columns to string. Adapters disagree about
+# comparing a string column to an integer one: SQLite coerces silently, MySQL
+# coerces (at an index cost), PostgreSQL raises outright. A SQLite-only suite
+# cannot see that class of bug, which is exactly how it reached a release.
+#
+#   bin/db up                 start the postgres + mysql containers
+#   bin/db down               stop and remove them
+#   bin/db test [adapter]     run the suite (default: all three)
+#   bin/db shell <adapter>    print the DATABASE_URL for ad-hoc use
+#
+# Containers are disposable; nothing here touches a database you already run.
+set -uo pipefail
+cd "$(dirname "$0")/.."
+
+PG_URL="postgresql://cs:cs@127.0.0.1:55432/cs_test"
+MY_URL="trilogy://root:cs@127.0.0.1:33306/cs_test"
+SQLITE_URL="sqlite3://$(pwd)/tmp/adapter_test.sqlite3"
+
+url_for() {
+  case "$1" in
+    postgres|postgresql|pg) echo "$PG_URL" ;;
+    mysql|trilogy|my)       echo "$MY_URL" ;;
+    sqlite|sqlite3)         echo "$SQLITE_URL" ;;
+    *) echo "unknown adapter: $1" >&2; return 1 ;;
+  esac
+}
+
+up() {
+  docker start cs-pg cs-mysql >/dev/null 2>&1 && { echo "containers already exist, started"; return; }
+  docker run -d --name cs-pg -e POSTGRES_PASSWORD=cs -e POSTGRES_USER=cs \
+    -e POSTGRES_DB=cs_test -p 55432:5432 postgres:17-alpine >/dev/null
+  docker run -d --name cs-mysql -e MYSQL_ROOT_PASSWORD=cs -e MYSQL_DATABASE=cs_test \
+    -p 33306:3306 mysql:8.4 >/dev/null
+  echo "started cs-pg and cs-mysql"
+}
+
+down() { docker rm -f cs-pg cs-mysql >/dev/null 2>&1; echo "removed cs-pg and cs-mysql"; }
+
+# Both servers accept TCP before they accept queries; poll rather than sleep.
+wait_for() {
+  local adapter="$1" url; url="$(url_for "$adapter")" || return 1
+  for _ in $(seq 1 60); do
+    if DATABASE_URL="$url" bin/rails runner 'ActiveRecord::Base.connection.execute("SELECT 1")' >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+  echo "!! $adapter never became ready" >&2
+  return 1
+}
+
+run_one() {
+  local adapter="$1" url; url="$(url_for "$adapter")" || return 1
+  echo
+  echo "=============== $adapter ==============="
+  wait_for "$adapter" || return 1
+  # Rebuild from schema.rb each time: these are throwaway databases, and a stale
+  # one would hide exactly the column-type differences this script exists to find.
+  DATABASE_URL="$url" bin/rails db:drop db:create >/dev/null 2>&1
+  DATABASE_URL="$url" bin/rails db:test:prepare >/dev/null 2>&1
+  DATABASE_URL="$url" COVERAGE=0 bin/rails test 2>&1 | tail -25
+}
+
+case "${1:-test}" in
+  up)    up ;;
+  down)  down ;;
+  shell) url_for "${2:?adapter required}" ;;
+  test)
+    shift || true
+    failed=0
+    for adapter in ${*:-sqlite postgres mysql}; do
+      run_one "$adapter" || failed=1
+    done
+    exit "$failed"
+    ;;
+  *) echo "usage: bin/db {up|down|test [adapter...]|shell <adapter>}" >&2; exit 2 ;;
+esac

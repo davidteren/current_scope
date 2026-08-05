@@ -48,10 +48,13 @@ module CurrentScope
       @scoped_holders = ScopedRoleAssignment.where(role: @role).includes(role: :role_permissions).to_a
       ScopedRoleAssignment.preload_resolvable_resources!(@scoped_holders)
 
-      # Exclude via a subquery, not a plucked Ruby array, so a role with many
-      # holders doesn't build a huge NOT IN bind list.
-      held = RoleAssignment.where(role: @role, subject_type: subject_class.name).select(:subject_id)
-      remaining = subject_class.where.not(id: held).order(:id)
+      # Read the ids out rather than leaving a subquery. subject_id is a string
+      # column (#151) while subject_class keys on a bigint, and PostgreSQL will not
+      # compare the two: `operator does not exist: character varying = bigint`.
+      # An array lets ActiveRecord cast each value to the target column's own type.
+      # The set is the holders of ONE role, so the bind list stays bounded.
+      held = RoleAssignment.where(role: @role, subject_type: subject_class.name).pluck(:subject_id)
+      remaining = subject_class.where.not(subject_class.primary_key => held).order(:id)
       @candidates = remaining.limit(ADD_LIMIT).to_a
       @more_candidates = remaining.offset(ADD_LIMIT).exists?
     end

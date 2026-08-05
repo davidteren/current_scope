@@ -12,29 +12,39 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
   ALICE_ID = "7f00aaaa-1111-4111-8111-aaaaaaaaaaaa".freeze
   BOB_ID   = "7f00bbbb-2222-4222-8222-bbbbbbbbbbbb".freeze
 
+  # Built ONCE, at load time, before any test transaction opens. Two reasons:
+  # MySQL cannot run DDL inside a transaction — it auto-commits and the test's
+  # savepoint vanishes underneath it — and ActiveRecord's schema API is used
+  # rather than raw SQL because `id varchar PRIMARY KEY` is valid SQLite and a
+  # syntax error on MySQL. The suite runs on all three adapters (bin/db).
+  ActiveRecord::Base.connection.create_table(:uuid_users, id: :string, force: true) do |t|
+    t.string :name
+  end
+  UuidUser = Class.new(ActiveRecord::Base) do
+    self.table_name = "uuid_users"
+    def self.name = "UuidUser"
+  end
+  Object.const_set(:UuidUser, UuidUser) unless Object.const_defined?(:UuidUser)
+
+  # Drop the table and the constant when the whole run ends, not per test: any
+  # later test that inspects ActiveRecord::Base.descendants or the table list
+  # would otherwise be order-dependent on this file having run.
+  Minitest.after_run do
+    ActiveRecord::Base.connection.drop_table(:uuid_users, if_exists: true)
+    Object.send(:remove_const, :UuidUser) if Object.const_defined?(:UuidUser)
+  rescue StandardError
+    nil
+  end
+
   setup do
-    ActiveRecord::Base.connection.execute(
-      "CREATE TABLE IF NOT EXISTS uuid_users (id varchar PRIMARY KEY, name varchar)"
-    )
-    unless Object.const_defined?(:UuidUser)
-      Object.const_set(:UuidUser, Class.new(ActiveRecord::Base) do
-        self.table_name = "uuid_users"
-        def self.name = "UuidUser"
-      end)
-    end
     @alice = UuidUser.create!(id: ALICE_ID, name: "Alice")
     @bob   = UuidUser.create!(id: BOB_ID, name: "Bob")
     @resolver = CurrentScope::Resolver.new
   end
 
-  # Drop the table and the constant, not just the rows: leaving either behind
-  # makes any later test that inspects ActiveRecord::Base.descendants or the
-  # table list order-dependent on this file having run.
-  teardown do
-    UuidUser.delete_all
-    ActiveRecord::Base.connection.execute("DROP TABLE IF EXISTS uuid_users")
-    Object.send(:remove_const, :UuidUser) if Object.const_defined?(:UuidUser)
-  end
+  # Rows only: the transaction rolls these back anyway, but the table itself must
+  # survive the run (see above).
+  teardown { UuidUser.delete_all }
 
   test "the id columns hold a value, not a number — this is what makes UUIDs work" do
     %w[current_scope_role_assignments current_scope_scoped_role_assignments].each do |table|

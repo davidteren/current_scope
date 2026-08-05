@@ -124,11 +124,9 @@ module CurrentScope
       # `model.where` still applies STI's own type predicate, so a subclass query
       # can't over-list sibling-subclass rows. An empty subquery yields an empty
       # (still chainable) relation.
-      direct = model.where(
-        id: ScopedRoleAssignment
-              .where(subject: subject, resource_type: model.base_class.name, role_id: roles_granting(permission))
-              .select(:resource_id)
-      )
+      direct = model.where(model.primary_key => granted_ids(
+        subject: subject, type: model.base_class.name, roles: roles_granting(permission)
+      ))
 
       ancestor_scope_for(subject: subject, model: model, permission: permission)
         .reduce(direct) { |relation, arm| relation.or(arm) }
@@ -387,11 +385,11 @@ module CurrentScope
         path << [ klass, reflection.foreign_key ]
         break if path.size > ParentChain::MAX_PARENT_DEPTH
 
-        granted = ScopedRoleAssignment
-                    .where(subject: subject, resource_type: parent.base_class.name, role_id: roles_ticking(permission))
-                    .select(:resource_id)
+        granted = granted_ids(
+          subject: subject, type: parent.base_class.name, roles: roles_ticking(permission)
+        )
 
-        arms << narrow_through(path, innermost: parent.where(id: granted))
+        arms << narrow_through(path, innermost: parent.where(parent.primary_key => granted))
         klass = parent
       end
 
@@ -400,6 +398,25 @@ module CurrentScope
 
     # Build `model.where(fk1 => Parent.where(fk2 => ...))` from the outside in, so
     # a grant N hops up still narrows to the right rows of `model`.
+    # The granted resource ids, READ OUT rather than left as a subquery.
+    #
+    # `resource_id` is a string column (#151) so that a UUID key survives, but a
+    # model's own primary key is usually a bigint. Comparing the two inside SQL is
+    # where adapters part company: SQLite coerces silently, MySQL coerces at the
+    # cost of the index, and PostgreSQL refuses outright with
+    # `operator does not exist: bigint = character varying`. Handing ActiveRecord a
+    # plain array instead lets it cast each value to the target column's own type,
+    # which is correct on all three and needs no adapter branching.
+    #
+    # The cost is one small extra query: the set is the grants THIS subject holds
+    # on THIS type, not a row per record. bin/db runs the suite against all three
+    # adapters so a regression here cannot hide behind SQLite again.
+    def granted_ids(subject:, type:, roles:)
+      ScopedRoleAssignment
+        .where(subject: subject, resource_type: type, role_id: roles)
+        .pluck(:resource_id)
+    end
+
     def narrow_through(path, innermost:)
       # The reduce already ENDS on `model.where(...)`, because the first path
       # entry pushed by ancestor_scope_for is always [model, its own fk] and

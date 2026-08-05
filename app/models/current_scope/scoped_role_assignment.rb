@@ -17,27 +17,9 @@ module CurrentScope
 
     # #151: both ids land in integer columns, so a non-integer primary key on
     # EITHER side collapses distinct records into one grant identity.
-    validate :polymorphic_keys_are_integer
+    include CurrentScope::IntegerKeys
+    validates_integer_polymorphic_keys "subject", "resource"
 
-    # Type column, not the association — see the note in RoleAssignment. Reading
-    # `subject`/`resource` here would skip exactly the already-collapsed rows the
-    # guard exists for, and would raise NameError on a stale type instead of
-    # skipping it.
-    def polymorphic_keys_are_integer
-      { "subject" => subject_type, "resource" => resource_type }.each do |role, type|
-        klass = CurrentScope.polymorphic_class(type, owner: self.class)
-        next if klass.nil?
-        # Fail closed on an un-introspectable key, as in RoleAssignment.
-        next if begin
-          CurrentScope.integer_keyed?(klass)
-        rescue StandardError
-          false
-        end
-
-        errors.add(:base, CurrentScope.non_integer_key_error(klass, role: role))
-      end
-    end
-    private :polymorphic_keys_are_integer
 
     # Batch-load polymorphic resources for resolvable types only. A global
     # includes(:resource) NameErrors when any resource_type is stale; this
@@ -50,12 +32,11 @@ module CurrentScope
       list.group_by(&:resource_type).each do |type, rows|
         next if type.blank?
 
-        klass =
-          begin
-            type.constantize
-          rescue NameError
-            next
-          end
+        # Same canonical resolver the key guard uses: a namespaced, shortened or
+        # custom polymorphic token must not read as missing here while passing
+        # validation there.
+        klass = CurrentScope.polymorphic_class(type, owner: self)
+        next if klass.nil?
         next unless klass.respond_to?(:where)
 
         records = klass.where(id: rows.map(&:resource_id).uniq).index_by { |r| r.id }

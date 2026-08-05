@@ -11,7 +11,8 @@ module CurrentScope
     # Base error (not :subject_id) so create! does not prefix "Subject id …".
     validate :one_org_role_per_subject
     # #151: refuse a subject whose primary key cannot survive the integer column.
-    validate :subject_key_is_integer
+    include CurrentScope::IntegerKeys
+    validates_integer_polymorphic_keys "subject"
 
     def one_org_role_per_subject
       return if subject_type.blank? || subject_id.blank?
@@ -28,26 +29,6 @@ module CurrentScope
     end
     private :one_org_role_per_subject
 
-    # Resolves from the TYPE COLUMN, not the association. On a row that is already
-    # collapsed, `subject` resolves to nil (the id points at nothing), so reading
-    # the association would return early and let CurrentScope.grant! re-escalate
-    # the very row this guard exists for. The type column is set by the belongs_to
-    # writer, so the new-record path is unchanged; safe_constantize returns nil for
-    # a stale type, which is skipped exactly as a nil association was.
-    def subject_key_is_integer
-      klass = CurrentScope.polymorphic_class(subject_type, owner: self.class)
-      return if klass.nil?
-      # A write must fail CLOSED: if the key cannot be introspected we refuse
-      # rather than store a value we cannot prove the column can hold.
-      return if begin
-        CurrentScope.integer_keyed?(klass)
-      rescue StandardError
-        false
-      end
-
-      errors.add(:base, CurrentScope.non_integer_key_error(klass, role: "subject"))
-    end
-    private :subject_key_is_integer
 
     # Bust the per-request org-role memo (CurrentScope::Current) whenever an
     # assignment changes, so a grant/clear and a later gate check in the SAME

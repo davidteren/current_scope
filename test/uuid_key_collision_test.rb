@@ -118,7 +118,7 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     # presence validation (polymorphic_class_for), on main and before this guard —
     # verified, not assumed. So the guard is exercised directly: it must resolve
     # the type to nil and skip, contributing no error of its own.
-    assert_nothing_raised { assignment.send(:subject_key_is_integer) }
+    assert_nothing_raised { assignment.send(:current_scope_check_key_types, [ "subject" ]) }
     assert_empty assignment.errors, "a type that no longer resolves is skipped, not flagged"
   end
 

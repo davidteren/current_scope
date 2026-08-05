@@ -65,10 +65,21 @@ resolved, to the wrong record.
 Audit on the version you are running now, before upgrading:
 
 ```ruby
-# Grants whose stored id matches no real record — the collapsed rows.
-CurrentScope::RoleAssignment.find_each do |ra|
-  klass = ra.subject_type.safe_constantize or next
-  puts "SUSPECT #{ra.id}: #{ra.subject_type}##{ra.subject_id}" unless klass.exists?(id: ra.subject_id)
+# Grants whose stored id matches no real record — the collapsed rows. Both
+# tables, and both sides of a scoped grant: a UUID-keyed RESOURCE collapses the
+# same way a subject does.
+[[CurrentScope::RoleAssignment, %w[subject]],
+ [CurrentScope::ScopedRoleAssignment, %w[subject resource]]].each do |model, sides|
+  model.find_each do |row|
+    sides.each do |side|
+      type = row.public_send("#{side}_type")
+      id   = row.public_send("#{side}_id")
+      klass = type&.safe_constantize or next
+      next if klass.exists?(id: id)
+
+      puts "SUSPECT #{model.name}##{row.id}: #{side} #{type}##{id}"
+    end
+  end
 end
 ```
 

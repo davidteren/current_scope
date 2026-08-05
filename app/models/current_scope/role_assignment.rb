@@ -28,10 +28,14 @@ module CurrentScope
     end
     private :one_org_role_per_subject
 
-    # Reads the association's class rather than subject_type, so it fires before
-    # a bad row exists AND on a record whose type string no longer resolves.
+    # Resolves from the TYPE COLUMN, not the association. On a row that is already
+    # collapsed, `subject` resolves to nil (the id points at nothing), so reading
+    # the association would return early and let CurrentScope.grant! re-escalate
+    # the very row this guard exists for. The type column is set by the belongs_to
+    # writer, so the new-record path is unchanged; safe_constantize returns nil for
+    # a stale type, which is skipped exactly as a nil association was.
     def subject_key_is_integer
-      klass = subject&.class
+      klass = subject_type.presence&.safe_constantize
       return if klass.nil? || CurrentScope.integer_keyed?(klass)
 
       errors.add(:base, CurrentScope.non_integer_key_error(klass, role: "subject"))

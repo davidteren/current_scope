@@ -181,8 +181,11 @@ module CurrentScope
       return if CurrentScope.integer_keyed?(klass)
 
       raise ConfigurationError, CurrentScope.non_integer_key_error(klass, role: "subject")
-    rescue ActiveRecord::NoDatabaseError, ActiveRecord::ConnectionNotEstablished, ActiveRecord::StatementInvalid
-      # Boot before the database exists or is reachable: nothing to check yet.
+    rescue ActiveRecord::ActiveRecordError
+      # Any ActiveRecord error here means "cannot introspect yet" — boot before
+      # migrate, no adapter configured, connection down. Deliberately broad: a
+      # missed error class costs a deploy, an over-broad rescue costs only a
+      # late warning, and the write validations remain the guarantee either way.
       nil
     end
   end

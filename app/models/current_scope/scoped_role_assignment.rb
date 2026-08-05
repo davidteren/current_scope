@@ -19,8 +19,13 @@ module CurrentScope
     # EITHER side collapses distinct records into one grant identity.
     validate :polymorphic_keys_are_integer
 
+    # Type column, not the association — see the note in RoleAssignment. Reading
+    # `subject`/`resource` here would skip exactly the already-collapsed rows the
+    # guard exists for, and would raise NameError on a stale type instead of
+    # skipping it.
     def polymorphic_keys_are_integer
-      { "subject" => subject&.class, "resource" => resource&.class }.each do |role, klass|
+      { "subject" => subject_type, "resource" => resource_type }.each do |role, type|
+        klass = type.presence&.safe_constantize
         next if klass.nil? || CurrentScope.integer_keyed?(klass)
 
         errors.add(:base, CurrentScope.non_integer_key_error(klass, role: role))

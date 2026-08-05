@@ -95,15 +95,52 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     assert CurrentScope.integer_keyed?(Report)
   end
 
+  # The gap that let the first version of this guard through review: it read the
+  # ASSOCIATION, which is nil on a row whose id points at nothing — precisely the
+  # rows the guard exists for. grant! then re-escalated them.
+  test "an ALREADY-collapsed row cannot be re-granted" do
+    role = CurrentScope::Role.create!(name: "Owner", full_access: true)
+    bad = CurrentScope::RoleAssignment.new(subject: @alice, role: role)
+    bad.save(validate: false)
+
+    assert_nil bad.reload.subject, "the stored id resolves to no record — this is a collapsed row"
+    assert_not bad.valid?, "and it must still be refused, not skipped for having a nil association"
+    assert_match(/UuidUser/, bad.errors.full_messages.to_sentence)
+  end
+
+  test "the guard skips a stale polymorphic type rather than adding a second failure" do
+    role = CurrentScope::Role.create!(name: "Owner", full_access: true)
+    assignment = CurrentScope::RoleAssignment.new(role: role)
+    assignment.subject_type = "NoLongerAModel"
+    assignment.subject_id = 1
+
+    # `valid?` on a stale type already raises NameError from Rails' own belongs_to
+    # presence validation (polymorphic_class_for), on main and before this guard —
+    # verified, not assumed. So the guard is exercised directly: it must resolve
+    # the type to nil and skip, contributing no error of its own.
+    assert_nothing_raised { assignment.send(:subject_key_is_integer) }
+    assert_empty assignment.errors, "a type that no longer resolves is skipped, not flagged"
+  end
+
   test "composite and absent primary keys are refused too — neither fits one integer column" do
     composite = Class.new(ActiveRecord::Base) do
       self.table_name = "reports"
       self.primary_key = [ "id", "project_id" ]
       def self.name = "CompositeReport"
     end
+    keyless = Class.new(ActiveRecord::Base) do
+      self.table_name = "reports"
+      self.primary_key = nil
+      def self.name = "KeylessReport"
+    end
 
     assert_not CurrentScope.integer_keyed?(composite),
                "a composite key cannot be stored in a single integer column"
+    assert_not CurrentScope.integer_keyed?(keyless), "and neither can no key at all"
+
+    assert_match(/composite primary key/, CurrentScope.non_integer_key_error(composite))
+    assert_match(/no usable primary key/, CurrentScope.non_integer_key_error(keyless),
+                 "the message must build for the nil branch rather than raising")
   end
 
   test "the boot check names the same problem as the write validation" do

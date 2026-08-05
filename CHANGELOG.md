@@ -34,7 +34,11 @@ changed. Not cut yet; the README banner stays up pending the real-host
   rows whose `subject_id`/`resource_id` do not match a real record.
 
   Both assignment models now refuse a subject or resource whose primary key is not
-  integer-typed, and the configured `subject_class` is checked once at boot so a
+  integer-typed. They resolve the class from the stored TYPE column rather than the
+  association, because on an already-collapsed row the association resolves to
+  nothing — reading it would skip exactly the rows the guard exists for, and let
+  `CurrentScope.grant!` re-escalate them. The configured `subject_class` is also
+  checked once at boot so a
   host holding already-collapsed rows fails the deploy rather than keeping the
   escalation. Composite and absent primary keys are refused for the same reason:
   neither fits a single integer column. The boot check stays silent when it cannot

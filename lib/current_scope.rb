@@ -275,9 +275,26 @@ module  CurrentScope
     # The message both the write validations and the boot check share, so a host
     # reads the same explanation wherever they hit it first.
     def non_integer_key_error(klass, role: "subject")
-      key = klass.primary_key
-      shape = key.nil? ? "no primary key" : "a #{klass.type_for_attribute(key).type} primary key (#{key.inspect})"
-      shape = "a composite primary key (#{key.inspect})" if key.is_a?(Array)
+      # Defensive for the same reason integer_keyed? rescues: this is now reached
+      # for a class resolved from a stored type column, whose table may be gone.
+      # A guard must not turn its own error message into a second exception.
+      key = begin
+        klass.primary_key
+      rescue StandardError
+        nil
+      end
+
+      shape =
+        if key.nil?          then "no usable primary key"
+        elsif key.is_a?(Array) then "a composite primary key (#{key.inspect})"
+        else
+          type = begin
+            klass.type_for_attribute(key).type
+          rescue StandardError
+            "non-integer"
+          end
+          "a #{type} primary key (#{key.inspect})"
+        end
 
       "#{klass.name} has #{shape}, and CurrentScope stores a #{role} id in an integer " \
         "column. A non-integer key is cast on write — a UUID collapses to its leading " \

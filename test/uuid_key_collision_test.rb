@@ -268,6 +268,29 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     end
   end
 
+  # Every other exemption test stubs running_a_database_task? itself, so the LIST
+  # it consults was never exercised: deleting an entry broke no test. These drive
+  # the real prefix match through Rake's own top_level_tasks.
+  test "the boot exemption covers the commands that must run against an unmigrated schema" do
+    {
+      "db:migrate" => true,                      # the prescribed repair
+      "db:test:prepare" => true,
+      "app:db:migrate" => true,                  # the same, from an engine
+      "current_scope:install:migrations" => true,
+      "current_scope:repair_schema" => true,     # the MySQL collation repair
+      "app:current_scope:repair_schema" => true,
+      "assets:precompile" => true,               # a deploy that builds before migrating
+      "test" => false,                           # and everything else is still refused
+      "current_scope:report" => false,
+      "middleware" => false
+    }.each do |task, exempt|
+      with_top_level_tasks([ task ]) do
+        assert_equal exempt, CurrentScope::Engine.send(:running_a_database_task?),
+                     "#{task} should #{exempt ? '' : 'NOT '}be allowed to boot on an unmigrated schema"
+      end
+    end
+  end
+
   test "the boot check does not refuse a UUID subject class" do
     original = CurrentScope.config.subject_class
     CurrentScope.config.subject_class = "UuidUser"
@@ -298,6 +321,30 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
   ensure
     engine.define_singleton_method(:running_a_database_task?, original)
     engine.singleton_class.send(:private, :running_a_database_task?)
+  end
+
+  # Stand a double in for the whole Rake application, and put back whatever was
+  # there before — INCLUDING nil, which is what it actually is under `bin/rails
+  # test`. Mutating the real object is not an option for that reason, and an
+  # earlier attempt that cleared Rake.application outright broke every test that
+  # drives the real rake tasks.
+  def with_top_level_tasks(tasks)
+    # Under `bin/rails test` the Rake CONSTANT exists while Rake.application does
+    # not — rake is only partially loaded — which is why the guard's
+    # respond_to?(:application) is what actually decides there. Supply the method
+    # for the duration, and put back exactly what was (or was not) there.
+    double = Object.new
+    double.define_singleton_method(:top_level_tasks) { tasks }
+    had_application = Rake.respond_to?(:application)
+    saved = Rake.method(:application) if had_application
+    Rake.define_singleton_method(:application) { double }
+    yield
+  ensure
+    if had_application
+      Rake.define_singleton_method(:application, saved)
+    else
+      Rake.singleton_class.send(:remove_method, :application)
+    end
   end
 
   # Same seam, for the adapter answer: the collation half of the check only runs

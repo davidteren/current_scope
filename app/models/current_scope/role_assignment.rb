@@ -35,8 +35,15 @@ module CurrentScope
     # writer, so the new-record path is unchanged; safe_constantize returns nil for
     # a stale type, which is skipped exactly as a nil association was.
     def subject_key_is_integer
-      klass = subject_type.presence&.safe_constantize
-      return if klass.nil? || CurrentScope.integer_keyed?(klass)
+      klass = CurrentScope.polymorphic_class(subject_type, owner: self.class)
+      return if klass.nil?
+      # A write must fail CLOSED: if the key cannot be introspected we refuse
+      # rather than store a value we cannot prove the column can hold.
+      return if begin
+        CurrentScope.integer_keyed?(klass)
+      rescue StandardError
+        false
+      end
 
       errors.add(:base, CurrentScope.non_integer_key_error(klass, role: "subject"))
     end

@@ -174,13 +174,8 @@ module CurrentScope
     # Only the SUBJECT class is knowable at boot. Scoped grants can name any
     # model as a resource, so that side is covered by the validation alone.
     def self.validate_subject_key!
-      klass = CurrentScope.config.subject_class
-      klass = klass.to_s.safe_constantize if klass.is_a?(String) || klass.is_a?(Symbol)
-      return unless klass.respond_to?(:primary_key)
-      return unless klass.respond_to?(:table_exists?) && klass.table_exists?
-      return if CurrentScope.integer_keyed?(klass)
-
-      raise ConfigurationError, CurrentScope.non_integer_key_error(klass, role: "subject")
+      configured_subject_key!
+      stored_grant_keys!
     rescue ActiveRecord::ActiveRecordError
       # Any ActiveRecord error here means "cannot introspect yet" — boot before
       # migrate, no adapter configured, connection down. Deliberately broad: a
@@ -188,5 +183,46 @@ module CurrentScope
       # late warning, and the write validations remain the guarantee either way.
       nil
     end
+
+    def self.configured_subject_key!
+      klass = CurrentScope.config.subject_class
+      klass = klass.to_s.safe_constantize if klass.is_a?(String) || klass.is_a?(Symbol)
+      return unless klass.respond_to?(:primary_key)
+      return unless klass.respond_to?(:table_exists?) && klass.table_exists?
+      return if CurrentScope.integer_keyed?(klass)
+
+      raise ConfigurationError, CurrentScope.non_integer_key_error(klass, role: "subject")
+    end
+    private_class_method :configured_subject_key!
+
+    # The write validations stop NEW bad grants; they cannot undo rows a host
+    # already stored on 0.2 to 0.4. Those rows keep escalating on every READ, and
+    # `config.subject_class` does not see them — a scoped grant can name ANY model
+    # as its resource. So read the type tokens actually present in the two grant
+    # tables and refuse to boot if any resolves to a class the columns cannot hold.
+    #
+    # One DISTINCT query per column, over a low-cardinality set (a handful of
+    # types, not a row per grant). Types that no longer resolve are skipped —
+    # they are #90's inert grants, not this problem.
+    def self.stored_grant_keys!
+      {
+        CurrentScope::RoleAssignment => %w[subject],
+        CurrentScope::ScopedRoleAssignment => %w[subject resource]
+      }.each do |model, sides|
+        next unless model.table_exists?
+
+        sides.each do |side|
+          model.distinct.pluck(:"#{side}_type").each do |type|
+            klass = CurrentScope.polymorphic_class(type)
+            next if klass.nil? || CurrentScope.integer_keyed?(klass)
+
+            raise ConfigurationError,
+                  "#{model.name} holds grants on #{type}, and " +
+                  CurrentScope.non_integer_key_error(klass, role: side)
+          end
+        end
+      end
+    end
+    private_class_method :stored_grant_keys!
   end
 end

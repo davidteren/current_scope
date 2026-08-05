@@ -25,8 +25,14 @@ module CurrentScope
     # skipping it.
     def polymorphic_keys_are_integer
       { "subject" => subject_type, "resource" => resource_type }.each do |role, type|
-        klass = type.presence&.safe_constantize
-        next if klass.nil? || CurrentScope.integer_keyed?(klass)
+        klass = CurrentScope.polymorphic_class(type, owner: self.class)
+        next if klass.nil?
+        # Fail closed on an un-introspectable key, as in RoleAssignment.
+        next if begin
+          CurrentScope.integer_keyed?(klass)
+        rescue StandardError
+          false
+        end
 
         errors.add(:base, CurrentScope.non_integer_key_error(klass, role: role))
       end

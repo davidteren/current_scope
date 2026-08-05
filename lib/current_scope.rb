@@ -261,15 +261,26 @@ module  CurrentScope
     #
     # This is a check on the KEY'S TYPE, not its name. A UUID host still calls
     # its column `id`, which is exactly why a name comparison misses this.
+    # Resolve a stored polymorphic type token to its class. `*_type` is a Rails
+    # STORAGE TOKEN, not necessarily a constant name: `polymorphic_name` can be
+    # overridden and `store_full_class_name = false` shortens it, so
+    # `safe_constantize` would return nil (silently skipping a guard) or resolve
+    # the wrong class. `polymorphic_class_for` is the API that owns that mapping.
+    # Returns nil for a token that no longer resolves, which callers treat as
+    # "nothing to check" — the same way a nil association was always treated.
+    def polymorphic_class(type, owner: ActiveRecord::Base)
+      return if type.blank?
+
+      owner.polymorphic_class_for(type)
+    rescue NameError
+      nil
+    end
+
     def integer_keyed?(klass)
       key = klass.primary_key
       return false if key.nil? || key.is_a?(Array)
 
       klass.type_for_attribute(key).type == :integer
-    rescue StandardError
-      # No table, no connection, or a model that cannot introspect: treat as
-      # unknown rather than safe. The caller decides what to do about it.
-      false
     end
 
     # The message both the write validations and the boot check share, so a host

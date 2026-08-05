@@ -156,6 +156,30 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     CurrentScope.config.subject_class = original
   end
 
+  test "the boot check refuses a STORED grant on a non-integer-keyed type" do
+    # The population the write validations cannot help: rows a host already wrote
+    # on 0.2 to 0.4, which keep escalating on every read. config.subject_class does
+    # not see them, and a scoped grant can name any model as its resource.
+    role = CurrentScope::Role.create!(name: "Owner", full_access: true)
+    CurrentScope::RoleAssignment.new(subject: @alice, role: role).save(validate: false)
+
+    error = assert_raises(CurrentScope::ConfigurationError) do
+      CurrentScope::Engine.validate_subject_key!
+    end
+    assert_match(/holds grants on UuidUser/, error.message)
+    assert_match(/issues\/151/, error.message)
+  end
+
+  test "a stored grant on an unresolvable type is skipped, not refused" do
+    role = CurrentScope::Role.create!(name: "Owner", full_access: true)
+    row = CurrentScope::RoleAssignment.new(subject: User.create!(name: "Ok"), role: role)
+    row.save!
+    row.update_columns(subject_type: "LongGoneModel")
+
+    # That is #90's inert grant, a different problem with its own label.
+    assert_nothing_raised { CurrentScope::Engine.validate_subject_key! }
+  end
+
   test "the boot check stays silent when it cannot introspect" do
     original = CurrentScope.config.subject_class
     CurrentScope.config.subject_class = "NoSuchSubjectModel"

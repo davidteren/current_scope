@@ -22,8 +22,13 @@ namespace :current_scope do
     migration.verbose = false
     migration.migrate(:up)
 
-    puts "CurrentScope grant columns are in the #{CurrentScope::KEY_LIMIT}-character, " \
-         "binary-collated shape #151 requires."
+    # Say what this adapter actually did. The binary collation is a MySQL-only
+    # step — PostgreSQL and SQLite already compare these columns byte for byte —
+    # so claiming it everywhere would tell a PostgreSQL operator their columns
+    # were re-collated when nothing of the sort happened.
+    shape = "#{CurrentScope::KEY_LIMIT}-character"
+    shape += ", binary-collated" if CurrentScope.mysql?(CurrentScope::RoleAssignment.connection)
+    puts "CurrentScope grant columns are in the #{shape} shape #151 requires."
   end
 
   desc "Grant the full-access Owner role to a subject (bootstrap the first admin). " \

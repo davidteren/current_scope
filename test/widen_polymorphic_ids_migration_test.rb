@@ -107,7 +107,7 @@ class WidenPolymorphicIdsMigrationTest < ActiveSupport::TestCase
   test "up leaves every grant id and type column correct on this adapter" do
     WidenCurrentScopePolymorphicIds.new.tap { |m| m.verbose = false }.migrate(:up)
 
-    mysql = connection.adapter_name.match?(/mysql|trilogy|maria/i)
+    mysql = CurrentScope.mysql?(connection)
     {
       "current_scope_role_assignments" => %w[subject_id subject_type],
       "current_scope_scoped_role_assignments" => %w[subject_id resource_id subject_type resource_type]

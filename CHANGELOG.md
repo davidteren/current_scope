@@ -181,13 +181,24 @@ changed. Not cut yet; the README banner stays up pending the real-host
 
   The engine refuses to serve until it has run, because every code path behaves
   correctly against the schema it is given and the escalation would otherwise
-  persist silently. Database and installer tasks are exempt so the repair itself
-  is not blocked.
+  persist silently. Database, installer and `assets:` tasks are exempt so the
+  repair and the asset build are not blocked; `db:seed` is not, because it runs
+  host code. A database built from `schema.rb` cannot be repaired by
+  `db:migrate` (schema load stamps every version as applied), so
+  `bin/rails current_scope:repair_schema` applies the shape idempotently.
 
-  Three details that each closed a way the collision survived widening:
-  - **MySQL gets `utf8mb4_bin`.** Its default collation is case AND accent
-    insensitive, so `"ABC"` and `"abc"` — or `"jose"` and `"josé"` — still
-    compared equal. A primary key is an identifier, not prose.
+  Details that each closed a way the collision survived widening:
+  - **MySQL gets a binary collation** — `utf8mb4_0900_bin` where the server has
+    it, else `utf8mb4_bin`. The default is case AND accent insensitive, so
+    `"ABC"` and `"abc"` — or `"jose"` and `"josé"` — still compared equal. The
+    `0900` variant is also `NO PAD`, so `"abc"` and `"abc "` stay distinct. A
+    primary key is an identifier, not prose.
+  - **An id that is not a legal key for the model it names is refused**, on
+    write and on read. The columns take any string now, so a grant could name a
+    bigint-keyed model with a UUID — and the read path would cast it back to a
+    different record's id, which is the same collapse one layer along.
+  - **Grant ids read back as `String` for every host**, integer keys included:
+    `grant.subject_id == user.id` is now `false`. Compare `.to_s` on both sides.
   - **Keys longer than 64 characters are rejected, not truncated**, checked in
     Ruby so every adapter fails the same way instead of depending on `sql_mode`.
   - **The suite now runs on SQLite, PostgreSQL and MySQL** (`bin/db`, plus a CI

@@ -47,6 +47,11 @@ module CurrentScope
     # does not change on code reload). #40.
     config.after_initialize do
       CurrentScope.config.validate!
+      # Two separate checks, called separately so each raises under its own name.
+      # The schema guard inspects four columns across both grant tables and can
+      # refuse over `resource_type`'s collation — a message that read very oddly
+      # coming out of something called validate_subject_key!.
+      CurrentScope::Engine.grant_columns_widened!
       CurrentScope::Engine.validate_subject_key!
     end
 
@@ -169,25 +174,19 @@ module CurrentScope
     # class): "unknown" must not become "broken", or `rails db:create` on a fresh
     # checkout would raise.
     def self.validate_subject_key!
-      # OUTSIDE the rescue below, deliberately. That rescue exists to keep an
-      # UNKNOWN subject class quiet; letting it also swallow the schema check
-      # would make the security guard fail OPEN on any database hiccup — a
-      # transient connection error during boot would look exactly like "all
-      # clear" and the host would serve with the escalation live. The schema
-      # check does its own, narrower rescue for the genuinely-no-database case.
-      grant_columns_widened!
+      klass = CurrentScope.config.subject_class
+      klass = klass.to_s.safe_constantize if klass.is_a?(String) || klass.is_a?(Symbol)
+      return unless klass.respond_to?(:primary_key)
+      return if CurrentScope.storable_key?(klass)
 
-      begin
-        klass = CurrentScope.config.subject_class
-        klass = klass.to_s.safe_constantize if klass.is_a?(String) || klass.is_a?(Symbol)
-        return unless klass.respond_to?(:primary_key)
-        return if CurrentScope.storable_key?(klass)
-
-        raise ConfigurationError, CurrentScope.unstorable_key_error(klass, role: "subject")
-      rescue ActiveRecord::ActiveRecordError
-        Rails.logger&.warn("[CurrentScope] subject key check skipped — could not introspect the database (#151).")
-        nil
-      end
+      raise ConfigurationError, CurrentScope.unstorable_key_error(klass, role: "subject")
+    rescue ActiveRecord::ActiveRecordError
+      # This rescue is scoped to THIS check on purpose. It exists to keep an
+      # unknown subject class quiet; the schema guard must never share it, or a
+      # transient database error at boot would read as "all clear" and the host
+      # would serve with the escalation live — a security guard failing open.
+      Rails.logger&.warn("[CurrentScope] subject key check skipped — could not introspect the database (#151).")
+      nil
     end
 
     # #151 is fixed by a MIGRATION, and a gem upgrade does not run it. A host that
@@ -204,6 +203,18 @@ module CurrentScope
       # collation. Deliberately an explicit opt-out and not a config flag: a host
       # that sets this in production has chosen to run without the check.
       return if ENV["CURRENT_SCOPE_SKIP_SCHEMA_CHECK"] == "1"
+
+      # Strict "1" on purpose — this switches OFF a security control, so it
+      # should be awkward to trip. But silence would be worse than strictness: a
+      # host who writes `=true` (which the gem's other env opt-out does accept)
+      # would otherwise believe the check was off while it was still armed.
+      if ENV.key?("CURRENT_SCOPE_SKIP_SCHEMA_CHECK")
+        Rails.logger&.warn(
+          "[CurrentScope] CURRENT_SCOPE_SKIP_SCHEMA_CHECK is set to " \
+          "#{ENV['CURRENT_SCOPE_SKIP_SCHEMA_CHECK'].inspect} and was IGNORED — the only " \
+          "value that disables the #151 schema check is the string \"1\"."
+        )
+      end
 
       # BOTH halves of every grant predicate, not just the ids. The migration
       # widens the id columns and then re-collates the type columns, and MySQL
@@ -232,7 +243,6 @@ module CurrentScope
       # failing open. Anything else propagates.
       nil
     end
-    private_class_method :grant_columns_widened!
 
     def self.check_id_column!(model, column)
       info = model.columns_hash[column]
@@ -305,12 +315,24 @@ module CurrentScope
       app:current_scope:repair_schema assets:
     ].freeze
 
+    # …except these. The `db:` prefix is there for the REPAIR path, and two db:
+    # tasks repair nothing — they run the host's own code. Seeding an unmigrated
+    # database is the worst case this guard exists for: seeds routinely create
+    # grants through this engine, and on the pre-migration schema those are
+    # exactly the writes that collapse two subjects into one. A deny list rather
+    # than an allow list of every db: task, so a Rails release that adds a new
+    # schema task does not silently start refusing to boot.
+    BOOT_REFUSED_TASKS = %w[
+      db:seed db:fixtures:load app:db:seed app:db:fixtures:load
+    ].freeze
+
     def self.running_a_database_task?
       return false unless defined?(Rake) && Rake.respond_to?(:application)
 
-      Rake.application.top_level_tasks.any? do |task|
-        task.start_with?(*BOOT_EXEMPT_TASKS)
-      end
+      tasks = Rake.application.top_level_tasks
+      return false if tasks.any? { |task| BOOT_REFUSED_TASKS.include?(task) }
+
+      tasks.any? { |task| task.start_with?(*BOOT_EXEMPT_TASKS) }
     rescue StandardError
       # No rake application in scope (a server or console): not a database task.
       false

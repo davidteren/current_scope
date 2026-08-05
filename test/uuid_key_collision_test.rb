@@ -201,7 +201,7 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
   test "the engine refuses to boot if the widening migration has not run" do
     # A gem upgrade does not run migrations. Without this check a host would keep
     # integer columns, keep the escalation, and see nothing wrong.
-    assert_nothing_raised { CurrentScope::Engine.validate_subject_key! }
+    assert_nothing_raised { CurrentScope::Engine.grant_columns_widened! }
 
     # Present the pre-migration schema by overriding the reader the check uses.
     # A plain singleton method rather than a mocking library, which this suite
@@ -210,7 +210,7 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     CurrentScope::RoleAssignment.define_singleton_method(:columns_hash) { fake }
     begin
       error = assert_raises(CurrentScope::ConfigurationError) do
-        CurrentScope::Engine.validate_subject_key!
+        CurrentScope::Engine.grant_columns_widened!
       end
       assert_match(/still integer/, error.message)
       assert_match(/db:migrate/, error.message, "the message must name the fix")
@@ -233,7 +233,7 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     CurrentScope::RoleAssignment.define_singleton_method(:columns_hash) { half_applied }
     with_mysql(true) do
       error = assert_raises(CurrentScope::ConfigurationError) do
-        CurrentScope::Engine.validate_subject_key!
+        CurrentScope::Engine.grant_columns_widened!
       end
       assert_match(/subject_type/, error.message,
                    "the id columns are already correct — the TYPE column is what is still folding case")
@@ -256,12 +256,12 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       # behind, which would make this assertion depend on file order.
       with_database_task(false) do
         assert_raises(CurrentScope::ConfigurationError, "serving must still be refused") do
-          CurrentScope::Engine.validate_subject_key!
+          CurrentScope::Engine.grant_columns_widened!
         end
       end
 
       with_database_task(true) do
-        assert_nothing_raised { CurrentScope::Engine.validate_subject_key! }
+        assert_nothing_raised { CurrentScope::Engine.grant_columns_widened! }
       end
     ensure
       CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
@@ -280,6 +280,12 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       "current_scope:repair_schema" => true,     # the MySQL collation repair
       "app:current_scope:repair_schema" => true,
       "assets:precompile" => true,               # a deploy that builds before migrating
+      # db: is for the REPAIR path. These two repair nothing and run the host's
+      # own code — seeds routinely create grants, and on the pre-migration schema
+      # those are the writes that collapse two subjects into one.
+      "db:seed" => false,
+      "db:fixtures:load" => false,
+      "app:db:seed" => false,
       "test" => false,                           # and everything else is still refused
       "current_scope:report" => false,
       "middleware" => false

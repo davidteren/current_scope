@@ -81,14 +81,33 @@ run it through your usual online-DDL tool.
 
 Database, installer and `assets:` tasks are exempt from the boot refusal, so the
 repair and your asset build still run on an unmigrated host. Everything that
-serves traffic or runs your code — server, console, `runner` — is refused. If
-some other build step must boot before the migration can run, set
-`CURRENT_SCOPE_SKIP_SCHEMA_CHECK=1` **for that one command**. Setting it for a
-process that serves traffic turns the guard off and puts the escalation back.
+serves traffic or runs your code — server, console, `runner`, and `db:seed` —
+is refused. If some other build step must boot before the migration can run, set
+`CURRENT_SCOPE_SKIP_SCHEMA_CHECK=1` **for that one command** (the literal string
+`1`; any other value is ignored and logged). Setting it for a process that serves
+traffic turns the guard off and puts the escalation back.
 
-On MySQL the columns are given `utf8mb4_bin`. The server default is case- and
-accent-insensitive, which would make `"ABC"` and `"abc"` — or `"jose"` and
-`"josé"` — the same subject. A primary key is an identifier, not prose.
+### If your database was built from `schema.rb`
+
+New apps, CI, and fresh checkouts load `schema.rb` rather than running
+migrations — and that marks every migration as already applied, so `db:migrate`
+finds nothing pending. `schema.rb` also cannot express a MySQL collation. On
+MySQL that combination leaves the columns case-insensitive, the engine refusing
+to boot, and `db:migrate` unable to help. Run the repair task instead:
+
+```bash
+bin/rails current_scope:repair_schema
+```
+
+It is idempotent and safe to re-run, and it is exempt from the boot refusal so
+it works on a database the engine will not otherwise start against.
+
+On MySQL the columns are given a binary collation: `utf8mb4_0900_bin` where the
+server offers it (8.0.17+), otherwise `utf8mb4_bin`. The server default is case-
+and accent-insensitive, which would make `"ABC"` and `"abc"` — or `"jose"` and
+`"josé"` — the same subject. `utf8mb4_0900_bin` is preferred because it is also
+`NO PAD`, so `"abc"` and `"abc "` stay distinct too. A primary key is an
+identifier, not prose.
 
 Keys longer than 64 characters are rejected rather than truncated, because a
 truncated key names the wrong record.
@@ -151,7 +170,10 @@ case an orphan check misses:
 end
 ```
 
-### 0.4 → 0.5 also: a mis-declared `current_scope_parent` now fails the deploy (#139)
+## 0.4 → 0.5, separately: a mis-declared `current_scope_parent` now fails the deploy (#139)
+
+This is an unrelated change that lands in the same release. It is not part of the
+#151 fix above and needs its own attention.
 
 **If your app boots today and stops booting after upgrading**, you have a
 `current_scope_parent` declared on a `belongs_to` with a custom `primary_key:`.

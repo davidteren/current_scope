@@ -8,9 +8,8 @@ module CurrentScope
     SEARCH_COLUMNS = %w[email email_address name first_name last_name].freeze
 
     def index
-      klass = CurrentScope.config.subject_class.constantize
       @query = params[:q].to_s.strip
-      scope = filter_subjects(klass.order(:id), @query)
+      scope = filter_subjects(subject_class.order(:id), @query)
 
       @page = [ params[:page].to_i, 1 ].max
       @subjects = scope.limit(PER_PAGE).offset((@page - 1) * PER_PAGE)

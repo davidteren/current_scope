@@ -579,16 +579,11 @@ module CurrentScope
       if collection_read_action?(permission)
         scope_for(subject: subject, model: type, permission: permission).exists?
       else
-        # The grant must name a record that COULD exist, even though this branch
-        # binds to none. A row whose resource_id is not a legal key for this
-        # model identifies nothing — the read arm above already drops such ids
-        # (granted_ids), and without the same test here a grant that opens no
-        # record at all would still open every #create on the type. Same
-        # fail-closed direction, same rule, both arms.
-        ScopedRoleAssignment
-          .where(subject: subject, resource_type: type.base_class.name, role_id: roles_ticking(permission))
-          .pluck(:resource_id)
-          .any? { |id| CurrentScope.canonical_key?(type, id) }
+        # granted_ids, not a hand-rolled .exists?: the grant must name a record
+        # that COULD exist even though this branch binds to none, and granted_ids
+        # is where "an id that names nothing grants nothing" is defined.
+        granted_ids(subject: subject, type: type.base_class.name, model: type,
+                    roles: roles_ticking(permission)).any?
       end
     end
 

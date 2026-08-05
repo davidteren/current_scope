@@ -19,6 +19,11 @@ PG_URL="postgresql://cs:cs@127.0.0.1:55432/cs_test"
 MY_URL="trilogy://root:cs@127.0.0.1:33306/cs_test"
 SQLITE_URL="sqlite3://$(pwd)/tmp/adapter_test.sqlite3"
 
+# schema.rb is portable; a MySQL collation is not. Run the engine migration after
+# the schema load so every adapter is tested on the schema a host actually ends up
+# with. Cheap and idempotent — it no-ops where the columns are already correct.
+MIGRATE_SNIPPET='require File.expand_path("db/migrate/20260805000001_widen_current_scope_polymorphic_ids.rb", Dir.pwd); m = WidenCurrentScopePolymorphicIds.new; m.verbose = false; m.migrate(:up)' 
+
 url_for() {
   case "$1" in
     postgres|postgresql|pg) echo "$PG_URL" ;;
@@ -28,17 +33,25 @@ url_for() {
   esac
 }
 
+ensure_container() {
+  local name="$1" args="$2"
+  if docker inspect "$name" >/dev/null 2>&1; then
+    docker start "$name" >/dev/null || { echo "could not start $name" >&2; return 1; }
+  else
+    # shellcheck disable=SC2086 -- args is a deliberate word-split argument list
+    docker run -d --name "$name" $args >/dev/null || { echo "could not create $name" >&2; return 1; }
+  fi
+}
+
 up() {
   docker info >/dev/null 2>&1 || {
     echo "Docker is not reachable. Start Docker (or OrbStack) and retry." >&2
     return 1
   }
-  docker start cs-pg cs-mysql >/dev/null 2>&1 && { echo "containers already exist, started"; return; }
-  docker run -d --name cs-pg -e POSTGRES_PASSWORD=cs -e POSTGRES_USER=cs \
-    -e POSTGRES_DB=cs_test -p 55432:5432 postgres:17-alpine >/dev/null || return 1
-  docker run -d --name cs-mysql -e MYSQL_ROOT_PASSWORD=cs -e MYSQL_DATABASE=cs_test \
-    -p 33306:3306 mysql:8.4 >/dev/null || return 1
-  echo "started cs-pg and cs-mysql"
+  # Per container, so a half-created setup recovers instead of needing bin/db down.
+  ensure_container cs-pg "-e POSTGRES_PASSWORD=cs -e POSTGRES_USER=cs -e POSTGRES_DB=cs_test -p 55432:5432 postgres:17-alpine" || return 1
+  ensure_container cs-mysql "-e MYSQL_ROOT_PASSWORD=cs -e MYSQL_DATABASE=cs_test -p 33306:3306 mysql:8.4" || return 1
+  echo "cs-pg and cs-mysql are up"
 }
 
 down() { docker rm -f cs-pg cs-mysql >/dev/null 2>&1; echo "removed cs-pg and cs-mysql"; }
@@ -47,7 +60,8 @@ down() { docker rm -f cs-pg cs-mysql >/dev/null 2>&1; echo "removed cs-pg and cs
 wait_for() {
   local adapter="$1" url; url="$(url_for "$adapter")" || return 1
   for _ in $(seq 1 60); do
-    if RAILS_ENV=test DATABASE_URL="$url" bin/rails runner 'ActiveRecord::Base.connection.execute("SELECT 1")' >/dev/null 2>&1; then
+    if RAILS_ENV=test DATABASE_URL="$url" CURRENT_SCOPE_SKIP_SCHEMA_CHECK=1 \
+       bin/rails runner 'ActiveRecord::Base.connection.execute("SELECT 1")' >/dev/null 2>&1; then
       return 0
     fi
     sleep 2
@@ -74,6 +88,13 @@ run_one() {
   done
   if ! out=$(RAILS_ENV=test DATABASE_URL="$url" bin/rails db:test:prepare 2>&1); then
     echo "!! db:test:prepare failed on $adapter" >&2; echo "$out" >&2; return 1
+  fi
+  # schema.rb cannot carry MySQL's collation (utf8mb4_bin is not a SQLite
+  # collation), so a freshly-loaded schema has the right column type and the WRONG
+  # collation. Apply the engine migration on top, which is what a host does.
+  if ! out=$(RAILS_ENV=test DATABASE_URL="$url" CURRENT_SCOPE_SKIP_SCHEMA_CHECK=1 \
+             bin/rails runner "$MIGRATE_SNIPPET" 2>&1); then
+    echo "!! applying the widen migration failed on $adapter" >&2; echo "$out" >&2; return 1
   fi
   RAILS_ENV=test DATABASE_URL="$url" COVERAGE=0 bin/rails test
 }

@@ -190,6 +190,11 @@ module CurrentScope
     # cannot be a validation: the damage is in the column type, not the next write.
     def self.grant_columns_widened!
       return if running_a_database_task?
+      # Escape hatch for tooling that must BOOT in order to migrate — our own
+      # bin/db does exactly that, because schema.rb cannot carry a MySQL
+      # collation. Deliberately an explicit opt-out and not a config flag: a host
+      # that sets this in production has chosen to run without the check.
+      return if ENV["CURRENT_SCOPE_SKIP_SCHEMA_CHECK"] == "1"
 
       {
         CurrentScope::RoleAssignment => %w[subject_id],
@@ -198,9 +203,26 @@ module CurrentScope
         next unless model.table_exists?
 
         columns.each do |column|
-          type = model.columns_hash[column]&.type
-          next if type.nil? || type == :string
+          info = model.columns_hash[column]
+          next if info.nil?
 
+          # Collation matters as much as type on MySQL: its default is case AND
+          # accent insensitive, so "ABC" and "abc" would be the same subject. A
+          # database built from schema.rb has the right type and the wrong
+          # collation, which is the common case for a new app and for CI.
+          if info.type == :string
+            next unless mysql?
+            next if info.collation.nil? || info.collation.end_with?("_bin")
+
+            raise ConfigurationError,
+                  "#{model.table_name}.#{column} uses the #{info.collation} collation, which " \
+                  "is case and accent insensitive — \"ABC\" and \"abc\" would be the same " \
+                  "record, so a grant on one reaches the other (#151). Run " \
+                  "`bin/rails current_scope:install:migrations && bin/rails db:migrate` to " \
+                  "apply a binary collation."
+          end
+
+          type = info.type
           raise ConfigurationError,
                 "#{model.table_name}.#{column} is still #{type}. CurrentScope stores a " \
                 "record's primary key there, and an integer column silently truncates a " \
@@ -220,6 +242,11 @@ module CurrentScope
     # So stand down for database and installer tasks. Serving traffic is still
     # refused, which is what actually protects the host; only the repair path is
     # let through.
+    def self.mysql?
+      ActiveRecord::Base.connection.adapter_name.match?(/mysql|trilogy|maria/i)
+    end
+    private_class_method :mysql?
+
     def self.running_a_database_task?
       return false unless defined?(Rake) && Rake.respond_to?(:application)
 

@@ -26,16 +26,19 @@ module CurrentScope
         klass = CurrentScope.polymorphic_class(public_send("#{side}_type"), owner: self.class)
         next if klass.nil?
 
-        # A write fails CLOSED: if the key cannot be read at all, refuse rather
-        # than store something that names no record.
-        safe = begin
-          CurrentScope.storable_key?(klass)
-        rescue StandardError
-          false
-        end
-        next if safe
+        # A write fails CLOSED either way, but the two causes get different
+        # messages: claiming a model has a composite key when the truth is "its
+        # table is missing" sends the reader hunting the wrong problem.
+        begin
+          next if CurrentScope.storable_key?(klass)
 
-        errors.add(:base, CurrentScope.unstorable_key_error(klass, role: side))
+          errors.add(:base, CurrentScope.unstorable_key_error(klass, role: side))
+        rescue StandardError => e
+          errors.add(:base,
+            "#{klass.name}'s primary key could not be read (#{e.class}: #{e.message}), so " \
+            "CurrentScope cannot prove this #{side} names one record. Refusing the grant " \
+            "rather than storing something unverified.")
+        end
       end
       check_key_lengths(sides)
     end

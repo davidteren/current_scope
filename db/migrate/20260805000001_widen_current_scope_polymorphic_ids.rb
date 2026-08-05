@@ -36,9 +36,23 @@ class WidenCurrentScopePolymorphicIds < ActiveRecord::Migration[7.1]
     current_scope_scoped_role_assignments: [ :subject_id, :resource_id ]
   }.freeze
 
+  # The TYPE columns pair with the id in every grant predicate and in the unique
+  # index, so folding them is the same escalation by another column: on MySQL's
+  # default collation a grant on `Foo#5` would match a check for `FOO#5`. They are
+  # already varchar; only the collation changes, and only on MySQL.
+  TYPE_COLUMNS = {
+    current_scope_role_assignments: [ :subject_type ],
+    current_scope_scoped_role_assignments: [ :subject_type, :resource_type ]
+  }.freeze
+
   def up
     COLUMNS.each do |table, columns|
       columns.each { |column| widen(table, column) }
+    end
+    return unless mysql?
+
+    TYPE_COLUMNS.each do |table, columns|
+      columns.each { |column| binary_collate(table, column) }
     end
   end
 
@@ -53,8 +67,31 @@ class WidenCurrentScopePolymorphicIds < ActiveRecord::Migration[7.1]
 
   private
 
+  def mysql? = connection.adapter_name.match?(/mysql|trilogy|maria/i)
+
+  def already_correct?(table, column)
+    existing = connection.columns(table).find { |c| c.name == column.to_s }
+    return false if existing.nil?
+    return false unless existing.type == :string && existing.limit == KEY_LIMIT
+
+    !mysql? || existing.collation == BINARY_COLLATION
+  end
+
+  # Collation only — the type columns are already the right type and width.
+  def binary_collate(table, column)
+    existing = connection.columns(table).find { |c| c.name == column.to_s }
+    return if existing.nil? || existing.collation == BINARY_COLLATION
+
+    change_column table, column, :string, limit: existing.limit,
+                  null: false, collation: BINARY_COLLATION
+  end
+
   def widen(table, column)
-    return if connection.column_exists?(table, column, :string, limit: KEY_LIMIT)
+    # Idempotent, but NOT satisfied by type and width alone: a database built from
+    # schema.rb already has varchar(64) while carrying the server's default
+    # collation, which on MySQL is case-insensitive. Skipping there would leave the
+    # #151 collision live on every freshly-loaded schema.
+    return if already_correct?(table, column)
 
     if connection.adapter_name.match?(/postg/i)
       # Postgres will not cast integer to varchar implicitly in ALTER COLUMN; it
@@ -64,7 +101,7 @@ class WidenCurrentScopePolymorphicIds < ActiveRecord::Migration[7.1]
         ALTER COLUMN #{connection.quote_column_name(column)} TYPE character varying(#{KEY_LIMIT})
         USING #{connection.quote_column_name(column)}::character varying
       SQL
-    elsif connection.adapter_name.match?(/mysql|trilogy|maria/i)
+    elsif mysql?
       change_column table, column, :string, limit: KEY_LIMIT,
                     null: false, collation: BINARY_COLLATION
       return

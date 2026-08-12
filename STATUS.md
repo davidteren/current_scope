@@ -2,18 +2,12 @@
 
 > ## Last session handoff
 >
-> **This is:** CurrentScope, a Rails authorization engine (gem `current_scope`,
-> 0.5.0 published) being driven to a "solid v1" bar; the readiness banner is now
-> **Beta**, and drops entirely at general availability (1.0).
-> **What we finished:** the published security defect #151 (integer grant-id
-> columns collapse UUID/string identities, so a subject could inherit another's
-> roles) is fixed and released in 0.5.0; the vulnerable 0.2.0–0.4.0 are yanked and
-> the advisory (GHSA-944r-4v99-qqf7) is published. The banner was softened from
-> "not production-ready" to Beta to invite adoption and feedback.
-> **What you do next:** get a real host to run `config.enforcement = :report`,
-> read `bin/rails current_scope:report`, then flip to `:enforce` — the real-world
-> bake (#116). It is the last thing before the banner drops fully and 1.0 ships,
-> and only a human can do it.
+> **What this is:** the public docs site for CurrentScope, rebuilt as a
+> conversion page on `docs/site-conversion`.
+> **What we finished:** hero CTAs, proof, comparison, who-it-is-for, and
+> a public security strip on `docs/site/index.html`.
+> **What you do next:** review the landing page in a browser, then run
+> the pre-PR gate and open the PR.
 >
 > ### In-progress handoff — PR #153 review fixes (2026-08-12)
 >

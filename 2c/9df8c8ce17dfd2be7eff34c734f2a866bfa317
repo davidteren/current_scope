@@ -1,0 +1,24 @@
+.gitignore
+  h_e8a5bb9272fa34 14
+AGENTS.md
+  h_e8a5bb9272fa34 10-11
+CHANGELOG.md
+  h_e8a5bb9272fa34 9-11
+README.md
+  h_e8a5bb9272fa34 78-81,84-89,362
+docs/site/_includes/resolver-order.md
+  h_e8a5bb9272fa34 6-9,12-14
+docs/site/index.html
+  h_e8a5bb9272fa34 499-503,511
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "2c9df8c8ce17dfd2be7eff34c734f2a866bfa317",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+README.md
+  s_d07eaf9026904a::t_2887ed3fe1fc96 77-78,80,85-89
+docs/guides/concepts-and-glossary.md
+  s_d07eaf9026904a::t_3b9fcbd16eeedb 15-16,18,23-28
+docs/guides/separation-of-duties-and-break-glass.md
+  s_d07eaf9026904a::t_351d2b68d294e9 51
+docs/site/_includes/resolver-order.md
+  s_d07eaf9026904a::t_35d163453ab623 5-6,8,13-17
+docs/site/index.html
+  s_d07eaf9026904a::t_1096a7b089cc52 494,499
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "0aac2582ebcdc112661ac0a87ab0141740f6b08d",
+  "prompts": {},
+  "sessions": {
+    "s_d07eaf9026904a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a2f629c1-6833-48f9-8eb7-b6d9b5aac446",
+        "model": "unknown"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

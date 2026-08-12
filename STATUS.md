@@ -85,14 +85,15 @@
 > banner drops is unchanged by this PR: the real-host `:report` → `:enforce` bake
 > (a human step). A human merges #153.
 
-> ## 🔴 RELEASE BLOCKERS — #151 shipped; the real-host bake remains (#116 Wave 3)
+> ## 🔴 BANNER-DROP / GA BLOCKER — the real-host bake (#116 Wave 3)
 >
-> The #151 fix (published versions silently collapse UUID and other string keys
-> in grant columns) merged in PR #153 and is being released as 0.5.0 (PR #159);
-> the RubyGems publish and the yank of 0.2.0–0.4.0 are pending (#151). Every coded
-> item in #116 is finished. The banner stays up until **one real
-> host runs `config.enforcement = :report`, reads `bin/rails
-> current_scope:report`, and flips to `:enforce`** on current `main`.
+> This gates the not-production-ready banner drop (general availability), **not**
+> the 0.5.0 release, which is shipping now. The #151 fix (published versions
+> silently collapse UUID and other string keys in grant columns) merged in PR #153
+> and is being released as 0.5.0 (PR #159); the RubyGems publish and the yank of
+> 0.2.0–0.4.0 are pending (#151). Every coded item in #116 is finished. The banner
+> stays up until **one real host runs `config.enforcement = :report`, reads
+> `bin/rails current_scope:report`, and flips to `:enforce`** on current `main`.
 >
 > That bake is what found **#108** (a scoped grant on a parent matched nothing
 > on its children, which blocked the flip). #108 shipped in PR #135, and #134's

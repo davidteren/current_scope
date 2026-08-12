@@ -89,7 +89,7 @@
   }
 
   *{box-sizing:border-box}
-  html{scroll-behavior:smooth}
+  html{scroll-behavior:smooth;scroll-padding-top:72px}
   @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
   body{
     margin:0; background:var(--bg); color:var(--txt);
@@ -501,34 +501,34 @@
             <tbody>
               <tr><td class="ctrl">orders</td>
                 <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="orders read"></div></td>
-                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="orders create"></div></td>
-                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="orders update"></div></td>
-                <td><div class="cell" role="button" tabindex="0" aria-pressed="false" aria-label="orders destroy"></div></td>
+                <td><div class="cell on" role="button" tabindex="-1" aria-pressed="true" aria-label="orders create"></div></td>
+                <td><div class="cell on" role="button" tabindex="-1" aria-pressed="true" aria-label="orders update"></div></td>
+                <td><div class="cell" role="button" tabindex="-1" aria-pressed="false" aria-label="orders destroy"></div></td>
                 <td><div class="cell void"></div></td></tr>
               <tr><td class="ctrl">reports</td>
-                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="reports read"></div></td>
-                <td><div class="cell" role="button" tabindex="0" aria-pressed="false" aria-label="reports create"></div></td>
-                <td><div class="cell" role="button" tabindex="0" aria-pressed="false" aria-label="reports update"></div></td>
+                <td><div class="cell on" role="button" tabindex="-1" aria-pressed="true" aria-label="reports read"></div></td>
+                <td><div class="cell" role="button" tabindex="-1" aria-pressed="false" aria-label="reports create"></div></td>
+                <td><div class="cell" role="button" tabindex="-1" aria-pressed="false" aria-label="reports update"></div></td>
                 <td><div class="cell void"></div></td>
-                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="reports approve"></div></td></tr>
+                <td><div class="cell on" role="button" tabindex="-1" aria-pressed="true" aria-label="reports approve"></div></td></tr>
               <tr><td class="ctrl">invoices</td>
-                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="invoices read"></div></td>
-                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="invoices create"></div></td>
-                <td><div class="cell" role="button" tabindex="0" aria-pressed="false" aria-label="invoices update"></div></td>
-                <td><div class="cell" role="button" tabindex="0" aria-pressed="false" aria-label="invoices destroy"></div></td>
+                <td><div class="cell on" role="button" tabindex="-1" aria-pressed="true" aria-label="invoices read"></div></td>
+                <td><div class="cell on" role="button" tabindex="-1" aria-pressed="true" aria-label="invoices create"></div></td>
+                <td><div class="cell" role="button" tabindex="-1" aria-pressed="false" aria-label="invoices update"></div></td>
+                <td><div class="cell" role="button" tabindex="-1" aria-pressed="false" aria-label="invoices destroy"></div></td>
                 <td><div class="cell void"></div></td></tr>
               <tr><td class="ctrl">projects</td>
-                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="projects read"></div></td>
-                <td><div class="cell" role="button" tabindex="0" aria-pressed="false" aria-label="projects create"></div></td>
+                <td><div class="cell on" role="button" tabindex="-1" aria-pressed="true" aria-label="projects read"></div></td>
+                <td><div class="cell" role="button" tabindex="-1" aria-pressed="false" aria-label="projects create"></div></td>
                 <td><div class="cell void"></div></td>
                 <td><div class="cell void"></div></td>
                 <td><div class="cell void"></div></td></tr>
               <tr><td class="ctrl">expenses</td>
-                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="expenses read"></div></td>
-                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="expenses create"></div></td>
-                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="expenses update"></div></td>
-                <td><div class="cell" role="button" tabindex="0" aria-pressed="false" aria-label="expenses destroy"></div></td>
-                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="expenses approve"></div></td></tr>
+                <td><div class="cell on" role="button" tabindex="-1" aria-pressed="true" aria-label="expenses read"></div></td>
+                <td><div class="cell on" role="button" tabindex="-1" aria-pressed="true" aria-label="expenses create"></div></td>
+                <td><div class="cell on" role="button" tabindex="-1" aria-pressed="true" aria-label="expenses update"></div></td>
+                <td><div class="cell" role="button" tabindex="-1" aria-pressed="false" aria-label="expenses destroy"></div></td>
+                <td><div class="cell on" role="button" tabindex="-1" aria-pressed="true" aria-label="expenses approve"></div></td></tr>
             </tbody>
           </table>
           <span class="am-hint">Click a cell. This mock is local only.</span>
@@ -1114,8 +1114,8 @@ bin/rails server    <span class="tk-com"># http://localhost:3000</span></pre>
     if(header&&header.classList.contains('is-open')&&!header.contains(ev.target))closeNav();
   });
   if(window.matchMedia){
-    var wide=window.matchMedia('(min-width:981px)');
-    wide.addEventListener&&wide.addEventListener('change',function(e){if(e.matches)closeNav()});
+    var compact=window.matchMedia('(max-width:980px)');
+    compact.addEventListener&&compact.addEventListener('change',function(e){if(!e.matches)closeNav()});
   }
 
   var cb=document.getElementById('copybtn');
@@ -1132,19 +1132,35 @@ bin/rails server    <span class="tk-com"># http://localhost:3000</span></pre>
       cb.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>';
       setTimeout(function(){cb.classList.remove('ok');cb.innerHTML=old;cb.setAttribute('aria-label','Copy install command');if(cs)cs.textContent=''},1400);
     };
+    var fail=function(){
+      mark(false,'Copy failed. Select the command.');
+      setTimeout(function(){cb.setAttribute('aria-label','Copy install command');if(cs)cs.textContent=''},2600);
+    };
     if(navigator.clipboard&&navigator.clipboard.writeText){
-      navigator.clipboard.writeText(txt).then(function(){mark(true,'Copied');done()}).catch(function(){mark(false,'Copy failed. Select the command.')});
-    }else{mark(false,'Copy failed. Select the command.')}
+      navigator.clipboard.writeText(txt).then(function(){mark(true,'Copied');done()}).catch(fail);
+    }else{fail()}
   });
 
-  document.querySelectorAll('#pgrid .cell:not(.void)').forEach(function(d){
+  var cells=[].slice.call(document.querySelectorAll('#pgrid .cell:not(.void)'));
+  function focusCell(el){
+    cells.forEach(function(c){c.tabIndex=-1});
+    el.tabIndex=0;
+    el.focus();
+  }
+  cells.forEach(function(d,i){
     var toggle=function(){
       d.classList.toggle('on');
       d.setAttribute('aria-pressed', d.classList.contains('on')?'true':'false');
     };
     d.addEventListener('click',toggle);
     d.addEventListener('keydown',function(ev){
-      if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();toggle()}
+      if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();toggle();return}
+      var next=null;
+      if(ev.key==='ArrowRight')next=cells[(i+1)%cells.length];
+      if(ev.key==='ArrowLeft')next=cells[(i-1+cells.length)%cells.length];
+      if(ev.key==='Home')next=cells[0];
+      if(ev.key==='End')next=cells[cells.length-1];
+      if(next){ev.preventDefault();focusCell(next)}
     });
   });
 

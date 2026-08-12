@@ -3,11 +3,11 @@
 > ## Last session handoff
 >
 > **What this is:** the public docs site for CurrentScope, rebuilt as a
-> conversion page on `docs/site-conversion`.
-> **What we finished:** hero CTAs, proof, comparison, who-it-is-for, and
-> a public security strip on `docs/site/index.html`.
-> **What you do next:** review the landing-page PR, then get a real host
-> onto report mode and #116.
+> conversion page in PR #162 (hero CTAs, proof, comparison, who-it-is-for,
+> and a public security strip on `docs/site/index.html`).
+> **What we finished:** the landing page conversion and the review-thread
+> replies on PR #162.
+> **What you do next:** get a real host onto report mode, then #116.
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >

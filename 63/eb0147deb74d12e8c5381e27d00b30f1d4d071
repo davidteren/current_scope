@@ -1,0 +1,32 @@
+lib/current_scope/schema_guard.rb
+  s_d07eaf9026904a::t_dc8144cd7801bd 218-221
+lib/current_scope/engine.rb
+  s_d07eaf9026904a::t_9a6a082108923b 180-186
+lib/current_scope.rb
+  s_d07eaf9026904a::t_1cb0c7f38cd846 268-274
+lib/current_scope/resolver.rb
+  s_d07eaf9026904a::t_d4b3e2d1a3f29e 579-583
+STATUS.md
+  s_d07eaf9026904a::t_a2e947178edea7 20-27
+test/uuid_key_collision_test.rb
+  s_d07eaf9026904a::t_033d49df7accc0 176,180-185
+  s_d07eaf9026904a::t_1706eb88e50120 427-429
+test/widen_polymorphic_ids_migration_test.rb
+  s_d07eaf9026904a::t_bf89fdf6731a10 170-186
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "63eb0147deb74d12e8c5381e27d00b30f1d4d071",
+  "prompts": {},
+  "sessions": {
+    "s_d07eaf9026904a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a2f629c1-6833-48f9-8eb7-b6d9b5aac446",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

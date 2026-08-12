@@ -1,0 +1,29 @@
+lib/current_scope/version.rb
+  s_d07eaf9026904a::t_114b67407d4e8a 2
+CHANGELOG.md
+  s_d07eaf9026904a::t_cebbdb29a2f0ce 176-177,180
+  s_d07eaf9026904a::t_7ef9ebb20c2620 854-855
+  s_d07eaf9026904a::t_9e0dc4b457e74d 9-10
+STATUS.md
+  s_d07eaf9026904a::t_7385c657fdaee8 176-178
+  s_d07eaf9026904a::t_3fd8d664ef0f4d 791-792
+  s_d07eaf9026904a::t_989cbee5a514dd 83-86
+Gemfile.lock
+  s_d07eaf9026904a::t_e84fa97e4c3b8f 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "1bc281db01eb1384774436bdae749aa2e4cf6ad3",
+  "prompts": {},
+  "sessions": {
+    "s_d07eaf9026904a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a2f629c1-6833-48f9-8eb7-b6d9b5aac446",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

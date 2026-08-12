@@ -177,10 +177,9 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     original = UuidUser.method(:polymorphic_name)
     UuidUser.define_singleton_method(:polymorphic_name) { "uuid_people" }
 
-    # Rails cannot constantize "uuid_people". Rather than infer the owner from the
-    # loaded descendant set -- which mis-resolves a token reused after its original
-    # model was removed -- polymorphic_class returns nil, so such a grant is inert.
-    # Safe reverse-resolution of custom tokens needs an explicit mapping (#155).
+    # Lookup does not walk descendants. The override is live on the class, but
+    # the registry was last rebuilt without this token, so the grant stays inert
+    # until rebuild (or config) claims it.
     assert_nil CurrentScope.polymorphic_class("uuid_people"),
                "a token that cannot be reversed must stay inert, not guess a model"
   ensure

@@ -272,14 +272,47 @@ module  CurrentScope
 
       owner.polymorphic_class_for(type)
     rescue NameError
-      # A token Rails cannot reverse by constantizing (an overridden
-      # polymorphic_name, or store_full_class_name = false) stays INERT. Inferring
-      # the owner from the current descendant set is a guess that goes wrong when a
-      # token is reused after its original model was removed or renamed: it would
-      # attach an old grant to a different model's records, the exact #151 harm.
-      # Safe reverse-resolution needs an explicit persisted mapping, tracked in #155.
-      nil
+      # Lookup is the closed map only. Never walk descendants here (#151).
+      polymorphic_registry[type.to_s]
     end
+
+    # Rebuild the token → class map. Safe to call from to_prepare (dev reload)
+    # and from after_initialize when eager_load is on. Enumeration is allowed
+    # here; lookup is not.
+    def rebuild_polymorphic_registry!
+      map = {}
+      ActiveRecord::Base.descendants.each do |klass|
+        next if klass.abstract_class?
+        next unless klass.respond_to?(:polymorphic_name)
+
+        token = klass.polymorphic_name.to_s
+        next if token.blank? || token == klass.name
+
+        claim!(map, token, klass)
+      end
+      CurrentScope.config.polymorphic_class_names.each do |token, class_name|
+        resolved = class_name.safe_constantize
+        next if resolved.nil?
+
+        claim!(map, token.to_s, resolved)
+      end
+      @polymorphic_registry = map
+    end
+
+    def polymorphic_registry
+      @polymorphic_registry ||= {}
+    end
+
+    def claim!(map, token, klass)
+      existing = map[token]
+      if existing && existing != klass
+        raise ConfigurationError,
+              "polymorphic token #{token.inspect} is claimed by both #{existing.name} " \
+              "and #{klass.name}. Two classes cannot share a storage token."
+      end
+      map[token] = klass
+    end
+    private :claim!
 
     # #151. `subject_id` and `resource_id` are string columns, so ANY single-value
     # primary key stores whole — an integer as "1", a UUID as "7f00aaaa-…". What

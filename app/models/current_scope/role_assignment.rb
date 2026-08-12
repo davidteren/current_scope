@@ -6,6 +6,10 @@ module CurrentScope
     belongs_to :role
     belongs_to :subject, polymorphic: true
 
+    def self.polymorphic_class_for(name)
+      CurrentScope.polymorphic_class(name, owner: ActiveRecord::Base) || super
+    end
+
     # One org-wide role per subject. Name the rule and the upsert alternative
     # so a double-grant is a one-line fix, not a trip through gem source (#44).
     # Base error (not :subject_id) so create! does not prefix "Subject id …".

@@ -20,11 +20,13 @@ module CurrentScope
     # record 7. Every engine path that labels or audits an existing grant uses
     # this checked reader so an inert grant never names an unrelated live record.
     def current_scope_resolved_record(side)
-      klass = CurrentScope.polymorphic_class(public_send("#{side}_type"), owner: self.class)
+      klass = CurrentScope.polymorphic_class(public_send("#{side}_type"), owner: ActiveRecord::Base)
       return if klass.nil?
-      return unless CurrentScope.canonical_key?(klass, public_send("#{side}_id"))
 
-      public_send(side)
+      id = public_send("#{side}_id")
+      return unless CurrentScope.canonical_key?(klass, id)
+
+      klass.find_by(klass.primary_key => id)
     rescue ActiveRecord::RecordNotFound, NameError
       nil
     end

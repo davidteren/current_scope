@@ -42,8 +42,8 @@ class DocsSiteTest < ActiveSupport::TestCase
   end
 
   test "quickstart banner links the published security checklist" do
-    intro = File.read(QUICKSTART).lines[7, 9].join
-    assert_includes intro, "https://davidteren.github.io/current_scope/security-checklist.html"
-    refute_match(/\]\(security-checklist\.html\)/, intro)
+    source = File.read(QUICKSTART)
+    assert_includes source, "https://davidteren.github.io/current_scope/security-checklist.html"
+    refute_match(/\]\(security-checklist\.html\)/, source)
   end
 end

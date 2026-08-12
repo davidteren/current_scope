@@ -1152,7 +1152,7 @@ bin/rails server    <span class="tk-com"># http://localhost:3000</span></pre>
       d.classList.toggle('on');
       d.setAttribute('aria-pressed', d.classList.contains('on')?'true':'false');
     };
-    d.addEventListener('click',toggle);
+    d.addEventListener('click',function(){focusCell(d);toggle()});
     d.addEventListener('keydown',function(ev){
       if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();toggle();return}
       var next=null;

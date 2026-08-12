@@ -491,11 +491,16 @@ allowed_to?<span class="tk-p">(</span><span class="tk-sym">:approve</span><span 
       </div>
       <div class="step">
         <div class="n">4</div>
-        <div class="body"><div class="t">scoped role</div><div class="d">A role held on <em>this</em> record</div></div>
+        <div class="body"><div class="t">scoped role</div><div class="d">A role held on <em>this</em> record, or an ancestor role that ticks the key (opt-in; not scoped full_access)</div></div>
         <span class="verdict v-allow">ALLOW</span>
       </div>
       <div class="step">
         <div class="n">5</div>
+        <div class="body"><div class="t">record-less</div><div class="d">No record: a scoped grant of the named type opens a listed collection read</div></div>
+        <span class="verdict v-allow">ALLOW</span>
+      </div>
+      <div class="step">
+        <div class="n">6</div>
         <div class="body"><div class="t">otherwise</div><div class="d">Nothing matched</div></div>
         <span class="verdict v-deny">DENY</span>
       </div>
@@ -503,7 +508,7 @@ allowed_to?<span class="tk-p">(</span><span class="tk-sym">:approve</span><span 
     <div class="resnote reveal">
       <h3>Why the order matters</h3>
       <p>The <b style="color:var(--deny)">veto sits first on purpose</b>. Separation of duties isn’t a permission you can out-rank — a full-access owner who filed a report still can’t approve their own. It’s not configurable in the UI, because it’s a control, not a preference.</p>
-      <p>Everything below is additive: full access short-circuits, then org-wide, then per-record. Miss all of them and you’re denied. <b>There is no implicit allow.</b></p>
+      <p>Everything below is additive: full access short-circuits, then org-wide, then per-record, then a record-less listed read. Miss all of them and you’re denied. <b>There is no implicit allow.</b></p>
       <p>The veto is <b>off by default</b> — <a href="separation-of-duties.html">how to enable it, verify it’s live, and when to break the glass</a>.</p>
     </div>
   </div>

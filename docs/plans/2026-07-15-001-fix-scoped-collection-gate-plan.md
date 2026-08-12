@@ -11,6 +11,11 @@ issue: https://github.com/davidteren/current_scope/issues/19
 
 # Scoped grants open the collection gate (record-less scoped check) - Plan
 
+> **Historical snapshot (2026-07-15).** This plan shipped. The live resolver
+> order is six steps: SoD veto → full_access → org-wide → scoped → record-less
+> → deny. The five-step list in the capsule below is the pre-ship invariant,
+> not the current model.
+
 ## Goal Capsule
 
 - **Objective:** make the collection gate and `scope_for` agree, so the README's advertised *scoped index* actually works: a subject holding only scoped grants reaches a gated `#index` (and other collection/class-form checks) whose role ticks the key, and `scope_for` narrows the list to exactly the records they were granted. Today the gate turns them away, and the org-wide grant needed to pass it makes `scope_for` return every record — no grant combination yields a gated index of only the scoped subset.

@@ -74,9 +74,26 @@ The decision order, fixed:
 1. SoD veto        → initiator? (opt-in, off by default)  DENY (overrides all)
 2. full_access     → role grants everything, forever     ALLOW
 3. org-wide role   → role's permission set includes it   ALLOW
-4. scoped role     → a role held on THIS record          ALLOW
-5. otherwise       → default deny
+4. scoped role     → a role held on THIS record, or an   ALLOW
+                     ancestor role that ticks the key
+                     (opt-in; not scoped full_access)
+5. record-less     → no record: a scoped grant of the     ALLOW
+                     named type opens a listed
+                     collection read (index by default)
+6. otherwise       → default deny
 ```
+
+Step 4 also matches a grant on a declared parent when the child opted in
+with `current_scope_parent`. Step 5 is why a scoped-only subject can reach
+an index. A collection action names the type with `current_scope_model`.
+The class form `allowed_to?(:index, Report)` names the type itself.
+Without a type the gate stays closed. The listed read still opens only
+when the subject's scoped list is not empty, including rows reached
+through a declared parent. Other record-less keys (for example `create`)
+need an explicit tick on the named type; a scoped `full_access` grant
+does not open those. An action in `config.sod_actions` never opens on
+this arm: the veto needs a record. See
+[Checking permissions](docs/guides/checking-permissions.md#scoping-a-list-scope_for).
 
 ## Screenshots
 
@@ -350,7 +367,7 @@ authorize on the server.
 
 | Limit | What it means |
 |---|---|
-| **Flat scoped grants** | A scoped role on a parent record does **not** cascade to children. Hierarchy is deferred — see [docs/ROADMAP.md](docs/ROADMAP.md) §2.3. |
+| **Flat scoped grants (default)** | Flat unless the child declares `current_scope_parent`. Then the chain is bounded at five hops, and a scoped `full_access` grant does not cascade. See [Checking permissions](docs/guides/checking-permissions.md#a-grant-on-a-parent-record-108). |
 | **One org-wide role** | At most one org-wide role per subject (DB-enforced). |
 | **Scoped role = full bundle** | Scoping reuses the whole role; there is no per-record capability subset. |
 

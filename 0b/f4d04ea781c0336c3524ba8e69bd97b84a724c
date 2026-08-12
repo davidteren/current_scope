@@ -1,0 +1,18 @@
+README.md
+  h_e8a5bb9272fa34 90-92
+docs/guides/concepts-and-glossary.md
+  h_e8a5bb9272fa34 29-31
+docs/site/_includes/resolver-order.md
+  h_e8a5bb9272fa34 18-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "0bf4d04ea781c0336c3524ba8e69bd97b84a724c",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

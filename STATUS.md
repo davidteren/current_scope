@@ -2,17 +2,18 @@
 
 > ## Last session handoff
 >
-> **This is:** CurrentScope, a Rails authorization engine (gem `current_scope`;
-> latest RubyGems publish 0.4.0, with 0.5.0 now being released) being driven to a
-> "solid v1" bar so the README's not-production-ready banner can come down.
-> **What we finished:** the published 0.2–0.4 security defect #151 (integer
-> grant-id columns collapse UUID/string identities, so a subject could inherit
-> another's roles) is fixed and merged (#153). 0.5.0 is the first safe release,
-> staged in PR #159.
-> **What you do next:** merge PR #159, then tag and publish 0.5.0, yank
-> 0.2.0–0.4.0, and publish the security advisory (all tracked in #151). After
-> that, flip one real host to `:report` and on to `:enforce` — the last thing
-> before the banner drops, and only a human can do it.
+> **This is:** CurrentScope, a Rails authorization engine (gem `current_scope`,
+> 0.5.0 published) being driven to a "solid v1" bar; the readiness banner is now
+> **Beta**, and drops entirely at general availability (1.0).
+> **What we finished:** the published security defect #151 (integer grant-id
+> columns collapse UUID/string identities, so a subject could inherit another's
+> roles) is fixed and released in 0.5.0; the vulnerable 0.2.0–0.4.0 are yanked and
+> the advisory (GHSA-944r-4v99-qqf7) is published. The banner was softened from
+> "not production-ready" to Beta to invite adoption and feedback.
+> **What you do next:** get a real host to run `config.enforcement = :report`,
+> read `bin/rails current_scope:report`, then flip to `:enforce` — the real-world
+> bake (#116). It is the last thing before the banner drops fully and 1.0 ships,
+> and only a human can do it.
 >
 > ### In-progress handoff — PR #153 review fixes (2026-08-12)
 >
@@ -79,21 +80,21 @@
 > limited; the members candidate query is not per-subclass-token) → a new
 > follow-up issue, to be filed and cited when replying.
 >
-> **Remaining:** none on the review side. The branch head is green on all three
-> adapters (SQLite/PostgreSQL/MySQL), and every review thread (27 first-round plus
-> cubic's re-review rounds) is replied-to and resolved. The last step before the
-> banner drops is unchanged by this PR: the real-host `:report` → `:enforce` bake
-> (a human step). A human merges #153.
+> **Done:** the #151 fix (#153) merged and shipped in the 0.5.0 release (#159);
+> the vulnerable 0.2.0–0.4.0 are yanked and the advisory (GHSA-944r-4v99-qqf7) is
+> published (#151, closed). The only step before the banner drops fully (GA / 1.0)
+> is the real-host `:report` → `:enforce` bake (a human step).
 
-> ## 🔴 BANNER-DROP / GA BLOCKER — the real-host bake (#116 Wave 3)
+> ## 🔴 GA BLOCKER — the real-host bake (#116 Wave 3)
 >
-> This gates the not-production-ready banner drop (general availability), **not**
-> the 0.5.0 release, which is shipping now. The #151 fix (published versions
-> silently collapse UUID and other string keys in grant columns) merged in PR #153
-> and is being released as 0.5.0 (PR #159); the RubyGems publish and the yank of
-> 0.2.0–0.4.0 are pending (#151). Every coded item in #116 is finished. The banner
-> stays up until **one real host runs `config.enforcement = :report`, reads
-> `bin/rails current_scope:report`, and flips to `:enforce`** on current `main`.
+> This gates **general availability** — dropping the banner entirely and cutting
+> 1.0 — **not** ordinary use. 0.5.0 is published, the #151 fix is live, the
+> vulnerable 0.2.0–0.4.0 are yanked, and the advisory (GHSA-944r-4v99-qqf7) is out;
+> the readiness banner has been softened from "not production-ready" to **Beta** to
+> invite adoption and feedback. Every coded item in #116 is finished. The banner
+> drops fully (and 1.0 ships) only after **one real host runs
+> `config.enforcement = :report`, reads `bin/rails current_scope:report`, and
+> flips to `:enforce`** on current `main`.
 >
 > That bake is what found **#108** (a scoped grant on a parent matched nothing
 > on its children, which blocked the flip). #108 shipped in PR #135, and #134's
@@ -132,7 +133,7 @@
 >   adoption guide: report mode's two other outcomes (SoD blind-spot 403,
 >   `ConfigurationError` 500) are undocumented.
 >
-> **Release in progress (PR #159):** **0.5.0 (minor)**, not a patch — #108 moves
+> **Released:** **0.5.0 (minor)** (PR #159), not a patch — #108 moves
 > authorization semantics even though it is opt-in. See the [0.5.0] section
 > of CHANGELOG.md for the caveats a host must read before declaring a chain.
 
@@ -172,8 +173,8 @@ controllers, views, and ViewComponents.
 Version **`0.4.0` cut 2026-07-23** (tag + GitHub Release) and **published on
 RubyGems 2026-07-24**: solid-solution Phase 1, denial ergonomics + security
 checklist (#39/#32), the docs site (#98/#33), and the full migration
-toolkit (#45). Showcase hosts still on `~> 0.3.0` should bump to `~> 0.4.0`
-and `bundle update current_scope`. Not production-ready; see the README
+toolkit (#45). Showcase hosts on an earlier version should bump to `~> 0.5.0`
+(0.2–0.4 are yanked) and `bundle update current_scope`. Beta; see the README
 banner and tracking issue **#116**.
 
 **0.3.0 shipped 2026-07-19.** The release gate (dte-deep-reviewer +
@@ -787,8 +788,8 @@ quickstart, production checklist) + tests T1–T4.
 >    `:enforce`. Everything proven so far is the showcase and the six
 >    `current_scope_test_scenarios` apps — the banner should outlive one real
 >    adoption.
-> 2. **The banner-drop PR** — remove the README banner + badge, update this
->    file, cut the next release.
+> 2. **The GA release** — remove the Beta banner + badge, update this file, and
+>    cut 1.0.
 >
 > Items 1–12 below are the standing backlog; the numbered history is kept
 > because the struck-through entries record what was decided and why.
@@ -838,9 +839,10 @@ quickstart, production checklist) + tests T1–T4.
    **#35** (testing guide: denials, `actor:`, RSpec). *(Closed, so no longer
    listed here: #25/#27/#29/#34/#36 in the 2026-07-25 → 27 session block;
    #32/#33 with v0.4.0 on 2026-07-24; #30 earlier, in the Phase 1 stack.)*
-9. ~~**Publish to RubyGems**~~ — **`v0.4.0` shipped 2026-07-24; `0.5.0` is now
-   being released (PR #159)** as the first safe version after the #151 fix.
-   The RubyGems publish and the yank of 0.2.0–0.4.0 are pending (#151).
+9. ~~**Publish to RubyGems**~~ — **`v0.4.0` shipped 2026-07-24; `0.5.0` shipped
+   2026-08-12 (PR #159)** as the first safe version after the #151 fix. The
+   vulnerable 0.2.0–0.4.0 are yanked and the advisory (GHSA-944r-4v99-qqf7) is
+   published (#151, closed).
    Recurring recipe for the next cut: bump `lib/current_scope/version.rb` +
    CHANGELOG heading, run the release gate, tag + **GitHub Release** (a pushed
    tag alone does not update the Releases page), `gem push` (**requires

@@ -5,10 +5,11 @@ nav_order: 2
 
 # Quickstart
 
-> **Not production-ready yet.** CurrentScope is ready for experimentation and
-> spiking — kick the tyres, build a spike, tell us what breaks. Don't put it
-> in front of real users yet. Open work, including security-relevant items,
-> is tracked in the
+> **Beta.** The core is built and security-hardened; general availability is
+> gated on one real-world enforce bake
+> ([#116](https://github.com/davidteren/current_scope/issues/116)). Adopt it, run
+> it in `:report` mode, and tell us what breaks — that feedback is what gets it to
+> 1.0. It's an authorization library, so mind the bar. Report anything on the
 > [issue tracker](https://github.com/davidteren/current_scope/issues).
 
 ## 1. Add the gem and install

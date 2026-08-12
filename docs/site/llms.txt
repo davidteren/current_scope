@@ -5,8 +5,9 @@
 > per-record scoped roles, an opt-in separation-of-duties veto (initiator
 > can never approve their own record), and one ambient context so
 > allowed_to? works identically in controllers, views, and components.
-> Fail-closed: no grant means denied. Status: not production-ready yet —
-> ready for experimentation and spiking.
+> Fail-closed: no grant means denied. Status: beta — core built and
+> security-hardened; general availability gated on one real-world enforce
+> bake (#116). Adopt it, run report mode, send feedback.
 
 Key facts agents get wrong without reading:
 - The gate covers EVERY action; skip it on sessions/webhooks with

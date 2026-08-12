@@ -1,0 +1,20 @@
+lib/current_scope.rb
+  h_e8a5bb9272fa34 257-263
+lib/current_scope/resolver.rb
+  h_e8a5bb9272fa34 121-126,133,395,590
+test/dummy/app/models/token_document.rb
+  h_e8a5bb9272fa34 1-8
+test/scope_for_custom_token_test.rb
+  h_e8a5bb9272fa34 1-90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "6846f88a5e32f73bae3a8b8465e05f8fe46558f1",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

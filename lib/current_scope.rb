@@ -265,7 +265,14 @@ module  CurrentScope
 
       owner.polymorphic_class_for(type)
     rescue NameError
-      nil
+      # Rails cannot reverse an arbitrary polymorphic_name override by
+      # constantizing its token. It can only have been written by a loaded model,
+      # so use that model when the token identifies exactly one candidate; an
+      # ambiguous or stale token remains inert.
+      candidates = ActiveRecord::Base.descendants.select do |model|
+        model.respond_to?(:polymorphic_name) && model.polymorphic_name == type
+      end
+      candidates.one? ? candidates.first : nil
     end
 
     # #151. `subject_id` and `resource_id` are string columns, so ANY single-value
@@ -307,10 +314,19 @@ module  CurrentScope
     # not have come from a real record: "7f00aaaa-…" for a bigint key, "007" for
     # any key (it would match record 7), "7" for a Postgres uuid key.
     def canonical_key?(klass, value)
+      # A blank id names no record. The column accepts "", but "" is a canonical
+      # key for nothing — bless it and a directly-inserted grant with an empty id
+      # would resolve to whatever "" casts to for the key type. Fail closed here,
+      # in the guard, rather than relying on a caller or the adapter to drop it.
+      return false if value.to_s.empty?
+
       key = klass.primary_key
       return false unless key.is_a?(String)
 
-      klass.type_for_attribute(key).cast(value).to_s == value.to_s
+      type = klass.type_for_attribute(key)
+      cast = type.cast(value)
+      type.serialize(cast) # integer types raise when the value exceeds the column range
+      cast.to_s == value.to_s
     rescue StandardError
       # Cannot introspect the key type (no connection, no table, exotic type):
       # refuse rather than guess. Callers use this to DENY, so failing here

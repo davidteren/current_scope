@@ -57,7 +57,7 @@ module CurrentScope
       held = RoleAssignment.where(role: @role, subject_type: subject_class.polymorphic_name)
                            .select(:subject_id)
       remaining = subject_class.where.not(
-        Arel::Nodes::In.new(candidate_key_as_text, held.arel)
+        Arel::Nodes::In.new(candidate_key_as_text, held.arel.ast)
       ).order(:id)
       @candidates = remaining.limit(ADD_LIMIT).to_a
       @more_candidates = remaining.offset(ADD_LIMIT).exists?
@@ -148,17 +148,11 @@ module CurrentScope
     # the cascade audit. Deleted records return nil without raising (especially
     # after includes preload), so use || assignment, not rescue-only.
     def cascade_subject(assignment)
-      assignment.subject || assignment
-    rescue ActiveRecord::RecordNotFound, NameError
-      assignment
+      assignment.current_scope_resolved_record("subject") || assignment
     end
 
     def cascade_resource_label(assignment)
-      resource = begin
-        assignment.resource
-      rescue ActiveRecord::RecordNotFound, NameError
-        nil
-      end
+      resource = assignment.current_scope_resolved_record("resource")
       return "#{assignment.resource_type}##{assignment.resource_id}" if resource.nil?
 
       helpers.current_scope_label(resource)
@@ -238,8 +232,10 @@ module CurrentScope
       return Arel.sql("CAST(#{column} AS TEXT)") unless CurrentScope.mysql?(connection)
 
       collation = RoleAssignment.columns_hash["subject_id"]&.collation
+      raise ConfigurationError, "CurrentScope could not read subject_id's MySQL collation" if collation.blank?
+
       cast = "CAST(#{column} AS CHAR)"
-      Arel.sql(collation.present? ? "#{cast} COLLATE #{collation}" : cast)
+      Arel.sql("#{cast} COLLATE #{collation}")
     end
 
     def role_params

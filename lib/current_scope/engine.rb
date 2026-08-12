@@ -52,7 +52,6 @@ module CurrentScope
       # subject CLASS can be named by one id. Different questions, different
       # failure messages, so they are not folded together.
       CurrentScope::SchemaGuard.check!
-      CurrentScope::Engine.validate_subject_key!
     end
 
     # Routes (and therefore the derived permission catalog) can change on
@@ -60,6 +59,10 @@ module CurrentScope
     # as scopeable rather than pile up stale/duplicate entries. Both reset here,
     # ahead of eager-load, so the registry rebuilds cleanly.
     config.to_prepare do
+      # Resolve the host's reloadable subject model only from the reload-safe
+      # callback, not after_initialize. The write validation remains the
+      # fail-closed guarantee; this is the early diagnostic.
+      CurrentScope::Engine.validate_subject_key!
       CurrentScope.reset_catalog!
       CurrentScope.reset_scopeable_registry!
       # The cross-controller nudge warns once per site; a reload can change what's

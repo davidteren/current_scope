@@ -579,11 +579,12 @@ module CurrentScope
       if collection_read_action?(permission)
         scope_for(subject: subject, model: type, permission: permission).exists?
       else
-        # granted_ids, not a hand-rolled .exists?: the grant must name a record
-        # that COULD exist even though this branch binds to none, and granted_ids
-        # is where "an id that names nothing grants nothing" is defined.
-        granted_ids(subject: subject, type: type.base_class.name, model: type,
-                    roles: roles_ticking(permission)).any?
+        # A syntactically valid stored id is not enough: a destroyed/default-
+        # scoped-out record opens nothing. Keep the established R6a STI ceiling:
+        # non-read collection gates bind to the base class, not one subclass.
+        ids = granted_ids(subject: subject, type: type.base_class.name, model: type,
+                          roles: roles_ticking(permission))
+        type.base_class.where(type.base_class.primary_key => ids).exists?
       end
     end
 

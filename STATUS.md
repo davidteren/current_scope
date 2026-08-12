@@ -5,17 +5,83 @@
 > **This is:** CurrentScope, a Rails authorization engine (gem `current_scope`,
 > 0.4.0 published) being driven to a "solid v1" bar so the README's
 > not-production-ready banner can come down.
-> **What we finished:** #133 shipped (`c68feaf`). #139 is on the branch
-> `fix/parent-chain-validate-after-eager-load` — parent-chain validation now
-> also runs after eager load so a custom-`primary_key:` chain fails the deploy
-> instead of serving wrong rows (see UPGRADING).
-> **What you do next:** merge #139 when the PR is ready, then flip one real host
-> to `:report` and on to `:enforce`. That bake is the last thing before the
-> banner drops, and only a human can do it.
-
-> ## 🔴 ONLY REMAINING BLOCKER — the real-host bake (#116 Wave 3)
+> **What we finished:** #139 shipped. The current priority is the published
+> 0.2–0.4 security defect #151: integer grant-id columns collapse UUID/string
+> subjects and resources onto the same identity. PR #153 widens those columns,
+> adds fail-closed schema/key guards, and runs the suite on SQLite, PostgreSQL,
+> and MySQL.
+> **What you do next:** finish and merge PR #153, then reassess its related
+> custom-primary-key issue #150. After that, flip one real host to `:report` and
+> on to `:enforce`. That bake is the last thing before the banner drops, and only
+> a human can do it.
 >
-> Every coded item in #116 is finished. The banner stays up until **one real
+> ### In-progress handoff — PR #153 review fixes (2026-08-12)
+>
+> **Worktree state:** branch `fix/uuid-subject-collision`; the changes described
+> below are **uncommitted and unpushed**. No GitHub review thread has been replied
+> to or resolved. PR #153 still has 27 unresolved current threads (14 Cubic,
+> 11 Devin, 2 Qodo).
+>
+> A first pass addressed the findings that reproduced as correctness/security
+> gaps:
+>
+> - migration preflights both string and text columns, and its idempotence check
+>   now repairs nullable columns;
+> - the boot guard accepts genuinely unbounded text, checks nullability, and the
+>   assignment write path rechecks the schema even inside `db:setup`/`db:reset`/
+>   `db:prepare`, closing the seed-before-MySQL-collation-repair hole;
+> - host subject-key validation moved from `after_initialize` to the reload-safe
+>   `to_prepare` callback;
+> - non-canonical legacy associations resolve as inert for console/audit paths,
+>   unsupported key shapes are bulk-marked loaded-as-nil, out-of-range integer
+>   keys fail canonical validation, and loaded custom polymorphic tokens can be
+>   reverse-resolved;
+> - a destroyed scoped record no longer opens a record-less non-read action;
+> - subjects-page type/id predicates now preserve concrete polymorphic tokens;
+>   the roles query uses the conventional Arel AST and refuses missing MySQL
+>   collation metadata;
+> - README/CONTRIBUTING upgrade wording and this handoff were corrected;
+> - regression coverage was added for the above migration, key, preloader, and
+>   destroyed-record paths. The migration's public `up` test now transforms a
+>   real pre-migration probe rather than asserting a schema that was already
+>   correct.
+>
+> **Validation completed:** the full suite is green on all three adapters
+> (SQLite 792 unit + 28 system, PostgreSQL 792, MySQL 792; 0 failures) and
+> `bin/rubocop` is clean. The mandatory pre-PR gate (ce-code-review → ie-review
+> → cubic) ran on the full branch delta.
+>
+> **What the gate found and fixed (a second pass, on top of the first):**
+>
+> - The advertised invariant ("an inert grant never names an unrelated live
+>   record") was only implemented on the RESOURCE side. Four SUBJECT-side sites
+>   (members list, its Remove-button GID, the scoped-revoke audit event, the
+>   console grant survey) read `assignment.subject` directly, so a non-canonical
+>   stored `subject_id` cast "7f00…" to integer record 7 and labeled the row a
+>   live unrelated subject — the Remove button then posted that subject's GID to
+>   the org-clear path. All four now route through
+>   `current_scope_resolved_record("subject")`, with a subject-side pin. (Label/
+>   audit-integrity, not live escalation: enforcement binds the real subject id.)
+> - `SchemaGuard#check_collation!` failed OPEN when a MySQL collation read nil;
+>   it now raises, matching `candidate_key_as_text`.
+> - `canonical_key?` blessed a blank id; it now refuses it in the guard.
+> - Plus parity/idiom cleanups and the MySQL `db:setup`-before-repair doc note.
+>
+> **Deferred (fail-closed, not regressions, out of scope for a security PR):**
+> the eager per-parent grant queries + unbounded `IN (...)` → #136; and cubic's
+> polymorphic-token consistency theme (collection scope uses `base_class.name`
+> not `polymorphic_name`; the reverse-resolution fallback is load-order/STI
+> limited; the members candidate query is not per-subclass-token) → a new
+> follow-up issue, to be filed and cited when replying.
+>
+> **Remaining (needs human approval):** commit + push, then reply inline on all
+> 27 threads with the commit SHA and resolve, then re-run remote CI/reviewers.
+
+> ## 🔴 RELEASE BLOCKERS — #151, then the real-host bake (#116 Wave 3)
+>
+> PR #153 must land before 0.5.0: published versions silently collapse UUID and
+> other string keys in grant columns. After that, every coded item in #116 is
+> finished. The banner stays up until **one real
 > host runs `config.enforcement = :report`, reads `bin/rails
 > current_scope:report`, and flips to `:enforce`** on current `main`.
 >
@@ -60,7 +126,7 @@
 > authorization semantics even though it is opt-in. See the Unreleased section
 > of CHANGELOG.md for the caveats a host must read before declaring a chain.
 
-> Last updated: 2026-07-28
+> Last updated: 2026-08-12
 >
 > **If you are a fresh session asked to audit this work, start at
 > [Verification brief](#verification-brief--for-a-fresh-session).**

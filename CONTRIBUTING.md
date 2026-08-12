@@ -40,7 +40,7 @@ schema.
 
 ```bash
 bin/db up            # postgres + mysql containers (Docker/OrbStack)
-bin/db test          # the suite against all three
+bin/db test          # the unit suite against all three
 bin/db test postgres # or just one
 bin/db down
 ```

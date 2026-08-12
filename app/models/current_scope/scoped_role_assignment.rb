@@ -43,7 +43,10 @@ module CurrentScope
         # labels a live grant inert. `where` casts the strings back to the column's
         # own type, so the query is still correct on every adapter.
         key = klass.primary_key
-        next unless key.is_a?(String)
+        unless key.is_a?(String)
+          mark_resources_loaded(rows, {})
+          next
+        end
 
         # Only ids that are legal keys for THIS model reach the query. A legacy
         # collapsed value ("7", left by the pre-#151 integer column) sent at a
@@ -60,11 +63,7 @@ module CurrentScope
         # associations lazy, so the first orphaned_resource? call would go and do
         # per-row exactly the load this method exists to do safely and in bulk.
         records = ids.empty? ? {} : klass.where(key => ids).index_by { |r| r[key].to_s }
-        rows.each do |row|
-          assoc = row.association(:resource)
-          assoc.target = records[row.resource_id.to_s]
-          assoc.loaded!
-        end
+        mark_resources_loaded(rows, records)
       end
 
       list
@@ -81,10 +80,20 @@ module CurrentScope
         if resource_id.blank?
           false
         else
-          resource.nil?
+          current_scope_resolved_record("resource").nil?
         end
     rescue NameError, ActiveRecord::RecordNotFound
       @orphaned_resource = true
     end
+
+
+    def self.mark_resources_loaded(rows, records)
+      rows.each do |row|
+        assoc = row.association(:resource)
+        assoc.target = records[row.resource_id.to_s]
+        assoc.loaded!
+      end
+    end
+    private_class_method :mark_resources_loaded
   end
 end

@@ -164,7 +164,29 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     assert CurrentScope.canonical_key?(User, "7"), "a canonical integer key round-trips"
     assert_not CurrentScope.canonical_key?(User, "007"),
                "\"007\" casts to 7, so it would name a record it does not spell"
+    assert_not CurrentScope.canonical_key?(User, (2**63).to_s),
+               "a value outside bigint's range must be refused before a database query raises"
+    assert_not CurrentScope.canonical_key?(User, ""),
+               "a blank id names no record and must never be canonical"
+    assert_not CurrentScope.canonical_key?(UuidUser, ""),
+               "blank is non-canonical for a string key too"
     assert CurrentScope.canonical_key?(UuidUser, ALICE_ID), "a UUID is canonical for a string key"
+  end
+
+  test "a loaded model with a custom polymorphic token still gets key validation" do
+    original = UuidUser.method(:polymorphic_name)
+    UuidUser.define_singleton_method(:polymorphic_name) { "uuid_people" }
+
+    assert_equal UuidUser, CurrentScope.polymorphic_class("uuid_people")
+
+    role = CurrentScope::Role.create!(name: "Editor")
+    grant = CurrentScope::RoleAssignment.new(role: role)
+    grant.subject_type = "uuid_people"
+    grant.subject_id = "x" * (CurrentScope::KEY_LIMIT + 1)
+    grant.send(:current_scope_check_storable_keys, [ "subject" ])
+    assert grant.errors.any?, "a custom storage token must not bypass the key guard"
+  ensure
+    UuidUser.define_singleton_method(:polymorphic_name, original)
   end
 
   # The read side. A row written before this guard existed — or by host code that
@@ -243,6 +265,25 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     end
   end
 
+  # A security guard must not fail open. If a MySQL column exists but its
+  # collation cannot be read, the guard cannot prove it compares case-sensitively,
+  # so it must refuse rather than bless it — matching the fatal treatment
+  # roles_controller#candidate_key_as_text gives the same missing metadata.
+  test "the boot check refuses a MySQL column whose collation cannot be read" do
+    column = Struct.new(:type, :limit, :collation, :null)
+    unreadable = { "subject_id" => column.new(:string, CurrentScope::KEY_LIMIT, nil, false) }
+    CurrentScope::RoleAssignment.define_singleton_method(:columns_hash) { unreadable }
+    with_mysql(true) do
+      error = assert_raises(CurrentScope::ConfigurationError) do
+        CurrentScope::SchemaGuard.check!
+      end
+      assert_match(/collation could not be read/, error.message)
+      assert_match(/repair_schema/, error.message, "the message must name the fix")
+    ensure
+      CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
+    end
+  end
+
   # "Is it a string?" is not the whole question. A varchar(32) answers yes and
   # then truncates every UUID written to it — the original collision, reached by
   # a column that passed the guard meant to prevent it.
@@ -259,6 +300,32 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     ensure
       CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
     end
+  end
+
+  test "the schema guard accepts an unbounded text id column" do
+    column = Struct.new(:type, :limit, :collation, :null)
+    # A real MySQL text column always carries a collation; give the stub a valid
+    # binary one so this exercises WIDTH acceptance (limit nil is fine) without
+    # tripping the collation guard, which now fails closed on an unreadable one.
+    text = { "subject_id" => column.new(:text, nil, "utf8mb4_0900_bin", false) }
+    CurrentScope::RoleAssignment.define_singleton_method(:columns_hash) { text }
+
+    assert_nothing_raised { CurrentScope::SchemaGuard.check! }
+  ensure
+    CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
+  end
+
+  test "assignment writes recheck the schema even during an exempt database task" do
+    fake = { "subject_id" => Struct.new(:type).new(:integer) }
+    CurrentScope::RoleAssignment.define_singleton_method(:columns_hash) { fake }
+    role = CurrentScope::Role.create!(name: "Editor")
+    grant = CurrentScope::RoleAssignment.new(subject: User.create!(name: "Seeded"), role: role)
+
+    with_database_task(true) do
+      assert_raises(CurrentScope::ConfigurationError) { grant.valid? }
+    end
+  ensure
+    CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
   end
 
   test "the boot refusal stands down for database tasks, or the fix could not be run" do

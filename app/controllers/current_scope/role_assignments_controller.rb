@@ -93,9 +93,7 @@ module CurrentScope
     # resolves (an orphaned assignment) — the ledger row then targets the
     # assignment itself rather than 500ing.
     def resolve_subject(assignment)
-      assignment.subject
-    rescue ActiveRecord::RecordNotFound, NameError
-      nil
+      assignment.current_scope_resolved_record("subject")
     end
 
     def org_notice(clearing, count)

@@ -119,36 +119,69 @@ class WidenPolymorphicIdsMigrationTest < ActiveSupport::TestCase
     assert_match(/truncated key names the WRONG record/, error.message)
   end
 
+  test "it preflights text columns before narrowing them" do
+    connection.change_column(TABLE, :subject_id, :text)
+    connection.execute(
+      "INSERT INTO #{connection.quote_table_name(TABLE)} " \
+      "(subject_type, subject_id) VALUES ('User', #{connection.quote('x' * (CurrentScope::KEY_LIMIT + 1))})"
+    )
+
+    migration = WidenCurrentScopePolymorphicIds.new.tap { |item| item.verbose = false }
+    assert_raises(ActiveRecord::IrreversibleMigration) do
+      migration.send(:refuse_if_any_key_too_long, TABLE, :subject_id)
+    end
+  end
+
+  test "an otherwise-correct nullable column is repaired" do
+    connection.change_column(TABLE, :subject_id, :string, limit: CurrentScope::KEY_LIMIT, null: true)
+
+    widen!
+
+    assert_not column.null
+  end
+
   test "the migration refuses to run backwards rather than truncating keys" do
     assert_raises(ActiveRecord::IrreversibleMigration) do
       WidenCurrentScopePolymorphicIds.new.migrate(:down)
     end
   end
 
-  # The probe-table cases above drive `widen` directly. This one drives the actual
-  # entry point against the actual grant tables, which is where the gap was: the
-  # idempotence guard used to short-circuit on type and width alone, so a
-  # schema-loaded database kept the server's case-insensitive collation and the
-  # #151 collision stayed live. `up` is idempotent, so running it here is safe.
-  test "up leaves every grant id and type column correct on this adapter" do
-    WidenCurrentScopePolymorphicIds.new.tap { |m| m.verbose = false }.migrate(:up)
+  # Drive the PUBLIC entry point against a genuinely pre-migration table. The
+  # old test pointed `up` at schema-loaded grant tables that already had the
+  # asserted shape, so on SQLite/PostgreSQL deleting the real wiring stayed green.
+  test "up transforms its declared id and type columns" do
+    with_probe_as_migration_target do
+      assert_equal :integer, column.type
 
-    mysql = CurrentScope.mysql?(connection)
-    {
-      "current_scope_role_assignments" => %w[subject_id subject_type],
-      "current_scope_scoped_role_assignments" => %w[subject_id resource_id subject_type resource_type]
-    }.each do |table, columns|
-      columns.each do |name|
-        info = connection.columns(table).find { |c| c.name == name }
-        assert_equal :string, info.type, "#{table}.#{name} must be a string column"
-        assert_equal CurrentScope::KEY_LIMIT, info.limit, "#{table}.#{name} width" if name.end_with?("_id")
+      WidenCurrentScopePolymorphicIds.new.tap { |migration| migration.verbose = false }.migrate(:up)
 
-        next unless mysql
-
-        assert info.collation.to_s.end_with?("_bin"),
-               "#{table}.#{name} is #{info.collation}: a case-insensitive collation means " \
-               "\"ABC\" and \"abc\" are the same record, which is #151 by another column"
+      assert_equal :string, column.type
+      assert_equal CurrentScope::KEY_LIMIT, column.limit
+      assert_not column.null
+      if CurrentScope.mysql?(connection)
+        %w[subject_id subject_type].each do |name|
+          info = connection.columns(TABLE).find { |candidate| candidate.name == name }
+          assert info.collation.to_s.end_with?("_bin"), "#{name} must compare as an identifier"
+        end
       end
     end
+  end
+
+  private
+
+  def with_probe_as_migration_target
+    migration = WidenCurrentScopePolymorphicIds
+    original_columns = migration::COLUMNS
+    original_type_columns = migration::TYPE_COLUMNS
+    migration.send(:remove_const, :COLUMNS)
+    migration.send(:remove_const, :TYPE_COLUMNS)
+    migration.const_set(:COLUMNS, { TABLE => [ :subject_id ] }.freeze)
+    migration.const_set(:TYPE_COLUMNS, { TABLE => [ :subject_type ] }.freeze)
+    yield
+  ensure
+    migration.send(:remove_const, :COLUMNS)
+    migration.send(:remove_const, :TYPE_COLUMNS)
+    migration.const_set(:COLUMNS, original_columns)
+    migration.const_set(:TYPE_COLUMNS, original_type_columns)
   end
 end

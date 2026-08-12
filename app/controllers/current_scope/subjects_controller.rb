@@ -19,15 +19,24 @@ module CurrentScope
       # Match on the ids as strings: `where(subject: @subjects)` would build
       # `subject_id IN (SELECT id ...)`, comparing a varchar column to a bigint
       # subquery, which PostgreSQL refuses (#151).
-      subject_ids = @subjects.map { |s| s.id.to_s }
-      @assignments = RoleAssignment.where(subject_type: subject_class.polymorphic_name, subject_id: subject_ids)
+      # Group by each subject's OWN polymorphic_name, not the configured class's:
+      # an STI subclass that overrides it stores grants under a different token, so
+      # a single where(subject_type:) would omit them (#151). One type in the
+      # common case; the per-type OR keeps the STI case correct for one extra WHERE.
+      subject_ids_by_type = @subjects.group_by { |subject| subject.class.polymorphic_name }
+                                     .transform_values { |subjects| subjects.map { |subject| subject.id.to_s } }
+      assignment_scope = subject_ids_by_type.reduce(RoleAssignment.none) do |relation, (type, ids)|
+        relation.or(RoleAssignment.where(subject_type: type, subject_id: ids))
+      end
+      @assignments = assignment_scope
                                    .index_by { |a| [ a.subject_type, a.subject_id.to_s ] }
       # Safe polymorphic resource preload (resolvable types only) — full
       # includes(:resource) NameErrors on a stale resource_type and 500s the
       # page; skip-unresolvable + label as inert instead (#90 / PR #104).
-      scoped_rows = ScopedRoleAssignment
-                      .where(subject_type: subject_class.polymorphic_name, subject_id: subject_ids)
-                      .includes(:role).to_a
+      scoped_scope = subject_ids_by_type.reduce(ScopedRoleAssignment.none) do |relation, (type, ids)|
+        relation.or(ScopedRoleAssignment.where(subject_type: type, subject_id: ids))
+      end
+      scoped_rows = scoped_scope.includes(:role).to_a
       ScopedRoleAssignment.preload_resolvable_resources!(scoped_rows)
       # to_s to match the view's key: subject_id is a string column (#151).
       @scoped = scoped_rows.group_by { |a| [ a.subject_type, a.subject_id.to_s ] }

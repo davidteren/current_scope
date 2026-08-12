@@ -99,7 +99,7 @@ class WidenCurrentScopePolymorphicIds < ActiveRecord::Migration[7.1]
   # operator decides, rather than discovering it afterwards.
   def refuse_if_any_key_too_long(table, column)
     existing = connection.columns(table).find { |c| c.name == column.to_s }
-    return if existing.nil? || existing.type != :string
+    return if existing.nil? || !existing.type.in?([ :string, :text ])
 
     quoted = "#{connection.quote_table_name(table)}.#{connection.quote_column_name(column)}"
     # CHAR_LENGTH on MySQL, where LENGTH counts BYTES and would refuse a
@@ -122,7 +122,7 @@ class WidenCurrentScopePolymorphicIds < ActiveRecord::Migration[7.1]
   def already_correct?(table, column)
     existing = connection.columns(table).find { |c| c.name == column.to_s }
     return false if existing.nil?
-    return false unless existing.type == :string && existing.limit == KEY_LIMIT
+    return false unless existing.type == :string && existing.limit == KEY_LIMIT && !existing.null
 
     !mysql? || existing.collation == binary_collation
   end

@@ -12,8 +12,8 @@ module CurrentScope
   # refuse to serve. This is the one check that cannot be a validation: the
   # damage is in the column, not in the next write.
   module SchemaGuard
-    def self.check!
-      return if running_a_database_task?
+    def self.check!(allow_database_task: true)
+      return if allow_database_task && running_a_database_task?
       # Escape hatch for tooling that must BOOT in order to migrate — our own
       # bin/db does exactly that, because schema.rb cannot carry a MySQL
       # collation. Deliberately an explicit opt-out and not a config flag: a host
@@ -64,17 +64,24 @@ module CurrentScope
       info = model.columns_hash[column]
       return if info.nil?
 
-      if info.type == :string
+      if info.type.in?([ :string, :text ])
         # STRING IS NOT ENOUGH — the width has to be right too. A varchar(32)
         # passes "is it a string?" and then truncates every UUID written to it,
-        # which is the original collision with a different cause. limit is nil on
-        # an unbounded text column, which holds any key and is fine.
+        # which is the original collision with a different cause. A text column
+        # is unbounded and therefore wide enough.
         if !info.limit.nil? && info.limit < CurrentScope::KEY_LIMIT
           raise ConfigurationError,
                 "#{model.table_name}.#{column} holds #{info.limit} characters; CurrentScope " \
                 "needs #{CurrentScope::KEY_LIMIT}. A UUID is 36 and a narrower column would " \
                 "truncate it, so two keys sharing a prefix would name one record (#151). Run " \
                 "`bin/rails current_scope:repair_schema` to widen it."
+        end
+
+        if info.respond_to?(:null) && info.null
+          raise ConfigurationError,
+                "#{model.table_name}.#{column} allows NULL, so a grant may fail to name " \
+                "one record. Run `bin/rails current_scope:repair_schema` to restore the " \
+                "required NOT NULL constraint (#151)."
         end
 
         check_collation!(model, column) if mysql?
@@ -95,7 +102,19 @@ module CurrentScope
     # wrong collation, which is the common case for a new app and for CI.
     def self.check_collation!(model, column)
       info = model.columns_hash[column]
-      return if info.nil? || info.collation.nil?
+      return if info.nil?
+
+      # A security guard must not fail open. The column exists and we are on
+      # MySQL, so its collation should always be readable; if it is not, refuse
+      # rather than bless a column we cannot prove compares case-sensitively —
+      # the same fatal treatment roles_controller#candidate_key_as_text now gives
+      # missing collation.
+      if info.collation.nil?
+        raise ConfigurationError,
+              "#{model.table_name}.#{column}'s MySQL collation could not be read, so " \
+              "CurrentScope cannot prove \"ABC\" and \"abc\" are different records (#151). " \
+              "Run `bin/rails current_scope:repair_schema`."
+      end
 
       if info.collation.end_with?("_bin")
         # Binary, but not necessarily NO PAD. utf8mb4_bin is PAD SPACE, so it

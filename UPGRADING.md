@@ -102,6 +102,16 @@ bin/rails current_scope:repair_schema
 It is idempotent and safe to re-run, and it is exempt from the boot refusal so
 it works on a database the engine will not otherwise start against.
 
+**On MySQL, run the repair before seeds that create grants.** `db:setup`,
+`db:reset`, and `db:prepare` load `schema.rb` and then run your seeds in the same
+process — and `schema.rb` cannot carry the binary collation, so the columns are
+still case-insensitive when the seeds run. A seed that creates a grant is
+refused (the write path re-checks the schema, on purpose — an unrepaired column
+is the #151 collision). Run `bin/rails current_scope:repair_schema` after loading
+the schema and before seeding grants, or keep grant-creating seeds out of the
+one-shot rebuild. This is the guard working, not a bug: it fails closed rather
+than seed collapsible grants.
+
 On MySQL the columns are given a binary collation: `utf8mb4_0900_bin` where the
 server offers it (8.0.17+), otherwise `utf8mb4_bin`. The server default is case-
 and accent-insensitive, which would make `"ABC"` and `"abc"` — or `"jose"` and

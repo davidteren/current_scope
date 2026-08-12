@@ -83,7 +83,12 @@ module CurrentScope
     # removed subject or resource class must not 500 the page; fall back to
     # "Type #id" the way the audit ledger does.
     def current_scope_holder_subject_label(assignment)
-      current_scope_subject_label(assignment.subject)
+      # Through the canonical guard, not assignment.subject: a non-canonical
+      # stored subject_id (a pre-#151 collapsed value, or a host insert_all) would
+      # otherwise cast "7f00…" to integer record 7 and label the row a live,
+      # unrelated subject. nil falls back to "Type #id" like the audit ledger.
+      subject = assignment.current_scope_resolved_record("subject")
+      subject ? current_scope_subject_label(subject) : "#{assignment.subject_type} ##{assignment.subject_id}"
     rescue NameError, ActiveRecord::RecordNotFound
       "#{assignment.subject_type} ##{assignment.subject_id}"
     end

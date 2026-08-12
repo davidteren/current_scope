@@ -15,9 +15,29 @@ module CurrentScope
       end
     end
 
+    # Associations cast their stored id through the target model's key type.
+    # For a legacy collapsed row that can turn a UUID-shaped string into integer
+    # record 7. Every engine path that labels or audits an existing grant uses
+    # this checked reader so an inert grant never names an unrelated live record.
+    def current_scope_resolved_record(side)
+      klass = CurrentScope.polymorphic_class(public_send("#{side}_type"), owner: self.class)
+      return if klass.nil?
+      return unless CurrentScope.canonical_key?(klass, public_send("#{side}_id"))
+
+      public_send(side)
+    rescue ActiveRecord::RecordNotFound, NameError
+      nil
+    end
+
     private
 
     def current_scope_check_storable_keys(sides)
+      # db:setup/reset/prepare must boot before a schema exists, but they later
+      # run host seeds in that same process. Re-check at the actual write so a
+      # schema-loaded MySQL database cannot create grants before its collation is
+      # repaired. Database-task exemptions are only for bootstrapping tooling.
+      CurrentScope::SchemaGuard.check!(allow_database_task: false)
+
       sides.each do |side|
         # LENGTH FIRST, and it ends this side. An id too long for the column is
         # also, necessarily, not a canonical key for its model — checking both

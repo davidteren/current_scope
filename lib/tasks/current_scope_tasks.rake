@@ -140,9 +140,12 @@ namespace :current_scope do
     # rollout aid must not abort the whole survey because one subject's class was
     # removed. Without it this task now raises NameError where it never did.
     grant_line = lambda do |grant|
+      # Through the canonical guard: a non-canonical stored subject_id must not
+      # be labeled as the unrelated live record it would cast into (#151).
+      subject = grant.current_scope_resolved_record("subject")
       who =
         begin
-          CurrentScope.label_for(grant.subject)
+          subject ? CurrentScope.label_for(subject) : "#{grant.subject_type} ##{grant.subject_id}"
         rescue StandardError
           "#{grant.subject_type} ##{grant.subject_id}"
         end

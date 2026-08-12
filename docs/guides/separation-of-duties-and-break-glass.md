@@ -48,7 +48,7 @@ lead, not a verdict — it only sees controllers that declare
 > production) — see [Dev diagnostics](configuration-reference.md#dev-diagnostics).
 
 With `sod_actions` empty (the default), the veto step is a no-op and the
-resolver is simply `full_access → org-wide role → scoped role → record-less (listed reads via scope_for) → deny`. No model
+resolver is simply `full_access → org-wide role → scoped role → record-less (listed reads via scope_for; other keys need an explicit tick) → deny`. No model
 needs `current_scope_initiator` — the `ConfigurationError` above only fires for
 actions that are *in* `sod_actions`. `sod_identity` is moot; roles, scoped
 roles, `scope_for`, audit, and impersonation are unaffected.

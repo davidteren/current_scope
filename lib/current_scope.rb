@@ -254,6 +254,13 @@ module  CurrentScope
       end
     end
 
+    # The type string a grant stores for `klass`. Rails writes `polymorphic_name`,
+    # not `base_class.name`. Collection queries must use the same token or a
+    # custom name disappears from the list while the per-record gate still matches.
+    def storage_token(klass)
+      klass.polymorphic_name
+    end
+
     # Resolve a stored polymorphic type token to its class. `*_type` is a Rails
     # STORAGE TOKEN, not necessarily a constant name: `polymorphic_name` can be
     # overridden and `store_full_class_name = false` shortens it, so

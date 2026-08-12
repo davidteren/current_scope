@@ -118,19 +118,19 @@ module CurrentScope
       return model.all if role&.full_access? || role&.grants?(permission)
 
       # Records on which the subject holds a scoped role that grants the key.
-      # Query the polymorphic base_class (what scoped grants store), not the
-      # passed model's name — otherwise scope_for(STISubclass) returns nothing
-      # while the per-record gate (also keyed on base_class) would allow it. The
-      # `model.where` still applies STI's own type predicate, so a subclass query
-      # can't over-list sibling-subclass rows. An empty id list yields an empty
-      # (still chainable) relation.
+      # Query the stored polymorphic token (polymorphic_name), not the passed
+      # model's constant name — otherwise a custom token or STI base token
+      # misses the grant while the per-record gate (resource: record) allows it.
+      # The `model.where` still applies STI's own type predicate, so a subclass
+      # query can't over-list sibling-subclass rows. An empty id list yields an
+      # empty (still chainable) relation.
       #
       # NOTE scope_for is EAGER since #151: granted_ids runs its query when the
       # relation is BUILT, not when it is enumerated, so the result is a snapshot
       # of the grants at call time and the method needs a connection. The returned
       # relation is still lazy and chainable.
       direct = model.where(model.primary_key => granted_ids(
-        subject: subject, type: model.base_class.name, model: model,
+        subject: subject, type: CurrentScope.storage_token(model), model: model,
         roles: roles_granting(permission)
       ))
 
@@ -392,7 +392,7 @@ module CurrentScope
         break if path.size > ParentChain::MAX_PARENT_DEPTH
 
         granted = granted_ids(
-          subject: subject, type: parent.base_class.name, model: parent,
+          subject: subject, type: CurrentScope.storage_token(parent), model: parent,
           roles: roles_ticking(permission)
         )
 
@@ -587,7 +587,7 @@ module CurrentScope
         # A syntactically valid stored id is not enough: a destroyed/default-
         # scoped-out record opens nothing. Keep the established R6a STI ceiling:
         # non-read collection gates bind to the base class, not one subclass.
-        ids = granted_ids(subject: subject, type: type.base_class.name, model: type,
+        ids = granted_ids(subject: subject, type: CurrentScope.storage_token(type), model: type,
                           roles: roles_ticking(permission))
         type.base_class.where(type.base_class.primary_key => ids).exists?
       end

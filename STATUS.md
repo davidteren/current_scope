@@ -17,14 +17,16 @@
 >
 > ### In-progress handoff — PR #153 review fixes (2026-08-12)
 >
-> **Worktree state:** committed and pushed (head `39608d2`+). The review-fix work
-> described below shipped; all 27 original threads were replied to inline
-> (Claude-attributed, SHA-cited) and resolved. A second review round (cubic on the
-> pushed head) filed 5 more, all fixed in the follow-up commit: the custom
-> polymorphic-token fallback reverted to fail-closed inert (deferred to #155), a
-> db-task exemption on the subject-key diagnostic, a storable-key guard on the
-> record-less collection gate, a production column-mapping test pin, and this
-> handoff correction.
+> **Worktree state:** committed and pushed on `fix/uuid-subject-collision` (the
+> branch head is the live SHA — this file does not pin it, because writing a head
+> SHA into a committed file makes it stale on the next commit). The review-fix
+> work described below shipped as a series of `fix(review)` commits; all 27
+> original threads were replied to inline (Claude-attributed, SHA-cited) and
+> resolved. Cubic re-reviewed each pushed head and filed more each round (5, then
+> 2, then 1), all fixed and resolved: the custom polymorphic-token fallback
+> reverted to fail-closed inert (deferred to #155), a db-task exemption on the
+> subject-key diagnostic, a storable-key guard on the record-less collection gate,
+> a production column-mapping test pin, and successive handoff corrections.
 >
 > A first pass addressed the findings that reproduced as correctness/security
 > gaps:
@@ -78,11 +80,11 @@
 > limited; the members candidate query is not per-subclass-token) → a new
 > follow-up issue, to be filed and cited when replying.
 >
-> **Remaining:** none on the review side. Head `63eb014` is green on all three
-> adapters, and every review thread (27 first-round + 5 + 2 from cubic's two
-> re-reviews) is replied-to and resolved. The last step before the banner drops
-> is unchanged by this PR: the real-host `:report` → `:enforce` bake (a human
-> step). A human merges #153.
+> **Remaining:** none on the review side. The branch head is green on all three
+> adapters (SQLite/PostgreSQL/MySQL), and every review thread (27 first-round plus
+> cubic's re-review rounds) is replied-to and resolved. The last step before the
+> banner drops is unchanged by this PR: the real-host `:report` → `:enforce` bake
+> (a human step). A human merges #153.
 
 > ## 🔴 RELEASE BLOCKERS — #151, then the real-host bake (#116 Wave 3)
 >

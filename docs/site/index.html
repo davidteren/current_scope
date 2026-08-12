@@ -498,7 +498,38 @@
             <thead><tr>
               <th class="ctrl">controller</th><th>read</th><th>create</th><th>update</th><th>destroy</th><th>approve</th>
             </tr></thead>
-            <tbody></tbody>
+            <tbody>
+              <tr><td class="ctrl">orders</td>
+                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="orders read"></div></td>
+                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="orders create"></div></td>
+                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="orders update"></div></td>
+                <td><div class="cell" role="button" tabindex="0" aria-pressed="false" aria-label="orders destroy"></div></td>
+                <td><div class="cell void"></div></td></tr>
+              <tr><td class="ctrl">reports</td>
+                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="reports read"></div></td>
+                <td><div class="cell" role="button" tabindex="0" aria-pressed="false" aria-label="reports create"></div></td>
+                <td><div class="cell" role="button" tabindex="0" aria-pressed="false" aria-label="reports update"></div></td>
+                <td><div class="cell void"></div></td>
+                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="reports approve"></div></td></tr>
+              <tr><td class="ctrl">invoices</td>
+                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="invoices read"></div></td>
+                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="invoices create"></div></td>
+                <td><div class="cell" role="button" tabindex="0" aria-pressed="false" aria-label="invoices update"></div></td>
+                <td><div class="cell" role="button" tabindex="0" aria-pressed="false" aria-label="invoices destroy"></div></td>
+                <td><div class="cell void"></div></td></tr>
+              <tr><td class="ctrl">projects</td>
+                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="projects read"></div></td>
+                <td><div class="cell" role="button" tabindex="0" aria-pressed="false" aria-label="projects create"></div></td>
+                <td><div class="cell void"></div></td>
+                <td><div class="cell void"></div></td>
+                <td><div class="cell void"></div></td></tr>
+              <tr><td class="ctrl">expenses</td>
+                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="expenses read"></div></td>
+                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="expenses create"></div></td>
+                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="expenses update"></div></td>
+                <td><div class="cell" role="button" tabindex="0" aria-pressed="false" aria-label="expenses destroy"></div></td>
+                <td><div class="cell on" role="button" tabindex="0" aria-pressed="true" aria-label="expenses approve"></div></td></tr>
+            </tbody>
           </table>
           <span class="am-hint">Click a cell. This mock is local only.</span>
         </div>
@@ -1106,45 +1137,16 @@ bin/rails server    <span class="tk-com"># http://localhost:3000</span></pre>
     }else{mark(false,'Copy failed. Select the command.')}
   });
 
-  var rows=[
-    ['orders',    [1,1,1,0,-1]],
-    ['reports',   [1,0,0,-1,1]],
-    ['invoices',  [1,1,0,0,-1]],
-    ['projects',  [1,0,-1,-1,-1]],
-    ['expenses',  [1,1,1,0,1]]
-  ];
-  var tb2=document.querySelector('#pgrid tbody');
-  if(tb2){
-    rows.forEach(function(r){
-      var tr=document.createElement('tr');
-      var td=document.createElement('td');td.className='ctrl';td.textContent=r[0];tr.appendChild(td);
-      r[1].forEach(function(st, i){
-        var c=document.createElement('td');
-        var d=document.createElement('div');
-        d.className='cell'+(st===-1?' void':'');
-        if(st!==-1){
-          d.setAttribute('role','button');
-          d.setAttribute('tabindex','0');
-          d.setAttribute('aria-label', r[0]+' '+(['read','create','update','destroy','approve'][i]));
-          d.setAttribute('aria-pressed', st===1?'true':'false');
-          var toggle=function(){
-            d.classList.toggle('on');
-            d.setAttribute('aria-pressed', d.classList.contains('on')?'true':'false');
-          };
-          d.addEventListener('click',toggle);
-          d.addEventListener('keydown',function(ev){
-            if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();toggle()}
-          });
-          if(st===1){
-            d.classList.add('on');
-            d.setAttribute('aria-pressed','true');
-          }
-        }
-        c.appendChild(d);tr.appendChild(c);
-      });
-      tb2.appendChild(tr);
+  document.querySelectorAll('#pgrid .cell:not(.void)').forEach(function(d){
+    var toggle=function(){
+      d.classList.toggle('on');
+      d.setAttribute('aria-pressed', d.classList.contains('on')?'true':'false');
+    };
+    d.addEventListener('click',toggle);
+    d.addEventListener('keydown',function(ev){
+      if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();toggle()}
     });
-  }
+  });
 
   var tabs=[].slice.call(document.querySelectorAll('.tab'));
   function selectTab(t){

@@ -80,11 +80,10 @@
 > limited; the members candidate query is not per-subclass-token) → a new
 > follow-up issue, to be filed and cited when replying.
 >
-> **Remaining:** none on the review side. The branch head is green on all three
-> adapters (SQLite/PostgreSQL/MySQL), and every review thread (27 first-round plus
-> cubic's re-review rounds) is replied-to and resolved. The last step before the
-> banner drops is unchanged by this PR: the real-host `:report` → `:enforce` bake
-> (a human step). A human merges #153.
+> **Done:** PR #153 merged and released as 0.5.0; the vulnerable 0.2.0–0.4.0 are
+> yanked and the advisory (GHSA-944r-4v99-qqf7) is published (#151, closed). The
+> only step before the banner drops fully (GA / 1.0) is the real-host `:report` →
+> `:enforce` bake (a human step).
 
 > ## 🔴 GA BLOCKER — the real-host bake (#116 Wave 3)
 >
@@ -174,9 +173,9 @@ controllers, views, and ViewComponents.
 Version **`0.4.0` cut 2026-07-23** (tag + GitHub Release) and **published on
 RubyGems 2026-07-24**: solid-solution Phase 1, denial ergonomics + security
 checklist (#39/#32), the docs site (#98/#33), and the full migration
-toolkit (#45). Showcase hosts still on `~> 0.3.0` should bump to `~> 0.4.0`
-and `bundle update current_scope`. Beta; see the README banner and tracking
-issue **#116**.
+toolkit (#45). Showcase hosts on an earlier version should bump to `~> 0.5.0`
+(0.2–0.4 are yanked) and `bundle update current_scope`. Beta; see the README
+banner and tracking issue **#116**.
 
 **0.3.0 shipped 2026-07-19.** The release gate (dte-deep-reviewer +
 dte-test-auditor + /security-review; records in `docs/reviews/`) passed with
@@ -789,8 +788,8 @@ quickstart, production checklist) + tests T1–T4.
 >    `:enforce`. Everything proven so far is the showcase and the six
 >    `current_scope_test_scenarios` apps — the banner should outlive one real
 >    adoption.
-> 2. **The banner-drop PR** — remove the README banner + badge, update this
->    file, cut the next release.
+> 2. **The GA release** — remove the Beta banner + badge, update this file, and
+>    cut 1.0.
 >
 > Items 1–12 below are the standing backlog; the numbered history is kept
 > because the struck-through entries record what was decided and why.

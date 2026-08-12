@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-08-12
+
 ### Changed
 - **Readiness banner softened from "not production-ready" to Beta.** The core is
   built and security-hardened; general availability (1.0) is gated on the
@@ -171,11 +173,11 @@ banner stays up on purpose: production-readiness is gated on the real-host
   `String#to_i` on write. `"7f00aaaa-…"` and `"7f00bbbb-…"` both stored as `7`; a
   key beginning with a letter stored as `0`. Distinct records collapsed into one
   identity, and a subject held a role nobody granted them — `full_access`
-  included. **This affects 0.2, 0.3 and 0.4 as published.** Those versions are
-  being yanked, and **0.5.0 is the first safe release** (0.1.0 carried the same
+  included. **This affects 0.2, 0.3 and 0.4 as published.** Those versions have
+  been yanked, and **0.5.0 is the first safe release** (0.1.0 carried the same
   defect but was never published to RubyGems). Security advisory:
   [GHSA-944r-4v99-qqf7](https://github.com/davidteren/current_scope/security/advisories/GHSA-944r-4v99-qqf7)
-  (CVE pending); remediation of the published versions is tracked in #151.
+  (CVE pending); remediation of the published versions is complete (#151, closed).
 
   Nothing surfaced it: the association still resolved (to the wrong record), the
   per-subject uniqueness index saw the collapsed value as a single subject, and no
@@ -849,7 +851,8 @@ guards from the solid-solution worklist (PR #100). No intended host API break.
   so `allowed_to?` works identically in controllers, views, and ViewComponents,
   the mounted management UI, and the `current_scope:install` generator.
 
-[Unreleased]: https://github.com/davidteren/current_scope/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/davidteren/current_scope/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/davidteren/current_scope/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/davidteren/current_scope/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/davidteren/current_scope/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/davidteren/current_scope/compare/v0.3.0...v0.3.1

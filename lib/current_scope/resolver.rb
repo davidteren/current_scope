@@ -576,6 +576,11 @@ module CurrentScope
       # rows, so no scoped grant can name it — deny, don't 500.
       return false unless collection_type?(type)
 
+      # A collection gate binds grants to a single-value key. A composite or absent
+      # primary key holds no canonical grant, and `where(pk => ids)` with an array
+      # pk would 500 — deny, fail-closed, before either arm builds a relation.
+      return false unless CurrentScope.storable_key?(type.base_class)
+
       if collection_read_action?(permission)
         scope_for(subject: subject, model: type, permission: permission).exists?
       else

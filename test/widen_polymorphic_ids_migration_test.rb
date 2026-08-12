@@ -167,6 +167,23 @@ class WidenPolymorphicIdsMigrationTest < ActiveSupport::TestCase
     end
   end
 
+  # with_probe_as_migration_target swaps COLUMNS/TYPE_COLUMNS to the probe, so the
+  # end-to-end test above no longer touches the real grant tables. Pin the
+  # production mapping directly, so a typo pointing the migration at the wrong
+  # table or column is caught even though the driven run uses a probe.
+  test "the production column mapping names the real grant tables and columns" do
+    assert_equal(
+      { current_scope_role_assignments: [ :subject_id ],
+        current_scope_scoped_role_assignments: [ :subject_id, :resource_id ] },
+      WidenCurrentScopePolymorphicIds::COLUMNS
+    )
+    assert_equal(
+      { current_scope_role_assignments: [ :subject_type ],
+        current_scope_scoped_role_assignments: [ :subject_type, :resource_type ] },
+      WidenCurrentScopePolymorphicIds::TYPE_COLUMNS
+    )
+  end
+
   private
 
   def with_probe_as_migration_target

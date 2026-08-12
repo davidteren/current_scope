@@ -17,10 +17,14 @@
 >
 > ### In-progress handoff — PR #153 review fixes (2026-08-12)
 >
-> **Worktree state:** branch `fix/uuid-subject-collision`; the changes described
-> below are **uncommitted and unpushed**. No GitHub review thread has been replied
-> to or resolved. PR #153 still has 27 unresolved current threads (14 Cubic,
-> 11 Devin, 2 Qodo).
+> **Worktree state:** committed and pushed (head `39608d2`+). The review-fix work
+> described below shipped; all 27 original threads were replied to inline
+> (Claude-attributed, SHA-cited) and resolved. A second review round (cubic on the
+> pushed head) filed 5 more, all fixed in the follow-up commit: the custom
+> polymorphic-token fallback reverted to fail-closed inert (deferred to #155), a
+> db-task exemption on the subject-key diagnostic, a storable-key guard on the
+> record-less collection gate, a production column-mapping test pin, and this
+> handoff correction.
 >
 > A first pass addressed the findings that reproduced as correctness/security
 > gaps:

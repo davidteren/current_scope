@@ -265,14 +265,13 @@ module  CurrentScope
 
       owner.polymorphic_class_for(type)
     rescue NameError
-      # Rails cannot reverse an arbitrary polymorphic_name override by
-      # constantizing its token. It can only have been written by a loaded model,
-      # so use that model when the token identifies exactly one candidate; an
-      # ambiguous or stale token remains inert.
-      candidates = ActiveRecord::Base.descendants.select do |model|
-        model.respond_to?(:polymorphic_name) && model.polymorphic_name == type
-      end
-      candidates.one? ? candidates.first : nil
+      # A token Rails cannot reverse by constantizing (an overridden
+      # polymorphic_name, or store_full_class_name = false) stays INERT. Inferring
+      # the owner from the current descendant set is a guess that goes wrong when a
+      # token is reused after its original model was removed or renamed: it would
+      # attach an old grant to a different model's records, the exact #151 harm.
+      # Safe reverse-resolution needs an explicit persisted mapping, tracked in #155.
+      nil
     end
 
     # #151. `subject_id` and `resource_id` are string columns, so ANY single-value

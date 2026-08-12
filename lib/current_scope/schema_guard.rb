@@ -215,7 +215,9 @@ module CurrentScope
       # No rake application in scope (a server or console): not a database task.
       false
     end
-    private_class_method :check_id_column!, :check_collation!, :mysql?,
-                         :running_a_database_task?
+    private_class_method :check_id_column!, :check_collation!, :mysql?
+    # Public: Engine#validate_subject_key! asks the same "may this command boot
+    # without the schema?" question and reuses this rather than re-deriving it.
+    public_class_method :running_a_database_task?
   end
 end

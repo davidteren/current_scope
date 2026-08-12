@@ -173,18 +173,16 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     assert CurrentScope.canonical_key?(UuidUser, ALICE_ID), "a UUID is canonical for a string key"
   end
 
-  test "a loaded model with a custom polymorphic token still gets key validation" do
+  test "an un-reversible custom polymorphic token stays inert rather than guessing an owner" do
     original = UuidUser.method(:polymorphic_name)
     UuidUser.define_singleton_method(:polymorphic_name) { "uuid_people" }
 
-    assert_equal UuidUser, CurrentScope.polymorphic_class("uuid_people")
-
-    role = CurrentScope::Role.create!(name: "Editor")
-    grant = CurrentScope::RoleAssignment.new(role: role)
-    grant.subject_type = "uuid_people"
-    grant.subject_id = "x" * (CurrentScope::KEY_LIMIT + 1)
-    grant.send(:current_scope_check_storable_keys, [ "subject" ])
-    assert grant.errors.any?, "a custom storage token must not bypass the key guard"
+    # Rails cannot constantize "uuid_people". Rather than infer the owner from the
+    # loaded descendant set -- which mis-resolves a token reused after its original
+    # model was removed -- polymorphic_class returns nil, so such a grant is inert.
+    # Safe reverse-resolution of custom tokens needs an explicit mapping (#155).
+    assert_nil CurrentScope.polymorphic_class("uuid_people"),
+               "a token that cannot be reversed must stay inert, not guess a model"
   ensure
     UuidUser.define_singleton_method(:polymorphic_name, original)
   end
@@ -426,7 +424,9 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     yield
   ensure
     guard.define_singleton_method(:running_a_database_task?, original)
-    guard.singleton_class.send(:private, :running_a_database_task?)
+    # Public now: Engine#validate_subject_key! calls it too (it shares the
+    # "may this command boot without the schema?" question), so restore it public.
+    guard.singleton_class.send(:public, :running_a_database_task?)
   end
 
   # Stand a double in for the whole Rake application, and put back whatever was

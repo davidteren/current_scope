@@ -177,6 +177,13 @@ module CurrentScope
     # class): "unknown" must not become "broken", or `rails db:create` on a fresh
     # checkout would raise.
     def self.validate_subject_key!
+      # Skip during database tasks, exactly as SchemaGuard does. This runs from
+      # to_prepare, which also fires during `rails db:migrate`; a composite or
+      # absent subject key would otherwise raise BEFORE the host can run the very
+      # migration that fixes it. The write-path validation stays the fail-closed
+      # guarantee, so skipping the early diagnostic here loses nothing.
+      return if CurrentScope::SchemaGuard.running_a_database_task?
+
       klass = CurrentScope.config.subject_class
       klass = klass.to_s.safe_constantize if klass.is_a?(String) || klass.is_a?(Symbol)
       return unless klass.respond_to?(:primary_key)

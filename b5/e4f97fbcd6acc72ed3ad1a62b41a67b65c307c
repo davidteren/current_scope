@@ -1,0 +1,22 @@
+README.md
+  h_e8a5bb9272fa34 94-95
+docs/guides/concepts-and-glossary.md
+  h_e8a5bb9272fa34 33-34
+docs/guides/separation-of-duties-and-break-glass.md
+  h_e8a5bb9272fa34 51
+docs/plans/2026-07-15-001-fix-scoped-collection-gate-plan.md
+  h_e8a5bb9272fa34 14-18
+docs/site/_includes/resolver-order.md
+  h_e8a5bb9272fa34 21-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "b5e4f97fbcd6acc72ed3ad1a62b41a67b65c307c",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

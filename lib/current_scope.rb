@@ -286,7 +286,10 @@ module  CurrentScope
         next unless klass.respond_to?(:polymorphic_name)
 
         token = klass.polymorphic_name.to_s
-        next if token.blank? || token == klass.name
+        next if token.blank?
+        # Default STI stores the base class name. That is not a custom token,
+        # and every subclass would collide on it.
+        next if token == klass.name || token == klass.base_class.name
 
         claim!(map, token, klass)
       end

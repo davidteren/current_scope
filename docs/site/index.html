@@ -491,12 +491,12 @@ allowed_to?<span class="tk-p">(</span><span class="tk-sym">:approve</span><span 
       </div>
       <div class="step">
         <div class="n">4</div>
-        <div class="body"><div class="t">scoped role</div><div class="d">A role held on <em>this</em> record</div></div>
+        <div class="body"><div class="t">scoped role</div><div class="d">A role held on <em>this</em> record, or on a declared parent (opt-in)</div></div>
         <span class="verdict v-allow">ALLOW</span>
       </div>
       <div class="step">
         <div class="n">5</div>
-        <div class="body"><div class="t">record-less</div><div class="d">No record: a scoped grant of the declared type opens a listed collection read</div></div>
+        <div class="body"><div class="t">record-less</div><div class="d">No record: a scoped grant of the named type opens a listed collection read</div></div>
         <span class="verdict v-allow">ALLOW</span>
       </div>
       <div class="step">

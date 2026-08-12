@@ -74,17 +74,19 @@ The decision order, fixed:
 1. SoD veto        → initiator? (opt-in, off by default)  DENY (overrides all)
 2. full_access     → role grants everything, forever     ALLOW
 3. org-wide role   → role's permission set includes it   ALLOW
-4. scoped role     → a role held on THIS record          ALLOW
+4. scoped role     → a role held on THIS record, or on   ALLOW
+                     a declared parent (opt-in)
 5. record-less     → no record: a scoped grant of the     ALLOW
-                     declared type opens a listed
+                     named type opens a listed
                      collection read (index by default)
 6. otherwise       → default deny
 ```
 
-Step 5 is why a scoped-only subject can reach an index: with no record to
-bind to, the gate admits a listed collection read when that subject's
-scoped list is not empty. It needs `current_scope_model` to name the type.
-Without it the grant is type-unbound and the gate stays closed. See
+Step 4 also matches a grant on a declared parent when the child opted in
+with `current_scope_parent`. Step 5 is why a scoped-only subject can reach
+an index. A collection action names the type with `current_scope_model`.
+The class form `allowed_to?(:index, Report)` names the type itself.
+Without a type the gate stays closed. See
 [Checking permissions](docs/guides/checking-permissions.md#scoping-a-list-scope_for).
 
 ## Screenshots

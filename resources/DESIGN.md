@@ -305,12 +305,12 @@ Because the scoped role reuses the *same* Role rows as org-wide roles, "Editor"
 means the same set of permissions whether held org-wide or on one record — only
 the *reach* differs.
 
-**Open question — resource hierarchy / cascade (NOT solved here):** should a
-scoped role on a *parent* apply to its *children*? E.g. "Editor of Project #7"
-implying edit rights on the reports that belong to Project #7. This engine as
-described resolves against *the record itself* only. Cascade would require a
-declared parent/child traversal (and raises questions about depth, performance,
-and cycles). Flagged for iteration — see §9.
+**Open question — resource hierarchy / cascade (SHIPPED as `current_scope_parent`,
+#108):** should a scoped role on a *parent* apply to its *children*? E.g.
+"Editor of Project #7" implying edit rights on the reports that belong to
+Project #7. This original write-up resolved against *the record itself* only.
+The shipped answer is opt-in on the child, bounded at five hops, and scoped
+`full_access` does not cascade. See §9.
 
 ---
 

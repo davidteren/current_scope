@@ -122,13 +122,17 @@ module CurrentScope
       # passed model's name — otherwise scope_for(STISubclass) returns nothing
       # while the per-record gate (also keyed on base_class) would allow it. The
       # `model.where` still applies STI's own type predicate, so a subclass query
-      # can't over-list sibling-subclass rows. An empty subquery yields an empty
+      # can't over-list sibling-subclass rows. An empty id list yields an empty
       # (still chainable) relation.
-      direct = model.where(
-        id: ScopedRoleAssignment
-              .where(subject: subject, resource_type: model.base_class.name, role_id: roles_granting(permission))
-              .select(:resource_id)
-      )
+      #
+      # NOTE scope_for is EAGER since #151: granted_ids runs its query when the
+      # relation is BUILT, not when it is enumerated, so the result is a snapshot
+      # of the grants at call time and the method needs a connection. The returned
+      # relation is still lazy and chainable.
+      direct = model.where(model.primary_key => granted_ids(
+        subject: subject, type: model.base_class.name, model: model,
+        roles: roles_granting(permission)
+      ))
 
       ancestor_scope_for(subject: subject, model: model, permission: permission)
         .reduce(direct) { |relation, arm| relation.or(arm) }
@@ -219,7 +223,7 @@ module CurrentScope
     # caller turns an unbound match into a PERMIT. Four callers, each safe for
     # its own reason: scoped_grant? binds `resource:` to the exact record;
     # scope_for binds `resource_type:` and answers in record ids
-    # (.select(:resource_id)) for the caller to narrow, never a boolean permit
+    # (granted_ids) for the caller to narrow, never a boolean permit
     # — which is also why the record-less read gate (#65) is safe: it asks
     # scope_for and takes .exists? of the id-narrowed relation, so its answer
     # is still derived from the records the subject holds, not from the grant
@@ -387,15 +391,45 @@ module CurrentScope
         path << [ klass, reflection.foreign_key ]
         break if path.size > ParentChain::MAX_PARENT_DEPTH
 
-        granted = ScopedRoleAssignment
-                    .where(subject: subject, resource_type: parent.base_class.name, role_id: roles_ticking(permission))
-                    .select(:resource_id)
+        granted = granted_ids(
+          subject: subject, type: parent.base_class.name, model: parent,
+          roles: roles_ticking(permission)
+        )
 
-        arms << narrow_through(path, innermost: parent.where(id: granted))
+        arms << narrow_through(path, innermost: parent.where(parent.primary_key => granted))
         klass = parent
       end
 
       arms
+    end
+
+    # The granted resource ids, READ OUT rather than left as a subquery.
+    #
+    # `resource_id` is a string column (#151) so that a UUID key survives, but a
+    # model's own primary key is usually a bigint. Comparing the two inside SQL is
+    # where adapters part company: SQLite coerces silently, MySQL coerces at the
+    # cost of the index, and PostgreSQL refuses outright with
+    # `operator does not exist: bigint = character varying`. Handing ActiveRecord a
+    # plain array instead lets it cast each value to the target column's own type,
+    # which is correct on all three and needs no adapter branching.
+    #
+    # The cost is one small extra query: the set is the grants THIS subject holds
+    # on THIS type, not a row per record. bin/db runs the suite against all three
+    # adapters so a regression here cannot hide behind SQLite again.
+    #
+    # NON-CANONICAL IDS ARE DROPPED, and that filter is load-bearing. Handing the
+    # raw strings to `model.where(primary_key => ids)` lets ActiveRecord cast each
+    # one INTO the model's key type — and for a bigint key that cast is
+    # String#to_i, so a grant holding "7f00aaaa-…" would come back as 7 and open
+    # record 7, which it never named. Widening the column closed that collapse on
+    # the write path and re-opened it here; the round-trip check closes it again.
+    # Dropping (rather than matching) keeps the fail-closed direction: an id that
+    # names no record grants nothing.
+    def granted_ids(subject:, type:, model:, roles:)
+      ScopedRoleAssignment
+        .where(subject: subject, resource_type: type, role_id: roles)
+        .pluck(:resource_id)
+        .select { |id| CurrentScope.canonical_key?(model, id) }
     end
 
     # Build `model.where(fk1 => Parent.where(fk2 => ...))` from the outside in, so
@@ -542,12 +576,20 @@ module CurrentScope
       # rows, so no scoped grant can name it — deny, don't 500.
       return false unless collection_type?(type)
 
+      # A collection gate binds grants to a single-value key. A composite or absent
+      # primary key holds no canonical grant, and `where(pk => ids)` with an array
+      # pk would 500 — deny, fail-closed, before either arm builds a relation.
+      return false unless CurrentScope.storable_key?(type.base_class)
+
       if collection_read_action?(permission)
         scope_for(subject: subject, model: type, permission: permission).exists?
       else
-        ScopedRoleAssignment
-          .where(subject: subject, resource_type: type.base_class.name, role_id: roles_ticking(permission))
-          .exists?
+        # A syntactically valid stored id is not enough: a destroyed/default-
+        # scoped-out record opens nothing. Keep the established R6a STI ceiling:
+        # non-read collection gates bind to the base class, not one subclass.
+        ids = granted_ids(subject: subject, type: type.base_class.name, model: type,
+                          roles: roles_ticking(permission))
+        type.base_class.where(type.base_class.primary_key => ids).exists?
       end
     end
 

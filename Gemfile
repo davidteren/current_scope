@@ -18,6 +18,12 @@ gem "rubocop-rails-omakase", require: false
 group :test do
   gem "capybara"
   gem "cuprite"
+  # #151 widened the polymorphic id columns to string, and adapters disagree about
+  # comparing a string column to an integer one: SQLite coerces silently, MySQL
+  # coerces with an index cost, PostgreSQL raises. A SQLite-only suite cannot see
+  # that, so the suite runs against all three. Containers come from bin/db (Docker).
+  gem "pg", require: false
+  gem "trilogy", require: false
   # Coverage signal in CI (T6 / #114). Opt out with COVERAGE=0.
   gem "simplecov", require: false
 end

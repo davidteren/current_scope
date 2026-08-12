@@ -51,7 +51,139 @@ the migration toolkit. No intended host API break. Boot now **raises** if
 `sod_bypass_permission` is listed in `sod_actions` (#40) instead of 500ing on
 the first real bypass.
 
-## 0.4 → 0.5: a mis-declared `current_scope_parent` now fails the deploy (#139)
+## 0.4 → 0.5: run the migrations, or the engine will not boot (security, #151)
+
+**This release fixes a privilege escalation. If your subject or scoped-resource
+models use UUID or other string primary keys, you were affected on 0.2, 0.3 and
+0.4.**
+
+Grant ids lived in integer columns, so a non-numeric key was cast on write:
+`"7f00aaaa-…"` and `"7f00bbbb-…"` both stored as `7`, and a key starting with a
+letter stored as `0`. Two subjects became one, and one inherited the other's
+org-wide role, `full_access` included. Nothing failed; the association still
+resolved, to the wrong record.
+
+### What you must do
+
+```bash
+bin/rails current_scope:install:migrations
+bin/rails db:migrate
+```
+
+The columns become `varchar(64)`, so integer, UUID and ULID keys are all stored
+whole. **The engine raises at boot until this migration has run** — a gem upgrade
+alone would leave the escalation in place while every code path looked correct.
+
+The migration rewrites both grant tables under an exclusive lock (PostgreSQL
+`ACCESS EXCLUSIVE`, MySQL `ALGORITHM=COPY`). Grant tables are normally small, so
+this is quick; if yours is large, schedule it like any other table rewrite, or
+run it through your usual online-DDL tool.
+
+Database, installer and `assets:` tasks are exempt from the boot refusal, so the
+repair and your asset build still run on an unmigrated host. Everything that
+serves traffic or runs your code — server, console, `runner`, and `db:seed` —
+is refused. If some other build step must boot before the migration can run, set
+`CURRENT_SCOPE_SKIP_SCHEMA_CHECK=1` **for that one command** (the literal string
+`1`; any other value is ignored and logged). Setting it for a process that serves
+traffic turns the guard off and puts the escalation back.
+
+### If your database was built from `schema.rb`
+
+New apps, CI, and fresh checkouts load `schema.rb` rather than running
+migrations — and that marks every migration as already applied, so `db:migrate`
+finds nothing pending. `schema.rb` also cannot express a MySQL collation. On
+MySQL that combination leaves the columns case-insensitive, the engine refusing
+to boot, and `db:migrate` unable to help. Run the repair task instead:
+
+```bash
+bin/rails current_scope:repair_schema
+```
+
+It is idempotent and safe to re-run, and it is exempt from the boot refusal so
+it works on a database the engine will not otherwise start against.
+
+**On MySQL, run the repair before seeds that create grants.** `db:setup`,
+`db:reset`, and `db:prepare` load `schema.rb` and then run your seeds in the same
+process — and `schema.rb` cannot carry the binary collation, so the columns are
+still case-insensitive when the seeds run. A seed that creates a grant is
+refused (the write path re-checks the schema, on purpose — an unrepaired column
+is the #151 collision). Run `bin/rails current_scope:repair_schema` after loading
+the schema and before seeding grants, or keep grant-creating seeds out of the
+one-shot rebuild. This is the guard working, not a bug: it fails closed rather
+than seed collapsible grants.
+
+On MySQL the columns are given a binary collation: `utf8mb4_0900_bin` where the
+server offers it (8.0.17+), otherwise `utf8mb4_bin`. The server default is case-
+and accent-insensitive, which would make `"ABC"` and `"abc"` — or `"jose"` and
+`"josé"` — the same subject. `utf8mb4_0900_bin` is preferred because it is also
+`NO PAD`, so `"abc"` and `"abc "` stay distinct too. A primary key is an
+identifier, not prose.
+
+Keys longer than 64 characters are rejected rather than truncated, because a
+truncated key names the wrong record.
+
+### Every host: grant ids now read back as strings
+
+This part affects you **even if all your keys are integers**, because the column
+type changed for everyone:
+
+```ruby
+grant = CurrentScope::RoleAssignment.find_by(subject: user)
+grant.subject_id        # => "7"  (was 7)
+grant.subject_id == user.id   # => false, and it used to be true
+grant.subject_id.to_s == user.id.to_s  # => true
+```
+
+If your own code compares a grant id against a model id, compare `.to_s` on both
+sides. The engine's own queries are unaffected: `where(subject: user)` and
+`scope_for` cast for you.
+
+A grant is also now refused at write time when the id is not a legal key for the
+model it names — `resource_type: "Project"` with a UUID `resource_id`, say. Such
+a row could never identify a real `Project`, and left alone the read path would
+cast it back to a *different* project's id. If you build grants from parameters
+or an import rather than from a located record, expect that validation to start
+rejecting rows it previously accepted; those rows were never safe.
+
+### Audit the rows you already have
+
+**Widening the column does not repair rows already written.** Once `"7f00aaaa-…"`
+was stored as `7`, the original value is gone. After migrating, those grants match
+nobody, so they fail closed (access lost, not gained) and appear as inert grants.
+They must be re-granted.
+
+Every grant held on a type whose key is not an integer is suspect — not only the
+ones now pointing at nothing. A collapsed value could also land ON a real record
+(`"7f00…"` becomes `7`, and another record's key is `7`), which is the dangerous
+case an orphan check misses:
+
+```ruby
+[[CurrentScope::RoleAssignment, %w[subject]],
+ [CurrentScope::ScopedRoleAssignment, %w[subject resource]]].each do |model, sides|
+  sides.each do |side|
+    model.distinct.pluck(:"#{side}_type").compact.each do |type|
+      # polymorphic_class_for, not safe_constantize: the column stores a Rails
+      # TOKEN, which a custom polymorphic_name or store_full_class_name = false
+      # can shorten.
+      klass = begin
+        ActiveRecord::Base.polymorphic_class_for(type)
+      rescue NameError
+        next
+      end
+      key = klass.primary_key
+      next if key.is_a?(String) && klass.type_for_attribute(key).type == :integer
+
+      count = model.where("#{side}_type" => type).count
+      puts "RE-GRANT: #{count} #{model.name} row(s) with #{side}_type=#{type} (#{klass.name} keys on #{key.inspect})"
+    end
+  end
+end
+```
+
+## 0.4 → 0.5, separately: a mis-declared `current_scope_parent` now fails the deploy (#139)
+
+This is an unrelated change that lands in the same release. It is not part of the
+#151 fix above and needs its own attention.
 
 **If your app boots today and stops booting after upgrading**, you have a
 `current_scope_parent` declared on a `belongs_to` with a custom `primary_key:`.

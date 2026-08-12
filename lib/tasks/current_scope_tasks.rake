@@ -1,4 +1,36 @@
 namespace :current_scope do
+  desc "Apply the #151 grant-column shape to an existing database, idempotently. " \
+       "Usage: bin/rails current_scope:repair_schema"
+  task repair_schema: :environment do
+    # WHY THIS EXISTS SEPARATELY FROM db:migrate.
+    #
+    # A database built by `db:schema:load` / `db:setup` / `db:test:prepare` —
+    # every new app, every CI run, every fresh checkout — comes out with the
+    # right column TYPE and the server's default collation, because schema.rb
+    # cannot express a MySQL collation. Loading a schema also stamps every
+    # migration version as applied, so `db:migrate` has nothing pending and
+    # prints nothing. On MySQL that left a host unable to boot, with the boot
+    # error prescribing a command that could not possibly fix it.
+    #
+    # This task re-applies the migration's own logic directly. It is idempotent:
+    # where the columns are already correct it changes nothing.
+    path = Dir[CurrentScope::Engine.root.join("db/migrate/*_widen_current_scope_polymorphic_ids.rb")].first
+    abort "Could not find the widening migration inside the gem." if path.nil?
+
+    load path
+    migration = WidenCurrentScopePolymorphicIds.new
+    migration.verbose = false
+    migration.migrate(:up)
+
+    # Say what this adapter actually did. The binary collation is a MySQL-only
+    # step — PostgreSQL and SQLite already compare these columns byte for byte —
+    # so claiming it everywhere would tell a PostgreSQL operator their columns
+    # were re-collated when nothing of the sort happened.
+    shape = "#{CurrentScope::KEY_LIMIT}-character"
+    shape += ", binary-collated" if CurrentScope.mysql?(CurrentScope::RoleAssignment.connection)
+    puts "CurrentScope grant columns are in the #{shape} shape #151 requires."
+  end
+
   desc "Grant the full-access Owner role to a subject (bootstrap the first admin). " \
        "Usage: bin/rails current_scope:grant SUBJECT_ID=1"
   task grant: :environment do
@@ -108,9 +140,12 @@ namespace :current_scope do
     # rollout aid must not abort the whole survey because one subject's class was
     # removed. Without it this task now raises NameError where it never did.
     grant_line = lambda do |grant|
+      # Through the canonical guard: a non-canonical stored subject_id must not
+      # be labeled as the unrelated live record it would cast into (#151).
+      subject = grant.current_scope_resolved_record("subject")
       who =
         begin
-          CurrentScope.label_for(grant.subject)
+          subject ? CurrentScope.label_for(subject) : "#{grant.subject_type} ##{grant.subject_id}"
         rescue StandardError
           "#{grant.subject_type} ##{grant.subject_id}"
         end

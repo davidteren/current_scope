@@ -52,6 +52,54 @@ Solid-solution Phase 1 (loud misconfig + audit honesty), denial ergonomics,
 security checklist, docs site, migration toolkit. No intended host API break.
 Boot **raises** if `sod_bypass_permission` is listed in `sod_actions` (#40).
 
+## 0.4 → 0.5: run the migration, or the engine will not boot (security, #151)
+
+**This release fixes a privilege escalation.** Grant ids were stored in integer
+columns, so a model with a UUID (or any non-numeric) primary key had its key
+truncated on write: `"7f00aaaa-…"` and `"7f00bbbb-…"` both became `7`. Two
+subjects became one identity, and one inherited the other's org-wide role —
+`full_access` included. If your subject or scoped-resource models use string
+primary keys, you were affected on 0.2, 0.3 and 0.4.
+
+```bash
+bin/rails current_scope:install:migrations
+bin/rails db:migrate
+```
+
+The engine **raises at boot until that migration has run**, because a gem
+upgrade alone would leave the escalation in place while every code path looked
+correct. Database, installer and `assets:` tasks are exempt so the repair and
+your asset build still work; anything that serves traffic or runs your code is
+refused.
+
+**If your database was built from `schema.rb`** — a new app, CI, a fresh
+checkout — run this instead. `schema.rb` cannot carry a MySQL collation, and
+loading a schema marks every migration as already applied, so `db:migrate` has
+nothing to do:
+
+```bash
+bin/rails current_scope:repair_schema
+```
+
+On MySQL, run that repair **before** any seeds that create grants:
+`db:setup`/`db:reset`/`db:prepare` load `schema.rb` (still case-insensitive) and
+seed in the same process, so a grant-creating seed is refused until the collation
+is repaired. That refusal is the guard working, not a bug. See `UPGRADING.md`.
+
+Two things to know before you upgrade:
+
+- **Rows written earlier are not repaired.** Once `"7f00aaaa-…"` was stored as
+  `7` the original value is gone. Those grants match nobody afterwards, so they
+  fail closed and must be re-granted. `UPGRADING.md` carries an audit query that
+  lists them, including the dangerous case where a truncated value landed on a
+  real record.
+- **Grant ids now read back as strings for every host**, integer keys included:
+  `grant.subject_id == user.id` is now `false` where it used to be `true`.
+  Compare `.to_s` on both sides in your own code.
+
+Full detail, including the MySQL collation and the 64-character limit, is in
+[UPGRADING.md](https://github.com/davidteren/current_scope/blob/main/UPGRADING.md).
+
 ## Silent SoD and advisory footguns (any version)
 
 These are not version flips; they are permanent posture facts:

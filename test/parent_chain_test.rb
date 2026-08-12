@@ -337,9 +337,21 @@ class ParentChainTest < ActiveSupport::TestCase
     role.role_permissions.create!(permission_key: "custom_key_reports#show")
     CurrentScope::ScopedRoleAssignment.create!(subject: subject, role: role, resource: granted)
 
-    visible = CurrentScope.resolver.scope_for(
-      subject: subject, model: klass, permission: "custom_key_reports#index"
-    ).to_a
+    # The declared chain compares reports.title (a string) against projects.id (a
+    # bigint). Adapters disagree about that: SQLite and MySQL coerce and quietly
+    # return the wrong rows, PostgreSQL refuses the comparison outright. BOTH
+    # outcomes prove the shape is broken, which is what this test characterises —
+    # so on a strict adapter, the raise IS the demonstration and there is nothing
+    # further to assert.
+    begin
+      visible = CurrentScope.resolver.scope_for(
+        subject: subject, model: klass, permission: "custom_key_reports#index"
+      ).to_a
+    rescue ActiveRecord::StatementInvalid => e
+      assert_match(/operator does not exist|type|cast/i, e.message,
+                   "a strict adapter must refuse the mismatched comparison, not fail some other way")
+      return
+    end
 
     refute_includes visible, linked,
                     "the record the declared chain actually links is NOT reachable — the grant " \

@@ -606,13 +606,15 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
     # back to an assignment-level EXISTS, which would go green here.
     doomed = Report.create!(title: "Gone", requested_by: @bob)
     scope_grant(@alice, role("Owner", full_access: true), doomed)
-    scope_grant(@bob, role("Editor", "reports#index"), doomed)
+    scope_grant(@bob, role("Editor", "reports#index", "reports#create"), doomed)
     doomed.destroy!
 
     assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: nil, model: Report),
       "a full_access grant on a destroyed record is an empty list — the gate must agree"
     assert_not @resolver.allow?(subject: @bob, permission: "reports#index", record: nil, model: Report),
       "an explicitly-ticked grant on a destroyed record flips too: strict means strict"
+    assert_not @resolver.allow?(subject: @bob, permission: "reports#create", record: nil, model: Report),
+      "a destroyed grant cannot open a record-less write merely because its stored id is valid"
   end
 
   test "#65 general rule: a granted record excluded by a default_scope opens nothing, like a destroyed one" do

@@ -15,6 +15,10 @@ module CurrentScope
       scope: [ :subject_type, :subject_id, :resource_type, :resource_id ]
     }
 
+    # #151: a grant must name exactly one record on BOTH sides.
+    include CurrentScope::StorableKeys
+    validates_storable_polymorphic_keys "subject", "resource"
+
     # Batch-load polymorphic resources for resolvable types only. A global
     # includes(:resource) NameErrors when any resource_type is stale; this
     # constantizes per type and skips unresolvable ones so they stay lazy
@@ -26,20 +30,40 @@ module CurrentScope
       list.group_by(&:resource_type).each do |type, rows|
         next if type.blank?
 
-        klass =
-          begin
-            type.constantize
-          rescue NameError
-            next
-          end
+        # Same canonical resolver the key guard uses: a namespaced, shortened or
+        # custom polymorphic token must not read as missing here while passing
+        # validation there.
+        klass = CurrentScope.polymorphic_class(type, owner: self)
+        next if klass.nil?
         next unless klass.respond_to?(:where)
 
-        records = klass.where(id: rows.map(&:resource_id).uniq).index_by { |r| r.id }
-        rows.each do |row|
-          assoc = row.association(:resource)
-          assoc.target = records[row.resource_id]
-          assoc.loaded!
+        # Look up by the DECLARED primary key, and index on the string form of it.
+        # resource_id is a string column (#151), so a record keyed on an integer
+        # yields 1 while the grant holds "1"; matching them raw silently misses and
+        # labels a live grant inert. `where` casts the strings back to the column's
+        # own type, so the query is still correct on every adapter.
+        key = klass.primary_key
+        unless key.is_a?(String)
+          mark_resources_loaded(rows, {})
+          next
         end
+
+        # Only ids that are legal keys for THIS model reach the query. A legacy
+        # collapsed value ("7", left by the pre-#151 integer column) sent at a
+        # PostgreSQL uuid column does not come back empty — it RAISES
+        # `invalid input syntax for type uuid`, and the console page an
+        # administrator opens to find these very grants 500s instead of listing
+        # them as inert. Same rule the resolver applies (CurrentScope
+        # .canonical_key?); a dropped id simply stays unloaded, which is exactly
+        # what orphaned_resource? then labels.
+        ids = rows.map(&:resource_id).uniq.select { |id| CurrentScope.canonical_key?(klass, id) }
+
+        # When NOTHING in the group is a legal key, skip the query but still mark
+        # every row loaded-as-nil below. Returning early instead would leave the
+        # associations lazy, so the first orphaned_resource? call would go and do
+        # per-row exactly the load this method exists to do safely and in bulk.
+        records = ids.empty? ? {} : klass.where(key => ids).index_by { |r| r[key].to_s }
+        mark_resources_loaded(rows, records)
       end
 
       list
@@ -56,10 +80,19 @@ module CurrentScope
         if resource_id.blank?
           false
         else
-          resource.nil?
+          current_scope_resolved_record("resource").nil?
         end
     rescue NameError, ActiveRecord::RecordNotFound
       @orphaned_resource = true
     end
+
+    def self.mark_resources_loaded(rows, records)
+      rows.each do |row|
+        assoc = row.association(:resource)
+        assoc.target = records[row.resource_id.to_s]
+        assoc.loaded!
+      end
+    end
+    private_class_method :mark_resources_loaded
   end
 end

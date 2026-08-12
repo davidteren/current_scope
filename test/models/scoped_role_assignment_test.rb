@@ -58,4 +58,53 @@ class ScopedRoleAssignmentTest < ActiveSupport::TestCase
     assert_not stale.association(:resource).loaded?
     assert stale.orphaned_resource?
   end
+
+  test "preload marks an unsupported key shape inert instead of leaving it lazy" do
+    user = User.create!(name: "U")
+    project = Project.create!(name: "Legacy")
+    role = CurrentScope::Role.create!(name: "Editor")
+    row = CurrentScope::ScopedRoleAssignment.create!(subject: user, resource: project, role: role)
+    row = CurrentScope::ScopedRoleAssignment.find(row.id)
+    original_key = Project.primary_key
+    Project.primary_key = [ "id", "name" ]
+
+    CurrentScope::ScopedRoleAssignment.preload_resolvable_resources!([ row ])
+
+    assert row.association(:resource).loaded?
+    assert_nil row.resource
+    assert row.orphaned_resource?
+  ensure
+    Project.primary_key = original_key
+  end
+
+  test "a non-canonical legacy id never resolves to an unrelated live resource" do
+    user = User.create!(name: "U")
+    project = Project.create!(name: "Seven")
+    role = CurrentScope::Role.create!(name: "Editor")
+    row = CurrentScope::ScopedRoleAssignment.create!(subject: user, resource: project, role: role)
+    row.update_columns(resource_id: "#{project.id}f00-wrong")
+    row = CurrentScope::ScopedRoleAssignment.find(row.id)
+
+    assert_nil row.current_scope_resolved_record("resource")
+    assert row.orphaned_resource?
+  end
+
+  # The SUBJECT side of the same guarantee. The members list, the revoke audit
+  # event, and the console grant survey all label from the subject, so a
+  # non-canonical stored subject_id must not resolve to an unrelated live subject
+  # (which the raw association would, by casting the string through the key type).
+  test "a non-canonical legacy subject id never resolves to an unrelated live subject" do
+    victim = User.create!(name: "Victim")
+    project = Project.create!(name: "P")
+    role = CurrentScope::Role.create!(name: "Editor")
+    row = CurrentScope::ScopedRoleAssignment.create!(subject: victim, resource: project, role: role)
+    # A UUID-shaped id that String#to_i collapses back onto victim.id.
+    row.update_columns(subject_id: "#{victim.id}f00aaaa-wrong")
+    row = CurrentScope::ScopedRoleAssignment.find(row.id)
+
+    assert_equal victim, row.subject,
+                 "the raw association still casts the collapsed id to a live record — that is the hazard"
+    assert_nil row.current_scope_resolved_record("subject"),
+               "the canonical guard must return nil, not the unrelated live subject"
+  end
 end

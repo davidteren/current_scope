@@ -99,6 +99,17 @@ Screenshot regenerate command: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Installation
 
+> **Upgrading from 0.4 or earlier? Run the migrations.** 0.5 widens the columns
+> that store a grant's subject and resource id, so UUID and other string primary
+> keys are stored whole instead of being truncated to an integer
+> ([#151](https://github.com/davidteren/current_scope/issues/151) — two subjects
+> could collapse into one identity, and one inherit the other's roles). Run
+> `bin/rails current_scope:install:migrations && bin/rails db:migrate`; the engine
+> refuses to boot until you do. If MySQL was loaded from `schema.rb`, also run
+> `bin/rails current_scope:repair_schema` to apply the binary collation that
+> `schema.rb` cannot represent. Integer, UUID and ULID keys all work, up to 64
+> characters. See [UPGRADING.md](UPGRADING.md).
+
 This is the **canonical greenfield quickstart** (new app, or install before
 users hit gated controllers). The same numbered path lives on the
 [docs site](https://davidteren.github.io/current_scope/quickstart.html) and in

@@ -86,7 +86,6 @@ module CurrentScope
       @orphaned_resource = true
     end
 
-
     def self.mark_resources_loaded(rows, records)
       rows.each do |row|
         assoc = row.association(:resource)

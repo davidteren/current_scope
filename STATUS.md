@@ -78,8 +78,11 @@
 > limited; the members candidate query is not per-subclass-token) → a new
 > follow-up issue, to be filed and cited when replying.
 >
-> **Remaining (needs human approval):** commit + push, then reply inline on all
-> 27 threads with the commit SHA and resolve, then re-run remote CI/reviewers.
+> **Remaining:** none on the review side. Head `63eb014` is green on all three
+> adapters, and every review thread (27 first-round + 5 + 2 from cubic's two
+> re-reviews) is replied-to and resolved. The last step before the banner drops
+> is unchanged by this PR: the real-host `:report` → `:enforce` bake (a human
+> step). A human merges #153.
 
 > ## 🔴 RELEASE BLOCKERS — #151, then the real-host bake (#116 Wave 3)
 >

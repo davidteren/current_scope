@@ -26,7 +26,9 @@ an index. A collection action names the type with `current_scope_model`.
 The class form `allowed_to?(:index, Report)` names the type itself.
 Without a type the grant is type-unbound and the gate stays closed
 (reason `:model_undeclared`). The listed read still opens only when the
-subject's scoped list is not empty.
+subject's scoped list is not empty. Other record-less keys (for example
+`create`) need an explicit tick on the named type; a scoped `full_access`
+grant does not open those.
 
 No grant means denied. The gate enforces that answer before the action runs.
 The scoped list narrows which records the action sees. For listed collection

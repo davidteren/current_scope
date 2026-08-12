@@ -85,11 +85,12 @@
 > banner drops is unchanged by this PR: the real-host `:report` → `:enforce` bake
 > (a human step). A human merges #153.
 
-> ## 🔴 RELEASE BLOCKERS — #151, then the real-host bake (#116 Wave 3)
+> ## 🔴 RELEASE BLOCKERS — #151 shipped; the real-host bake remains (#116 Wave 3)
 >
-> PR #153 must land before 0.5.0: published versions silently collapse UUID and
-> other string keys in grant columns. After that, every coded item in #116 is
-> finished. The banner stays up until **one real
+> The #151 fix (published versions silently collapse UUID and other string keys
+> in grant columns) merged in PR #153 and is being released as 0.5.0 (PR #159);
+> the RubyGems publish and the yank of 0.2.0–0.4.0 are pending (#151). Every coded
+> item in #116 is finished. The banner stays up until **one real
 > host runs `config.enforcement = :report`, reads `bin/rails
 > current_scope:report`, and flips to `:enforce`** on current `main`.
 >
@@ -131,7 +132,7 @@
 >   `ConfigurationError` 500) are undocumented.
 >
 > **Release in progress (PR #159):** **0.5.0 (minor)**, not a patch — #108 moves
-> authorization semantics even though it is opt-in. See the Unreleased section
+> authorization semantics even though it is opt-in. See the [0.5.0] section
 > of CHANGELOG.md for the caveats a host must read before declaring a chain.
 
 > Last updated: 2026-08-12

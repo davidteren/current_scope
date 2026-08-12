@@ -15,22 +15,6 @@ This release also fixes a published security defect (#151, below). The README
 banner stays up on purpose: production-readiness is gated on the real-host
 `:enforce` bake (#116 Wave 3), not on this release.
 
-### Security
-
-- **[#151] A subject could inherit another subject's roles, including
-  `full_access`, on hosts with non-integer primary keys.** Role-grant identities
-  (`subject_id`, `resource_id`) were stored in integer columns, so a UUID, ULID,
-  or string key was coerced to an integer on write (`"7f00…"` → `7`) and two
-  subjects could collapse onto one identity — a grant made to one was read as
-  belonging to the other. Integer-keyed hosts were never exposed. Every published
-  version (0.2.0–0.4.0) is affected and is being yanked; 0.1.0 carried the same
-  defect but was never published to RubyGems. **0.5.0 is the first safe release.** The fix widens the grant-id columns to string,
-  refuses to boot on an unmigrated schema, and rejects a grant whose stored id
-  cannot name exactly one record. **After upgrading, audit existing grants** —
-  rows written earlier may already have collapsed and must be re-granted; see
-  [UPGRADING.md](UPGRADING.md). Security advisory and CVE are forthcoming;
-  remediation of the published versions is tracked in #151.
-
 ### Added
 - **A missing `current_scope_initiator` is now found before traffic finds it,
   and accounted for when traffic does (#133).** An action listed in
@@ -180,7 +164,10 @@ banner stays up on purpose: production-readiness is gated on the real-host
   `String#to_i` on write. `"7f00aaaa-…"` and `"7f00bbbb-…"` both stored as `7`; a
   key beginning with a letter stored as `0`. Distinct records collapsed into one
   identity, and a subject held a role nobody granted them — `full_access`
-  included. **This affects 0.2, 0.3 and 0.4 as published.**
+  included. **This affects 0.2, 0.3 and 0.4 as published.** Those versions are
+  being yanked, and **0.5.0 is the first safe release** (0.1.0 carried the same
+  defect but was never published to RubyGems). A security advisory and CVE are
+  forthcoming; remediation of the published versions is tracked in #151.
 
   Nothing surfaced it: the association still resolved (to the wrong record), the
   per-subject uniqueness index saw the collapsed value as a single subject, and no

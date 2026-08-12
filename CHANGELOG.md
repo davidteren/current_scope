@@ -22,9 +22,9 @@ banner stays up on purpose: production-readiness is gated on the real-host
   (`subject_id`, `resource_id`) were stored in integer columns, so a UUID, ULID,
   or string key was coerced to an integer on write (`"7f00…"` → `7`) and two
   subjects could collapse onto one identity — a grant made to one was read as
-  belonging to the other. Integer-keyed hosts were never exposed. All earlier
-  published versions (0.2.0–0.4.0) are affected and are being yanked; **0.5.0 is
-  the first safe release.** The fix widens the grant-id columns to string,
+  belonging to the other. Integer-keyed hosts were never exposed. Every published
+  version (0.2.0–0.4.0) is affected and is being yanked; 0.1.0 carried the same
+  defect but was never published to RubyGems. **0.5.0 is the first safe release.** The fix widens the grant-id columns to string,
   refuses to boot on an unmigrated schema, and rejects a grant whose stored id
   cannot name exactly one record. **After upgrading, audit existing grants** —
   rows written earlier may already have collapsed and must be re-granted; see

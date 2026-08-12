@@ -137,15 +137,17 @@
   .icobtn:hover{color:var(--txt);border-color:var(--accent)}
   .nav-toggle{display:none}
   @media(max-width:980px){
-    .nav .links{display:none}
+    .nav{flex-wrap:wrap;height:auto;min-height:62px}
+    .nav .links{display:flex;flex-wrap:wrap;gap:10px 16px;margin:0 0 10px;width:100%;order:5}
+    .js .nav .links{display:none;margin:0}
     .nav-toggle{display:inline-grid}
     .ghbtn.ver{display:none}
-    header.is-open .nav .links{
-      display:flex;flex-direction:column;gap:4px;position:absolute;left:0;right:0;top:62px;
-      padding:10px 24px 16px;border-top:1px solid var(--border);background:var(--bg);
+    .js header.is-open .nav .links{
+      display:flex;flex-direction:column;gap:4px;width:100%;order:5;
+      padding:4px 0 12px;
     }
-    header.is-open .nav .links a{color:var(--dim);font-size:15px;font-weight:500;padding:10px 4px;border-radius:8px}
-    header.is-open .nav .links a:hover{color:var(--txt);background:var(--panel)}
+    header.is-open .nav .links a,.nav .links a{color:var(--dim);font-size:15px;font-weight:500;padding:6px 4px;border-radius:8px}
+    header.is-open .nav .links a:hover,.nav .links a:hover{color:var(--txt);background:var(--panel)}
   }
 
   /* ---- hero ---- */

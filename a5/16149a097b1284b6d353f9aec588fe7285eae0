@@ -1,0 +1,20 @@
+STATUS.md
+  h_e8a5bb9272fa34 6-10
+docs/site/index.html
+  h_e8a5bb9272fa34 92,504-506,509-511,513,515-518,521-522,527-531,1117-1118,1135-1138,1140-1141,1144-1150,1157-1163
+docs/site/quickstart.md
+  h_e8a5bb9272fa34 14
+test/docs_site_test.rb
+  h_e8a5bb9272fa34 1-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "a516149a097b1284b6d353f9aec588fe7285eae0",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

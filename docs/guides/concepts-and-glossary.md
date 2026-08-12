@@ -25,7 +25,8 @@ with `current_scope_parent`. Step 5 is why a scoped-only subject can reach
 an index. A collection action names the type with `current_scope_model`.
 The class form `allowed_to?(:index, Report)` names the type itself.
 Without a type the grant is type-unbound and the gate stays closed
-(reason `:model_undeclared`).
+(reason `:model_undeclared`). The listed read still opens only when the
+subject's scoped list is not empty.
 
 No grant means denied. The gate enforces that answer before the action runs.
 The scoped list narrows which records the action sees. For listed collection

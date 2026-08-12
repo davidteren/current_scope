@@ -14,6 +14,7 @@ Step 4 also matches a grant on a declared parent when the child opted in
 with `current_scope_parent`. Step 5 is why a scoped-only subject can reach
 an index. A collection action names the type with `current_scope_model`.
 The class form `allowed_to?(:index, Report)` names the type itself.
-Listed reads take their answer from `scope_for`. The
+Listed reads take their answer from `scope_for` and open only when that
+list is not empty. The
 [record-less rules](https://github.com/davidteren/current_scope/blob/main/docs/guides/checking-permissions.md#scoping-a-list-scope_for)
 are the full treatment.

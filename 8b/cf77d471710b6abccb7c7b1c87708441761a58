@@ -1,0 +1,16 @@
+docs/site/index.html
+  h_e8a5bb9272fa34 12-20,66,81,101-102,189-190,225,321,408,428-429,435,459-460,471,513,664,744,781,818,822-826,828,838,849,860,911,1072-1075,1079,1085-1086,1089-1096,1099,1102-1107,1110-1114,1147-1148,1159,1161
+docs/site/llms.txt
+  h_e8a5bb9272fa34 10-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "8bcf77d471710b6abccb7c7b1c87708441761a58",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

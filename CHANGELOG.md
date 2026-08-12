@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **Readiness banner softened from "not production-ready" to Beta.** The core is
+  built and security-hardened; general availability (1.0) is gated on the
+  real-host enforce bake (#116). Updated the README, the docs site,
+  `docs/site/llms.txt`, the quickstart, and the gemspec description. Also recorded
+  the published #151 advisory id (GHSA-944r-4v99-qqf7) in the 0.5.0 entry.
+
 ## [0.5.0] - 2026-08-12
 
 `current_scope_parent` (#108) moves authorization semantics: a scoped grant can
@@ -166,8 +173,9 @@ banner stays up on purpose: production-readiness is gated on the real-host
   identity, and a subject held a role nobody granted them — `full_access`
   included. **This affects 0.2, 0.3 and 0.4 as published.** Those versions are
   being yanked, and **0.5.0 is the first safe release** (0.1.0 carried the same
-  defect but was never published to RubyGems). A security advisory and CVE are
-  forthcoming; remediation of the published versions is tracked in #151.
+  defect but was never published to RubyGems). Security advisory:
+  [GHSA-944r-4v99-qqf7](https://github.com/davidteren/current_scope/security/advisories/GHSA-944r-4v99-qqf7)
+  (CVE pending); remediation of the published versions is tracked in #151.
 
   Nothing surfaced it: the association still resolved (to the wrong record), the
   per-subject uniqueness index saw the collapsed value as a single subject, and no

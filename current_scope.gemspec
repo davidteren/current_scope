@@ -11,9 +11,9 @@ Gem::Specification.new do |spec|
                      "from controller actions, roles as editable data, per-record scoped roles, " \
                      "a separation-of-duties veto, and an ambient authorization context that " \
                      "makes allowed_to? work identically in controllers, views, and components. " \
-                     "NOT PRODUCTION-READY: pre-1.0 with known issues under active work — good " \
-                     "for experimentation and spikes, not yet for real users. See the README and " \
-                     "the issue tracker."
+                     "BETA (pre-1.0): the core is built and security-hardened; general " \
+                     "availability is gated on one real-world enforce bake. Adopt it, run report " \
+                     "mode, and send feedback. See the README and the issue tracker (#116)."
   spec.license     = "MIT"
 
   # homepage_uri is derived from spec.homepage (the source repo). Setting

@@ -4,24 +4,30 @@
 [![CI](https://github.com/davidteren/current_scope/actions/workflows/ci.yml/badge.svg)](https://github.com/davidteren/current_scope/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](MIT-LICENSE)
 [![Website](https://img.shields.io/badge/website-davidteren.github.io%2Fcurrent__scope-4d7cfe)](https://davidteren.github.io/current_scope/)
-[![Status: not production-ready](https://img.shields.io/badge/status-not%20production--ready-e8590c)](https://github.com/davidteren/current_scope/issues)
+[![Status: beta](https://img.shields.io/badge/status-beta-4d7cfe)](https://github.com/davidteren/current_scope/issues/116)
 
-> ## ⚠️ Not production-ready
+> ## 🧪 Beta — usable, and we want your feedback
 >
-> There are some known issues which are currently being worked on. **This is not
-> production-ready**, but it is ready for experimentation and spiking, or
-> whatever people want to do with it — just not yet for production.
+> The core is built and security-hardened: permissions derived from your routes,
+> roles as editable data, per-record scoped grants, a separation-of-duties veto,
+> impersonation, an append-only audit ledger, and a report-only rollout mode. The
+> one published security defect in grant-id storage
+> ([#151](https://github.com/davidteren/current_scope/issues/151)) is fixed and
+> released in 0.5.0; the affected older versions are yanked.
 >
-> This is an **authorization** library, so the bar is different: a bug here is a
-> user seeing or doing something they shouldn't. The open work is tracked in the
-> [issue tracker](https://github.com/davidteren/current_scope/issues), and
-> several items are security-relevant — permission keys that can be dropped
-> silently, advisory checks that don't consult the catalog, and gaps in the
-> separation-of-duties veto. Each is being worked through with a written plan and
-> an adversarial review pass.
+> It is **not yet certified for production**, for one honest reason: the last gate
+> to general availability is a real-world bake — one real app running
+> `config.enforcement = :report`, reading `bin/rails current_scope:report`, then
+> flipping to `:enforce`. Until a real host has run it enforced, "production-ready"
+> is a claim with nothing behind it. That gate is tracked in
+> [#116](https://github.com/davidteren/current_scope/issues/116); **1.0 is when it
+> closes.**
 >
-> Kick the tyres, build a spike, tell us what breaks. Don't put it in front of
-> real users yet.
+> So please adopt it, run it in `:report` mode, and tell us what breaks — that
+> feedback is exactly what gets it to 1.0. It is an **authorization** library, so
+> mind the bar: a bug here is a user seeing or doing something they shouldn't.
+> Anything you find goes on the
+> [issue tracker](https://github.com/davidteren/current_scope/issues).
 
 **Website:** [davidteren.github.io/current_scope](https://davidteren.github.io/current_scope/) —
 overview, quickstart, the

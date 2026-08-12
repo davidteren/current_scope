@@ -7,8 +7,8 @@ Workflow contract for agents working in this repo. Single source of truth —
 
 **CurrentScope** — a mountable Rails engine for authorization: permissions
 derived from `controller#action` routes, roles as editable data, scoped roles,
-an SoD (four-eyes) veto, impersonation, and an audit ledger. v0.2.0 is on
-RubyGems; not production-ready.
+an SoD (four-eyes) veto, impersonation, and an audit ledger. v0.5.0 is on
+RubyGems; beta (see the README).
 
 | Where | What |
 |---|---|

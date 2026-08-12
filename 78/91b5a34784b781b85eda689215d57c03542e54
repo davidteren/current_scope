@@ -1,0 +1,19 @@
+STATUS.md
+  s_d07eaf9026904a::t_8b8bb9adf314e7 81-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "7891b5a34784b781b85eda689215d57c03542e54",
+  "prompts": {},
+  "sessions": {
+    "s_d07eaf9026904a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a2f629c1-6833-48f9-8eb7-b6d9b5aac446",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

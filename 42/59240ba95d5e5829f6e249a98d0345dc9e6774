@@ -1,0 +1,25 @@
+README.md
+  s_d07eaf9026904a::t_dd18c4cd649522 77-79
+docs/guides/concepts-and-glossary.md
+  s_d07eaf9026904a::t_e322ab7344d1f2 15-17
+docs/site/_includes/resolver-order.md
+  s_d07eaf9026904a::t_c0d26c879175e9 5-7
+docs/site/index.html
+  s_d07eaf9026904a::t_f0e7550f22724e 494
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "4259240ba95d5e5829f6e249a98d0345dc9e6774",
+  "prompts": {},
+  "sessions": {
+    "s_d07eaf9026904a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a2f629c1-6833-48f9-8eb7-b6d9b5aac446",
+        "model": "unknown"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

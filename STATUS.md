@@ -852,13 +852,14 @@ quickstart, production checklist) + tests T1–T4.
     solid bar, or parallel if capacity).
 11. **README screenshots** — the UI is clean and verified; capture the dashboard,
     permission grid, subjects, members, events when convenient.
-12. Open design questions (DESIGN.md §9): resource hierarchy/cascade,
-   multiple org-wide roles, scoped-role capability restriction.
+12. Open design questions (DESIGN.md §9): multiple org-wide roles,
+   scoped-role capability restriction. Resource hierarchy shipped as
+   `current_scope_parent` (#108).
 
 ## Still to be done (open design questions — DESIGN.md §9)
 
-- [ ] Resource hierarchy / cascade: should "Editor of Project #7" imply rights
-      on the project's reports? (traversal, depth, cycles — not designed)
+- [x] Resource hierarchy / cascade: shipped as `current_scope_parent` (#108).
+      Flat default; five-hop bound; scoped `full_access` does not cascade.
 - [ ] Single vs multiple org-wide roles per subject (currently exactly one, by
       design; union semantics rejected for v0.1)
 - [ ] Scoped-role capability restriction (scoped roles currently reuse full

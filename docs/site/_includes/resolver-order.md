@@ -15,8 +15,8 @@ with `current_scope_parent`. Step 5 is why a scoped-only subject can reach
 an index. A collection action names the type with `current_scope_model`.
 The class form `allowed_to?(:index, Report)` names the type itself.
 Listed reads take their answer from `scope_for` and open only when that
-list is not empty. Other record-less keys (for example `create`) need an
-explicit tick on the named type; a scoped `full_access` grant does not
-open those. The
+list is not empty, including rows reached through a declared parent.
+Other record-less keys (for example `create`) need an explicit tick on
+the named type; a scoped `full_access` grant does not open those. The
 [record-less rules](https://github.com/davidteren/current_scope/blob/main/docs/guides/checking-permissions.md#scoping-a-list-scope_for)
 are the full treatment.

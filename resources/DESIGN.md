@@ -523,9 +523,9 @@ SoD: enforced in code (the resolver's step 1), keyed off a host-declared
    description: a scoped role reuses a full `Role` (its whole permission bundle,
    applied on one record). Alternative: scoped roles expose a *restricted* or
    *fixed* capability set distinct from org-wide roles. Undecided.
-3. **Resource hierarchy / cascade (§4).** Should a scoped role on a parent apply
-   to children? If so: declared traversal, depth limits, cycle handling,
-   performance. Not designed.
+3. **Resource hierarchy / cascade (§4).** Shipped as `current_scope_parent`
+   (#108). Opt-in on the child, bounded at five hops, scoped `full_access`
+   does not cascade. See the README Limitations row.
 4. **Performance + caching.** (a) Auto-deriving the controller × action grid on
    every render vs materializing `grantwork_permissions`. (b) Per-request resolution
    cost — caching a subject's effective permission set, and invalidating it when

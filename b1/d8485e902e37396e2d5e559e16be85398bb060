@@ -1,0 +1,38 @@
+AGENTS.md
+  s_d07eaf9026904a::t_5e596fd2065ecc 10-11
+docs/site/quickstart.md
+  s_d07eaf9026904a::t_174950cd1b7085 8-12
+STATUS.md
+  s_d07eaf9026904a::t_bef102a33cf53e 137
+  s_d07eaf9026904a::t_ec94b7e6842fc5 5-16
+  s_d07eaf9026904a::t_9a2baa8725a55e 178-179
+  s_d07eaf9026904a::t_baa0457faefc73 89,91-98
+  s_d07eaf9026904a::t_17aa9a0b5b10c1 843-846
+docs/site/llms.txt
+  s_d07eaf9026904a::t_6616a9ba5d4d06 8-10
+docs/site/index.html
+  s_d07eaf9026904a::t_13a3942b5dd645 365-368
+README.md
+  s_d07eaf9026904a::t_20ff50307f7526 7,9,11-16,18-24,26-30
+current_scope.gemspec
+  s_d07eaf9026904a::t_f48a0521dd9166 14-16
+CHANGELOG.md
+  s_d07eaf9026904a::t_334c6c8f249eda 9-15
+  s_d07eaf9026904a::t_9edf92e3db9f42 176-178
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "b1d8485e902e37396e2d5e559e16be85398bb060",
+  "prompts": {},
+  "sessions": {
+    "s_d07eaf9026904a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a2f629c1-6833-48f9-8eb7-b6d9b5aac446",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

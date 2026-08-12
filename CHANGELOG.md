@@ -4,13 +4,32 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — next cut is **0.5.0 (minor, not a patch)**
+## [Unreleased]
+
+## [0.5.0] - 2026-08-12
 
 `current_scope_parent` (#108) moves authorization semantics: a scoped grant can
 reach records it never reached before. It is opt-in, so a host that declares no
-chain sees byte-identical decisions — but the version must still say a rule
-changed. Not cut yet; the README banner stays up pending the real-host
-`:enforce` bake (#116 Wave 3).
+chain sees byte-identical decisions — but the version still says a rule changed.
+This release also fixes a published security defect (#151, below). The README
+banner stays up on purpose: production-readiness is gated on the real-host
+`:enforce` bake (#116 Wave 3), not on this release.
+
+### Security
+
+- **[#151] A subject could inherit another subject's roles, including
+  `full_access`, on hosts with non-integer primary keys.** Role-grant identities
+  (`subject_id`, `resource_id`) were stored in integer columns, so a UUID, ULID,
+  or string key was coerced to an integer on write (`"7f00…"` → `7`) and two
+  subjects could collapse onto one identity — a grant made to one was read as
+  belonging to the other. Integer-keyed hosts were never exposed. All earlier
+  published versions (0.2.0–0.4.0) are affected and are being yanked; **0.5.0 is
+  the first safe release.** The fix widens the grant-id columns to string,
+  refuses to boot on an unmigrated schema, and rejects a grant whose stored id
+  cannot name exactly one record. **After upgrading, audit existing grants** —
+  rows written earlier may already have collapsed and must be re-granted; see
+  [UPGRADING.md](UPGRADING.md). Security advisory and CVE are forthcoming;
+  remediation of the published versions is tracked in #151.
 
 ### Added
 - **A missing `current_scope_initiator` is now found before traffic finds it,
@@ -835,7 +854,8 @@ guards from the solid-solution worklist (PR #100). No intended host API break.
   so `allowed_to?` works identically in controllers, views, and ViewComponents,
   the mounted management UI, and the `current_scope:install` generator.
 
-[Unreleased]: https://github.com/davidteren/current_scope/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/davidteren/current_scope/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/davidteren/current_scope/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/davidteren/current_scope/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/davidteren/current_scope/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/davidteren/current_scope/compare/v0.2.0...v0.3.0

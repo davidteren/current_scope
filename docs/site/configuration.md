@@ -21,6 +21,7 @@ a mismatch cannot hide from. This page is the map.
 | `actor_method` | `nil` | Host method returning the **real** actor behind an impersonated session. **Security-critical the moment you impersonate** — unset, the mutation guard and SoD `:either` are inert and audit rows attribute to the impersonated subject. `record_impersonation_started!` raises if it's unset. |
 | `subject_class` | `"User"` | The model that holds roles. |
 | `subject_label` | `nil` | How the management UI names a subject: a Symbol (method), a Proc, or nil for best-effort (email → email_address → name → first+last → label). A label that raises degrades to the default chain and logs — it never breaks the page. |
+| `polymorphic_class_names` | `{}` | Optional token → class name map for a custom `polymorphic_name` Rails cannot reverse. Two classes may not share a token. |
 
 ## Enforcement
 

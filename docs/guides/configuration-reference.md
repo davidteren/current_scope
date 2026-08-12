@@ -4,6 +4,11 @@
 
 ## Configuration
 
+**`config.polymorphic_class_names`** — optional Hash of stored type token to
+class name, for a custom `polymorphic_name` that Rails cannot reverse. Default
+`{}`. Auto-detected overrides (loaded models whose token is not the class name)
+merge with this map. Two classes that claim the same token raise at rebuild.
+
 Everything lives in `config/initializers/current_scope.rb` (created by the
 install generator): the `user_method`, the `subject_class`, `sod_actions`,
 `excluded_controllers` (keep infrastructure out of the grid), and

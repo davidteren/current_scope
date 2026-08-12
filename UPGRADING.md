@@ -3,6 +3,19 @@
 Read the [CHANGELOG](CHANGELOG.md) for every version you cross. This file calls
 out the silent posture changes that a changelog line is easy to miss.
 
+## Unreleased: custom polymorphic tokens are first-class (#155)
+
+Stored grant types use `polymorphic_name`, not `base_class.name`. Default
+models do not change. If a model overrides `polymorphic_name` (or shortens it
+with `store_full_class_name = false`):
+
+- Collection lists and record-less write checks now see those grants.
+- Two classes must not share a token. Rebuild raises `ConfigurationError`.
+- Optional: `config.polymorphic_class_names = { "token_docs" => "TokenDocument" }`
+  for a token that must resolve before the model is loaded.
+
+An unmapped custom token stays inert. That is not a permit.
+
 ## 0.1 → 0.2: SoD became opt-in (silent fail-open if you relied on defaults)
 
 **If you used separation of duties on 0.1 defaults, re-add:**

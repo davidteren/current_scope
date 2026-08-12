@@ -9,7 +9,8 @@ The [CHANGELOG](https://github.com/davidteren/current_scope/blob/main/CHANGELOG.
 is the canonical record of every release — read it top-down for the versions
 you are crossing. Two changes deserve to be impossible to miss: one changes
 your **security posture silently**, the other breaks programmatic callers
-**loudly** (a 404):
+**loudly** (a 404). Unreleased: custom `polymorphic_name` tokens are matched
+on lists and reverse-resolved through a closed map (see `UPGRADING.md`).
 
 ## 0.1 → 0.2: separation of duties became opt-in (silent)
 

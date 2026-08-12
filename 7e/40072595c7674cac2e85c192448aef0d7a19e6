@@ -1,0 +1,14 @@
+docs/guides/separation-of-duties-and-break-glass.md
+  h_e8a5bb9272fa34 51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "7e40072595c7674cac2e85c192448aef0d7a19e6",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -6,6 +6,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **The public resolver picture now matches the six-step order the engine already runs.** README, the docs-site include, and the landing-page steps named a five-step order that skipped the record-less listed-read arm. The Limitations table also still said parent hierarchy was deferred after `current_scope_parent` shipped.
+
 ## [0.5.1] - 2026-08-12
 
 ### Changed

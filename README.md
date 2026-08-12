@@ -75,8 +75,17 @@ The decision order, fixed:
 2. full_access     → role grants everything, forever     ALLOW
 3. org-wide role   → role's permission set includes it   ALLOW
 4. scoped role     → a role held on THIS record          ALLOW
-5. otherwise       → default deny
+5. record-less     → no record: a scoped grant of the     ALLOW
+                     declared type opens a listed
+                     collection read (index by default)
+6. otherwise       → default deny
 ```
+
+Step 5 is why a scoped-only subject can reach an index: with no record to
+bind to, the gate admits a listed collection read when that subject's
+scoped list is not empty. It needs `current_scope_model` to name the type.
+Without it the grant is type-unbound and the gate stays closed. See
+[Checking permissions](docs/guides/checking-permissions.md#scoping-a-list-scope_for).
 
 ## Screenshots
 
@@ -350,7 +359,7 @@ authorize on the server.
 
 | Limit | What it means |
 |---|---|
-| **Flat scoped grants** | A scoped role on a parent record does **not** cascade to children. Hierarchy is deferred — see [docs/ROADMAP.md](docs/ROADMAP.md) §2.3. |
+| **Flat scoped grants (default)** | Flat unless the child declares `current_scope_parent`. Then the chain is bounded at five hops, and a scoped `full_access` grant does not cascade. See [Checking permissions](docs/guides/checking-permissions.md#a-grant-on-a-parent-record-108). |
 | **One org-wide role** | At most one org-wide role per subject (DB-enforced). |
 | **Scoped role = full bundle** | Scoping reuses the whole role; there is no per-record capability subset. |
 

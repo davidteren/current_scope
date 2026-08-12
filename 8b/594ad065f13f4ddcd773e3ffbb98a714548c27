@@ -1,0 +1,28 @@
+app/models/concerns/current_scope/storable_keys.rb
+  h_e8a5bb9272fa34 23,26-29
+app/models/current_scope/role_assignment.rb
+  h_e8a5bb9272fa34 9-12
+app/models/current_scope/scoped_role_assignment.rb
+  h_e8a5bb9272fa34 14-19
+lib/current_scope.rb
+  h_e8a5bb9272fa34 275-276,279-316
+lib/current_scope/configuration.rb
+  h_e8a5bb9272fa34 121-136,471
+lib/current_scope/engine.rb
+  h_e8a5bb9272fa34 85,129
+test/polymorphic_registry_test.rb
+  h_e8a5bb9272fa34 1-84
+test/uuid_key_collision_test.rb
+  h_e8a5bb9272fa34 180-182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "8b594ad065f13f4ddcd773e3ffbb98a714548c27",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

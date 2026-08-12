@@ -1,0 +1,24 @@
+CHANGELOG.md
+  s_d07eaf9026904a::t_571b81af125166 7-9,13-32
+  s_d07eaf9026904a::t_0d02014beb54ef 857-858
+Gemfile.lock
+  s_d07eaf9026904a::t_f7524310a18c96 4
+lib/current_scope/version.rb
+  s_d07eaf9026904a::t_4f8d71e06dbe69 2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "121e76eac80999ffed36e841900d38eacd69940a",
+  "prompts": {},
+  "sessions": {
+    "s_d07eaf9026904a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a2f629c1-6833-48f9-8eb7-b6d9b5aac446",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}

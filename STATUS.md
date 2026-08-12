@@ -80,10 +80,10 @@
 > limited; the members candidate query is not per-subclass-token) → a new
 > follow-up issue, to be filed and cited when replying.
 >
-> **Done:** PR #153 merged and released as 0.5.0; the vulnerable 0.2.0–0.4.0 are
-> yanked and the advisory (GHSA-944r-4v99-qqf7) is published (#151, closed). The
-> only step before the banner drops fully (GA / 1.0) is the real-host `:report` →
-> `:enforce` bake (a human step).
+> **Done:** the #151 fix (#153) merged and shipped in the 0.5.0 release (#159);
+> the vulnerable 0.2.0–0.4.0 are yanked and the advisory (GHSA-944r-4v99-qqf7) is
+> published (#151, closed). The only step before the banner drops fully (GA / 1.0)
+> is the real-host `:report` → `:enforce` bake (a human step).
 
 > ## 🔴 GA BLOCKER — the real-host bake (#116 Wave 3)
 >

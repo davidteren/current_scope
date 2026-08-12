@@ -1,0 +1,28 @@
+CHANGELOG.md
+  h_e8a5bb9272fa34 20
+STATUS.md
+  h_e8a5bb9272fa34 5-11
+UPGRADING.md
+  h_e8a5bb9272fa34 6-18
+docs/guides/checking-permissions.md
+  h_e8a5bb9272fa34 54-58
+docs/guides/configuration-reference.md
+  h_e8a5bb9272fa34 7-11
+docs/plans/2026-08-13-001-fix-polymorphic-storage-token-plan.md
+  h_e8a5bb9272fa34 1-275
+docs/site/configuration.md
+  h_e8a5bb9272fa34 24
+docs/site/upgrading.md
+  h_e8a5bb9272fa34 12-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "e98abe2f750797d683c7fbf0d0477a03921a785e",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -57,6 +57,35 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
     CurrentScope.config.subject_class = original
   end
 
+  test "members does not re-offer a holder stored under a custom subject token" do
+    holder = User.create!(name: "TokenHolder")
+    free = User.create!(name: "TokenFree")
+    now = Time.current
+    CurrentScope::RoleAssignment.insert!({
+      role_id: @role.id,
+      subject_type: "token_people",
+      subject_id: holder.id.to_s,
+      created_at: now,
+      updated_at: now
+    })
+
+    token_user = Class.new(User) do
+      def self.name = "TokenPeopleUser"
+      def self.polymorphic_name = "token_people"
+    end
+    stub_const = Object.send(:const_set, "TokenPeopleUser", token_user)
+    CurrentScope.rebuild_polymorphic_registry!
+
+    get current_scope.members_role_url(@role), headers: as(@owner)
+    assert_response :success
+    assert_select "td", text: "TokenHolder"
+    assert_select "select[name='subject_gids[]'] option", text: "TokenFree"
+    assert_select "select[name='subject_gids[]'] option", { text: "TokenHolder", count: 0 }
+  ensure
+    Object.send(:remove_const, :TokenPeopleUser) if defined?(TokenPeopleUser)
+    CurrentScope.rebuild_polymorphic_registry!
+  end
+
   test "members survives a stale/renamed polymorphic resource type without 500ing" do
     folder = Folder.create!(name: "Space")
     bob = User.create!(name: "Bob")

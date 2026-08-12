@@ -54,11 +54,18 @@ module CurrentScope
       # work now that subject_id is a string column (#151) while subject_class
       # keys on a bigint — PostgreSQL refuses that comparison outright rather than
       # coercing. Cast the candidate side, so the stored value is never altered.
-      held = RoleAssignment.where(role: @role, subject_type: subject_class.polymorphic_name)
-                           .select(:subject_id)
-      remaining = subject_class.where.not(
-        Arel::Nodes::In.new(candidate_key_as_text, held.arel.ast)
-      ).order(:id)
+      #
+      # Held ids come from every org assignment whose type reverse-resolves onto
+      # this subject table, not only subject_class.polymorphic_name. An STI or
+      # custom-token holder would otherwise reappear in the add list (#155).
+      held_ids = held_org_subject_ids(@org_holders, subject_class)
+      remaining = subject_class.order(:id)
+      if held_ids.any?
+        held = RoleAssignment.where(role: @role, subject_id: held_ids).select(:subject_id)
+        remaining = remaining.where.not(
+          Arel::Nodes::In.new(candidate_key_as_text, held.arel.ast)
+        )
+      end
       @candidates = remaining.limit(ADD_LIMIT).to_a
       @more_candidates = remaining.offset(ADD_LIMIT).exists?
     end
@@ -225,6 +232,21 @@ module CurrentScope
     # The collation is READ FROM THE COLUMN rather than hardcoded, so this cannot
     # drift from what the migration set — and a host that chose a different binary
     # collation still works.
+    def held_org_subject_ids(holders, klass)
+      holders.filter_map do |assignment|
+        type = assignment.subject_type
+        next if type.blank?
+        next assignment.subject_id.to_s if type == klass.polymorphic_name
+
+        resolved = CurrentScope.polymorphic_class(type)
+        next if resolved.nil?
+        next unless resolved.base_class == klass.base_class
+
+        assignment.subject_id.to_s
+      end.uniq
+    end
+    private :held_org_subject_ids
+
     def candidate_key_as_text
       connection = subject_class.connection
       column = "#{connection.quote_table_name(subject_class.table_name)}." \

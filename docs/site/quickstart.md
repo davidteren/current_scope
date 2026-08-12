@@ -5,11 +5,13 @@ nav_order: 2
 
 # Quickstart
 
-> **Beta.** The core is built and security-hardened; general availability is
-> gated on one real-world enforce bake
-> ([#116](https://github.com/davidteren/current_scope/issues/116)). Adopt it, run
-> it in `:report` mode, and tell us what breaks — that feedback is what gets it to
-> 1.0. It's an authorization library, so mind the bar. Report anything on the
+> **Beta.** Built for experimentation and report-mode pilots while we
+> harden the remaining security items. Adopt it, run
+> `config.enforcement = :report`, and tell us what breaks. General
+> availability is gated on one real-world enforce bake
+> ([#116](https://github.com/davidteren/current_scope/issues/116)). Do not
+> flip `:enforce` on a live host until you have read the
+> [security checklist](https://davidteren.github.io/current_scope/security-checklist.html). Report anything on the
 > [issue tracker](https://github.com/davidteren/current_scope/issues).
 
 ## 1. Add the gem and install

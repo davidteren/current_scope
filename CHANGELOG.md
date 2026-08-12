@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **Docs site landing page is now a conversion page, not only a long
+  technical write-up.** Hero CTAs (Star / Quickstart / Showcase / Docs),
+  a theme-aware permission-grid mock, real screenshots plus SoD and
+  report-mode proof, a CurrentScope vs Pundit / CanCanCan / Action Policy
+  table, who-it-is-for copy, a sticky nav that works on a phone, badges,
+  a public security strip, and a footer with version, license, author,
+  contribution invite, and the X account. Beta copy invites report-mode
+  pilots.
+
 ### Fixed
 - **The public resolver picture now matches the six-step order the engine already runs.** README, the docs-site include, and the landing-page steps named a five-step order that skipped the record-less listed-read arm. The Limitations table also still said parent hierarchy was deferred after `current_scope_parent` shipped.
 

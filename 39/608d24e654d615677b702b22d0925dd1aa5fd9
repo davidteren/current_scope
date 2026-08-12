@@ -1,0 +1,119 @@
+CONTRIBUTING.md
+  s_3cde98911dbb68::t_7c707ed6362ae9 43
+lib/current_scope.rb
+  s_d07eaf9026904a::t_8f7a0f0a2ca7a8 317-322
+  s_d07eaf9026904a::t_d16051eea43085 268-275,326-329
+lib/current_scope/schema_guard.rb
+  s_d07eaf9026904a::t_99b3345b0b7260 105-117
+  s_d07eaf9026904a::t_f540faa8796f4e 15-16,67,70-71,80-86
+UPGRADING.md
+  s_d07eaf9026904a::t_2ffeef4d6e8e60 105-114
+app/views/current_scope/roles/members.html.erb
+  s_d07eaf9026904a::t_ee6618cf553e1c 43-46
+test/collection_scope_gate_test.rb
+  s_f8f8082cf263fa::t_5731969ddc7723 609,616-617
+app/controllers/current_scope/roles_controller.rb
+  s_d07eaf9026904a::t_e675e613ee3763 155
+  s_d07eaf9026904a::t_99a1d2cbeb94a9 60,151,235-236,238
+test/widen_polymorphic_ids_migration_test.rb
+  s_f8f8082cf263fa::t_5731969ddc7723 122-142,149-165,169-186
+app/models/concerns/current_scope/storable_keys.rb
+  s_d07eaf9026904a::t_ee1c17bc4588e6 18-31
+  s_d07eaf9026904a::t_4a15a3013125d4 35-40
+test/models/scoped_role_assignment_test.rb
+  s_d07eaf9026904a::t_a70a6a4c7afed5 91-109
+  s_f8f8082cf263fa::t_5731969ddc7723 61-90
+app/controllers/current_scope/scoped_role_assignments_controller.rb
+  s_d07eaf9026904a::t_a85d34d30864aa 82-84
+  s_d07eaf9026904a::t_2df09ca3ec6e32 58-62
+  s_3cde98911dbb68::t_7c707ed6362ae9 80
+app/helpers/current_scope/application_helper.rb
+  s_d07eaf9026904a::t_26df9f400bd641 86-91
+STATUS.md
+  s_3cde98911dbb68::t_7c707ed6362ae9 8-16,80,82-84,129
+  s_d07eaf9026904a::t_aa1186a177e00c 49-78
+  s_7da0e2c2e4c87a::t_5b6cea5eb4e734 17-48
+test/uuid_key_collision_test.rb
+  s_d07eaf9026904a::t_3afef9e501961d 307-310
+  s_d07eaf9026904a::t_164fee0d8e2253 268-286
+  s_f8f8082cf263fa::t_5731969ddc7723 167-168,176-182,185,188-191,305-306,311-329
+  s_d07eaf9026904a::t_7cd11483ad9eec 169-172
+  s_a87d2ad4cc2737::t_1b9416fbc1c4bc 183-184,186-187
+  s_f8f8082cf263fa::t_15245e709ea0bf 330
+README.md
+  s_3cde98911dbb68::t_7c707ed6362ae9 108-110
+app/controllers/current_scope/subjects_controller.rb
+  s_3cde98911dbb68::t_7c707ed6362ae9 26-31,36-39
+  s_d07eaf9026904a::t_eb02d8a30a8f57 22-25
+docs/site/upgrading.md
+  s_d07eaf9026904a::t_4ec6db9ad0044c 84-88
+lib/current_scope/resolver.rb
+  s_8ea16d583993f1::t_96d00ee60c969d 583-587
+  s_8ea16d583993f1::t_021256cb5c8270 582
+lib/tasks/current_scope_tasks.rake
+  s_d07eaf9026904a::t_42485fbdbc738a 143-145,148
+app/controllers/current_scope/role_assignments_controller.rb
+  s_d07eaf9026904a::t_cd152f9bfd73ca 96
+app/models/current_scope/scoped_role_assignment.rb
+  s_d07eaf9026904a::t_18e5701eb368ff 46-49,66,83,88-97
+db/migrate/20260805000001_widen_current_scope_polymorphic_ids.rb
+  s_d07eaf9026904a::t_27966131ad1188 102,125
+lib/current_scope/engine.rb
+  s_d07eaf9026904a::t_a314958846566b 62-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "39608d24e654d615677b702b22d0925dd1aa5fd9",
+  "prompts": {},
+  "sessions": {
+    "s_3cde98911dbb68": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-0345wADnGBEOqxGejhZ8zR",
+        "model": "unknown"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    },
+    "s_7da0e2c2e4c87a": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-0345wEKjMoY4RzKvxS1smz",
+        "model": "unknown"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    },
+    "s_8ea16d583993f1": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-0345wB5yQOrGMbhnih1kxf",
+        "model": "unknown"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    },
+    "s_a87d2ad4cc2737": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-0345wDnp0hJqdrxeGFIeIJ",
+        "model": "unknown"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    },
+    "s_d07eaf9026904a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a2f629c1-6833-48f9-8eb7-b6d9b5aac446",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    },
+    "s_f8f8082cf263fa": {
+      "agent_id": {
+        "tool": "amp",
+        "id": "TU-0345wBc62WrOPdRNFxyiN9",
+        "model": "unknown"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

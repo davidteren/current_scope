@@ -2,13 +2,16 @@
 
 > ## Last session handoff
 >
-> **What this is:** CurrentScope, a Rails authorization engine. Plans for
-> issues 155, 156, and 158 are on disk. Issue 155 (custom storage tokens) is
-> implemented on `fix/polymorphic-storage-token`.
-> **What we finished:** collection, reverse lookup, and members now use the
-> same polymorphic token. Unmapped tokens stay inert.
-> **What you do next:** run the pre-PR gate on that branch, or start the
-> role-document plan (issue 156).
+> **What this is:** CurrentScope portability work. Three plans sit on
+> `fix/polymorphic-storage-token`. Issue 155 (custom storage tokens) is coded
+> there. Issues 156 and 158 are planned only.
+> **What we finished:** 155 list, reverse lookup, and members agree on a custom
+> token. All three plans are committed (`2c4429c`).
+> **What you do next:** run the pre-PR gate on `fix/polymorphic-storage-token`,
+> then implement issue 156 from
+> `docs/plans/2026-08-13-002-feat-role-definition-export-import-plan.md`.
+> After that, issue 158 from
+> `docs/plans/2026-08-13-003-feat-subject-identity-resolution-plan.md`.
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >

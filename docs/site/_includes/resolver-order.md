@@ -18,6 +18,8 @@ The class form `allowed_to?(:index, Report)` names the type itself.
 Listed reads take their answer from `scope_for` and open only when that
 list is not empty, including rows reached through a declared parent.
 Other record-less keys (for example `create`) need an explicit tick on
-the named type; a scoped `full_access` grant does not open those. The
+the named type; a scoped `full_access` grant does not open those. An
+action in `config.sod_actions` never opens on this arm: the veto needs a
+record. The
 [record-less rules](https://github.com/davidteren/current_scope/blob/main/docs/guides/checking-permissions.md#scoping-a-list-scope_for)
 are the full treatment.

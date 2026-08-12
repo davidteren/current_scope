@@ -91,7 +91,8 @@ Without a type the gate stays closed. The listed read still opens only
 when the subject's scoped list is not empty, including rows reached
 through a declared parent. Other record-less keys (for example `create`)
 need an explicit tick on the named type; a scoped `full_access` grant
-does not open those. See
+does not open those. An action in `config.sod_actions` never opens on
+this arm: the veto needs a record. See
 [Checking permissions](docs/guides/checking-permissions.md#scoping-a-list-scope_for).
 
 ## Screenshots

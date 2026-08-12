@@ -30,7 +30,8 @@ Without a type the grant is type-unbound and the gate stays closed
 subject's scoped list is not empty, including rows reached through a
 declared parent. Other record-less keys (for example `create`) need an
 explicit tick on the named type; a scoped `full_access` grant does not
-open those.
+open those. An action in `config.sod_actions` never opens on this arm:
+the veto needs a record.
 
 No grant means denied. The gate enforces that answer before the action runs.
 The scoped list narrows which records the action sees. For listed collection

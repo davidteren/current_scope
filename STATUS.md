@@ -6,10 +6,10 @@
 > conversion page on `docs/site-conversion`.
 > **What we finished:** hero CTAs, proof, comparison, who-it-is-for, and
 > a public security strip on `docs/site/index.html`.
-> **What you do next:** review the landing page in a browser, then run
-> the pre-PR gate and open the PR.
+> **What you do next:** review the landing-page PR, then get a real host
+> onto report mode and #116.
 >
-> ### In-progress handoff — PR #153 review fixes (2026-08-12)
+> ### Historical — PR #153 review fixes (2026-08-12)
 >
 > **Worktree state:** committed and pushed on `fix/uuid-subject-collision` (the
 > branch head is the live SHA — this file does not pin it, because writing a head

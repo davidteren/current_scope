@@ -1,0 +1,24 @@
+README.md
+  h_e8a5bb9272fa34 90-93
+STATUS.md
+  h_e8a5bb9272fa34 855-857,861-862
+docs/ROADMAP.md
+  h_e8a5bb9272fa34 13,44-45
+docs/guides/concepts-and-glossary.md
+  h_e8a5bb9272fa34 29-32
+docs/site/_includes/resolver-order.md
+  h_e8a5bb9272fa34 18-20
+resources/DESIGN.md
+  h_e8a5bb9272fa34 526-528
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "8486051cfa30a0b2d6eb60743ab29719be4964d8",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

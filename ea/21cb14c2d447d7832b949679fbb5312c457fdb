@@ -1,0 +1,14 @@
+lib/current_scope.rb
+  h_e8a5bb9272fa34 289-292
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "ea21cb14c2d447d7832b949679fbb5312c457fdb",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

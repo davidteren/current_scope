@@ -1,0 +1,21 @@
+CHANGELOG.md
+  s_d07eaf9026904a::t_ed1a85f97419b7 7-9,13-31
+lib/current_scope/version.rb
+  s_d07eaf9026904a::t_5890a9a8f416e0 2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "b3f2063017ff0bb700d930755448bc427a5fdea1",
+  "prompts": {},
+  "sessions": {
+    "s_d07eaf9026904a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a2f629c1-6833-48f9-8eb7-b6d9b5aac446",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

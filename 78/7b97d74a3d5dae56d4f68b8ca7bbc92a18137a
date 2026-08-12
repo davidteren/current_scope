@@ -1,0 +1,14 @@
+docs/site/index.html
+  h_e8a5bb9272fa34 501-532,1135-1142,1144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "787b97d74a3d5dae56d4f68b8ca7bbc92a18137a",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

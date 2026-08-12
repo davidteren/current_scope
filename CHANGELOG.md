@@ -4,13 +4,16 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — next cut is **0.5.0 (minor, not a patch)**
+## [Unreleased]
+
+## [0.5.0] - 2026-08-12
 
 `current_scope_parent` (#108) moves authorization semantics: a scoped grant can
 reach records it never reached before. It is opt-in, so a host that declares no
-chain sees byte-identical decisions — but the version must still say a rule
-changed. Not cut yet; the README banner stays up pending the real-host
-`:enforce` bake (#116 Wave 3).
+chain sees byte-identical decisions — but the version still says a rule changed.
+This release also fixes a published security defect (#151, below). The README
+banner stays up on purpose: production-readiness is gated on the real-host
+`:enforce` bake (#116 Wave 3), not on this release.
 
 ### Added
 - **A missing `current_scope_initiator` is now found before traffic finds it,
@@ -161,7 +164,10 @@ changed. Not cut yet; the README banner stays up pending the real-host
   `String#to_i` on write. `"7f00aaaa-…"` and `"7f00bbbb-…"` both stored as `7`; a
   key beginning with a letter stored as `0`. Distinct records collapsed into one
   identity, and a subject held a role nobody granted them — `full_access`
-  included. **This affects 0.2, 0.3 and 0.4 as published.**
+  included. **This affects 0.2, 0.3 and 0.4 as published.** Those versions are
+  being yanked, and **0.5.0 is the first safe release** (0.1.0 carried the same
+  defect but was never published to RubyGems). A security advisory and CVE are
+  forthcoming; remediation of the published versions is tracked in #151.
 
   Nothing surfaced it: the association still resolved (to the wrong record), the
   per-subject uniqueness index saw the collapsed value as a single subject, and no
@@ -835,7 +841,8 @@ guards from the solid-solution worklist (PR #100). No intended host API break.
   so `allowed_to?` works identically in controllers, views, and ViewComponents,
   the mounted management UI, and the `current_scope:install` generator.
 
-[Unreleased]: https://github.com/davidteren/current_scope/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/davidteren/current_scope/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/davidteren/current_scope/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/davidteren/current_scope/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/davidteren/current_scope/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/davidteren/current_scope/compare/v0.2.0...v0.3.0

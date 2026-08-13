@@ -4,11 +4,6 @@
 
 ## Configuration
 
-**`config.polymorphic_class_names`** — optional Hash of stored type token to
-class name, for a custom `polymorphic_name` that Rails cannot reverse. Default
-`{}`. Auto-detected overrides (loaded models whose token is not the class name)
-merge with this map. Two classes that claim the same token raise at rebuild.
-
 Everything lives in `config/initializers/current_scope.rb` (created by the
 install generator): the `user_method`, the `subject_class`, `sod_actions`,
 `excluded_controllers` (keep infrastructure out of the grid), and
@@ -18,6 +13,13 @@ and `sod_identity` — are grouped in their own block and covered under
 [Impersonation](impersonation.md); they layer in that order, so
 `sod_identity` is only observable once a mutation is allowed past the read-only
 gate.
+
+**`config.polymorphic_class_names`** — optional Hash of stored type token to
+class name, for a custom `polymorphic_name` that Rails cannot reverse. Default
+`{}`. Auto-detected overrides (loaded models whose token is not the Rails
+default name) merge with this map. Two classes that claim the same token raise
+at rebuild, including a shortened name that matches another loaded class.
+The named class must actually store that token; an unknown class name raises.
 
 **`config.enforcement`** — `:enforce` (default) | `:report`. What the gate does
 with a denial. `:enforce` means a denial is a 403; it is the only production

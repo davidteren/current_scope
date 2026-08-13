@@ -40,6 +40,12 @@ CurrentScope.configure do |config|
   # Class whose instances hold roles, used by the management UI.
   # config.subject_class = "User"
 
+  # Optional map of a custom stored type token to its class name. Needed when
+  # Rails cannot reverse a polymorphic_name (or a shortened name) before the
+  # model is loaded. The class must actually store that token. Two classes
+  # may not share a token.
+  # config.polymorphic_class_names = { "token_docs" => "TokenDocument" }
+
   # How a subject is identified in the management UI (an id is meaningless with
   # UUID keys). A Symbol names a method; a Proc takes the subject. Defaults to a
   # best-effort label (current_scope_label, else name/email/title, else id).

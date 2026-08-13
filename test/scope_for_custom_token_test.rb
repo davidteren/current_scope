@@ -84,7 +84,22 @@ class ScopeForCustomTokenTest < ActiveSupport::TestCase
                  ).resource_type
     result = @resolver.scope_for(subject: @user, model: Report, permission: "reports#index")
     assert_includes result, report
+    assert_equal [ "Project", project.id ], CurrentScope::ParentChain.send(:identity, project)
+    assert_equal "token_projects", CurrentScope.storage_token(Project)
   ensure
     Project.define_singleton_method(:polymorphic_name, original)
+  end
+
+  test "create! of a custom-token grant agrees with scope_for and allow?" do
+    CurrentScope.rebuild_polymorphic_registry!
+    user = User.create!(name: "Writer")
+    doc = TokenDocument.create!(name: "LiveGrant")
+    role = CurrentScope::Role.create!(name: "LiveTokenViewer")
+    role.role_permissions.create!(permission_key: "folders#index")
+    CurrentScope::ScopedRoleAssignment.create!(subject: user, role: role, resource: doc)
+
+    result = @resolver.scope_for(subject: user, model: TokenDocument, permission: "folders#index")
+    assert_includes result, doc
+    assert @resolver.allow?(subject: user, permission: "folders#index", record: doc)
   end
 end

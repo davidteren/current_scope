@@ -281,25 +281,52 @@ module  CurrentScope
     # here; lookup is not.
     def rebuild_polymorphic_registry!
       map = {}
+      owners = {}
       ActiveRecord::Base.descendants.each do |klass|
         next if klass.abstract_class?
         next unless klass.respond_to?(:polymorphic_name)
 
         token = klass.polymorphic_name.to_s
         next if token.blank?
-        # Default STI stores the base class name. That is not a custom token,
-        # and every subclass would collide on it.
-        next if token == klass.name || token == klass.base_class.name
+
+        # Every loaded class occupies its token, including default names.
+        # Skipping only custom overrides let Admin::User (token "User") sit
+        # next to ::User without a raise, and then granted_ids aliased ids.
+        base = klass.base_class
+        existing_base = owners[token]
+        if existing_base && existing_base != base
+          raise ConfigurationError,
+                "polymorphic token #{token.inspect} is claimed by both #{existing_base.name} " \
+                "and #{base.name}. Two classes cannot share a storage token."
+        end
+        owners[token] = base
+
+        # Default Rails tokens (class name, STI base name, or the shortened
+        # demodulized base when store_full_class_name is false) are not custom.
+        # STI siblings all emit that token; they must not enter the reverse map.
+        next if default_storage_token?(klass, token)
 
         claim!(map, token, klass)
       end
       CurrentScope.config.polymorphic_class_names.each do |token, class_name|
+        token = token.to_s
         resolved = class_name.safe_constantize
-        next if resolved.nil?
+        if resolved.nil?
+          raise ConfigurationError,
+                "config.polymorphic_class_names maps #{token.inspect} to #{class_name.inspect}, " \
+                "which does not resolve to a class."
+        end
 
-        claim!(map, token.to_s, resolved)
+        emitted = resolved.polymorphic_name.to_s
+        if emitted != token
+          raise ConfigurationError,
+                "config.polymorphic_class_names maps #{token.inspect} to #{resolved.name}, " \
+                "but #{resolved.name} stores #{emitted.inspect}."
+        end
+
+        claim!(map, token, resolved)
       end
-      @polymorphic_registry = map
+      @polymorphic_registry = map.freeze
     end
 
     def polymorphic_registry
@@ -315,7 +342,16 @@ module  CurrentScope
       end
       map[token] = klass
     end
-    private :claim!
+
+    def default_storage_token?(klass, token)
+      default = if klass.respond_to?(:store_full_class_name) && !klass.store_full_class_name
+        klass.base_class.name.demodulize
+      else
+        klass.base_class.name
+      end
+      token == klass.name || token == default
+    end
+    private :claim!, :default_storage_token?
 
     # #151. `subject_id` and `resource_id` are string columns, so ANY single-value
     # primary key stores whole — an integer as "1", a UUID as "7f00aaaa-…". What

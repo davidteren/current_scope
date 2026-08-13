@@ -121,7 +121,9 @@ module CurrentScope
     # Optional explicit map of stored polymorphic tokens to class names. Used
     # when Rails cannot reverse a custom polymorphic_name. Keys and values are
     # strings. Merged with auto-detected overrides on registry rebuild; a token
-    # that names two different classes raises.
+    # that names two different classes raises. Rebuild also refuses a class
+    # name that does not resolve, and a class that does not actually store
+    # that token (a leftover name must stay inert).
     attr_reader :polymorphic_class_names
 
     def polymorphic_class_names=(value)

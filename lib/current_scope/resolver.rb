@@ -376,10 +376,10 @@ module CurrentScope
     # so full_access still opens a directly-granted record's collection reads and
     # still does not cascade to children.
     #
-    # Every hop normalizes through base_class for the same reason the direct arm
-    # does (see the comment above it): grants store the polymorphic base_class,
-    # and querying a subclass name instead would make the list return nothing
-    # where the per-record gate allows.
+    # Every hop queries granted_ids with the parent's storage token
+    # (polymorphic_name), which is what grant rows store. Parent-chain hop
+    # identity stays on base_class.name and is a different key. Do not feed
+    # the storage token into that loop.
     def ancestor_scope_for(subject:, model:, permission:)
       arms = []
       klass = model

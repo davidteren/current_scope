@@ -2,16 +2,16 @@
 
 > ## Last session handoff
 >
-> **What this is:** CurrentScope portability work. Three plans sit on
-> `fix/polymorphic-storage-token`. Issue 155 (custom storage tokens) is coded
-> there. Issues 156 and 158 are planned only.
-> **What we finished:** 155 list, reverse lookup, and members agree on a custom
-> token. All three plans are committed (`2c4429c`).
-> **What you do next:** run the pre-PR gate on `fix/polymorphic-storage-token`,
-> then implement issue 156 from
+> **What this is:** CurrentScope portability work. Issue 155 (custom storage
+> tokens) is coded and locally gated on `fix/polymorphic-storage-token`.
+> Issues 156 and 158 are planned only.
+> **What we finished:** Pre-PR gate on this branch. List, reverse lookup, and
+> members agree on a custom token. Residual cubic notes are the known
+> lazy-load bargain and leftover-token reuse (KTD-2 / KTD-4).
+> **What you do next:** Open the 155 PR from this branch if no later
+> commit landed, or re-run the pre-PR gate first. Then implement issue
+> 156 from
 > `docs/plans/2026-08-13-002-feat-role-definition-export-import-plan.md`.
-> After that, issue 158 from
-> `docs/plans/2026-08-13-003-feat-subject-identity-resolution-plan.md`.
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >

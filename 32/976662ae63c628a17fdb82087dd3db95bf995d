@@ -1,0 +1,24 @@
+UPGRADING.md
+  h_e8a5bb9272fa34 18-22
+lib/current_scope.rb
+  h_e8a5bb9272fa34 304-312
+lib/current_scope/resolver.rb
+  h_e8a5bb9272fa34 511-514
+lib/generators/current_scope/install/templates/initializer.rb
+  h_e8a5bb9272fa34 44-47
+test/dummy/app/models/billing_ns/token_invoice.rb
+  h_e8a5bb9272fa34 1-9
+test/polymorphic_registry_test.rb
+  h_e8a5bb9272fa34 123-129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "32976662ae63c628a17fdb82087dd3db95bf995d",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

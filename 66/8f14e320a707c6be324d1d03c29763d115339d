@@ -1,0 +1,18 @@
+app/models/concerns/current_scope/storable_keys.rb
+  h_e8a5bb9272fa34 16-24
+lib/current_scope.rb
+  h_e8a5bb9272fa34 349
+test/polymorphic_registry_test.rb
+  h_e8a5bb9272fa34 41-43,120-122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "668f14e320a707c6be324d1d03c29763d115339d",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

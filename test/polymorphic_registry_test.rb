@@ -18,6 +18,22 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
     assert_equal TokenDocument, CurrentScope.polymorphic_class("token_docs")
   end
 
+  test "Rails reverse cannot override a registered token owner" do
+    CurrentScope.rebuild_polymorphic_registry!
+    CurrentScope.polymorphic_registry.dup.tap do |map|
+      map["User"] = TokenDocument
+      CurrentScope.instance_variable_set(:@polymorphic_registry, map.freeze)
+    end
+
+    error = assert_raises(CurrentScope::ConfigurationError) do
+      CurrentScope.polymorphic_class("User")
+    end
+    assert_match(/User/, error.message)
+    assert_match(/TokenDocument/, error.message)
+  ensure
+    CurrentScope.rebuild_polymorphic_registry!
+  end
+
   test "a custom token that is another class's constant uses the registry" do
     original = Folder.method(:polymorphic_name)
     Folder.define_singleton_method(:polymorphic_name) { "TokenDocument" }

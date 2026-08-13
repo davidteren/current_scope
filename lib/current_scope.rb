@@ -328,6 +328,12 @@ module  CurrentScope
                 "which does not resolve to a class."
         end
 
+        unless resolved.is_a?(Class) && resolved < ActiveRecord::Base && !resolved.abstract_class?
+          raise ConfigurationError,
+                "config.polymorphic_class_names maps #{token.inspect} to #{class_name.inspect}, " \
+                "which is not a concrete Active Record model."
+        end
+
         emitted = resolved.polymorphic_name.to_s
         if emitted != token
           raise ConfigurationError,
@@ -335,7 +341,7 @@ module  CurrentScope
                 "but #{resolved.name} stores #{emitted.inspect}."
         end
 
-        claim!(map, token, resolved)
+        claim!(map, token, resolved.base_class)
       end
       @polymorphic_registry = map.freeze
     rescue ConfigurationError => e
@@ -349,15 +355,24 @@ module  CurrentScope
     end
 
     def resolve_polymorphic_token(token, owner:)
-      resolved = owner.polymorphic_class_for(token)
-      # Rails constantizes the token. A custom polymorphic_name that happens
-      # to be another class's constant ("TokenDocument") would otherwise
-      # bind that constant and skip the registry claim.
-      return resolved if resolved && resolved.polymorphic_name.to_s == token
+      resolved = begin
+        owner.polymorphic_class_for(token)
+      rescue NameError
+        nil
+      end
+      registered = polymorphic_registry[token]
 
-      polymorphic_registry[token]
-    rescue NameError
-      polymorphic_registry[token]
+      if resolved && resolved.respond_to?(:polymorphic_name) &&
+         resolved.polymorphic_name.to_s == token
+        if registered && registered.base_class != resolved.base_class
+          raise ConfigurationError,
+                "polymorphic token #{token.inspect} is claimed by both #{registered.name} " \
+                "and #{resolved.name}. Two classes cannot share a storage token."
+        end
+        return resolved
+      end
+
+      registered
     end
 
     def claim!(map, token, klass)

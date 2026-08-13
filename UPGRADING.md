@@ -15,9 +15,11 @@ with `store_full_class_name = false`):
   example `Admin::User` storing `"User"` next to `::User`). STI siblings
   that store their base name are not a clash.
 - Optional: `config.polymorphic_class_names = { "token_docs" => "TokenDocument" }`
-  for a token that must resolve before the model is loaded. The class must
-  actually store that token. A leftover name mapped onto a live class is
-  refused, so a stale grant stays inert.
+  for a token that must resolve before the model is loaded. After a namespaced
+  model with `store_full_class_name = false` is loaded, a shortened token that
+  does not constantize is registered automatically. The class must actually
+  store that token. A leftover name mapped onto a live class is refused, so a
+  stale grant stays inert.
 
 An unmapped custom token stays inert. That is not a permit.
 

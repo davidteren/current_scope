@@ -120,6 +120,13 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
     CurrentScope.rebuild_polymorphic_registry!
   end
 
+  test "a shortened namespaced token reverse-resolves when Rails cannot" do
+    BillingNs::TokenInvoice
+    CurrentScope.rebuild_polymorphic_registry!
+    assert_equal "TokenInvoice", BillingNs::TokenInvoice.polymorphic_name
+    assert_equal BillingNs::TokenInvoice, CurrentScope.polymorphic_class("TokenInvoice")
+  end
+
   test "shortened STI sibling tokens do not raise" do
     original = Document.store_full_class_name
     Document.store_full_class_name = false

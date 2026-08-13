@@ -301,10 +301,15 @@ module  CurrentScope
         end
         owners[token] = base
 
-        # Default Rails tokens (class name, STI base name, or the shortened
-        # demodulized base when store_full_class_name is false) are not custom.
-        # STI siblings all emit that token; they must not enter the reverse map.
-        next if default_storage_token?(klass, token)
+        # Default Rails tokens that already constantize (User, Document, STI
+        # siblings) stay out of the reverse map. A shortened namespaced token
+        # ("User" for Admin::User when ::User does not exist) cannot reverse
+        # through Rails; register the base so lookup works after load.
+        if default_storage_token?(klass, token)
+          next if token.safe_constantize
+          claim!(map, token, base)
+          next
+        end
 
         claim!(map, token, klass)
       end

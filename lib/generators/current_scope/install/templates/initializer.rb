@@ -41,9 +41,10 @@ CurrentScope.configure do |config|
   # config.subject_class = "User"
 
   # Optional map of a custom stored type token to its class name. Needed when
-  # Rails cannot reverse a polymorphic_name (or a shortened name) before the
-  # model is loaded. The class must actually store that token. Two classes
-  # may not share a token.
+  # Rails cannot reverse a polymorphic_name before the model is loaded. After
+  # load, a shortened namespaced token that does not constantize is registered
+  # automatically. The class must actually store that token. Two classes may
+  # not share a token.
   # config.polymorphic_class_names = { "token_docs" => "TokenDocument" }
 
   # How a subject is identified in the management UI (an id is meaningless with

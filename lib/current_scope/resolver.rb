@@ -508,9 +508,10 @@ module CurrentScope
     # Binds by TYPE (#50). The target names no record, but the controller can
     # name the type its collection lists via current_scope_model (record when
     # it is a Class — the allowed_to?(:index, Report) form — else the model:
-    # kwarg the Guard threads). resource_type filters the grant to that type,
-    # normalized through base_class exactly as scope_for does, so "a Report
-    # grant" cannot open a Documents gate. UNKNOWN type ⇒ this branch does not
+    # kwarg the Guard threads). resource_type filters the grant to that type
+    # with CurrentScope.storage_token(type) (polymorphic_name), the same token
+    # scope_for passes to granted_ids, so "a Report grant" cannot open a
+    # Documents gate. UNKNOWN type ⇒ this branch does not
     # fire (fail-closed): before #50 an unbound grant of any type opened every
     # record-less gate, and for a key with no list side (#create) that let a
     # Report-scoped subject create Documents — a live escalation, not a

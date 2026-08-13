@@ -1,0 +1,32 @@
+CHANGELOG.md
+  h_e8a5bb9272fa34 20
+UPGRADING.md
+  h_e8a5bb9272fa34 14-16,18-20
+docs/guides/configuration-reference.md
+  h_e8a5bb9272fa34 17-23
+docs/site/configuration.md
+  h_e8a5bb9272fa34 24
+lib/current_scope.rb
+  h_e8a5bb9272fa34 284,291-307,312,314-318,320-327,329,345-354
+lib/current_scope/configuration.rb
+  h_e8a5bb9272fa34 124-126
+lib/current_scope/resolver.rb
+  h_e8a5bb9272fa34 379-382
+lib/generators/current_scope/install/templates/initializer.rb
+  h_e8a5bb9272fa34 43-48
+test/polymorphic_registry_test.rb
+  h_e8a5bb9272fa34 84-155
+test/scope_for_custom_token_test.rb
+  h_e8a5bb9272fa34 87-88,92-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "ee3273deb08936108394c1b1ad53f4da99abb681",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

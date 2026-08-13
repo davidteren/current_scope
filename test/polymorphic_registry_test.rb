@@ -151,8 +151,8 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
   end
 
   test "a custom-token class loaded after rebuild still reverse-resolves" do
-    CurrentScope.rebuild_polymorphic_registry!
     LateTokenRecord
+    CurrentScope.rebuild_polymorphic_registry!
     assert_equal LateTokenRecord, CurrentScope.polymorphic_class("late_tokens")
   end
 

@@ -269,21 +269,16 @@ module  CurrentScope
     # "nothing to check" — a stale type is #90's inert grant, not a key problem.
     def polymorphic_class(type, owner: ActiveRecord::Base)
       return if type.blank?
+      raise @polymorphic_registry_error if @polymorphic_registry_error
 
-      token = type.to_s
-      # Rebuild before trusting Rails. A late-loaded class whose token is
-      # another constant would otherwise resolve to that constant and skip
-      # the collision check.
-      seen = ActiveRecord::Base.descendants.size
-      rebuild_polymorphic_registry! if @registry_descendants_seen != seen
-
-      resolve_polymorphic_token(token, owner: owner)
+      resolve_polymorphic_token(type.to_s, owner: owner)
     end
 
     # Rebuild the token → class map. Safe to call from to_prepare (dev reload)
     # and from after_initialize when eager_load is on. Enumeration is allowed
     # here; lookup is not.
     def rebuild_polymorphic_registry!
+      @polymorphic_registry_error = nil
       map = {}
       owners = {}
       ActiveRecord::Base.descendants.each do |klass|
@@ -343,10 +338,9 @@ module  CurrentScope
         claim!(map, token, resolved)
       end
       @polymorphic_registry = map.freeze
-      @registry_descendants_seen = ActiveRecord::Base.descendants.size
-    rescue ConfigurationError
+    rescue ConfigurationError => e
       @polymorphic_registry = {}.freeze
-      @registry_descendants_seen = nil
+      @polymorphic_registry_error = e
       raise
     end
 

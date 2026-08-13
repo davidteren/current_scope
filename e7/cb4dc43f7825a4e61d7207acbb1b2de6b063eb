@@ -1,0 +1,16 @@
+lib/current_scope.rb
+  h_e8a5bb9272fa34 272,274,281,341,343
+test/polymorphic_registry_test.rb
+  h_e8a5bb9272fa34 155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "e7cb4dc43f7825a4e61d7207acbb1b2de6b063eb",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -11,13 +11,6 @@ module CurrentScope
     belongs_to :subject, polymorphic: true
     belongs_to :resource, polymorphic: true
 
-    # Rails reverse-resolves the stored token via polymorphic_class_for. A custom
-    # token is not a constant; route it through the engine registry first.
-    def self.polymorphic_class_for(name)
-      CurrentScope.polymorphic_class(name, owner: ActiveRecord::Base) ||
-        raise(NameError, "unmapped polymorphic token #{name.inspect}")
-    end
-
     validates :role_id, uniqueness: {
       scope: [ :subject_type, :subject_id, :resource_type, :resource_id ]
     }

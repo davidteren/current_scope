@@ -13,6 +13,15 @@ module CurrentScope
       def validates_storable_polymorphic_keys(*sides)
         validate { current_scope_check_storable_keys(sides) }
       end
+
+      # Rails reverse-resolves the stored token via polymorphic_class_for.
+      # A custom token is not a constant; route it through the engine registry.
+      # Do not fall through to Rails constantize when the registry is empty:
+      # a token that equals another class name would bind the wrong model.
+      def polymorphic_class_for(name)
+        CurrentScope.polymorphic_class(name, owner: ActiveRecord::Base) ||
+          raise(NameError, "unmapped polymorphic token #{name.inspect}")
+      end
     end
 
     # Associations cast their stored id through the target model's key type.

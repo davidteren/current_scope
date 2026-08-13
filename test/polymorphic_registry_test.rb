@@ -38,7 +38,9 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
     assert_raises(CurrentScope::ConfigurationError) do
       CurrentScope.rebuild_polymorphic_registry!
     end
-    assert_nil CurrentScope.polymorphic_class("token_docs")
+    assert_raises(CurrentScope::ConfigurationError) do
+      CurrentScope.polymorphic_class("token_docs")
+    end
   ensure
     Folder.define_singleton_method(:polymorphic_name, original)
     CurrentScope.rebuild_polymorphic_registry!
@@ -115,6 +117,9 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
     end
     assert_match(/old_token/, error.message)
     assert_match(/User/, error.message)
+
+    CurrentScope.config.polymorphic_class_names = {}
+    CurrentScope.rebuild_polymorphic_registry!
     assert_nil CurrentScope.polymorphic_class("old_token")
   ensure
     CurrentScope.config.polymorphic_class_names = {}

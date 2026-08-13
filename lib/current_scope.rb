@@ -346,7 +346,7 @@ module  CurrentScope
       @registry_descendants_seen = ActiveRecord::Base.descendants.size
     rescue ConfigurationError
       @polymorphic_registry = {}.freeze
-      @registry_descendants_seen = ActiveRecord::Base.descendants.size
+      @registry_descendants_seen = nil
       raise
     end
 

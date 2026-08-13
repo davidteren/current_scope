@@ -7,7 +7,8 @@ module CurrentScope
     belongs_to :subject, polymorphic: true
 
     def self.polymorphic_class_for(name)
-      CurrentScope.polymorphic_class(name, owner: ActiveRecord::Base) || super
+      CurrentScope.polymorphic_class(name, owner: ActiveRecord::Base) ||
+        raise(NameError, "unmapped polymorphic token #{name.inspect}")
     end
 
     # One org-wide role per subject. Name the rule and the upsert alternative

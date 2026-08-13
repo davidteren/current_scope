@@ -270,10 +270,17 @@ module  CurrentScope
     def polymorphic_class(type, owner: ActiveRecord::Base)
       return if type.blank?
 
-      owner.polymorphic_class_for(type)
-    rescue NameError
-      # Lookup is the closed map only. Never walk descendants here (#151).
-      polymorphic_registry[type.to_s]
+      token = type.to_s
+      found = resolve_polymorphic_token(token, owner: owner)
+      return found if found
+
+      # Lookup itself never walks descendants (#151). A miss after a new
+      # model has loaded (dev, lazy load) may rebuild once, then look again.
+      seen = ActiveRecord::Base.descendants.size
+      return if @registry_descendants_seen == seen
+
+      rebuild_polymorphic_registry!
+      resolve_polymorphic_token(token, owner: owner)
     end
 
     # Rebuild the token → class map. Safe to call from to_prepare (dev reload)
@@ -311,7 +318,9 @@ module  CurrentScope
           next
         end
 
-        claim!(map, token, klass)
+        # Custom tokens register the base so STI siblings that inherit the
+        # same override share one claim instead of colliding on the leaf.
+        claim!(map, token, base)
       end
       CurrentScope.config.polymorphic_class_names.each do |token, class_name|
         token = token.to_s
@@ -332,10 +341,27 @@ module  CurrentScope
         claim!(map, token, resolved)
       end
       @polymorphic_registry = map.freeze
+      @registry_descendants_seen = ActiveRecord::Base.descendants.size
+    rescue ConfigurationError
+      @polymorphic_registry = {}.freeze
+      @registry_descendants_seen = ActiveRecord::Base.descendants.size
+      raise
     end
 
     def polymorphic_registry
       @polymorphic_registry ||= {}
+    end
+
+    def resolve_polymorphic_token(token, owner:)
+      resolved = owner.polymorphic_class_for(token)
+      # Rails constantizes the token. A custom polymorphic_name that happens
+      # to be another class's constant ("TokenDocument") would otherwise
+      # bind that constant and skip the registry claim.
+      return resolved if resolved && resolved.polymorphic_name.to_s == token
+
+      polymorphic_registry[token]
+    rescue NameError
+      polymorphic_registry[token]
     end
 
     def claim!(map, token, klass)
@@ -356,7 +382,7 @@ module  CurrentScope
       end
       token == klass.name || token == default
     end
-    private :claim!, :default_storage_token?
+    private :claim!, :default_storage_token?, :resolve_polymorphic_token
 
     # #151. `subject_id` and `resource_id` are string columns, so ANY single-value
     # primary key stores whole — an integer as "1", a UUID as "7f00aaaa-…". What

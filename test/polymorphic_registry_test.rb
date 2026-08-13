@@ -18,6 +18,32 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
     assert_equal TokenDocument, CurrentScope.polymorphic_class("token_docs")
   end
 
+  test "a custom token that is another class's constant uses the registry" do
+    original = Folder.method(:polymorphic_name)
+    Folder.define_singleton_method(:polymorphic_name) { "TokenDocument" }
+    CurrentScope.rebuild_polymorphic_registry!
+
+    assert_equal Folder, CurrentScope.polymorphic_class("TokenDocument")
+    assert_equal TokenDocument, CurrentScope.polymorphic_class("token_docs")
+  ensure
+    Folder.define_singleton_method(:polymorphic_name, original)
+    CurrentScope.rebuild_polymorphic_registry!
+  end
+
+  test "a failed rebuild leaves the registry empty, not the previous map" do
+    assert_equal TokenDocument, CurrentScope.polymorphic_class("token_docs")
+    original = Folder.method(:polymorphic_name)
+    Folder.define_singleton_method(:polymorphic_name) { "token_docs" }
+
+    assert_raises(CurrentScope::ConfigurationError) do
+      CurrentScope.rebuild_polymorphic_registry!
+    end
+    assert_nil CurrentScope.polymorphic_class("token_docs")
+  ensure
+    Folder.define_singleton_method(:polymorphic_name, original)
+    CurrentScope.rebuild_polymorphic_registry!
+  end
+
   test "an unmapped token stays nil" do
     assert_nil CurrentScope.polymorphic_class("old_token")
   end
@@ -104,6 +130,25 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
   ensure
     CurrentScope.config.polymorphic_class_names = {}
     CurrentScope.rebuild_polymorphic_registry!
+  end
+
+  test "a custom token on an STI base does not collide with siblings" do
+    original = Document.method(:polymorphic_name)
+    Document.define_singleton_method(:polymorphic_name) { "docs" }
+    Invoice
+    Receipt
+
+    assert_nothing_raised { CurrentScope.rebuild_polymorphic_registry! }
+    assert_equal Document, CurrentScope.polymorphic_class("docs")
+  ensure
+    Document.define_singleton_method(:polymorphic_name, original)
+    CurrentScope.rebuild_polymorphic_registry!
+  end
+
+  test "a custom-token class loaded after rebuild still reverse-resolves" do
+    CurrentScope.rebuild_polymorphic_registry!
+    LateTokenRecord
+    assert_equal LateTokenRecord, CurrentScope.polymorphic_class("late_tokens")
   end
 
   test "a custom token that matches another class's default token raises" do

@@ -1,0 +1,22 @@
+app/models/current_scope/role_assignment.rb
+  h_e8a5bb9272fa34 10-11
+app/models/current_scope/scoped_role_assignment.rb
+  h_e8a5bb9272fa34 17-18
+lib/current_scope.rb
+  h_e8a5bb9272fa34 273-283,321-323,344-348,355-366,385
+test/dummy/app/models/late_token_record.rb
+  h_e8a5bb9272fa34 1-6
+test/polymorphic_registry_test.rb
+  h_e8a5bb9272fa34 21-46,135-153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "8b527e2ba4cbb7f9f0c43683f9e26cf62a605ba9",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

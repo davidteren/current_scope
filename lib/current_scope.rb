@@ -271,15 +271,12 @@ module  CurrentScope
       return if type.blank?
 
       token = type.to_s
-      found = resolve_polymorphic_token(token, owner: owner)
-      return found if found
-
-      # Lookup itself never walks descendants (#151). A miss after a new
-      # model has loaded (dev, lazy load) may rebuild once, then look again.
+      # Rebuild before trusting Rails. A late-loaded class whose token is
+      # another constant would otherwise resolve to that constant and skip
+      # the collision check.
       seen = ActiveRecord::Base.descendants.size
-      return if @registry_descendants_seen == seen
+      rebuild_polymorphic_registry! if @registry_descendants_seen != seen
 
-      rebuild_polymorphic_registry!
       resolve_polymorphic_token(token, owner: owner)
     end
 
@@ -313,7 +310,12 @@ module  CurrentScope
         # ("User" for Admin::User when ::User does not exist) cannot reverse
         # through Rails; register the base so lookup works after load.
         if default_storage_token?(klass, token)
-          next if token.safe_constantize
+          other = token.safe_constantize
+          rails_reverses = other.respond_to?(:polymorphic_name) &&
+                           other.polymorphic_name.to_s == token &&
+                           other.base_class == base
+          next if rails_reverses
+
           claim!(map, token, base)
           next
         end

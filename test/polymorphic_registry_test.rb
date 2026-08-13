@@ -165,6 +165,18 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
     CurrentScope.rebuild_polymorphic_registry!
   end
 
+  test "a shortened token still registers when another constant has that name" do
+    Object.const_set(:TokenInvoice, Class.new) unless Object.const_defined?(:TokenInvoice, false)
+    BillingNs::TokenInvoice
+    CurrentScope.rebuild_polymorphic_registry!
+
+    assert_equal BillingNs::TokenInvoice, CurrentScope.polymorphic_class("TokenInvoice")
+  ensure
+    Object.send(:remove_const, :TokenInvoice) if Object.const_defined?(:TokenInvoice, false) &&
+                                                 !TokenInvoice.respond_to?(:polymorphic_name)
+    CurrentScope.rebuild_polymorphic_registry!
+  end
+
   test "a shortened namespaced token reverse-resolves when Rails cannot" do
     BillingNs::TokenInvoice
     CurrentScope.rebuild_polymorphic_registry!

@@ -26,6 +26,13 @@ module CurrentScope
       id = public_send("#{side}_id")
       return unless CurrentScope.canonical_key?(klass, id)
 
+      association = association(side.to_sym)
+      if association.loaded?
+        target = association.target
+        return target if target && target.class.base_class == klass.base_class
+        return if target.nil?
+      end
+
       klass.find_by(klass.primary_key => id)
     rescue ActiveRecord::RecordNotFound, NameError
       nil

@@ -21,6 +21,14 @@ with `store_full_class_name = false`):
   store that token. A leftover name mapped onto a live class is refused, so a
   stale grant stays inert.
 
+  Auto-registration only sees models loaded when the registry rebuilds. Under
+  `eager_load` (production) that is every model; in development a custom-token
+  model autoloaded after boot is not reverse-resolvable until the next reload.
+  Map any token that must resolve regardless of load timing.
+- A token is the stored grant identity. If you retire a model and later reuse
+  its `polymorphic_name` token for a different class, existing grants rebind to
+  the new class — treat a token rename or reuse as a data migration.
+
 An unmapped custom token stays inert. That is not a permit.
 
 ## 0.1 → 0.2: SoD became opt-in (silent fail-open if you relied on defaults)

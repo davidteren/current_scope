@@ -17,9 +17,16 @@ gate.
 **`config.polymorphic_class_names`** — optional Hash of stored type token to
 class name, for a custom `polymorphic_name` that Rails cannot reverse. Default
 `{}`. Auto-detected overrides (loaded models whose token is not the Rails
-default name) merge with this map. Two classes that claim the same token raise
-at rebuild, including a shortened name that matches another loaded class.
+default name) merge with this map. Auto-detection sees only the models loaded
+when the registry rebuilds: under `eager_load` (production) that is every model,
+so the map is authoritative; in development a custom-token model autoloaded
+after boot is not reverse-resolvable until the next reload. Map a token here when
+it must resolve regardless of load timing. Two classes that claim the same token
+raise at rebuild, including a shortened name that matches another loaded class.
 The named class must actually store that token; an unknown class name raises.
+A token is the stored grant identity: if you retire a model and later give its
+token to a different class, existing grants rebind to the new class, so treat a
+token rename or reuse as a data migration.
 
 **`config.enforcement`** — `:enforce` (default) | `:report`. What the gate does
 with a denial. `:enforce` means a denial is a 403; it is the only production

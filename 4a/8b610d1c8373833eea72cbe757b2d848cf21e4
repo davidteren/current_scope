@@ -1,0 +1,21 @@
+app/models/concerns/current_scope/storable_keys.rb
+  s_9c987b482796f4::t_28c3d18c6a1959 45-52
+test/polymorphic_registry_test.rb
+  s_9c987b482796f4::t_19e68ec552d53c 118-120
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "4a8b610d1c8373833eea72cbe757b2d848cf21e4",
+  "prompts": {},
+  "sessions": {
+    "s_9c987b482796f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f19c04ff-3746-4bd8-8252-108ae8fbe558",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

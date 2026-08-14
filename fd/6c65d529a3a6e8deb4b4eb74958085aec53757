@@ -1,0 +1,23 @@
+app/controllers/current_scope/roles_controller.rb
+  s_9c987b482796f4::t_65c55f73b00b8c 65
+app/models/current_scope/role_assignment.rb
+  s_9c987b482796f4::t_11c77641dfb3d9 17-36
+lib/current_scope.rb
+  s_9c987b482796f4::t_1b0199e43144d2 268,271-279
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "fd6c65d529a3a6e8deb4b4eb74958085aec53757",
+  "prompts": {},
+  "sessions": {
+    "s_9c987b482796f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f19c04ff-3746-4bd8-8252-108ae8fbe558",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

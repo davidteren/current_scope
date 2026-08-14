@@ -54,6 +54,9 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
     assert_raises(CurrentScope::ConfigurationError) do
       CurrentScope.rebuild_polymorphic_registry!
     end
+    # The distinguishing claim of the title: the map is emptied, not left holding
+    # the previous (now-stale) entries.
+    assert_empty CurrentScope.polymorphic_registry
     assert_raises(CurrentScope::ConfigurationError) do
       CurrentScope.polymorphic_class("token_docs")
     end
@@ -64,6 +67,31 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
 
   test "an unmapped token stays nil" do
     assert_nil CurrentScope.polymorphic_class("old_token")
+  end
+
+  test "a custom token shared by an STI base and subclass resolves to the base owner" do
+    # Base and leaf both emit the SAME custom token, and the leaf's constant name
+    # IS that token, so Rails constantizes the token to the narrower subclass.
+    # Reverse resolution must still return the registered base (base_class), or a
+    # subclass STI predicate would mislabel sibling rows as inert.
+    base = Class.new(ApplicationRecord) do
+      self.table_name = "folders"
+      def self.polymorphic_name = "TokenStiLeaf"
+    end
+    Object.send(:const_set, "TokenStiBase", base)
+    leaf = Class.new(base) do
+      def self.polymorphic_name = "TokenStiLeaf"
+    end
+    Object.send(:const_set, "TokenStiLeaf", leaf)
+    CurrentScope.rebuild_polymorphic_registry!
+
+    assert_equal TokenStiBase, CurrentScope.polymorphic_class("TokenStiLeaf")
+    assert_equal TokenStiBase, "TokenStiLeaf".constantize.base_class,
+                 "precondition: the token constantizes to the leaf, whose base is TokenStiBase"
+  ensure
+    Object.send(:remove_const, :TokenStiLeaf) if defined?(TokenStiLeaf)
+    Object.send(:remove_const, :TokenStiBase) if defined?(TokenStiBase)
+    CurrentScope.rebuild_polymorphic_registry!
   end
 
   test "current_scope_resolved_record loads via find_by, not the association" do
@@ -82,6 +110,10 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
     })
     grant = CurrentScope::ScopedRoleAssignment.find_by!(resource_type: "token_docs", resource_id: doc.id.to_s)
 
+    # Precondition: the polymorphic resource association is unloaded (custom token
+    # Rails cannot reverse through the association reader), so resolution has to go
+    # through find_by against the registry-resolved class, not association.target.
+    assert_not grant.association(:resource).loaded?
     assert_equal doc, grant.current_scope_resolved_record("resource")
   end
 
@@ -123,6 +155,18 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
   test "polymorphic_class_names writer rejects a non-hash" do
     config = CurrentScope::Configuration.new
     assert_raises(CurrentScope::ConfigurationError) { config.polymorphic_class_names = "token_docs" }
+    assert_equal({}, config.polymorphic_class_names)
+  end
+
+  test "polymorphic_class_names writer rejects String/Symbol duplicate keys" do
+    config = CurrentScope::Configuration.new
+    # :token_docs and "token_docs" normalize to one key; without this guard the
+    # second silently overwrites the first, so a token could name two classes
+    # without the duplicate-token error ever firing.
+    error = assert_raises(CurrentScope::ConfigurationError) do
+      config.polymorphic_class_names = { token_docs: "TokenDocument", "token_docs" => "Folder" }
+    end
+    assert_match(/String vs Symbol/, error.message)
     assert_equal({}, config.polymorphic_class_names)
   end
 

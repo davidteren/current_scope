@@ -133,7 +133,16 @@ module CurrentScope
               "token => class name (for example { \"token_docs\" => \"TokenDocument\" })."
       end
 
-      @polymorphic_class_names = value.to_h.transform_keys(&:to_s).transform_values(&:to_s).freeze
+      hash = value.to_h
+      normalized = hash.transform_keys(&:to_s)
+      if normalized.size != hash.size
+        raise ConfigurationError,
+              "config.polymorphic_class_names has keys that differ only as String vs Symbol " \
+              "(for example :token_docs and \"token_docs\"). One silently overwrites the other, " \
+              "so a token could name two classes without the duplicate-token error. Use one form per token."
+      end
+
+      @polymorphic_class_names = normalized.transform_values(&:to_s).freeze
     end
 
     # How a subject is identified in the management UI (subjects table, picker,

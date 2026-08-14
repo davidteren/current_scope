@@ -21,17 +21,19 @@ module CurrentScope
     # excluded from the add list (#155) without plucking one id per subject. Token
     # reasoning lives here, on the grant model, not in the controller.
     def self.subject_types_for(holders, klass)
-      holders.filter_map do |assignment|
-        type = assignment.subject_type
-        next if type.blank?
-        next type if type == klass.polymorphic_name
+      own_token = klass.polymorphic_name
+      base = klass.base_class
+      # Dedup the tokens first, then resolve each once: the distinct token set is
+      # tiny, so this resolves a handful of tokens instead of one per holder (and
+      # an unresolvable token raises/rescues in polymorphic_class, the expensive
+      # path, which would otherwise fire once per holder row).
+      holders.map(&:subject_type).uniq.select do |type|
+        next false if type.blank?
+        next true if type == own_token
 
         resolved = CurrentScope.polymorphic_class(type)
-        next if resolved.nil?
-        next unless resolved.base_class == klass.base_class
-
-        type
-      end.uniq
+        resolved && resolved.base_class == base
+      end
     end
 
     def one_org_role_per_subject

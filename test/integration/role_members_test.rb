@@ -73,7 +73,7 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
       def self.name = "TokenPeopleUser"
       def self.polymorphic_name = "token_people"
     end
-    stub_const = Object.send(:const_set, "TokenPeopleUser", token_user)
+    Object.send(:const_set, "TokenPeopleUser", token_user)
     CurrentScope.rebuild_polymorphic_registry!
 
     get current_scope.members_role_url(@role), headers: as(@owner)

@@ -18,8 +18,10 @@ with `store_full_class_name = false`):
   for a token that must resolve before the model is loaded. After a namespaced
   model with `store_full_class_name = false` is loaded, a shortened token that
   does not constantize is registered automatically. The class must actually
-  store that token. A leftover name mapped onto a live class is refused, so a
-  stale grant stays inert.
+  store that token: a mapping to a class that does not emit it is refused with a
+  `ConfigurationError` (under `eager_load` that fails boot loudly, rather than
+  resolving the token to the wrong class). Leaving a token unmapped is what keeps
+  a stale grant inert; a wrong mapping raises, it does not stay inert.
 
   Auto-registration only sees models loaded when the registry rebuilds. Under
   `eager_load` (production) that is every model; in development a custom-token

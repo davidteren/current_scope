@@ -379,7 +379,12 @@ module  CurrentScope
                 "polymorphic token #{token.inspect} is claimed by both #{registered.name} " \
                 "and #{resolved.name}. Two classes cannot share a storage token."
         end
-        return resolved
+        # Prefer the registry's owner: the rebuild always stores base_class, so a
+        # registered owner is the canonical (base) class. Rails could constantize
+        # the token to a narrower STI subclass sharing that base; returning it
+        # would apply the subclass STI predicate and mislabel sibling rows as
+        # inert. They share a base_class here (checked above), so registered wins.
+        return registered || resolved
       end
 
       registered

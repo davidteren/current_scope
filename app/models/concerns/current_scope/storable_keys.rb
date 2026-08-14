@@ -42,7 +42,14 @@ module CurrentScope
         return if target.nil?
       end
 
-      klass.find_by(klass.primary_key => id)
+      record = klass.find_by(klass.primary_key => id)
+      # Cache the resolved record onto the association so a second resolve of the
+      # same side on this row is free — the members view resolves each holder
+      # twice (its label and its Remove-button GID). The registry swap replaced
+      # the association reader (which cached) with find_by; this restores that.
+      # Association#target= sets @target and marks the association loaded.
+      association.target = record if record
+      record
     rescue ActiveRecord::RecordNotFound, NameError
       nil
     end

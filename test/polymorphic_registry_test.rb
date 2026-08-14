@@ -115,6 +115,9 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
     # through find_by against the registry-resolved class, not association.target.
     assert_not grant.association(:resource).loaded?
     assert_equal doc, grant.current_scope_resolved_record("resource")
+    # The resolved record is cached onto the association, so a second resolve of
+    # the same side on this row does not re-query.
+    assert grant.association(:resource).loaded?
   end
 
   test "create! with a live custom-token record works once the token is registered" do

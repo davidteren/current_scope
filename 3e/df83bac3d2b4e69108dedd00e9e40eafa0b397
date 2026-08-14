@@ -1,0 +1,19 @@
+.gitignore
+  s_9c987b482796f4::t_3fa326315396ab 19-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "3edf83bac3d2b4e69108dedd00e9e40eafa0b397",
+  "prompts": {},
+  "sessions": {
+    "s_9c987b482796f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f19c04ff-3746-4bd8-8252-108ae8fbe558",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -55,13 +55,17 @@ module CurrentScope
       # keys on a bigint — PostgreSQL refuses that comparison outright rather than
       # coercing. Cast the candidate side, so the stored value is never altered.
       #
-      # Held ids come from every org assignment whose type reverse-resolves onto
-      # this subject table, not only subject_class.polymorphic_name. An STI or
-      # custom-token holder would otherwise reappear in the add list (#155).
-      held_ids = held_org_subject_ids(@org_holders, subject_class)
+      # Filter the subquery on subject_type, not a plucked id list: every org
+      # assignment whose type reverse-resolves onto this subject table counts, not
+      # only subject_class.polymorphic_name, so an STI or custom-token holder is
+      # still excluded (#155). The token set is bounded by the model classes
+      # sharing this base class — a few binds — where a subject_id list would carry
+      # one bind per held subject and blow SQLITE_MAX_VARIABLE_NUMBER on a default
+      # role held by the whole user table.
+      held_types = held_org_subject_types(@org_holders, subject_class)
       remaining = subject_class.order(:id)
-      if held_ids.any?
-        held = RoleAssignment.where(role: @role, subject_id: held_ids).select(:subject_id)
+      if held_types.any?
+        held = RoleAssignment.where(role: @role, subject_type: held_types).select(:subject_id)
         remaining = remaining.where.not(
           Arel::Nodes::In.new(candidate_key_as_text, held.arel.ast)
         )
@@ -224,6 +228,26 @@ module CurrentScope
       RoleAssignment.where(id: ids).lock.load if ids.any?
     end
 
+    # The distinct stored subject_type tokens among these org holders that
+    # reverse-resolve onto klass's subject table — its own polymorphic_name plus
+    # any STI/custom token whose class shares klass's base_class. The members query
+    # filters the "held" subquery on this bounded set, so STI/custom-token holders
+    # are excluded from the add list (#155) without plucking one id per subject.
+    def held_org_subject_types(holders, klass)
+      holders.filter_map do |assignment|
+        type = assignment.subject_type
+        next if type.blank?
+        next type if type == klass.polymorphic_name
+
+        resolved = CurrentScope.polymorphic_class(type)
+        next if resolved.nil?
+        next unless resolved.base_class == klass.base_class
+
+        type
+      end.uniq
+    end
+    private :held_org_subject_types
+
     # The candidate's primary key, rendered as text so it can be compared to the
     # string subject_id column (#151). Adapters differ twice over: MySQL spells the
     # cast CHAR where the others spell it TEXT, AND it refuses to compare two
@@ -232,21 +256,6 @@ module CurrentScope
     # The collation is READ FROM THE COLUMN rather than hardcoded, so this cannot
     # drift from what the migration set — and a host that chose a different binary
     # collation still works.
-    def held_org_subject_ids(holders, klass)
-      holders.filter_map do |assignment|
-        type = assignment.subject_type
-        next if type.blank?
-        next assignment.subject_id.to_s if type == klass.polymorphic_name
-
-        resolved = CurrentScope.polymorphic_class(type)
-        next if resolved.nil?
-        next unless resolved.base_class == klass.base_class
-
-        assignment.subject_id.to_s
-      end.uniq
-    end
-    private :held_org_subject_ids
-
     def candidate_key_as_text
       connection = subject_class.connection
       column = "#{connection.quote_table_name(subject_class.table_name)}." \

@@ -86,6 +86,29 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
     CurrentScope.rebuild_polymorphic_registry!
   end
 
+  # The held-set is filtered by reverse-resolving TOKEN, not by a plucked
+  # subject_id list. A holder stored under a different base class's token
+  # (token_docs -> TokenDocument) must not exclude a real subject whose id merely
+  # collides with that holder's subject_id — the base_class guard drops the token.
+  test "a holder stored under a different base class's token does not exclude a colliding candidate" do
+    free = User.create!(name: "FreeUser")
+    now = Time.current
+    # Same numeric id as a real User, but stored under a TokenDocument token.
+    CurrentScope::RoleAssignment.insert!({
+      role_id: @role.id,
+      subject_type: "token_docs",
+      subject_id: free.id.to_s,
+      created_at: now,
+      updated_at: now
+    })
+
+    get current_scope.members_role_url(@role), headers: as(@owner)
+    assert_response :success
+    # free does NOT hold @role as a User — the token_docs holder is a different
+    # base class — so free is still offered to add.
+    assert_select "select[name='subject_gids[]'] option", text: "FreeUser"
+  end
+
   test "members survives a stale/renamed polymorphic resource type without 500ing" do
     folder = Folder.create!(name: "Space")
     bob = User.create!(name: "Bob")

@@ -1,0 +1,22 @@
+app/controllers/current_scope/roles_controller.rb
+  s_9c987b482796f4::t_699a4d28084011 58-65,67-68
+  s_9c987b482796f4::t_9d119610e766b3 231-236,240,246,249,251-258
+test/integration/role_members_test.rb
+  s_9c987b482796f4::t_3705fbbf5e29e2 89-111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "0fe58beed678741feeb7a922dd5ea02a3f4ffdfd",
+  "prompts": {},
+  "sessions": {
+    "s_9c987b482796f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f19c04ff-3746-4bd8-8252-108ae8fbe558",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

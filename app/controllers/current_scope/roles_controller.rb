@@ -62,7 +62,7 @@ module CurrentScope
       # sharing this base class — a few binds — where a subject_id list would carry
       # one bind per held subject and blow SQLITE_MAX_VARIABLE_NUMBER on a default
       # role held by the whole user table.
-      held_types = held_org_subject_types(@org_holders, subject_class)
+      held_types = RoleAssignment.subject_types_for(@org_holders, subject_class)
       remaining = subject_class.order(:id)
       if held_types.any?
         held = RoleAssignment.where(role: @role, subject_type: held_types).select(:subject_id)
@@ -227,26 +227,6 @@ module CurrentScope
         .pluck(:id)
       RoleAssignment.where(id: ids).lock.load if ids.any?
     end
-
-    # The distinct stored subject_type tokens among these org holders that
-    # reverse-resolve onto klass's subject table — its own polymorphic_name plus
-    # any STI/custom token whose class shares klass's base_class. The members query
-    # filters the "held" subquery on this bounded set, so STI/custom-token holders
-    # are excluded from the add list (#155) without plucking one id per subject.
-    def held_org_subject_types(holders, klass)
-      holders.filter_map do |assignment|
-        type = assignment.subject_type
-        next if type.blank?
-        next type if type == klass.polymorphic_name
-
-        resolved = CurrentScope.polymorphic_class(type)
-        next if resolved.nil?
-        next unless resolved.base_class == klass.base_class
-
-        type
-      end.uniq
-    end
-    private :held_org_subject_types
 
     # The candidate's primary key, rendered as text so it can be compared to the
     # string subject_id column (#151). Adapters differ twice over: MySQL spells the

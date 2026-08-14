@@ -265,8 +265,18 @@ module  CurrentScope
     # STORAGE TOKEN, not necessarily a constant name: `polymorphic_name` can be
     # overridden and `store_full_class_name = false` shortens it, so
     # `safe_constantize` would return nil or resolve the wrong class.
+    #
     # Returns nil for a token that no longer resolves, which callers treat as
     # "nothing to check" — a stale type is #90's inert grant, not a key problem.
+    #
+    # RAISES `ConfigurationError`, it does not return nil, when the registry is
+    # poisoned (a rebuild found two classes claiming one token) or a live constant
+    # disagrees with the registered owner on base_class. That is deliberate
+    # fail-loud on a real misconfiguration, distinct from the nil-inert path: it
+    # is caught at boot under eager_load and self-heals on the next dev reload, so
+    # the request-path raise is only reachable in an eager-load-off environment.
+    # Inert-labeling callers that must never 500 (current_scope_resolved_record,
+    # preload_resolvable_resources!) rescue the stale-token errors, NOT this one.
     def polymorphic_class(type, owner: ActiveRecord::Base)
       return if type.blank?
       raise @polymorphic_registry_error if @polymorphic_registry_error

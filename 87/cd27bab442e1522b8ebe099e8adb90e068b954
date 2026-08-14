@@ -1,0 +1,34 @@
+lib/current_scope/configuration.rb
+  s_9c987b482796f4::t_18dfa08124183e 136-145
+test/polymorphic_registry_test.rb
+  s_9c987b482796f4::t_49baae2b6560f5 113-116
+  s_9c987b482796f4::t_e2bfb612b2223a 161-172
+  s_9c987b482796f4::t_b6c603bb4b8449 72-96
+  s_9c987b482796f4::t_d01a76bbf56130 57-59
+lib/current_scope.rb
+  s_9c987b482796f4::t_d2c49a8ca4fd71 382-387
+app/models/current_scope/role_assignment.rb
+  s_9c987b482796f4::t_d56a04714d4c12 24-32,35-36
+test/integration/role_members_test.rb
+  s_9c987b482796f4::t_4435842053184e 76
+STATUS.md
+  s_9c987b482796f4::t_cb505fa341375f 5-13
+UPGRADING.md
+  s_9c987b482796f4::t_59923a256257d9 21-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "87cd27bab442e1522b8ebe099e8adb90e068b954",
+  "prompts": {},
+  "sessions": {
+    "s_9c987b482796f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f19c04ff-3746-4bd8-8252-108ae8fbe558",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

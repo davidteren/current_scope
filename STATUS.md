@@ -2,15 +2,13 @@
 
 > ## Last session handoff
 >
-> **What this is:** CurrentScope portability work. Issue #155 (custom storage
-> tokens) is on `main` as PR #165 (`6a0bd62`).
-> **What we finished:** Merged #165 after review threads were resolved and
-> CI went green on the updated head. Also merged Dependabot Rails 8.1.3.1,
-> sqlite3 2.9.6, and simplecov 1.1.0.
-> **What you do next:** Implement issue #158 (subject identity) from
-> `docs/plans/2026-08-13-003-feat-subject-identity-resolution-plan.md`.
-> After that, issue #156 v1 (role-definition export) from
-> `docs/plans/2026-08-13-002-feat-role-definition-export-import-plan.md`.
+> **What this is:** CurrentScope portability work. Issue #158 (subject
+> identity) is implemented on `feat/subject-identity`.
+> **What we finished:** The identify/resolve contract, boot uniqueness,
+> placeholder policy, generator, and `identity:setup` dry-run rake.
+> **What you do next:** Finish the pre-PR gate on this branch, then open
+> the #158 PR. After it lands, issue #156 v1 (role-definition export)
+> from `docs/plans/2026-08-13-002-feat-role-definition-export-import-plan.md`.
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >

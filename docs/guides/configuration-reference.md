@@ -14,6 +14,27 @@ and `sod_identity` — are grouped in their own block and covered under
 `sod_identity` is only observable once a mutation is allowed past the read-only
 gate.
 
+**`config.subject_identity`** — how a subject is identified for portable,
+cross-environment use. Default `nil` is the primary key, so existing
+installs change nothing. A Symbol names one column (`:email`). An Array of
+symbols is a composite (`[:name, :email]`), stored as a list, never a
+joined string. An object with `identify(subject)` and `resolve(key)` covers
+a key split across tables. A String or Proc is rejected at assignment —
+that shape is `subject_label`, which is display-only and fail-soft.
+Identity is load-bearing: duplicate natural keys raise `ConfigurationError`
+at boot (skipped during `db:` tasks, and skipped for the default primary
+key). `resolve` returns nil when missing and never inserts. On a large
+table, run `bin/rails current_scope:identity:check` rather than relying on
+the boot scan. Guided attach:
+`bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com`
+(dry-run) then `WRITE=1` to call `grant!`. `PLACEHOLDER=1` may create a
+row marked `current_scope_placeholder` outside production only. Never
+invent a production subject.
+
+**`config.subject_label`** is not the same knob. Label names a subject in
+the management UI and is allowed to fail soft. Pointing both at `:email`
+does not make the label a resolver.
+
 **`config.polymorphic_class_names`** — optional Hash of stored type token to
 class name, for a custom `polymorphic_name` that Rails cannot reverse. Default
 `{}`. Auto-detected overrides (loaded models whose token is not the Rails

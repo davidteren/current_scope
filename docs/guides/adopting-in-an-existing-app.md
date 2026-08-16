@@ -61,6 +61,38 @@ See the README's Installation section (report-mode ramp) for the short version.
 
 ---
 
+## Declare how a subject is identified
+
+Grants store a primary key. That key differs across environments. Before you
+seed Owner against an existing users table, declare the portable key:
+
+```ruby
+# config/initializers/current_scope.rb
+config.subject_identity = :email
+# or [:name, :email]
+# or CurrentScopeSubjectIdentity.new  # bin/rails generate current_scope:identity
+```
+
+This is not `config.subject_label`. Label is the name on the subjects page
+and is allowed to fail soft. Identity is how `resolve` finds a person, and
+duplicate keys raise at boot.
+
+```bash
+bin/rails current_scope:identity:check
+bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com
+bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com WRITE=1
+```
+
+Dry-run is the default. `WRITE=1` calls `CurrentScope.grant!`.
+`PLACEHOLDER=1` may create a row marked `current_scope_placeholder` outside
+production. Never invent a production subject.
+
+On a large users table the boot uniqueness scan can be slow. Run
+`current_scope:identity:check` in CI and put a unique index on the host
+column. The engine does not migrate your users table.
+
+---
+
 ## Your authentication must run before the gate
 
 **Symptom:** an anonymous visitor gets a blank `403` with

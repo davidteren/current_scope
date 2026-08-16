@@ -15,6 +15,12 @@ The **resolver** decides, the **gate** enforces, and the **ledger** records — 
 **Subject**
 The identity whose permissions are being checked — typically a person, but the host names the class. Distinct from the **actor**: they are the same until someone is impersonating, and then permissions resolve against the subject while attribution follows the actor. A subject holds at most one org-wide role and any number of scoped roles; the two are independent axes, and assigning one never changes the other. Neither is required. A subject with **only** scoped roles and no org-wide role is an ordinary state, not a broken one — it is precisely what per-record access means — and a subject with nothing at all is simply one nobody has granted anything to.
 
+**Subject identity**
+The portable name for a subject across environments: a column, a composite list of columns, or a host object with `identify` and `resolve`. Default is the primary key. Grants still store that primary key; identity is the mapping layer above it so a later import can find the same person here. Duplicate natural keys are a configuration error, not a first-row win. `resolve` returns nil when the person is missing and never inserts one.
+
+**Subject label**
+How the management UI writes a subject's name on a page. Display-only and fail-soft. It is not a resolver. Pointing both knobs at `:email` does not make the label load-bearing.
+
 **Actor**
 The real identity behind a request, as opposed to the subject it is acting as. The two differ only while impersonating: an admin (actor) operating as someone else (subject). Permission decisions read the subject; attribution and the audit trail read the actor. The distinction is load-bearing for separation of duties — if the veto only ever looked at the subject, impersonating a colleague would launder a self-approval into an allowed one.
 

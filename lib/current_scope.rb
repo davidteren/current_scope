@@ -1,4 +1,6 @@
 require "current_scope/version"
+require "current_scope/subject_identity"
+require "current_scope/identity_setup"
 require "current_scope/configuration"
 require "current_scope/permission_catalog"
 require "current_scope/permission_grid"
@@ -79,6 +81,19 @@ module  CurrentScope
 
     def configure
       yield config
+    end
+
+    # Portable identity of a subject (#158). Default is the primary key.
+    def identify_subject(subject)
+      return if subject.nil?
+
+      config.subject_identity_resolver.identify(subject)
+    end
+
+    # Inverse of identify_subject. Returns the subject in this environment, or
+    # nil when missing. Never inserts. Sugar resolvers raise if two rows match.
+    def resolve_subject(key)
+      config.subject_identity_resolver.resolve(key)
     end
 
     def resolver

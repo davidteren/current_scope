@@ -52,6 +52,15 @@ CurrentScope.configure do |config|
   # best-effort label (current_scope_label, else name/email/title, else id).
   # config.subject_label = :email
   # config.subject_label = ->(u) { "#{u.first_name} #{u.last_name}" }
+  #
+  # Portable identity — NOT the same knob as subject_label. Label is display-only
+  # and fail-soft. Identity is the natural key used to find a subject across
+  # environments, and duplicate keys raise at boot. Default is the primary key
+  # (existing installs change nothing). A String or Proc is rejected.
+  # config.subject_identity = :email
+  # config.subject_identity = [:name, :email]
+  # config.subject_identity = CurrentScopeSubjectIdentity.new
+  #   (generate the stub with: bin/rails generate current_scope:identity)
 
   # Fold the role-editor grid's action columns. Default = CRUD (new/edit hide
   # into create/update; index+show read as one). Set to nil to show every raw

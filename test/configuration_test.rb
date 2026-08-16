@@ -117,6 +117,18 @@ class ConfigurationTest < ActiveSupport::TestCase
     assert_nothing_raised { CurrentScope.config.validate! }
   end
 
+  test "subject_identity defaults to nil (primary key)" do
+    assert_nil CurrentScope::Configuration.new.subject_identity
+    assert CurrentScope::Configuration.new.subject_identity_resolver.primary_key?
+  end
+
+  test "subject_identity rejects a String and leaves the previous value" do
+    config = CurrentScope::Configuration.new
+    error = assert_raises(CurrentScope::ConfigurationError) { config.subject_identity = "email" }
+    assert_match "String", error.message
+    assert_nil config.subject_identity
+  end
+
   test "allows impersonated mutations outside production" do
     config = CurrentScope::Configuration.new
     with_rails_env("staging") do

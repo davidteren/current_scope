@@ -14,6 +14,7 @@ require "rails/test_help"
 # String-keyed subject/resource model used by the #151 suites. Loaded here so the
 # table is built once, before any test transaction opens.
 require_relative "support/uuid_user"
+require_relative "support/identity_user"
 
 # Load fixtures from the engine
 if ActiveSupport::TestCase.respond_to?(:fixture_paths=)

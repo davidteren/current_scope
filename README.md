@@ -308,7 +308,12 @@ enter, so the first grant can't happen in the UI). One command:
 bin/rails current_scope:grant SUBJECT_ID=1   # grants the full-access Owner role
 ```
 
-or in `db/seeds.rb`:
+To attach by a portable key (email, or a composite) instead of the raw id,
+set `config.subject_identity` and run `current_scope:identity:setup`. That
+knob is not `config.subject_label`. See the
+[adoption guide](docs/guides/adopting-in-an-existing-app.md#declare-how-a-subject-is-identified).
+
+Or in `db/seeds.rb`:
 
 ```ruby
 CurrentScope.seed_defaults!            # Owner (full_access) + Member

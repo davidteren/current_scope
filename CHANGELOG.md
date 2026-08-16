@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Configurable subject identity (#158).** `config.subject_identity` accepts
+  a Symbol (one column), an Array of symbols (a composite list, never a
+  joined string), or an object with `identify` / `resolve`. Default is the
+  primary key. Duplicate natural keys raise at boot. `resolve` never
+  inserts. Generator `current_scope:identity` and rake tasks
+  `current_scope:identity:check` / `current_scope:identity:setup` (dry-run
+  unless `WRITE=1`; `PLACEHOLDER=1` refused in production). This is not
+  `config.subject_label`. Assignment export is still issue #156 v2.
+
 ### Changed
 - **Docs site landing page is now a conversion page, not only a long
   technical write-up.** Hero CTAs (Star / Quickstart / Showcase / Docs),

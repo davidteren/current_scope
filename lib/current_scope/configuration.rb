@@ -115,8 +115,14 @@ module CurrentScope
     attr_accessor :parent_controller
 
     # Host class acting as the subject, used by the management UI to list
-    # assignable subjects.
-    attr_accessor :subject_class
+    # assignable subjects. Writer drops the compiled identity resolver so a
+    # later identify/resolve uses this class, not the previous one.
+    attr_reader :subject_class
+
+    def subject_class=(value)
+      @subject_class = value
+      @subject_identity_resolver = nil
+    end
 
     # Optional explicit map of stored polymorphic tokens to class names. Used
     # when Rails cannot reverse a custom polymorphic_name. Keys and values are
@@ -161,7 +167,43 @@ module CurrentScope
     # for that subject and logs once — it never errors the page and never affects
     # an authorization decision. If subject labels look wrong, check the log:
     # a silent fallback is exactly what a broken label looks like from the UI.
+    #
+    # This is NOT config.subject_identity. Label is display-only and fail-soft.
+    # Identity is the portable key used to find a subject across environments.
     attr_accessor :subject_label
+
+    # How a subject is identified for portable, cross-environment use (#158).
+    # Grants still store the storable primary key; this layer only maps a
+    # natural key onto that row. Accepts:
+    #   - nil (default) — the primary key. Existing installs change nothing.
+    #   - a Symbol — one column, e.g. :email
+    #   - an Array of symbols — a composite, e.g. [:name, :email]
+    #   - an object that responds to identify(subject) and resolve(key)
+    #
+    # A String, Proc, or lambda pair is rejected at assignment so there is one
+    # blessed shape. Unknown shapes leave the previous value standing.
+    #
+    # This is NOT config.subject_label. Identity is load-bearing and fail-loud:
+    # duplicate natural keys raise ConfigurationError at validate! / boot.
+    attr_reader :subject_identity
+
+    def subject_identity=(value)
+      compiled = SubjectIdentity.compile(value, klass: resolved_subject_class)
+      @subject_identity = value
+      @subject_identity_resolver = compiled
+    end
+
+    def subject_identity_resolver
+      @subject_identity_resolver ||= SubjectIdentity.compile(
+        @subject_identity, klass: resolved_subject_class
+      )
+    end
+
+    def resolved_subject_class
+      klass = subject_class
+      klass = klass.to_s.safe_constantize if klass.is_a?(String) || klass.is_a?(Symbol)
+      klass
+    end
 
     # Break-glass override for the SoD veto. Default false — OFF preserves v0.1
     # exactly: the separation-of-duties veto is absolute and this hook is never
@@ -479,6 +521,7 @@ module CurrentScope
       ]
       @parent_controller = "::ApplicationController"
       @subject_class = "User"
+      @subject_identity = nil
       @polymorphic_class_names = {}.freeze
       @audit = true
       @enforcement = :enforce
@@ -546,20 +589,51 @@ module CurrentScope
     end
 
     # Boot-time config invariants. Wired from Engine#after_initialize after the
-    # host initializer has finalized both fields. Extensible seam for future
-    # multi-field checks; today only the bypass-in-sod_actions recursion rule.
+    # host initializer has finalized every field. Extensible seam for
+    # multi-field checks: the bypass-in-sod_actions recursion rule, then the
+    # subject-identity uniqueness scan (#158).
     def validate!
-      return unless sod_bypass_permission_conflicts_with_sod_actions?
+      if sod_bypass_permission_conflicts_with_sod_actions?
+        action = sod_bypass_action
+        raise ConfigurationError,
+              "config.sod_bypass_permission (#{sod_bypass_permission.inspect}) is the " \
+              "action #{action.inspect}, which is also in config.sod_actions. The bypass " \
+              "permission must not be an SoD action — it would recurse. Remove " \
+              "#{action.inspect} from sod_actions."
+      end
 
-      action = sod_bypass_action
-      raise ConfigurationError,
-            "config.sod_bypass_permission (#{sod_bypass_permission.inspect}) is the " \
-            "action #{action.inspect}, which is also in config.sod_actions. The bypass " \
-            "permission must not be an SoD action — it would recurse. Remove " \
-            "#{action.inspect} from sod_actions."
+      validate_subject_identity!
     end
 
     private
+
+    # Uniqueness of a declared natural key. Skipped for the default primary-key
+    # identity (the table already unique-indexes that), during database tasks
+    # (same exemption SchemaGuard uses so db:create can boot), and when the
+    # subject table is missing. A host object without unique? is not scanned;
+    # resolve still raises if it matches two rows.
+    def validate_subject_identity!
+      return if CurrentScope::SchemaGuard.running_a_database_task?
+
+      resolver = subject_identity_resolver
+      return if resolver.primary_key?
+
+      klass = resolved_subject_class
+      return unless klass.respond_to?(:table_exists?) && klass.table_exists?
+      return if resolver.unique?
+
+      samples = resolver.colliding_keys.first(5)
+      sample = samples.any? ? ": #{samples.map(&:inspect).join(', ')}" : ""
+      raise ConfigurationError,
+            "config.subject_identity is not unique among #{klass} rows#{sample}. " \
+            "Two subjects share this natural key, so resolve would not be " \
+            "deterministic. Add a unique index, pick different columns, or " \
+            "clean the duplicates. On a large table run " \
+            "`bin/rails current_scope:identity:check` rather than relying on " \
+            "the boot scan."
+    rescue ActiveRecord::NoDatabaseError, ActiveRecord::ConnectionNotEstablished
+      nil
+    end
 
     # The env var's VALUE means what it says — presence alone is not consent.
     # ActiveModel's boolean cast maps "false"/"0"/"f"/"off" to false and "" to

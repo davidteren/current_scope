@@ -53,6 +53,30 @@ namespace :current_scope do
     puts "Granted the full-access Owner role to #{klass}##{subject.id}."
   end
 
+  namespace :identity do
+    desc "Check that the configured subject identity is unique among live rows. " \
+         "Usage: bin/rails current_scope:identity:check"
+    task check: :environment do
+      keys = CurrentScope::IdentitySetup.new.collisions
+      if keys.empty?
+        puts "Subject identity is unique (or is the default primary key)."
+      else
+        sample = keys.first(10).map(&:inspect).join(", ")
+        abort "Subject identity is not unique (#{keys.size} colliding key(s): #{sample})."
+      end
+    end
+
+    desc "Attach a subject to a role by portable identity. Dry-run by default. " \
+         "WRITE=1 grants. IDENTITY= column or comma list. SUBJECT= portable key. " \
+         "ROLE= name (default Owner). PLACEHOLDER=1 creates a marked stand-in " \
+         "outside production only."
+    task setup: :environment do
+      CurrentScope::IdentitySetup.new.run
+    rescue CurrentScope::IdentitySetup::Halt => e
+      abort e.message
+    end
+  end
+
   desc "Summarize would-be denials recorded in report mode into a starter role grid. " \
        "Usage: bin/rails current_scope:report"
   task report: :environment do

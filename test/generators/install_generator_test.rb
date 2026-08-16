@@ -33,6 +33,16 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     end
   end
 
+  test "the initializer documents subject_identity next to subject_label" do
+    run_generator
+
+    assert_file "config/initializers/current_scope.rb" do |content|
+      assert_match "config.subject_label", content
+      assert_match "config.subject_identity", content
+      assert_match "NOT the same knob", content
+    end
+  end
+
   # The guide is only useful if the person retrofitting can actually reach it.
   # These tests are about REACHABILITY, not existence — the first version checked
   # that the file was in this repo, which is the one place the reader isn't.

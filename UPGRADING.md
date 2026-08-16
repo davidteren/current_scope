@@ -3,6 +3,13 @@
 Read the [CHANGELOG](CHANGELOG.md) for every version you cross. This file calls
 out the silent posture changes that a changelog line is easy to miss.
 
+## Unreleased: subject identity is opt-in (#158)
+
+`config.subject_identity` defaults to the primary key. Existing installs
+change nothing until they set it. A String or Proc is rejected (that shape
+is `subject_label`). Duplicate natural keys raise at boot. `resolve` never
+inserts a subject. `PLACEHOLDER=1` is refused in production.
+
 ## Unreleased: custom polymorphic tokens are first-class (#155)
 
 Stored grant types use `polymorphic_name`, not `base_class.name`. Default

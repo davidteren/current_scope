@@ -79,6 +79,37 @@ Before finishing, read docs/SECURITY-CHECKLIST.md in the gem repo
 and verify each item that applies.
 ```
 
+## Declare subject identity and attach Owner
+
+```text
+Declare how a subject is identified so grants can be found across
+environments. This is config.subject_identity, NOT config.subject_label.
+Label is display-only and fail-soft. Identity is load-bearing: duplicate
+keys raise, and resolve never inserts a subject.
+
+1. Pick the identity:
+   - one column: config.subject_identity = :email
+   - composite: config.subject_identity = [:name, :email]
+   - split across tables: bin/rails generate current_scope:identity
+     then set config.subject_identity = CurrentScopeSubjectIdentity.new
+     and fill identify / resolve.
+2. Check uniqueness against live rows:
+   bin/rails current_scope:identity:check
+   A collision is a ConfigurationError. Do not first-row-win.
+3. Dry-run a grant (writes nothing):
+   bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com
+   ROLE= defaults to Owner (full_access). Admin, if you create it, is not
+   full_access unless you set that yourself.
+4. Write only after the dry-run looks right:
+   bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com WRITE=1
+   That calls CurrentScope.grant! (ledger source: bootstrap).
+5. Missing subject: never invent one in production. Outside production,
+   PLACEHOLDER=1 may create a row stamped current_scope_placeholder so you
+   can delete it later. Production + PLACEHOLDER=1 is refused.
+
+Hard stop: never invent a production subject.
+```
+
 ## Enable separation of duties on an approve flow
 
 ```text

@@ -41,6 +41,37 @@ class IdentityTaskTest < ActiveSupport::TestCase
     assert_nil CurrentScope::RoleAssignment.find_by(subject: user)
   end
 
+  test "dry-run does not seed Owner or create a named role" do
+    User.create!(name: "dry-role-ada")
+    CurrentScope::Role.where(name: %w[Owner Member DryAdmin]).delete_all
+
+    assert_no_difference -> { CurrentScope::Role.count } do
+      out = run_setup(
+        "IDENTITY" => "name",
+        "SUBJECT" => "dry-role-ada",
+        "ROLE" => "DryAdmin"
+      )
+      assert_match "Would grant DryAdmin", out
+    end
+
+    assert_not CurrentScope::Role.exists?(name: "DryAdmin")
+    assert_not CurrentScope::Role.exists?(name: "Owner")
+  end
+
+  test "dry-run PLACEHOLDER does not insert a subject" do
+    before = User.count
+    out = run_setup(
+      "IDENTITY" => "name",
+      "SUBJECT" => "ghost-dry",
+      "PLACEHOLDER" => "1"
+    )
+
+    assert_equal before, User.count
+    assert_match "Would create a placeholder", out
+    assert_match MARK, out
+    assert_match "WRITE=1", out
+  end
+
   test "WRITE grants Owner through grant! and records a bootstrap event" do
     user = User.create!(name: "write-ada")
 

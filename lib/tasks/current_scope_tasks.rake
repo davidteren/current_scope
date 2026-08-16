@@ -68,8 +68,8 @@ namespace :current_scope do
 
     desc "Attach a subject to a role by portable identity. Dry-run by default. " \
          "WRITE=1 grants. IDENTITY= column or comma list. SUBJECT= portable key. " \
-         "ROLE= name (default Owner). PLACEHOLDER=1 creates a marked stand-in " \
-         "outside production only."
+         "ROLE= name (default Owner). PLACEHOLDER=1 WRITE=1 creates a marked " \
+         "stand-in outside production only."
     task setup: :environment do
       CurrentScope::IdentitySetup.new.run
     rescue CurrentScope::IdentitySetup::Halt => e

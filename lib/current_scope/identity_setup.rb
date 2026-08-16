@@ -2,7 +2,7 @@ require "yaml"
 
 module CurrentScope
   # Guided attach for #158. Dry-run by default; WRITE=1 calls grant!.
-  # PLACEHOLDER=1 may create a marked stand-in outside production only.
+  # PLACEHOLDER=1 WRITE=1 may create a marked stand-in outside production only.
   class IdentitySetup
     class Halt < StandardError; end
 
@@ -19,6 +19,8 @@ module CurrentScope
       role = prepare_role
       print_plan(subject, role)
       return unless write?
+
+      fail! "No subject to grant." if subject.nil?
 
       CurrentScope.grant!(subject, role: role)
       say "Granted #{role.name} to #{portable_key.inspect} (#{subject.class}##{subject.id})."
@@ -75,6 +77,12 @@ module CurrentScope
 
       if placeholder?
         fail_if_production_placeholder!
+        unless write?
+          say "Would create a placeholder marked #{SubjectIdentity::PLACEHOLDER_MARK} " \
+              "for #{key.inspect}."
+          return nil
+        end
+
         created = materialize_placeholder(key)
         say "Created placeholder #{created.class}##{created.id} marked #{SubjectIdentity::PLACEHOLDER_MARK}."
         return created
@@ -97,32 +105,44 @@ module CurrentScope
       fail! "SUBJECT is required, e.g. SUBJECT=ada@example.com" if raw.blank?
 
       identity = CurrentScope.config.subject_identity
-      if identity.is_a?(Array) && identity.size > 1
-        parsed = YAML.safe_load(raw)
-        unless parsed.is_a?(Array)
-          fail! "SUBJECT for a composite identity must be a YAML sequence, " \
-                "e.g. SUBJECT='[Ada, ada@example.com]'."
-        end
-        return parsed
-      end
+      return parse_composite_key(raw) if identity.is_a?(Array) && identity.size > 1
 
       raw
     end
 
+    def parse_composite_key(raw)
+      parsed = YAML.safe_load(raw)
+      unless parsed.is_a?(Array)
+        fail! "SUBJECT for a composite identity must be a YAML sequence, " \
+              "e.g. SUBJECT='[Ada, ada@example.com]'."
+      end
+      parsed
+    rescue Psych::SyntaxError
+      fail! "SUBJECT for a composite identity must be a YAML sequence, " \
+            "e.g. SUBJECT='[Ada, ada@example.com]'."
+    end
+
     def prepare_role
       name = @env.fetch("ROLE", "Owner")
-      if name == "Owner"
-        CurrentScope.seed_defaults!
-        return Role.find_by!(name: "Owner")
+      if write?
+        if name == "Owner"
+          CurrentScope.seed_defaults!
+          return Role.find_by!(name: "Owner")
+        end
+        return Role.find_or_create_by!(name: name)
       end
 
-      Role.find_or_create_by!(name: name)
+      Role.find_by(name: name) || Role.new(name: name, full_access: name == "Owner")
     end
 
     def print_plan(subject, role)
       access = role.full_access? ? "yes" : "no"
       say "Identity: #{CurrentScope.config.subject_identity.inspect}"
-      say "Subject: #{portable_key.inspect} → #{subject.class}##{subject.id}"
+      if subject
+        say "Subject: #{portable_key.inspect} → #{subject.class}##{subject.id}"
+      else
+        say "Subject: #{portable_key.inspect} → (would create placeholder)"
+      end
       say "Role: #{role.name} (full_access: #{access})"
       say "Would grant #{role.name} to #{portable_key.inspect}."
       say "Dry-run only. Re-run with WRITE=1 to grant." unless write?

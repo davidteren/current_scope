@@ -10,7 +10,7 @@
 # contacts). For a single column, prefer `config.subject_identity = :email`
 # instead of this class.
 #
-# Placeholder rows created by current_scope:identity:setup PLACEHOLDER=1
+# Placeholder rows created by current_scope:identity:setup PLACEHOLDER=1 WRITE=1
 # must be stamped with CurrentScope::SubjectIdentity::PLACEHOLDER_MARK
 # ("current_scope_placeholder") so you can find and delete them.
 # Production never creates one.

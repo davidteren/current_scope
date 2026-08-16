@@ -24,7 +24,7 @@ module CurrentScope
             4. Dry-run a grant, then write:
                  bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com
                  bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com WRITE=1
-               PLACEHOLDER=1 creates a marked stand-in outside production only.
+               PLACEHOLDER=1 WRITE=1 creates a marked stand-in outside production only.
                Never invent a production subject.
 
         NEXT

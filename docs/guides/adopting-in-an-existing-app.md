@@ -83,9 +83,11 @@ bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com
 bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com WRITE=1
 ```
 
-Dry-run is the default. `WRITE=1` calls `CurrentScope.grant!`.
-`PLACEHOLDER=1` may create a row marked `current_scope_placeholder` outside
-production. Never invent a production subject.
+Dry-run is the default. `WRITE=1` calls `CurrentScope.grant!` and is the
+only flag that writes. `PLACEHOLDER=1` on a dry-run only names the
+stand-in; `PLACEHOLDER=1 WRITE=1` creates a row marked
+`current_scope_placeholder` outside production. Never invent a production
+subject.
 
 On a large users table the boot uniqueness scan can be slow. Run
 `current_scope:identity:check` in CI and put a unique index on the host

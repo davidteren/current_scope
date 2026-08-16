@@ -27,9 +27,9 @@ key). `resolve` returns nil when missing and never inserts. On a large
 table, run `bin/rails current_scope:identity:check` rather than relying on
 the boot scan. Guided attach:
 `bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com`
-(dry-run) then `WRITE=1` to call `grant!`. `PLACEHOLDER=1` may create a
-row marked `current_scope_placeholder` outside production only. Never
-invent a production subject.
+(dry-run) then `WRITE=1` to call `grant!`. `PLACEHOLDER=1` writes a
+marked row only together with `WRITE=1`, and only outside production.
+Never invent a production subject.
 
 **`config.subject_label`** is not the same knob. Label names a subject in
 the management UI and is allowed to fail soft. Pointing both at `:email`

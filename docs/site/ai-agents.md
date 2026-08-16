@@ -104,8 +104,9 @@ keys raise, and resolve never inserts a subject.
    bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com WRITE=1
    That calls CurrentScope.grant! (ledger source: bootstrap).
 5. Missing subject: never invent one in production. Outside production,
-   PLACEHOLDER=1 may create a row stamped current_scope_placeholder so you
-   can delete it later. Production + PLACEHOLDER=1 is refused.
+   PLACEHOLDER=1 on a dry-run only prints the would-create line. Create
+   the marked row with PLACEHOLDER=1 WRITE=1. Production + PLACEHOLDER=1
+   is refused.
 
 Hard stop: never invent a production subject.
 ```

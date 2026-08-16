@@ -33,7 +33,7 @@ class CurrentScopeSubjectIdentity
   end
 
   def unique?
-    !User.where.not(email: [ nil, "" ]).group(:email).having("COUNT(*) > 1").exists?
+    !User.where.not(email: nil).where.not(email: "").group(:email).having("COUNT(*) > 1").exists?
   end
 
   def create_placeholder!(key)

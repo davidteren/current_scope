@@ -2,12 +2,15 @@
 
 > ## Last session handoff
 >
-> **What this is:** the public docs site for CurrentScope, rebuilt as a
-> conversion page in PR #162 (hero CTAs, proof, comparison, who-it-is-for,
-> and a public security strip on `docs/site/index.html`).
-> **What we finished:** the landing page conversion and the review-thread
-> replies on PR #162.
-> **What you do next:** get a real host onto report mode, then #116.
+> **What this is:** CurrentScope portability work. Issue #155 (custom storage
+> tokens) is shipped as open pull request #165 on
+> `fix/polymorphic-storage-token`. Issues #156 and #158 are planned only.
+> **What we finished:** Opened PR #165 through the full pre-PR gate, then worked
+> the post-open review: fixed the real cubic/Devin/qodo findings (STI-subclass
+> reverse resolution, config token-key collision) and replied on every thread.
+> **What you do next:** Wait for PR #165 checks and review bots to settle green,
+> then a human merges it. After merge, implement issue #156 (role export/import)
+> from `docs/plans/2026-08-13-002-feat-role-definition-export-import-plan.md`.
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >

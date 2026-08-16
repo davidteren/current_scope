@@ -118,6 +118,33 @@ module CurrentScope
     # assignable subjects.
     attr_accessor :subject_class
 
+    # Optional explicit map of stored polymorphic tokens to class names. Used
+    # when Rails cannot reverse a custom polymorphic_name. Keys and values are
+    # strings. Merged with auto-detected overrides on registry rebuild; a token
+    # that names two different classes raises. Rebuild also refuses a class
+    # name that does not resolve, and a class that does not actually store
+    # that token (a leftover name must stay inert).
+    attr_reader :polymorphic_class_names
+
+    def polymorphic_class_names=(value)
+      unless value.respond_to?(:to_h)
+        raise ConfigurationError,
+              "config.polymorphic_class_names = #{value.inspect} must be a Hash of " \
+              "token => class name (for example { \"token_docs\" => \"TokenDocument\" })."
+      end
+
+      hash = value.to_h
+      normalized = hash.transform_keys(&:to_s)
+      if normalized.size != hash.size
+        raise ConfigurationError,
+              "config.polymorphic_class_names has keys that differ only as String vs Symbol " \
+              "(for example :token_docs and \"token_docs\"). One silently overwrites the other, " \
+              "so a token could name two classes without the duplicate-token error. Use one form per token."
+      end
+
+      @polymorphic_class_names = normalized.transform_values(&:to_s).freeze
+    end
+
     # How a subject is identified in the management UI (subjects table, picker,
     # bulk bar). A subject id is meaningless with UUID keys, so pick something
     # human. Accepts:
@@ -452,6 +479,7 @@ module CurrentScope
       ]
       @parent_controller = "::ApplicationController"
       @subject_class = "User"
+      @polymorphic_class_names = {}.freeze
       @audit = true
       @enforcement = :enforce
       # Reuses diagnostics_default_on? for its env split and bare-Ruby safety

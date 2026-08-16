@@ -57,6 +57,58 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
     CurrentScope.config.subject_class = original
   end
 
+  test "members does not re-offer a holder stored under a custom subject token" do
+    holder = User.create!(name: "TokenHolder")
+    free = User.create!(name: "TokenFree")
+    now = Time.current
+    CurrentScope::RoleAssignment.insert!({
+      role_id: @role.id,
+      subject_type: "token_people",
+      subject_id: holder.id.to_s,
+      created_at: now,
+      updated_at: now
+    })
+
+    token_user = Class.new(User) do
+      def self.name = "TokenPeopleUser"
+      def self.polymorphic_name = "token_people"
+    end
+    Object.send(:const_set, "TokenPeopleUser", token_user)
+    CurrentScope.rebuild_polymorphic_registry!
+
+    get current_scope.members_role_url(@role), headers: as(@owner)
+    assert_response :success
+    assert_select "td", text: "TokenHolder"
+    assert_select "select[name='subject_gids[]'] option", text: "TokenFree"
+    assert_select "select[name='subject_gids[]'] option", { text: "TokenHolder", count: 0 }
+  ensure
+    Object.send(:remove_const, :TokenPeopleUser) if defined?(TokenPeopleUser)
+    CurrentScope.rebuild_polymorphic_registry!
+  end
+
+  # The held-set is filtered by reverse-resolving TOKEN, not by a plucked
+  # subject_id list. A holder stored under a different base class's token
+  # (token_docs -> TokenDocument) must not exclude a real subject whose id merely
+  # collides with that holder's subject_id — the base_class guard drops the token.
+  test "a holder stored under a different base class's token does not exclude a colliding candidate" do
+    free = User.create!(name: "FreeUser")
+    now = Time.current
+    # Same numeric id as a real User, but stored under a TokenDocument token.
+    CurrentScope::RoleAssignment.insert!({
+      role_id: @role.id,
+      subject_type: "token_docs",
+      subject_id: free.id.to_s,
+      created_at: now,
+      updated_at: now
+    })
+
+    get current_scope.members_role_url(@role), headers: as(@owner)
+    assert_response :success
+    # free does NOT hold @role as a User — the token_docs holder is a different
+    # base class — so free is still offered to add.
+    assert_select "select[name='subject_gids[]'] option", text: "FreeUser"
+  end
+
   test "members survives a stale/renamed polymorphic resource type without 500ing" do
     folder = Folder.create!(name: "Space")
     bob = User.create!(name: "Bob")

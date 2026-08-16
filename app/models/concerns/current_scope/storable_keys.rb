@@ -13,6 +13,15 @@ module CurrentScope
       def validates_storable_polymorphic_keys(*sides)
         validate { current_scope_check_storable_keys(sides) }
       end
+
+      # Rails reverse-resolves the stored token via polymorphic_class_for.
+      # A custom token is not a constant; route it through the engine registry.
+      # Do not fall through to Rails constantize when the registry is empty:
+      # a token that equals another class name would bind the wrong model.
+      def polymorphic_class_for(name)
+        CurrentScope.polymorphic_class(name, owner: ActiveRecord::Base) ||
+          raise(NameError, "unmapped polymorphic token #{name.inspect}")
+      end
     end
 
     # Associations cast their stored id through the target model's key type.
@@ -20,11 +29,27 @@ module CurrentScope
     # record 7. Every engine path that labels or audits an existing grant uses
     # this checked reader so an inert grant never names an unrelated live record.
     def current_scope_resolved_record(side)
-      klass = CurrentScope.polymorphic_class(public_send("#{side}_type"), owner: self.class)
+      klass = CurrentScope.polymorphic_class(public_send("#{side}_type"), owner: ActiveRecord::Base)
       return if klass.nil?
-      return unless CurrentScope.canonical_key?(klass, public_send("#{side}_id"))
 
-      public_send(side)
+      id = public_send("#{side}_id")
+      return unless CurrentScope.canonical_key?(klass, id)
+
+      association = association(side.to_sym)
+      if association.loaded?
+        target = association.target
+        return target if target && target.class.base_class == klass.base_class
+        return if target.nil?
+      end
+
+      record = klass.find_by(klass.primary_key => id)
+      # Cache the resolved record onto the association so a second resolve of the
+      # same side on this row is free — the members view resolves each holder
+      # twice (its label and its Remove-button GID). The registry swap replaced
+      # the association reader (which cached) with find_by; this restores that.
+      # Association#target= sets @target and marks the association loaded.
+      association.target = record if record
+      record
     rescue ActiveRecord::RecordNotFound, NameError
       nil
     end

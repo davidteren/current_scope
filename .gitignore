@@ -16,6 +16,9 @@ coverage/
 
 .compound-engineering/*.local.yaml
 
+# Intent-engineering audit output; config yaml files stay tracked
+.intense/runs/
+
 # Built at Pages deploy time from docs/SECURITY-CHECKLIST.md — never commit
 docs/site/security-checklist.md
 coverage/

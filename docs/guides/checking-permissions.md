@@ -51,9 +51,11 @@ end
 
 `allowed_to?` answers "may I act on **this** record?". `scope_for` answers the
 list-side question — "**which** records may I act on?" — from the *same* roles,
-permissions, and scoped grants the gate reads. Use it for index pages so the
-list and the per-record gate stay one source of truth, never a hand-written
-query that drifts:
+permissions, and scoped grants the gate reads. Both sides key grants on
+`polymorphic_name` (the stored token), so a custom type name cannot pass the
+record check and miss the list. Use it for index pages so the list and the
+per-record gate stay one source of truth, never a hand-written query that
+drifts:
 
 ```ruby
 # app/controllers/projects_controller.rb

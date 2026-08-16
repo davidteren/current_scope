@@ -254,25 +254,161 @@ module  CurrentScope
       end
     end
 
+    # The type string a grant stores for `klass`. Rails writes `polymorphic_name`,
+    # not `base_class.name`. Collection queries must use the same token or a
+    # custom name disappears from the list while the per-record gate still matches.
+    def storage_token(klass)
+      klass.polymorphic_name
+    end
+
     # Resolve a stored polymorphic type token to its class. `*_type` is a Rails
     # STORAGE TOKEN, not necessarily a constant name: `polymorphic_name` can be
     # overridden and `store_full_class_name = false` shortens it, so
     # `safe_constantize` would return nil or resolve the wrong class.
+    #
     # Returns nil for a token that no longer resolves, which callers treat as
     # "nothing to check" — a stale type is #90's inert grant, not a key problem.
+    #
+    # RAISES `ConfigurationError`, it does not return nil, when the registry is
+    # poisoned (a rebuild found two classes claiming one token) or a live constant
+    # disagrees with the registered owner on base_class. That is deliberate
+    # fail-loud on a real misconfiguration, distinct from the nil-inert path: it
+    # is caught at boot under eager_load and self-heals on the next dev reload, so
+    # the request-path raise is only reachable in an eager-load-off environment.
+    # Inert-labeling callers that must never 500 (current_scope_resolved_record,
+    # preload_resolvable_resources!) rescue the stale-token errors, NOT this one.
     def polymorphic_class(type, owner: ActiveRecord::Base)
       return if type.blank?
+      raise @polymorphic_registry_error if @polymorphic_registry_error
 
-      owner.polymorphic_class_for(type)
-    rescue NameError
-      # A token Rails cannot reverse by constantizing (an overridden
-      # polymorphic_name, or store_full_class_name = false) stays INERT. Inferring
-      # the owner from the current descendant set is a guess that goes wrong when a
-      # token is reused after its original model was removed or renamed: it would
-      # attach an old grant to a different model's records, the exact #151 harm.
-      # Safe reverse-resolution needs an explicit persisted mapping, tracked in #155.
-      nil
+      resolve_polymorphic_token(type.to_s, owner: owner)
     end
+
+    # Rebuild the token → class map. Safe to call from to_prepare (dev reload)
+    # and from after_initialize when eager_load is on. Enumeration is allowed
+    # here; lookup is not.
+    def rebuild_polymorphic_registry!
+      @polymorphic_registry_error = nil
+      map = {}
+      owners = {}
+      ActiveRecord::Base.descendants.each do |klass|
+        next if klass.abstract_class?
+        next unless klass.respond_to?(:polymorphic_name)
+
+        token = klass.polymorphic_name.to_s
+        next if token.blank?
+
+        # Every loaded class occupies its token, including default names.
+        # Skipping only custom overrides let Admin::User (token "User") sit
+        # next to ::User without a raise, and then granted_ids aliased ids.
+        base = klass.base_class
+        existing_base = owners[token]
+        if existing_base && existing_base != base
+          raise ConfigurationError,
+                "polymorphic token #{token.inspect} is claimed by both #{existing_base.name} " \
+                "and #{base.name}. Two classes cannot share a storage token."
+        end
+        owners[token] = base
+
+        # Default Rails tokens that already constantize (User, Document, STI
+        # siblings) stay out of the reverse map. A shortened namespaced token
+        # ("User" for Admin::User when ::User does not exist) cannot reverse
+        # through Rails; register the base so lookup works after load.
+        if default_storage_token?(klass, token)
+          other = token.safe_constantize
+          rails_reverses = other.respond_to?(:polymorphic_name) &&
+                           other.polymorphic_name.to_s == token &&
+                           other.base_class == base
+          next if rails_reverses
+
+          claim!(map, token, base)
+          next
+        end
+
+        # Custom tokens register the base so STI siblings that inherit the
+        # same override share one claim instead of colliding on the leaf.
+        claim!(map, token, base)
+      end
+      CurrentScope.config.polymorphic_class_names.each do |token, class_name|
+        token = token.to_s
+        resolved = class_name.safe_constantize
+        if resolved.nil?
+          raise ConfigurationError,
+                "config.polymorphic_class_names maps #{token.inspect} to #{class_name.inspect}, " \
+                "which does not resolve to a class."
+        end
+
+        unless resolved.is_a?(Class) && resolved < ActiveRecord::Base && !resolved.abstract_class?
+          raise ConfigurationError,
+                "config.polymorphic_class_names maps #{token.inspect} to #{class_name.inspect}, " \
+                "which is not a concrete Active Record model."
+        end
+
+        emitted = resolved.polymorphic_name.to_s
+        if emitted != token
+          raise ConfigurationError,
+                "config.polymorphic_class_names maps #{token.inspect} to #{resolved.name}, " \
+                "but #{resolved.name} stores #{emitted.inspect}."
+        end
+
+        claim!(map, token, resolved.base_class)
+      end
+      @polymorphic_registry = map.freeze
+    rescue ConfigurationError => e
+      @polymorphic_registry = {}.freeze
+      @polymorphic_registry_error = e
+      raise
+    end
+
+    def polymorphic_registry
+      @polymorphic_registry ||= {}
+    end
+
+    def resolve_polymorphic_token(token, owner:)
+      resolved = begin
+        owner.polymorphic_class_for(token)
+      rescue NameError
+        nil
+      end
+      registered = polymorphic_registry[token]
+
+      if resolved && resolved.respond_to?(:polymorphic_name) &&
+         resolved.polymorphic_name.to_s == token
+        if registered && registered.base_class != resolved.base_class
+          raise ConfigurationError,
+                "polymorphic token #{token.inspect} is claimed by both #{registered.name} " \
+                "and #{resolved.name}. Two classes cannot share a storage token."
+        end
+        # Prefer the registry's owner: the rebuild always stores base_class, so a
+        # registered owner is the canonical (base) class. Rails could constantize
+        # the token to a narrower STI subclass sharing that base; returning it
+        # would apply the subclass STI predicate and mislabel sibling rows as
+        # inert. They share a base_class here (checked above), so registered wins.
+        return registered || resolved
+      end
+
+      registered
+    end
+
+    def claim!(map, token, klass)
+      existing = map[token]
+      if existing && existing != klass
+        raise ConfigurationError,
+              "polymorphic token #{token.inspect} is claimed by both #{existing.name} " \
+              "and #{klass.name}. Two classes cannot share a storage token."
+      end
+      map[token] = klass
+    end
+
+    def default_storage_token?(klass, token)
+      default = if klass.respond_to?(:store_full_class_name) && !klass.store_full_class_name
+        klass.base_class.name.demodulize
+      else
+        klass.base_class.name
+      end
+      token == klass.name || token == default
+    end
+    private :claim!, :default_storage_token?, :resolve_polymorphic_token
 
     # #151. `subject_id` and `resource_id` are string columns, so ANY single-value
     # primary key stores whole — an integer as "1", a UUID as "7f00aaaa-…". What

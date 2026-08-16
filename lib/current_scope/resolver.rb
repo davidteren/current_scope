@@ -118,19 +118,19 @@ module CurrentScope
       return model.all if role&.full_access? || role&.grants?(permission)
 
       # Records on which the subject holds a scoped role that grants the key.
-      # Query the polymorphic base_class (what scoped grants store), not the
-      # passed model's name — otherwise scope_for(STISubclass) returns nothing
-      # while the per-record gate (also keyed on base_class) would allow it. The
-      # `model.where` still applies STI's own type predicate, so a subclass query
-      # can't over-list sibling-subclass rows. An empty id list yields an empty
-      # (still chainable) relation.
+      # Query the stored polymorphic token (polymorphic_name), not the passed
+      # model's constant name — otherwise a custom token or STI base token
+      # misses the grant while the per-record gate (resource: record) allows it.
+      # The `model.where` still applies STI's own type predicate, so a subclass
+      # query can't over-list sibling-subclass rows. An empty id list yields an
+      # empty (still chainable) relation.
       #
       # NOTE scope_for is EAGER since #151: granted_ids runs its query when the
       # relation is BUILT, not when it is enumerated, so the result is a snapshot
       # of the grants at call time and the method needs a connection. The returned
       # relation is still lazy and chainable.
       direct = model.where(model.primary_key => granted_ids(
-        subject: subject, type: model.base_class.name, model: model,
+        subject: subject, type: CurrentScope.storage_token(model), model: model,
         roles: roles_granting(permission)
       ))
 
@@ -376,10 +376,10 @@ module CurrentScope
     # so full_access still opens a directly-granted record's collection reads and
     # still does not cascade to children.
     #
-    # Every hop normalizes through base_class for the same reason the direct arm
-    # does (see the comment above it): grants store the polymorphic base_class,
-    # and querying a subclass name instead would make the list return nothing
-    # where the per-record gate allows.
+    # Every hop queries granted_ids with the parent's storage token
+    # (polymorphic_name), which is what grant rows store. Parent-chain hop
+    # identity stays on base_class.name and is a different key. Do not feed
+    # the storage token into that loop.
     def ancestor_scope_for(subject:, model:, permission:)
       arms = []
       klass = model
@@ -392,7 +392,7 @@ module CurrentScope
         break if path.size > ParentChain::MAX_PARENT_DEPTH
 
         granted = granted_ids(
-          subject: subject, type: parent.base_class.name, model: parent,
+          subject: subject, type: CurrentScope.storage_token(parent), model: parent,
           roles: roles_ticking(permission)
         )
 
@@ -508,9 +508,10 @@ module CurrentScope
     # Binds by TYPE (#50). The target names no record, but the controller can
     # name the type its collection lists via current_scope_model (record when
     # it is a Class — the allowed_to?(:index, Report) form — else the model:
-    # kwarg the Guard threads). resource_type filters the grant to that type,
-    # normalized through base_class exactly as scope_for does, so "a Report
-    # grant" cannot open a Documents gate. UNKNOWN type ⇒ this branch does not
+    # kwarg the Guard threads). resource_type filters the grant to that type
+    # with CurrentScope.storage_token(type) (polymorphic_name), the same token
+    # scope_for passes to granted_ids, so "a Report grant" cannot open a
+    # Documents gate. UNKNOWN type ⇒ this branch does not
     # fire (fail-closed): before #50 an unbound grant of any type opened every
     # record-less gate, and for a key with no list side (#create) that let a
     # Report-scoped subject create Documents — a live escalation, not a
@@ -587,7 +588,7 @@ module CurrentScope
         # A syntactically valid stored id is not enough: a destroyed/default-
         # scoped-out record opens nothing. Keep the established R6a STI ceiling:
         # non-read collection gates bind to the base class, not one subclass.
-        ids = granted_ids(subject: subject, type: type.base_class.name, model: type,
+        ids = granted_ids(subject: subject, type: CurrentScope.storage_token(type), model: type,
                           roles: roles_ticking(permission))
         type.base_class.where(type.base_class.primary_key => ids).exists?
       end

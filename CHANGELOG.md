@@ -17,6 +17,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pilots.
 
 ### Fixed
+- **Custom `polymorphic_name` tokens now match on the list and the members page (#155).** Collection, ancestor, and record-less write lookups use the stored token (`polymorphic_name`), not `base_class.name`. Reverse lookup uses a closed registry (Rails first, then auto-detected overrides plus optional `config.polymorphic_class_names`). Two classes that claim the same token raise at rebuild, including a shortened name that matches another loaded class. Config may only name a class that actually stores that token. An unmapped token stays inert.
 - **The public resolver picture now matches the six-step order the engine already runs.** README, the docs-site include, and the landing-page steps named a five-step order that skipped the record-less listed-read arm. The Limitations table also still said parent hierarchy was deferred after `current_scope_parent` shipped.
 
 ## [0.5.1] - 2026-08-12

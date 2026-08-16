@@ -3,6 +3,36 @@
 Read the [CHANGELOG](CHANGELOG.md) for every version you cross. This file calls
 out the silent posture changes that a changelog line is easy to miss.
 
+## Unreleased: custom polymorphic tokens are first-class (#155)
+
+Stored grant types use `polymorphic_name`, not `base_class.name`. Default
+models do not change. If a model overrides `polymorphic_name` (or shortens it
+with `store_full_class_name = false`):
+
+- Collection lists and record-less write checks now see those grants.
+- Two classes must not share a token. Rebuild raises `ConfigurationError`.
+  That includes a shortened name that matches another loaded class (for
+  example `Admin::User` storing `"User"` next to `::User`). STI siblings
+  that store their base name are not a clash.
+- Optional: `config.polymorphic_class_names = { "token_docs" => "TokenDocument" }`
+  for a token that must resolve before the model is loaded. After a namespaced
+  model with `store_full_class_name = false` is loaded, a shortened token that
+  does not constantize is registered automatically. The class must actually
+  store that token: a mapping to a class that does not emit it is refused with a
+  `ConfigurationError` (under `eager_load` that fails boot loudly, rather than
+  resolving the token to the wrong class). Leaving a token unmapped is what keeps
+  a stale grant inert; a wrong mapping raises, it does not stay inert.
+
+  Auto-registration only sees models loaded when the registry rebuilds. Under
+  `eager_load` (production) that is every model; in development a custom-token
+  model autoloaded after boot is not reverse-resolvable until the next reload.
+  Map any token that must resolve regardless of load timing.
+- A token is the stored grant identity. If you retire a model and later reuse
+  its `polymorphic_name` token for a different class, existing grants rebind to
+  the new class — treat a token rename or reuse as a data migration.
+
+An unmapped custom token stays inert. That is not a permit.
+
 ## 0.1 → 0.2: SoD became opt-in (silent fail-open if you relied on defaults)
 
 **If you used separation of duties on 0.1 defaults, re-add:**

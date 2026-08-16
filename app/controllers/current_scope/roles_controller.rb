@@ -54,11 +54,22 @@ module CurrentScope
       # work now that subject_id is a string column (#151) while subject_class
       # keys on a bigint — PostgreSQL refuses that comparison outright rather than
       # coercing. Cast the candidate side, so the stored value is never altered.
-      held = RoleAssignment.where(role: @role, subject_type: subject_class.polymorphic_name)
-                           .select(:subject_id)
-      remaining = subject_class.where.not(
-        Arel::Nodes::In.new(candidate_key_as_text, held.arel.ast)
-      ).order(:id)
+      #
+      # Filter the subquery on subject_type, not a plucked id list: every org
+      # assignment whose type reverse-resolves onto this subject table counts, not
+      # only subject_class.polymorphic_name, so an STI or custom-token holder is
+      # still excluded (#155). The token set is bounded by the model classes
+      # sharing this base class — a few binds — where a subject_id list would carry
+      # one bind per held subject and blow SQLITE_MAX_VARIABLE_NUMBER on a default
+      # role held by the whole user table.
+      held_types = RoleAssignment.subject_types_for(@org_holders, subject_class)
+      remaining = subject_class.order(:id)
+      if held_types.any?
+        held = RoleAssignment.where(role: @role, subject_type: held_types).select(:subject_id)
+        remaining = remaining.where.not(
+          Arel::Nodes::In.new(candidate_key_as_text, held.arel.ast)
+        )
+      end
       @candidates = remaining.limit(ADD_LIMIT).to_a
       @more_candidates = remaining.offset(ADD_LIMIT).exists?
     end

@@ -14,6 +14,28 @@ module CurrentScope
     include CurrentScope::StorableKeys
     validates_storable_polymorphic_keys "subject"
 
+    # The distinct stored subject_type tokens among `holders` that reverse-resolve
+    # onto `klass`'s subject table — its own polymorphic_name plus any STI/custom
+    # token whose class shares klass's base_class. The members query filters the
+    # "held" subquery on this bounded token set, so STI/custom-token holders are
+    # excluded from the add list (#155) without plucking one id per subject. Token
+    # reasoning lives here, on the grant model, not in the controller.
+    def self.subject_types_for(holders, klass)
+      own_token = klass.polymorphic_name
+      base = klass.base_class
+      # Dedup the tokens first, then resolve each once: the distinct token set is
+      # tiny, so this resolves a handful of tokens instead of one per holder (and
+      # an unresolvable token raises/rescues in polymorphic_class, the expensive
+      # path, which would otherwise fire once per holder row).
+      holders.map(&:subject_type).uniq.select do |type|
+        next false if type.blank?
+        next true if type == own_token
+
+        resolved = CurrentScope.polymorphic_class(type)
+        resolved && resolved.base_class == base
+      end
+    end
+
     def one_org_role_per_subject
       return if subject_type.blank? || subject_id.blank?
 

@@ -1,0 +1,14 @@
+lib/generators/current_scope/identity/templates/subject_identity.rb
+  h_e8a5bb9272fa34 36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "b7637ae37eb1db1369886b4a69764c668c791eda",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

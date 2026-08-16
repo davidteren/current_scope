@@ -1,0 +1,31 @@
+README.md
+  s_b5cfd179f3a5b1::t_44914031cbdd5e 311-316
+lib/current_scope/identity_setup.rb
+  s_b5cfd179f3a5b1::t_8558fc3d3ab23c 1-159
+test/subject_identity_placeholder_test.rb
+  s_ee3329d66cd0ed::t_475221ff2a9fa2 1-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "731aef1aba62e30729e9c67459431515b6eb3945",
+  "prompts": {},
+  "sessions": {
+    "s_b5cfd179f3a5b1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bd4ad9e1-387b-465b-9f7b-4b7bed918299",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    },
+    "s_ee3329d66cd0ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "161ec932-fc98-4820-b16a-555bf9c23a8e",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -305,12 +305,12 @@ Because the scoped role reuses the *same* Role rows as org-wide roles, "Editor"
 means the same set of permissions whether held org-wide or on one record — only
 the *reach* differs.
 
-**Open question — resource hierarchy / cascade (NOT solved here):** should a
-scoped role on a *parent* apply to its *children*? E.g. "Editor of Project #7"
-implying edit rights on the reports that belong to Project #7. This engine as
-described resolves against *the record itself* only. Cascade would require a
-declared parent/child traversal (and raises questions about depth, performance,
-and cycles). Flagged for iteration — see §9.
+**Open question — resource hierarchy / cascade (SHIPPED as `current_scope_parent`,
+#108):** should a scoped role on a *parent* apply to its *children*? E.g.
+"Editor of Project #7" implying edit rights on the reports that belong to
+Project #7. This original write-up resolved against *the record itself* only.
+The shipped answer is opt-in on the child, bounded at five hops, and scoped
+`full_access` does not cascade. See §9.
 
 ---
 
@@ -523,9 +523,9 @@ SoD: enforced in code (the resolver's step 1), keyed off a host-declared
    description: a scoped role reuses a full `Role` (its whole permission bundle,
    applied on one record). Alternative: scoped roles expose a *restricted* or
    *fixed* capability set distinct from org-wide roles. Undecided.
-3. **Resource hierarchy / cascade (§4).** Should a scoped role on a parent apply
-   to children? If so: declared traversal, depth limits, cycle handling,
-   performance. Not designed.
+3. **Resource hierarchy / cascade (§4).** Shipped as `current_scope_parent`
+   (#108). Opt-in on the child, bounded at five hops, scoped `full_access`
+   does not cascade. See the README Limitations row.
 4. **Performance + caching.** (a) Auto-deriving the controller × action grid on
    every render vs materializing `grantwork_permissions`. (b) Per-request resolution
    cost — caching a subject's effective permission set, and invalidating it when

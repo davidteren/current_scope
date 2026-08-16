@@ -10,7 +10,7 @@
 The core model is complete and enforced (see STATUS for the checklist): permissions
 auto-derived from `controller#action`; roles as editable data; **one org-wide role
 per subject** (DB-enforced) + **unlimited per-record scoped roles**; `full_access`;
-the fixed resolver order (SoD → full_access → org role → scoped role → deny);
+the fixed resolver order (SoD → full_access → org role → scoped role → record-less → deny);
 fail-closed; a **loud** SoD veto; and one ambient context so `allowed_to?` is
 identical in controllers, views, and ViewComponents. Management UI + install
 generator + green test suite + demo app all present.
@@ -41,8 +41,8 @@ v0.1 model.
 > **2.1 Audit** (append-only `current_scope_events` ledger), **2.2 Impersonation /
 > act-as** (`Current.actor` + `sod_identity` + read-only `MutationGuard`),
 > **2.4 Resolver memoization** (per-request org-role memo on `CurrentScope::Current`),
-> and **2.6 `scope_for`**. Still open: **2.3 hierarchy/cascade** and **2.5 feature
-> flags**. Also shipped beyond this list: the admin dashboard UI, a role-side
+> **2.3 hierarchy/cascade** (`current_scope_parent`, #108), and **2.6 `scope_for`**.
+> Still open: **2.5 feature flags**. Also shipped beyond this list: the admin dashboard UI, a role-side
 > **members** view, and a **break-glass** SoD override (`allow_sod_bypass`).
 
 ### 2.1 Audit / change history &nbsp;·&nbsp; priority: HIGH

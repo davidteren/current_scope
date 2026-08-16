@@ -152,6 +152,16 @@ class SubjectIdentityTest < ActiveSupport::TestCase
     assert_nothing_raised { CurrentScope.config.validate! }
   end
 
+  test "a wrong-shaped composite key raises rather than looking missing" do
+    CurrentScope.config.subject_class = "IdentityUser"
+    CurrentScope.config.subject_identity = [ :name, :email ]
+
+    error = assert_raises(CurrentScope::ConfigurationError) do
+      CurrentScope.resolve_subject("only-one-part")
+    end
+    assert_match "expected 2 value", error.message
+  end
+
   test "resolve alone never inserts" do
     before = User.count
     CurrentScope.config.subject_identity = :name

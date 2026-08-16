@@ -58,18 +58,71 @@ class IdentityTaskTest < ActiveSupport::TestCase
     assert_not CurrentScope::Role.exists?(name: "Owner")
   end
 
-  test "dry-run PLACEHOLDER does not insert a subject" do
+  test "dry-run PLACEHOLDER without a factory does not pretend it can create" do
     before = User.count
-    out = run_setup(
-      "IDENTITY" => "name",
-      "SUBJECT" => "ghost-dry",
-      "PLACEHOLDER" => "1"
-    )
+    error = assert_raises(CurrentScope::IdentitySetup::Halt) do
+      run_setup(
+        "IDENTITY" => "name",
+        "SUBJECT" => "ghost-dry",
+        "PLACEHOLDER" => "1"
+      )
+    end
+
+    assert_equal before, User.count
+    assert_match "no factory", error.message
+    assert_match MARK, error.message
+  end
+
+  test "dry-run PLACEHOLDER with a factory writes nothing" do
+    factory = Object.new
+    factory.define_singleton_method(:identify) { |subject| subject.name }
+    factory.define_singleton_method(:resolve) { |key| User.find_by(name: key) }
+    factory.define_singleton_method(:create_placeholder!) do |key|
+      User.create!(name: key)
+    end
+    CurrentScope.config.subject_identity = factory
+
+    before = User.count
+    out = run_setup("SUBJECT" => "ghost-dry-host", "PLACEHOLDER" => "1")
 
     assert_equal before, User.count
     assert_match "Would create a placeholder", out
     assert_match MARK, out
-    assert_match "WRITE=1", out
+  end
+
+  test "IDENTITY= does not rewrite CurrentScope.config" do
+    User.create!(name: "cfg-ada")
+    assert_nil CurrentScope.config.subject_identity
+
+    run_setup("IDENTITY" => "name", "SUBJECT" => "cfg-ada")
+
+    assert_nil CurrentScope.config.subject_identity
+  end
+
+  test "a host unique? false is a collision even without colliding_keys" do
+    resolver = Object.new
+    resolver.define_singleton_method(:identify) { |_subject| "x" }
+    resolver.define_singleton_method(:resolve) { |_key| nil }
+    resolver.define_singleton_method(:unique?) { false }
+    CurrentScope.config.subject_identity = resolver
+
+    error = assert_raises(CurrentScope::IdentitySetup::Halt) do
+      run_setup("SUBJECT" => "anyone")
+    end
+    assert_match "not unique", error.message
+  end
+
+  test "replacing an existing org role warns on dry-run" do
+    user = User.create!(name: "swap-ada")
+    member = CurrentScope::Role.create!(name: "Member")
+    CurrentScope::RoleAssignment.create!(subject: user, role: member)
+
+    _out, err = capture_io do
+      run_setup("IDENTITY" => "name", "SUBJECT" => "swap-ada")
+    end
+    assert_match(/WARNING/, err)
+    assert_match(/Member/, err)
+    assert_equal "Member", CurrentScope::RoleAssignment.find_by(subject: user).role.name
   end
 
   test "WRITE grants Owner through grant! and records a bootstrap event" do

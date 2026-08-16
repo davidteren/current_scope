@@ -3,6 +3,7 @@ require "yaml"
 module CurrentScope
   # Guided attach for #158. Dry-run by default; WRITE=1 calls grant!.
   # PLACEHOLDER=1 WRITE=1 may create a marked stand-in outside production only.
+  # IDENTITY= compiles a local resolver and does not rewrite CurrentScope.config.
   class IdentitySetup
     class Halt < StandardError; end
 
@@ -13,10 +14,11 @@ module CurrentScope
     end
 
     def run
-      apply_identity_override!
+      compile_identity_override!
       report_collisions!
       subject = resolve_or_placeholder!
       role = prepare_role
+      warn_if_replacing(subject, role)
       print_plan(subject, role)
       return unless write?
 
@@ -24,32 +26,40 @@ module CurrentScope
 
       CurrentScope.grant!(subject, role: role)
       say "Granted #{role.name} to #{portable_key.inspect} (#{subject.class}##{subject.id})."
-    ensure
-      restore_identity_override!
     end
 
     def collisions
-      resolver = CurrentScope.config.subject_identity_resolver
+      compile_identity_override!
       return [] if resolver.primary_key?
 
-      resolver.colliding_keys
+      keys = resolver.colliding_keys
+      return keys if keys.any?
+      return [ "(duplicate natural key)" ] unless resolver.unique?
+
+      []
     end
 
     private
 
-    def apply_identity_override!
+    def compile_identity_override!
+      return if defined?(@identity_compiled)
+
+      @identity_compiled = true
       override = identity_from_env_or_prompt
       return if override.nil?
 
-      @previous_identity = CurrentScope.config.subject_identity
-      @overrode_identity = true
-      CurrentScope.config.subject_identity = override
+      @override_identity = override
+      @override_resolver = SubjectIdentity.compile(
+        override, klass: CurrentScope.config.resolved_subject_class
+      )
     end
 
-    def restore_identity_override!
-      return unless @overrode_identity
+    def resolver
+      @override_resolver || CurrentScope.config.subject_identity_resolver
+    end
 
-      CurrentScope.config.subject_identity = @previous_identity
+    def declared_identity
+      @override_identity.nil? ? CurrentScope.config.subject_identity : @override_identity
     end
 
     def identity_from_env_or_prompt
@@ -72,11 +82,12 @@ module CurrentScope
 
     def resolve_or_placeholder!
       key = portable_key
-      found = CurrentScope.resolve_subject(key)
+      found = resolver.resolve(key)
       return found if found
 
       if placeholder?
         fail_if_production_placeholder!
+        require_placeholder_factory!
         unless write?
           say "Would create a placeholder marked #{SubjectIdentity::PLACEHOLDER_MARK} " \
               "for #{key.inspect}."
@@ -89,25 +100,27 @@ module CurrentScope
       end
 
       fail! "No subject resolved for #{key.inspect}. Production never invents one. " \
-            "Outside production, re-run with PLACEHOLDER=1 after generating " \
+            "Outside production, re-run with PLACEHOLDER=1 WRITE=1 after generating " \
             "`bin/rails generate current_scope:identity`."
     end
 
     def materialize_placeholder(key)
-      SubjectIdentity.materialize_placeholder!(key, factory: placeholder_factory)
-    rescue ConfigurationError => e
-      fail! e.message
+      placeholder_factory.call(key)
     end
 
     def portable_key
+      return @portable_key if defined?(@portable_key)
+
       raw = @env["SUBJECT"].presence
       raw = ask("Portable subject key: ") if raw.blank? && interactive?
       fail! "SUBJECT is required, e.g. SUBJECT=ada@example.com" if raw.blank?
 
-      identity = CurrentScope.config.subject_identity
-      return parse_composite_key(raw) if identity.is_a?(Array) && identity.size > 1
-
-      raw
+      identity = declared_identity
+      @portable_key = if identity.is_a?(Array) && identity.size > 1
+        parse_composite_key(raw)
+      else
+        raw
+      end
     end
 
     def parse_composite_key(raw)
@@ -135,9 +148,19 @@ module CurrentScope
       Role.find_by(name: name) || Role.new(name: name, full_access: name == "Owner")
     end
 
+    def warn_if_replacing(subject, role)
+      return if subject.nil?
+
+      prior = RoleAssignment.find_by(subject: subject)&.role
+      return if prior.nil? || prior.name == role.name
+
+      warn "WARNING: #{subject.class}##{subject.id} already held the #{prior.name.inspect} role — " \
+           "replacing it with #{role.name}."
+    end
+
     def print_plan(subject, role)
       access = role.full_access? ? "yes" : "no"
-      say "Identity: #{CurrentScope.config.subject_identity.inspect}"
+      say "Identity: #{declared_identity.inspect}"
       if subject
         say "Subject: #{portable_key.inspect} → #{subject.class}##{subject.id}"
       else
@@ -158,8 +181,16 @@ module CurrentScope
       fail! "PLACEHOLDER=1 is refused in production. No subject was created."
     end
 
+    def require_placeholder_factory!
+      return if placeholder_factory
+
+      fail! "PLACEHOLDER=1 has no factory. Generate `bin/rails generate " \
+            "current_scope:identity` and implement create_placeholder!(key) " \
+            "on that object, stamped with #{SubjectIdentity::PLACEHOLDER_MARK.inspect}."
+    end
+
     def placeholder_factory
-      raw = CurrentScope.config.subject_identity
+      raw = declared_identity
       return ->(key) { raw.create_placeholder!(key) } if raw.respond_to?(:create_placeholder!)
 
       nil

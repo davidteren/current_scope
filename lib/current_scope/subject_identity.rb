@@ -170,8 +170,15 @@ module CurrentScope
       end
 
       def attributes_for(key)
+        return if key.nil?
+
         values = Array(key)
-        return if values.size != @columns.size
+        return if values.size == 1 && values.first.to_s.strip.empty?
+        if values.size != @columns.size
+          raise ConfigurationError,
+                "config.subject_identity expected #{@columns.size} value(s) for " \
+                "#{@columns.inspect}, got #{key.inspect}."
+        end
         return if values.any? { |value| value.nil? || value.to_s.strip.empty? }
 
         @columns.zip(values.map { |value| stringify(value) }).to_h

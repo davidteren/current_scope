@@ -122,6 +122,16 @@ class ConfigurationTest < ActiveSupport::TestCase
     assert CurrentScope::Configuration.new.subject_identity_resolver.primary_key?
   end
 
+  test "subject_identity freezes a composite array so later mutation cannot drift" do
+    config = CurrentScope::Configuration.new
+    columns = [ :name, :email ]
+    config.subject_identity = columns
+    assert_raises(FrozenError) { config.subject_identity << :id }
+    assert_equal [ :name, :email ], config.subject_identity
+    columns << :id
+    assert_equal [ :name, :email ], config.subject_identity
+  end
+
   test "subject_identity rejects a String and leaves the previous value" do
     config = CurrentScope::Configuration.new
     error = assert_raises(CurrentScope::ConfigurationError) { config.subject_identity = "email" }

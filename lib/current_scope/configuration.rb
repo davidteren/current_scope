@@ -189,7 +189,7 @@ module CurrentScope
 
     def subject_identity=(value)
       compiled = SubjectIdentity.compile(value, klass: resolved_subject_class)
-      @subject_identity = value
+      @subject_identity = value.is_a?(Array) ? value.dup.freeze : value
       @subject_identity_resolver = compiled
     end
 
@@ -197,6 +197,10 @@ module CurrentScope
       @subject_identity_resolver ||= SubjectIdentity.compile(
         @subject_identity, klass: resolved_subject_class
       )
+    end
+
+    def reset_subject_identity_resolver!
+      @subject_identity_resolver = nil
     end
 
     def resolved_subject_class

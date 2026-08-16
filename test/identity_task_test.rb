@@ -77,6 +77,7 @@ class IdentityTaskTest < ActiveSupport::TestCase
     factory = Object.new
     factory.define_singleton_method(:identify) { |subject| subject.name }
     factory.define_singleton_method(:resolve) { |key| User.find_by(name: key) }
+    factory.define_singleton_method(:unique?) { true }
     factory.define_singleton_method(:create_placeholder!) do |key|
       User.create!(name: key)
     end

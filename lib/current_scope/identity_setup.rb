@@ -17,15 +17,23 @@ module CurrentScope
       compile_identity_override!
       report_collisions!
       subject = resolve_or_placeholder!
+      pending_placeholder = subject.equal?(:pending_placeholder)
+      subject = nil if pending_placeholder
       role = prepare_role
       warn_if_replacing(subject, role)
       print_plan(subject, role)
       return unless write?
 
-      fail! "No subject to grant." if subject.nil?
+      RoleAssignment.transaction do
+        if pending_placeholder
+          subject = materialize_placeholder(portable_key)
+          say "Created placeholder #{subject.class}##{subject.id} marked #{SubjectIdentity::PLACEHOLDER_MARK}."
+        end
+        fail! "No subject to grant." if subject.nil?
 
-      CurrentScope.grant!(subject, role: role)
-      say "Granted #{role.name} to #{portable_key.inspect} (#{subject.class}##{subject.id})."
+        CurrentScope.grant!(subject, role: role)
+        say "Granted #{role.name} to #{portable_key.inspect} (#{subject.class}##{subject.id})."
+      end
     end
 
     def collisions
@@ -35,6 +43,9 @@ module CurrentScope
       keys = resolver.colliding_keys
       return keys if keys.any?
       return [ "(duplicate natural key)" ] unless resolver.unique?
+      if resolver.respond_to?(:unique_checkable?) && !resolver.unique_checkable?
+        return [ "(host object has no unique? — not scanned)" ]
+      end
 
       []
     end
@@ -81,12 +92,13 @@ module CurrentScope
     end
 
     def resolve_or_placeholder!
+      fail_if_production_placeholder! if placeholder?
+
       key = portable_key
       found = resolver.resolve(key)
       return found if found
 
       if placeholder?
-        fail_if_production_placeholder!
         require_placeholder_factory!
         unless write?
           say "Would create a placeholder marked #{SubjectIdentity::PLACEHOLDER_MARK} " \
@@ -94,9 +106,7 @@ module CurrentScope
           return nil
         end
 
-        created = materialize_placeholder(key)
-        say "Created placeholder #{created.class}##{created.id} marked #{SubjectIdentity::PLACEHOLDER_MARK}."
-        return created
+        return :pending_placeholder
       end
 
       fail! "No subject resolved for #{key.inspect}. Production never invents one. " \
@@ -105,7 +115,18 @@ module CurrentScope
     end
 
     def materialize_placeholder(key)
-      placeholder_factory.call(key)
+      created = placeholder_factory.call(key)
+      klass = CurrentScope.config.resolved_subject_class
+      unless klass && created.is_a?(klass)
+        fail! "placeholder factory returned #{created.class}, expected #{klass}."
+      end
+
+      identified = resolver.identify(created)
+      unless identified == key || Array(identified) == Array(key)
+        fail! "placeholder factory produced #{identified.inspect}, expected #{key.inspect}."
+      end
+
+      created
     end
 
     def portable_key

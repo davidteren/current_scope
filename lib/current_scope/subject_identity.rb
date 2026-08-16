@@ -226,10 +226,12 @@ module CurrentScope
       # Boot does not invent a join scan. If the host does not expose unique?,
       # uniqueness is still enforced when resolve matches more than one row.
       def unique?
-        return true unless @object.respond_to?(:unique?)
+        return true unless unique_checkable?
 
         @object.unique?
       end
+
+      def unique_checkable? = @object.respond_to?(:unique?)
 
       def colliding_keys = []
     end

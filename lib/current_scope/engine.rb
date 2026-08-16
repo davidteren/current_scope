@@ -83,6 +83,7 @@ module CurrentScope
       # eager-load one below. (#139)
       CurrentScope::ParentChain.validate_declarations!
       CurrentScope.rebuild_polymorphic_registry!
+      CurrentScope.config.reset_subject_identity_resolver!
     end
 
     # #139: the pass that sees every declaring model that was eager-loaded.

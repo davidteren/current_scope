@@ -1,0 +1,22 @@
+lib/current_scope/configuration.rb
+  h_e8a5bb9272fa34 191,193
+lib/current_scope/identity_setup.rb
+  h_e8a5bb9272fa34 34,151
+lib/current_scope/schema_guard.rb
+  h_e8a5bb9272fa34 185,192
+lib/current_scope/subject_identity.rb
+  h_e8a5bb9272fa34 75-88,119-122,177-180
+test/subject_identity_test.rb
+  h_e8a5bb9272fa34 33-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "44e5664644cba163292b1a4300ff5ab187afddd0",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

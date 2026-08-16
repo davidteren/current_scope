@@ -72,7 +72,20 @@ module CurrentScope
               "on that object, stamped with #{PLACEHOLDER_MARK.inspect}."
       end
 
-      factory.call(key)
+      created = factory.call(key)
+      klass = CurrentScope.config.resolved_subject_class
+      unless klass && created.is_a?(klass)
+        raise ConfigurationError,
+              "placeholder factory returned #{created.class}, expected #{klass}."
+      end
+
+      identified = CurrentScope.identify_subject(created)
+      unless identified == key || Array(identified) == Array(key)
+        raise ConfigurationError,
+              "placeholder factory produced #{identified.inspect}, expected #{key.inspect}."
+      end
+
+      created
     end
 
     def self.production?
@@ -103,6 +116,10 @@ module CurrentScope
       def resolve(key)
         require_klass!
         return if key.blank?
+        if key.is_a?(Array)
+          raise ConfigurationError,
+                "primary-key identity expects one value, got #{key.inspect}."
+        end
 
         @klass.find_by(@klass.primary_key => key)
       end
@@ -157,8 +174,10 @@ module CurrentScope
       end
 
       def colliding_keys
-        assert_columns!
-        colliding_groups.keys
+        @colliding_keys ||= begin
+          assert_columns!
+          colliding_groups.keys
+        end
       end
 
       private

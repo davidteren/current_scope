@@ -31,6 +31,7 @@ module CurrentScope
         end
         fail! "No subject to grant." if subject.nil?
 
+        role = prepare_role
         CurrentScope.grant!(subject, role: role)
         say "Granted #{role.name} to #{portable_key.inspect} (#{subject.class}##{subject.id})."
       end
@@ -43,9 +44,6 @@ module CurrentScope
       keys = resolver.colliding_keys
       return keys if keys.any?
       return [ "(duplicate natural key)" ] unless resolver.unique?
-      if resolver.respond_to?(:unique_checkable?) && !resolver.unique_checkable?
-        return [ "(host object has no unique? — not scanned)" ]
-      end
 
       []
     end
@@ -150,7 +148,7 @@ module CurrentScope
         fail! "SUBJECT for a composite identity must be a YAML sequence, " \
               "e.g. SUBJECT='[Ada, ada@example.com]'."
       end
-      parsed
+      parsed.map { |value| value.nil? ? value : value.to_s }
     rescue Psych::SyntaxError
       fail! "SUBJECT for a composite identity must be a YAML sequence, " \
             "e.g. SUBJECT='[Ada, ada@example.com]'."

@@ -188,9 +188,9 @@ module CurrentScope
     attr_reader :subject_identity
 
     def subject_identity=(value)
-      compiled = SubjectIdentity.compile(value, klass: resolved_subject_class)
+      SubjectIdentity.compile(value, klass: nil)
       @subject_identity = value.is_a?(Array) ? value.dup.freeze : value
-      @subject_identity_resolver = compiled
+      @subject_identity_resolver = nil
     end
 
     def subject_identity_resolver

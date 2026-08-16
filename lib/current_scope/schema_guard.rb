@@ -182,13 +182,14 @@ module CurrentScope
       db:create db:drop db:migrate db:rollback db:version db:prepare db:setup
       db:reset db:abort_if_pending_migrations db:_dump
       current_scope:install current_scope:repair_schema
+      current_scope:identity:check current_scope:identity:setup
     ].freeze
 
     # Namespaces whose children are all schema tooling (db:migrate:up,
     # db:schema:load, assets:precompile, …).
     BOOT_EXEMPT_NAMESPACES = %w[
       db:migrate: db:schema: db:structure: db:test: db:environment:
-      current_scope:install: assets:
+      current_scope:install: current_scope:identity: assets:
     ].freeze
 
     # …minus these, which the lists above would otherwise cover. A bare `db:seed`

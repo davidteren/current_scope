@@ -30,6 +30,13 @@ class SubjectIdentityTest < ActiveSupport::TestCase
     assert_equal user, CurrentScope.resolve_subject(user.id.to_s)
   end
 
+  test "primary-key resolve refuses an array key" do
+    error = assert_raises(CurrentScope::ConfigurationError) do
+      CurrentScope.resolve_subject([ 1, 2 ])
+    end
+    assert_match "one value", error.message
+  end
+
   test "a PK-only install still grants by id" do
     user = User.create!(name: "Owner candidate")
     CurrentScope.grant!(user)

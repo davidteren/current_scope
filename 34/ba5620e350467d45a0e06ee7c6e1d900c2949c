@@ -1,0 +1,19 @@
+lib/current_scope/subject_identity.rb
+  s_ec3fcaf8dc4b6c::t_7cd88f15a969b6 75-82,84-88,247-250
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "34ba5620e350467d45a0e06ee7c6e1d900c2949c",
+  "prompts": {},
+  "sessions": {
+    "s_ec3fcaf8dc4b6c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fdddefa8-a41f-4bad-8825-47a71a23c369",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

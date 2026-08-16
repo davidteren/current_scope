@@ -72,19 +72,21 @@ module CurrentScope
               "on that object, stamped with #{PLACEHOLDER_MARK.inspect}."
       end
 
-      created = factory.call(key)
-      klass = CurrentScope.config.resolved_subject_class
-      unless klass && created.is_a?(klass)
-        raise ConfigurationError,
-              "placeholder factory returned #{created.class}, expected #{klass}."
-      end
+      created = nil
+      CurrentScope::RoleAssignment.transaction do
+        created = factory.call(key)
+        klass = CurrentScope.config.resolved_subject_class
+        unless klass && created.is_a?(klass)
+          raise ConfigurationError,
+                "placeholder factory returned #{created.class}, expected #{klass}."
+        end
 
-      identified = CurrentScope.identify_subject(created)
-      unless identified == key || Array(identified) == Array(key)
-        raise ConfigurationError,
-              "placeholder factory produced #{identified.inspect}, expected #{key.inspect}."
+        identified = CurrentScope.identify_subject(created)
+        unless identified == key || Array(identified) == Array(key)
+          raise ConfigurationError,
+                "placeholder factory produced #{identified.inspect}, expected #{key.inspect}."
+        end
       end
-
       created
     end
 
@@ -242,8 +244,10 @@ module CurrentScope
 
       def resolve(key) = @object.resolve(key)
 
-      # Boot does not invent a join scan. If the host does not expose unique?,
-      # uniqueness is still enforced when resolve matches more than one row.
+      # Boot does not invent a join scan (plan KTD-3). If the host does not
+      # expose unique?, uniqueness is the host resolve contract: wrap a
+      # first-row find_by and you can pick the wrong subject. Sugar resolvers
+      # refuse that; a host object is used as-is.
       def unique?
         return true unless unique_checkable?
 

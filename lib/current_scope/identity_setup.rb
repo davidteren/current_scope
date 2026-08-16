@@ -19,19 +19,22 @@ module CurrentScope
       subject = resolve_or_placeholder!
       pending_placeholder = subject.equal?(:pending_placeholder)
       subject = nil if pending_placeholder
-      role = prepare_role
+      role = prepare_role(persist: false)
       warn_if_replacing(subject, role)
       print_plan(subject, role)
       return unless write?
 
       RoleAssignment.transaction do
         if pending_placeholder
-          subject = materialize_placeholder(portable_key)
-          say "Created placeholder #{subject.class}##{subject.id} marked #{SubjectIdentity::PLACEHOLDER_MARK}."
+          subject = resolver.resolve(portable_key)
+          if subject.nil?
+            subject = materialize_placeholder(portable_key)
+            say "Created placeholder #{subject.class}##{subject.id} marked #{SubjectIdentity::PLACEHOLDER_MARK}."
+          end
         end
         fail! "No subject to grant." if subject.nil?
 
-        role = prepare_role
+        role = prepare_role(persist: true)
         CurrentScope.grant!(subject, role: role)
         say "Granted #{role.name} to #{portable_key.inspect} (#{subject.class}##{subject.id})."
       end
@@ -113,17 +116,19 @@ module CurrentScope
     end
 
     def materialize_placeholder(key)
-      created = placeholder_factory.call(key)
-      klass = CurrentScope.config.resolved_subject_class
-      unless klass && created.is_a?(klass)
-        fail! "placeholder factory returned #{created.class}, expected #{klass}."
-      end
+      created = nil
+      RoleAssignment.transaction do
+        created = placeholder_factory.call(key)
+        klass = CurrentScope.config.resolved_subject_class
+        unless klass && created.is_a?(klass)
+          fail! "placeholder factory returned #{created.class}, expected #{klass}."
+        end
 
-      identified = resolver.identify(created)
-      unless identified == key || Array(identified) == Array(key)
-        fail! "placeholder factory produced #{identified.inspect}, expected #{key.inspect}."
+        identified = resolver.identify(created)
+        unless identified == key || Array(identified) == Array(key)
+          fail! "placeholder factory produced #{identified.inspect}, expected #{key.inspect}."
+        end
       end
-
       created
     end
 
@@ -154,9 +159,9 @@ module CurrentScope
             "e.g. SUBJECT='[Ada, ada@example.com]'."
     end
 
-    def prepare_role
+    def prepare_role(persist:)
       name = @env.fetch("ROLE", "Owner")
-      if write?
+      if persist
         if name == "Owner"
           CurrentScope.seed_defaults!
           return Role.find_by!(name: "Owner")

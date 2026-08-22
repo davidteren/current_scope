@@ -8,9 +8,12 @@ product_contract_source: ce-plan-bootstrap
 execution: code
 issue: https://github.com/davidteren/current_scope/issues/156
 deepened: 2026-08-13
+revised: 2026-08-22
 ---
 
 # Portable Role Definition Export Import - Plan
+
+> **Revised 2026-08-22.** Issue #158 (subject identity) merged to main as 55f1c6b and no longer gates anything here. Assignment export (issue #156 v2) now waits only on issue #150 (primary keys), planned separately as docs/plans/2026-08-22-001-fix-scoped-grant-primary-keys-plan.md. Every file path, method name, and lock claim below was re-verified against main at 55f1c6b. No v1 unit changes: the definitions document carries no subject references, so the new `identify_subject` / `resolve_subject` API does not touch U1 to U5. One new fact from #158: SchemaGuard's boot allow-list is now unanimous across chained rake tasks, and the new definitions tasks stay off that list (see KTD-9 and U5).
 
 ## Goal Capsule
 
@@ -18,7 +21,7 @@ deepened: 2026-08-13
 - **Authority hierarchy:** this plan → issue #156 v1 → catalog-strict `Role#permission_keys=` → last-held full-access lock in `RolesController` → fail-closed resolver (untouched).
 - **Execution profile:** build the PORO first, then thin rake wrappers. Prove export → mutate fixture → diff → confirm apply → empty second diff → rollback.
 - **Stop conditions:** if apply would remove the last org-wide full-access holder, refuse. If a document key is not in the live catalog, refuse. Do not invent assignment rows.
-- **Tail ownership:** definitions only. Assignments wait for issue #158 and stay out of the document schema.
+- **Tail ownership:** definitions only. Assignments wait for issue #150 (primary keys) and stay out of the document schema. Issue #158 (subject identity) shipped on 2026-08-22 and gates nothing in this plan.
 
 ---
 
@@ -112,7 +115,7 @@ Export of the dummy's roles is deterministic across two runs. Diff names a singl
 
 **Deferred to Follow-Up Work**
 
-- Assignment export/import (issue #156 v2). Blocked on #158.
+- Assignment export/import (issue #156 v2). Blocked on #150 (primary keys), planned separately as docs/plans/2026-08-22-001-fix-scoped-grant-primary-keys-plan.md. Not blocked on #158, which shipped.
 - Control-plane service (issue #157). Must speak this document format; do not build the service.
 - A CI workflow file in this gem. Hosts can call `current_scope:definitions:diff` themselves.
 
@@ -134,14 +137,16 @@ Export of the dummy's roles is deterministic across two runs. Diff names a singl
 
 - KTD-3 — Extract the last-holder check, do not copy it. `RolesController#would_lock_console_by_removing_role?` is the live rule (holders, not spare unassigned full-access rows). Also extract `lock_full_access_console_state!`. Apply locks first, then evaluates the planned name and `full_access` set against current holders. Refuse if the pre-apply world had a held full-access org role and the post-apply world would not. A document that demotes several full-access roles in one pass is one check, not N copies of the singular UI predicate. Test: demote held Owner while adding an unheld spare full-access role. That must refuse.
 
-- KTD-4 — One ledger event per apply, not one per role. `definitions.applied` / `definitions.rolled_back` with the diff in `details`. Do not emit per-role events from apply, because v1 will not destroy held grants. Extend `Event.record!`: when `target:` is the reserved string `"current_scope:definitions"`, write that token to the `target` column and require `target_label:` (default "Role definitions"). Do not call `to_gid` or `label_for` on that string. The events index already prints `target_label` for inert targets. Pin that it does not 500. Rake and other non-controller callers must pass `actor:` (and `subject:`). Resolve rake identity with `ACTOR_ID=` through `subject_class`, same shape as `current_scope:grant`. If audit is on and actor is missing, fail before mutate.
+- KTD-4 — One ledger event per apply, not one per role. `definitions.applied` / `definitions.rolled_back` with the diff in `details`. Do not emit per-role events from apply, because v1 will not destroy held grants. Extend `Event.record!`: when `target:` is the reserved string `"current_scope:definitions"`, write that token to the `target` column and require `target_label:` (default "Role definitions"). Do not call `to_gid` or `label_for` on that string. The events index already prints `target_label` for inert targets. Pin that it does not 500. Rake and other non-controller callers must pass `actor:` (and `subject:`). Resolve rake identity with `ACTOR_ID=`: constantize `config.subject_class`, `find_by(id:)`, abort when missing. That is the same lookup shape `current_scope:grant` uses for `SUBJECT_ID=` (verified 2026-08-22: grant's variable is `SUBJECT_ID=`, so the definitions tasks need their own `ACTOR_ID=` name). If audit is on and actor is missing, fail before mutate.
 
-- KTD-5 — Snapshot is the last pre-apply document. Default path is `#{FILE}.pre.yml` beside the document, or `tmp/current_scope/last_definitions_snapshot.yml` when FILE is unset. Always write the file on a mutating apply. Always store the snapshot YAML in `details.snapshot`. Next apply overwrites that one file. Rollback requires an explicit snapshot (`FILE=` or argument) and the same confirm gate as import.
+- KTD-5 — Snapshot is the last pre-apply document, and it is a different file from the incoming document. Import/export/diff read `FILE=` (the desired-state document). A mutating apply writes the pre-apply snapshot to `#{FILE}.pre.yml` beside it, or to `tmp/current_scope/last_definitions_snapshot.yml` when FILE is unset. Rollback reads `SNAPSHOT=` (or an argument), never `FILE=`. After `import FILE=roles.yml`, rollback is `rollback SNAPSHOT=roles.yml.pre.yml`. Passing the live document to rollback would diff empty against live (R14 no-op) and restore nothing. Always write the snapshot file on a mutating apply. Always store a path or short summary in `details.snapshot`, not the full YAML (the events index dumps every details value as a chip). Next apply overwrites that one snapshot file. Rollback uses the same confirm gate as import, and prints the rollback diff before it mutates.
 
 - KTD-6 — Populated means `Role.exists?`. `Rails.env.production?` always requires confirm. This is a closed predicate. Do not special-case "only Owner and Member". Those rows are live authorization state.
 - KTD-8 — No rename sugar in v1. Identity is `name`. Renaming a role in the YAML looks like remove plus add. Apply will not move holders. If the old name still has holders, R10b refuses. Renames stay in the management UI (`role.renamed`).
 
 - KTD-7 — Agents get export and diff now. They do not get autonomous apply. The playbook on `ai-agents.md` states the confirm rule in the same words as R9.
+
+- KTD-9 (added 2026-08-22). The rake actor is a raw id, not an identity key. `ACTOR_ID=` looks up `subject_class` by primary key. It does not call the #158 `resolve_subject` API. Identity keys exist for portable subject references across environments, which is exactly the v2 assignment problem gated on #150. The actor here is a local operator on the target database, so a local id is correct and needs zero identity configuration. Likewise, the definitions tasks stay OFF `SchemaGuard::BOOT_EXEMPT_TASKS`. They read and write role tables, so an unrepaired schema must still fail at boot, the same call #158 made for `identity:setup`. The allow-list is unanimous: a chain that includes a non-exempt definitions task still runs the boot check. On an unrepaired schema that raises before any task, including `db:migrate`. On a repaired schema the chain proceeds. Run migrate first, then import, so an unrepaired database can migrate at all.
 
 ### High-Level Technical Design
 
@@ -256,7 +261,7 @@ U1 export schema → U2 diff → U3 apply + lock + gate → U4 snapshot/rollback
   - `app/models/current_scope/event.rb` only if the target override is required
   - `test/definitions_import_test.rb`
   - `test/models/event_test.rb` if `record!` grows an override
-- **Approach:** Snapshot = U1 export taken inside the apply transaction before mutations, written to the default path and to `details.snapshot`. Rollback = `rollback_definitions(snapshot, confirm:)` with the same gate as import, then `definitions.rolled_back`. Record both events per KTD-4. Rake passes `ACTOR_ID=`.
+- **Approach:** Snapshot = U1 export taken inside the apply transaction before mutations, written to `#{FILE}.pre.yml` (KTD-5). Ledger `details.snapshot` stores that path, not the full YAML. Rollback = `rollback_definitions(snapshot, confirm:)` with the same gate as import, then `definitions.rolled_back`. Rake rollback reads `SNAPSHOT=`, not `FILE=`. Record both events per KTD-4. Rake passes `ACTOR_ID=`. Print the rollback diff before mutate.
 - **Patterns to follow:** `grant!` explicit `actor:` / `subject:` for rake; UI/controller ambient actor when one exists.
 - **Test scenarios:**
   - Happy: apply then rollback restores keys.
@@ -280,7 +285,7 @@ U1 export schema → U2 diff → U3 apply + lock + gate → U4 snapshot/rollback
   - `docs/site/ai-agents.md`
   - `docs/site/llms.txt`
   - `STATUS.md`
-- **Approach:** ENV path for the file (`FILE=`). Import reads `CONFIRM=1`. Print the diff on import before mutating. Playbook: export and diff are agent-safe; import is not autonomous in production.
+- **Approach:** ENV path for the document is `FILE=`. Rollback path is `SNAPSHOT=`. Import reads `CONFIRM=1`. The TTY confirm prompt is human-only; non-interactive callers pass `CONFIRM=1` (R9). Print the diff on import and on rollback before mutating. Playbook: export and diff are agent-safe; import and rollback are not autonomous in production. Do not add the definitions tasks to `SchemaGuard::BOOT_EXEMPT_TASKS` (KTD-9): no SchemaGuard change is needed, absence is the default and the safe direction.
 - **Patterns to follow:** `test/grant_task_test.rb` load/reenable/`capture_io`.
 - **Test scenarios:**
   - Happy: export writes the file. Diff prints an added key.
@@ -319,7 +324,8 @@ New operator surface and two new ledger event names. Resolver and gate are untou
 
 ### Sources
 
-- Issue #156 and the #158 sequencing comment on that issue.
-- `CurrentScope.seed_defaults!`, `Role#permission_keys=`, `RolesController` last-holder lock.
+- Issue #156. Its body pins v2 (assignments) on the primary-key work in #150 / #151. Issue #158 shipped on 2026-08-22 and is no longer a sequencing input.
+- `CurrentScope.seed_defaults!`, `Role#permission_keys=`, `RolesController` last-holder lock (all re-verified on main at 55f1c6b).
 - `lib/tasks/current_scope_tasks.rake` and `test/grant_task_test.rb`.
+- `lib/current_scope/schema_guard.rb` boot allow-list (`BOOT_EXEMPT_TASKS`, unanimous across chained tasks, from #158).
 - Agent-native assessment: shared YAML workspace, human-gated apply.

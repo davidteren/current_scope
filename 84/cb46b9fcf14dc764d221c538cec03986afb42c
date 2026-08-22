@@ -1,0 +1,16 @@
+docs/plans/2026-08-13-002-feat-role-definition-export-import-plan.md
+  h_e8a5bb9272fa34 59,108,163,244,246,307
+docs/plans/INDEX-five-issue-batch.md
+  h_e8a5bb9272fa34 25,29,71,73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "84cb46b9fcf14dc764d221c538cec03986afb42c",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -53,41 +53,12 @@ module CurrentScope
       end
     end
 
-    # Production never invents a subject. Non-production placeholder is an
-    # explicit tooling mode: resolve stays pure and never inserts.
-    def self.materialize_placeholder!(key, factory:)
-      if production?
-        raise ConfigurationError,
-              "PLACEHOLDER mode is refused in production. resolve returned no " \
-              "subject for #{key.inspect} and CurrentScope will not invent one."
-      end
-
-      existing = CurrentScope.resolve_subject(key)
-      return existing if existing
-
-      if factory.nil?
-        raise ConfigurationError,
-              "PLACEHOLDER=1 has no factory. Generate `bin/rails generate " \
-              "current_scope:identity` and implement create_placeholder!(key) " \
-              "on that object, stamped with #{PLACEHOLDER_MARK.inspect}."
-      end
-
-      created = nil
-      CurrentScope::RoleAssignment.transaction do
-        created = factory.call(key)
-        klass = CurrentScope.config.resolved_subject_class
-        unless klass && created.is_a?(klass)
-          raise ConfigurationError,
-                "placeholder factory returned #{created.class}, expected #{klass}."
-        end
-
-        identified = CurrentScope.identify_subject(created)
-        unless identified == key || Array(identified) == Array(key)
-          raise ConfigurationError,
-                "placeholder factory produced #{identified.inspect}, expected #{key.inspect}."
-        end
-      end
-      created
+    # ONE definition of a blank identity value, for every caller. It used to be
+    # written three times with two different answers: `attributes_for` stripped
+    # whitespace, the uniqueness scan compared against '' in SQL and did not.
+    # A "  " email was therefore a collision at boot and a non-key at resolve.
+    def self.blank_value?(value)
+      value.nil? || value.to_s.strip.empty?
     end
 
     def self.production?
@@ -112,7 +83,14 @@ module CurrentScope
 
       def identify(subject)
         require_klass!
-        subject.public_send(@klass.primary_key).to_s
+        value = subject.public_send(@klass.primary_key)
+        if SubjectIdentity.blank_value?(value)
+          raise ConfigurationError,
+                "#{subject.class} has no #{@klass.primary_key} yet, so it has no " \
+                "portable identity. Save the record before identifying it."
+        end
+
+        value.to_s
       end
 
       def resolve(key)
@@ -151,8 +129,24 @@ module CurrentScope
 
       def primary_key? = false
 
+      # Fail loud rather than mint a key that resolve will never find. identify
+      # used to stringify nil to "", so a subject with a blank identity column
+      # produced the key "" (or [ "Ada", "" ] for a composite) — and resolve
+      # treats a blank part as no key at all and returns nil. An export would
+      # have carried that dead key into the next environment silently.
       def identify(subject)
-        values = @columns.map { |column| stringify(subject.public_send(column)) }
+        raw = @columns.map { |column| subject.public_send(column) }
+        blank = @columns.zip(raw).select { |_column, value| SubjectIdentity.blank_value?(value) }
+        if blank.any?
+          raise ConfigurationError,
+                "#{subject.class}##{subject.id} has a blank " \
+                "#{blank.map { |column, _value| column.inspect }.join(', ')}, which " \
+                "config.subject_identity names. A blank part is not a portable " \
+                "identity — resolve would never find this subject again. Fill the " \
+                "column, or pick identity columns that are always present."
+        end
+
+        values = raw.map { |value| stringify(value) }
         @columns.one? ? values.first : values.freeze
       end
 
@@ -171,10 +165,25 @@ module CurrentScope
         end
       end
 
+      # Boot asks only "is there a duplicate?", so answer that and nothing more.
+      # This used to call colliding_keys, which GROUPs the entire subject table
+      # and materialises every colliding key — on every boot of every server,
+      # console, and job, for the life of the install. The later .first(5) in
+      # the error message bounded the OUTPUT, never the query.
+      #
+      # A unique index on exactly these columns already proves uniqueness, and
+      # the boot error tells hosts to add one. Honouring it is what makes that
+      # advice worth taking: without this, a host that adds the index keeps
+      # paying for the scan forever.
       def unique?
-        colliding_keys.empty?
+        return true if unique_index?
+
+        assert_columns!
+        colliding_groups(limit: 1).empty?
       end
 
+      # The full list, for the error message and for identity:check — an
+      # explicit audit, where a full scan is what the operator asked for.
       def colliding_keys
         @colliding_keys ||= begin
           assert_columns!
@@ -194,13 +203,13 @@ module CurrentScope
         return if key.nil?
 
         values = Array(key)
-        return if values.size == 1 && values.first.to_s.strip.empty?
+        return if values.size == 1 && SubjectIdentity.blank_value?(values.first)
         if values.size != @columns.size
           raise ConfigurationError,
                 "config.subject_identity expected #{@columns.size} value(s) for " \
                 "#{@columns.inspect}, got #{key.inspect}."
         end
-        return if values.any? { |value| value.nil? || value.to_s.strip.empty? }
+        return if values.any? { |value| SubjectIdentity.blank_value?(value) }
 
         @columns.zip(values.map { |value| stringify(value) }).to_h
       end
@@ -218,13 +227,36 @@ module CurrentScope
               "but #{relation.name} has no such column."
       end
 
-      def colliding_groups
+      # TRIM, not a bare `<> ''`, so SQL agrees with SubjectIdentity.blank_value? about
+      # what "  " is. Two rows whose only shared value is whitespace are not a
+      # collision, because neither of them resolves in the first place.
+      def colliding_groups(limit: nil)
         scope = relation.all
         @columns.each do |column|
           scope = scope.where.not(column => nil)
-          scope = scope.where.not(column => "") if stringish?(column)
+          scope = scope.where("TRIM(#{qualified(column)}) <> ''") if stringish?(column)
         end
-        scope.group(*@columns).having("COUNT(*) > 1").count
+        scope = scope.group(*@columns).having("COUNT(*) > 1")
+        scope = scope.limit(limit) if limit
+        scope.count
+      end
+
+      def qualified(column)
+        "#{relation.quoted_table_name}.#{relation.connection.quote_column_name(column)}"
+      end
+
+      # A plain (non-partial) unique index on exactly these columns is the same
+      # guarantee the scan computes, so take it and skip the scan. Any doubt
+      # falls through to the scan, never past it: this may only ever turn a
+      # slow YES into a fast YES.
+      def unique_index?
+        wanted = @columns.map(&:to_s).sort
+        relation.connection.indexes(relation.table_name).any? do |index|
+          index.unique && index.where.nil? &&
+            Array(index.columns).map(&:to_s).sort == wanted
+        end
+      rescue StandardError
+        false
       end
 
       def stringish?(column)

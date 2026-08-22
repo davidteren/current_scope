@@ -32,8 +32,14 @@ class CurrentScopeSubjectIdentity
     end
   end
 
+  # TRIM so this agrees with resolve about what a blank email is. resolve
+  # returns nil for key.blank?, which is true of "  " — so two users whose
+  # emails are both whitespace are not a collision, because neither of them
+  # can ever be resolved. Comparing against '' alone would call them one.
   def unique?
-    !User.where.not(email: nil).where.not(email: "").group(:email).having("COUNT(*) > 1").exists?
+    !User.where.not(email: nil)
+         .where("TRIM(users.email) <> ''")
+         .group(:email).having("COUNT(*) > 1").exists?
   end
 
   def create_placeholder!(key)

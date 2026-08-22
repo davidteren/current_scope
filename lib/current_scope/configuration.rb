@@ -1,3 +1,8 @@
+# This file calls SubjectIdentity.compile from subject_identity= and from
+# subject_identity_resolver, so it declares that dependency itself rather than
+# relying on current_scope.rb happening to require the two in the right order.
+require "current_scope/subject_identity"
+
 module CurrentScope
   class Configuration
     # Host controller method that returns the authenticated subject.
@@ -616,6 +621,14 @@ module CurrentScope
     # (same exemption SchemaGuard uses so db:create can boot), and when the
     # subject table is missing. A host object without unique? is not scanned;
     # resolve still raises if it matches two rows.
+    #
+    # COST: resolver.unique? returns immediately when a plain unique index
+    # covers the identity columns, and otherwise runs a LIMIT 1 duplicate
+    # probe, not a full grouping of the subject table. The full colliding_keys
+    # list below is only ever built on the way to raising, which ends the boot
+    # anyway. That is why the error still points a large-table host at
+    # current_scope:identity:check: the check lists every duplicate, and this
+    # one deliberately stops at the first.
     def validate_subject_identity!
       return if CurrentScope::SchemaGuard.running_a_database_task?
 

@@ -191,4 +191,71 @@ class SubjectIdentityTest < ActiveSupport::TestCase
     assert_match ":email", error.message
     assert_match "no such column", error.message
   end
+
+  # identify used to stringify nil to "", producing a key that resolve treats
+  # as no key at all. An export would have carried that dead key forward.
+  test "identify refuses a blank identity column instead of minting a dead key" do
+    CurrentScope.config.subject_class = "IdentityUser"
+    user = IdentityUser.create!(name: "Blank Email", email: nil)
+    CurrentScope.config.subject_identity = :email
+
+    error = assert_raises(CurrentScope::ConfigurationError) { CurrentScope.identify_subject(user) }
+    assert_match ":email", error.message
+    assert_match "blank", error.message
+    assert_nil CurrentScope.resolve_subject("")
+  end
+
+  test "identify names every blank part of a composite" do
+    CurrentScope.config.subject_class = "IdentityUser"
+    user = IdentityUser.create!(name: "   ", email: "")
+    CurrentScope.config.subject_identity = [ :name, :email ]
+
+    error = assert_raises(CurrentScope::ConfigurationError) { CurrentScope.identify_subject(user) }
+    assert_match ":name", error.message
+    assert_match ":email", error.message
+  end
+
+  test "whitespace-only values are not a collision, because neither resolves" do
+    CurrentScope.config.subject_class = "IdentityUser"
+    IdentityUser.create!(name: "Space One", email: "   ")
+    IdentityUser.create!(name: "Space Two", email: "   ")
+    CurrentScope.config.subject_identity = :email
+
+    assert_nothing_raised { CurrentScope.config.validate! }
+    assert_nil CurrentScope.resolve_subject("   ")
+  end
+
+  def grouping_queries
+    seen = []
+    subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+      seen << payload[:sql] if payload[:sql].to_s.match?(/GROUP BY/i)
+    end
+    yield
+    seen
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber)
+  end
+
+  # The boot error tells hosts to add a unique index. Honour it, or that advice
+  # costs them a full table grouping on every boot forever after.
+  test "a unique index answers the boot check with no grouping query at all" do
+    CurrentScope.config.subject_class = "IdentityUser"
+    IdentityUser.create!(name: "Token Ada", token: "tok-#{SecureRandom.hex(4)}")
+    CurrentScope.config.subject_identity = :token
+
+    queries = grouping_queries { assert_nothing_raised { CurrentScope.config.validate! } }
+
+    assert_empty queries, "a unique index on the identity column already proves this"
+  end
+
+  test "without an index the boot check probes for one duplicate, not all of them" do
+    CurrentScope.config.subject_class = "IdentityUser"
+    IdentityUser.create!(name: "Probe Ada", email: "probe-#{SecureRandom.hex(4)}@example.com")
+    CurrentScope.config.subject_identity = :email
+
+    queries = grouping_queries { assert_nothing_raised { CurrentScope.config.validate! } }
+
+    assert_equal 1, queries.size, "one probe, not a scan per column"
+    assert_match(/LIMIT/i, queries.first, "the probe must stop at the first duplicate")
+  end
 end

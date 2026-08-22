@@ -40,24 +40,34 @@ module CurrentScope
       end
     end
 
+    # The colliding keys themselves, or [] when there are none to list. Read
+    # only, and it never prompts: identity:check is a diagnostic that has to be
+    # runnable from CI, cron, and a deploy hook, where a blocking $stdin.gets
+    # is not a question — it is a hang.
     def collisions
-      compile_identity_override!
+      compile_identity_override!(prompt: false)
       return [] if resolver.primary_key?
 
-      keys = resolver.colliding_keys
-      return keys if keys.any?
-      return [ "(duplicate natural key)" ] unless resolver.unique?
+      resolver.colliding_keys
+    end
 
-      []
+    # Asked separately from collisions, because "not unique" and "here are the
+    # duplicates" are different facts. A host resolver may report a duplicate
+    # and be unable to name one. That case used to be reported as the literal
+    # colliding key "(duplicate natural key)", which reads in the output as a
+    # natural key someone actually stored.
+    def unique?
+      compile_identity_override!(prompt: false)
+      resolver.primary_key? || resolver.unique?
     end
 
     private
 
-    def compile_identity_override!
+    def compile_identity_override!(prompt: true)
       return if defined?(@identity_compiled)
 
       @identity_compiled = true
-      override = identity_from_env_or_prompt
+      override = identity_from_env_or_prompt(prompt: prompt)
       return if override.nil?
 
       @override_identity = override
@@ -74,9 +84,9 @@ module CurrentScope
       @override_identity.nil? ? CurrentScope.config.subject_identity : @override_identity
     end
 
-    def identity_from_env_or_prompt
+    def identity_from_env_or_prompt(prompt:)
       raw = @env["IDENTITY"].presence
-      raw = ask("Identity column(s) (email or name,email): ") if raw.blank? && interactive?
+      raw = ask("Identity column(s) (email or name,email): ") if prompt && raw.blank? && interactive?
       return if raw.blank?
 
       parts = raw.split(",").map { |part| part.strip.to_sym }
@@ -84,12 +94,17 @@ module CurrentScope
     end
 
     def report_collisions!
-      keys = collisions
-      return if keys.empty?
+      return if unique?
 
-      sample = keys.first(5).map(&:inspect).join(", ")
-      fail! "Identity is not unique (#{keys.size} colliding key(s): #{sample}). " \
-            "No grant was written."
+      keys = collisions
+      if keys.any?
+        sample = keys.first(5).map(&:inspect).join(", ")
+        fail! "Identity is not unique (#{keys.size} colliding key(s): #{sample}). " \
+              "No grant was written."
+      end
+
+      fail! "Identity is not unique: the configured resolver reports a duplicate " \
+            "but does not list the colliding keys. No grant was written."
     end
 
     def resolve_or_placeholder!
@@ -115,20 +130,22 @@ module CurrentScope
             "`bin/rails generate current_scope:identity`."
     end
 
+    # No transaction of its own. The only caller already opened one in `run`,
+    # and a nested block WITHOUT requires_new: true is not a savepoint — it
+    # joins the outer transaction and reads as protection that is not there.
+    # A fail! here still rolls the placeholder back, through the outer one.
     def materialize_placeholder(key)
-      created = nil
-      RoleAssignment.transaction do
-        created = placeholder_factory.call(key)
-        klass = CurrentScope.config.resolved_subject_class
-        unless klass && created.is_a?(klass)
-          fail! "placeholder factory returned #{created.class}, expected #{klass}."
-        end
-
-        identified = resolver.identify(created)
-        unless identified == key || Array(identified) == Array(key)
-          fail! "placeholder factory produced #{identified.inspect}, expected #{key.inspect}."
-        end
+      created = placeholder_factory.call(key)
+      klass = CurrentScope.config.resolved_subject_class
+      unless klass && created.is_a?(klass)
+        fail! "placeholder factory returned #{created.class}, expected #{klass}."
       end
+
+      identified = resolver.identify(created)
+      unless identified == key || Array(identified) == Array(key)
+        fail! "placeholder factory produced #{identified.inspect}, expected #{key.inspect}."
+      end
+
       created
     end
 
@@ -149,18 +166,37 @@ module CurrentScope
 
     def parse_composite_key(raw)
       parsed = YAML.safe_load(raw)
-      unless parsed.is_a?(Array)
-        fail! "SUBJECT for a composite identity must be a YAML sequence, " \
-              "e.g. SUBJECT='[Ada, ada@example.com]'."
+      fail! composite_hint unless parsed.is_a?(Array)
+
+      columns = declared_identity
+      unless parsed.size == columns.size
+        fail! "SUBJECT gave #{parsed.size} value(s), but config.subject_identity " \
+              "names #{columns.size}: #{columns.map(&:inspect).join(', ')}. #{composite_hint}"
       end
-      parsed.map { |value| value.nil? ? value : value.to_s }
-    rescue Psych::SyntaxError
-      fail! "SUBJECT for a composite identity must be a YAML sequence, " \
-            "e.g. SUBJECT='[Ada, ada@example.com]'."
+
+      values = parsed.map { |value| value.nil? ? value : value.to_s }
+      if values.any? { |value| SubjectIdentity.blank_value?(value) }
+        fail! "SUBJECT #{values.inspect} has a blank part. A blank part is not a " \
+              "portable identity — no subject can be resolved by it."
+      end
+
+      values
+    # Psych::Exception, not Psych::SyntaxError: safe_load also raises
+    # Psych::DisallowedClass for input that PARSES and then builds a refused
+    # type, e.g. SUBJECT='[2026-01-01, x]', which it tries to make a Date.
+    # That is operator input, so it deserves the operator message, not a
+    # stack trace. fail! raises Halt, which is not a Psych::Exception.
+    rescue Psych::Exception
+      fail! composite_hint
+    end
+
+    def composite_hint
+      "SUBJECT for a composite identity must be a YAML sequence, " \
+        "e.g. SUBJECT='[Ada, ada@example.com]'."
     end
 
     def prepare_role(persist:)
-      name = @env.fetch("ROLE", "Owner")
+      name = @env["ROLE"].presence || "Owner"
       if persist
         if name == "Owner"
           CurrentScope.seed_defaults!

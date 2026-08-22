@@ -57,13 +57,25 @@ namespace :current_scope do
     desc "Check that the configured subject identity is unique among live rows. " \
          "Usage: bin/rails current_scope:identity:check"
     task check: :environment do
-      keys = CurrentScope::IdentitySetup.new.collisions
-      if keys.empty?
+      # Read-only, and deliberately silent: IdentitySetup#unique? / #collisions
+      # never prompt, so this task is safe in CI, in cron, and in a deploy hook.
+      setup = CurrentScope::IdentitySetup.new
+      if setup.unique?
         puts "Subject identity is unique (or is the default primary key)."
       else
-        sample = keys.first(10).map(&:inspect).join(", ")
-        abort "Subject identity is not unique (#{keys.size} colliding key(s): #{sample})."
+        keys = setup.collisions
+        if keys.any?
+          sample = keys.first(10).map(&:inspect).join(", ")
+          abort "Subject identity is not unique (#{keys.size} colliding key(s): #{sample})."
+        end
+        # A host resolver said "not unique" and cannot name a duplicate. Say
+        # exactly that, rather than printing a made-up key that looks real.
+        abort "Subject identity is not unique. The configured resolver reports a " \
+              "duplicate but does not list the colliding keys — inspect it, or " \
+              "switch to a column identity, which does list them."
       end
+    rescue CurrentScope::ConfigurationError => e
+      abort e.message
     end
 
     desc "Attach a subject to a role by portable identity. Dry-run by default. " \
@@ -72,7 +84,12 @@ namespace :current_scope do
          "stand-in outside production only."
     task setup: :environment do
       CurrentScope::IdentitySetup.new.run
-    rescue CurrentScope::IdentitySetup::Halt => e
+    # ConfigurationError alongside Halt, because operator mistakes reach this
+    # task through both. A misspelled IDENTITY column (ColumnResolver's
+    # assert_columns!) or a SUBJECT that matches two rows raises
+    # ConfigurationError, and printing a stack trace for a typo tells the
+    # operator that the gem broke rather than that their input was wrong.
+    rescue CurrentScope::IdentitySetup::Halt, CurrentScope::ConfigurationError => e
       abort e.message
     end
   end

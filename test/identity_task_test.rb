@@ -7,11 +7,13 @@ class IdentityTaskTest < ActiveSupport::TestCase
 
   setup do
     @original_identity = CurrentScope.config.subject_identity
+    @original_class = CurrentScope.config.subject_class
     @stdout = StringIO.new
   end
 
   teardown do
     CurrentScope.config.subject_identity = @original_identity
+    CurrentScope.config.subject_class = @original_class
     %w[IDENTITY SUBJECT ROLE WRITE PLACEHOLDER].each { |key| ENV.delete(key) }
   end
 
@@ -100,19 +102,6 @@ class IdentityTaskTest < ActiveSupport::TestCase
     assert_nil CurrentScope.config.subject_identity
   end
 
-  test "a host unique? false is a collision even without colliding_keys" do
-    resolver = Object.new
-    resolver.define_singleton_method(:identify) { |_subject| "x" }
-    resolver.define_singleton_method(:resolve) { |_key| nil }
-    resolver.define_singleton_method(:unique?) { false }
-    CurrentScope.config.subject_identity = resolver
-
-    error = assert_raises(CurrentScope::IdentitySetup::Halt) do
-      run_setup("SUBJECT" => "anyone")
-    end
-    assert_match "not unique", error.message
-  end
-
   test "replacing an existing org role warns on dry-run" do
     user = User.create!(name: "swap-ada")
     member = CurrentScope::Role.create!(name: "Member")
@@ -196,6 +185,89 @@ class IdentityTaskTest < ActiveSupport::TestCase
       assert_match flag, prompt
     end
     assert_match "never invent a production subject", prompt
+  end
+
+  # identity:check runs in CI, in cron, and in deploy hooks. A blocking
+  # $stdin.gets there is not a question, it is a hang.
+  test "collisions and unique? never prompt, even on a tty" do
+    User.create!(name: "quiet-ada")
+    tty = StringIO.new
+    tty.define_singleton_method(:tty?) { true }
+    tty.define_singleton_method(:gets) { raise "identity:check must not prompt" }
+    setup = CurrentScope::IdentitySetup.new(env: {}, stdout: @stdout, stdin: tty)
+
+    assert setup.unique?
+    assert_empty setup.collisions
+    assert_equal "", @stdout.string
+  end
+
+  # A host resolver may know it has a duplicate and be unable to name one.
+  # That used to be printed as the colliding key "(duplicate natural key)",
+  # which reads as a natural key somebody actually stored.
+  test "an unlistable duplicate is reported as unlistable, not as a fake key" do
+    resolver = Object.new
+    resolver.define_singleton_method(:identify) { |_subject| "x" }
+    resolver.define_singleton_method(:resolve) { |_key| nil }
+    resolver.define_singleton_method(:unique?) { false }
+    CurrentScope.config.subject_identity = resolver
+    setup = CurrentScope::IdentitySetup.new(env: {}, stdout: @stdout, stdin: StringIO.new)
+
+    assert_not setup.unique?
+    assert_empty setup.collisions
+
+    error = assert_raises(CurrentScope::IdentitySetup::Halt) do
+      run_setup("SUBJECT" => "anyone")
+    end
+    assert_match "does not list the colliding keys", error.message
+    assert_no_match(/duplicate natural key/, error.message)
+  end
+
+  test "an exported but empty ROLE falls back to Owner" do
+    user = User.create!(name: "empty-role-ada")
+
+    run_setup("IDENTITY" => "name", "SUBJECT" => "empty-role-ada", "ROLE" => "", "WRITE" => "1")
+
+    assert_equal "Owner", CurrentScope::RoleAssignment.find_by(subject: user).role.name
+    assert_not CurrentScope::Role.exists?(name: "")
+  end
+
+  test "a composite SUBJECT with the wrong number of values says so" do
+    CurrentScope.config.subject_class = "IdentityUser"
+    CurrentScope.config.subject_identity = [ :name, :email ]
+
+    error = assert_raises(CurrentScope::IdentitySetup::Halt) do
+      run_setup("SUBJECT" => "[Ada]")
+    end
+    assert_match "gave 1 value", error.message
+    assert_match ":email", error.message
+  ensure
+    CurrentScope.config.subject_class = "User"
+  end
+
+  # safe_load PARSES this and then refuses to build the Date, raising
+  # Psych::DisallowedClass — which is not a Psych::SyntaxError.
+  test "a composite SUBJECT YAML refuses to build halts instead of raising Psych" do
+    CurrentScope.config.subject_class = "IdentityUser"
+    CurrentScope.config.subject_identity = [ :name, :email ]
+
+    error = assert_raises(CurrentScope::IdentitySetup::Halt) do
+      run_setup("SUBJECT" => "[2026-01-01, ada@example.com]")
+    end
+    assert_match "YAML sequence", error.message
+  ensure
+    CurrentScope.config.subject_class = "User"
+  end
+
+  test "a composite SUBJECT with a blank part is refused" do
+    CurrentScope.config.subject_class = "IdentityUser"
+    CurrentScope.config.subject_identity = [ :name, :email ]
+
+    error = assert_raises(CurrentScope::IdentitySetup::Halt) do
+      run_setup("SUBJECT" => "[Ada, '  ']")
+    end
+    assert_match "blank part", error.message
+  ensure
+    CurrentScope.config.subject_class = "User"
   end
 
   test "the rake task dry-run writes nothing" do

@@ -182,14 +182,25 @@ module CurrentScope
       db:create db:drop db:migrate db:rollback db:version db:prepare db:setup
       db:reset db:abort_if_pending_migrations db:_dump
       current_scope:install current_scope:repair_schema
-      current_scope:identity:check current_scope:identity:setup
+      current_scope:identity:check
     ].freeze
 
     # Namespaces whose children are all schema tooling (db:migrate:up,
     # db:schema:load, assets:precompile, …).
+    #
+    # `current_scope:identity:` is NOT here, and the omission is the point.
+    # Only `identity:check` is exempt, named individually above: it reads the
+    # HOST's subject table and touches no grant column, so it is safe on an
+    # unrepaired schema. `identity:setup WRITE=1` calls CurrentScope.grant!,
+    # which writes RoleAssignment rows — and grant! does not re-check the
+    # schema, because the check runs once at boot. Exempting the namespace
+    # would let the one #158 task that WRITES grants do so on exactly the
+    # pre-#151 columns that collapse two subjects into one. An operator on an
+    # unrepaired schema is told to run current_scope:repair_schema first, which
+    # is exempt and is the fix.
     BOOT_EXEMPT_NAMESPACES = %w[
       db:migrate: db:schema: db:structure: db:test: db:environment:
-      current_scope:install: current_scope:identity: assets:
+      current_scope:install: assets:
     ].freeze
 
     # …minus these, which the lists above would otherwise cover. A bare `db:seed`

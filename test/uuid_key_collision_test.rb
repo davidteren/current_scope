@@ -385,7 +385,16 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       "db:setup_hostile" => false,
       "test" => false,                           # and everything else is still refused
       "current_scope:report" => false,
-      "middleware" => false
+      "middleware" => false,
+      # #158. identity:check READS the host's subject table and touches no
+      # grant column, so it is safe on an unrepaired schema. identity:setup
+      # WRITE=1 calls CurrentScope.grant!, which writes RoleAssignment rows
+      # and does NOT re-check the schema — the check runs once, at boot. If
+      # setup could boot here it would write grants on exactly the pre-#151
+      # columns that collapse two subjects into one.
+      "current_scope:identity:check" => true,
+      "current_scope:identity:setup" => false,
+      "app:current_scope:identity:setup" => false
     }.each do |task, exempt|
       with_top_level_tasks([ task ]) do
         assert_equal exempt, CurrentScope::SchemaGuard.send(:running_a_database_task?),

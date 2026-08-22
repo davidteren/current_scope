@@ -1,0 +1,44 @@
+lib/current_scope/configuration.rb
+  s_ac986858915116::t_5de209993113fe 732
+test/identity_task_test.rb
+  s_ac986858915116::t_c8edef88574a07 39,41-43,59-61,151-153
+  s_ac986858915116::t_daa9c1f75bc59a 231-254
+lib/tasks/current_scope_tasks.rake
+  s_ac986858915116::t_d598557f4cb05b 64-69
+test/subject_identity_test.rb
+  s_ac986858915116::t_daa9c1f75bc59a 40-65
+lib/current_scope/subject_identity.rb
+  s_ac986858915116::t_901486be1b1ae1 298-301
+  s_ac986858915116::t_5de209993113fe 64,152,218
+  s_ac986858915116::t_3690beeb8c4032 96-101
+lib/generators/current_scope/identity/templates/subject_identity.rb
+  s_ac986858915116::t_039053c4fe17ea 46-49,59-61
+docs/site/ai-agents.md
+  s_ac986858915116::t_039053c4fe17ea 102-104,107-111,113-116
+lib/current_scope.rb
+  s_ac986858915116::t_5de209993113fe 86-93
+  s_ac986858915116::t_3690beeb8c4032 117-121,123-134
+docs/intent-engineering/20260822-review-feat-subject-identity.md
+  s_ac986858915116::t_eb9e37d048e285 1-41
+lib/current_scope/identity_setup.rb
+  s_ac986858915116::t_901486be1b1ae1 72-82
+  s_ac986858915116::t_efe62d5f7b5dbd 221-222,224,246-253,262-264,268-269
+  s_ac986858915116::t_5de209993113fe 161,282,299
+  s_ac986858915116::t_59c1f8ca1d0692 270
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "19ead74ea762df13cc0698acc883fcdd7d61d848",
+  "prompts": {},
+  "sessions": {
+    "s_ac986858915116": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22976d14-bca5-4513-8868-2ad378c50f81",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

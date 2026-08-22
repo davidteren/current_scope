@@ -1,0 +1,21 @@
+lib/current_scope/schema_guard.rb
+  s_ac986858915116::t_bfe4cd4ae3babc 185,190-200,203
+test/uuid_key_collision_test.rb
+  s_ac986858915116::t_a2e86da2b2ff7f 388-397
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "b841febb0ffa6d44d53436cddb2f24da7d6b2dba",
+  "prompts": {},
+  "sessions": {
+    "s_ac986858915116": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22976d14-bca5-4513-8868-2ad378c50f81",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

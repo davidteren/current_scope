@@ -22,11 +22,11 @@ post-pr: wait for remote CI and review bots; re-run the three lenses on the PR; 
 
 1. Issue #146 (coverage floor) first. It changes CI failure behavior. Every later PR inherits the floor and must clear it unmodified.
 2. Issue #163 (registry internals) next. It edits `lib/current_scope.rb`, `storable_keys.rb`, and `scoped_role_assignment.rb`. Issue #164 and issue #150 both read those surfaces.
-3. Issue #164 (members inert vs deleted) after #163. It drops the vestigial `owner:` parameter in #163, and the members page resolves through that API.
+3. Issue #164 (members inert vs deleted) after #163. #163 U2 drops the vestigial `owner:` parameter. #164 already uses a bare `polymorphic_class` call, so either merge order works. Serial order still avoids a rebase on shared CHANGELOG noise.
 4. Issue #150 (business primary keys) next. It may touch the preloader that the members page already uses. #156 v2 waits on it. #156 v1 does not, but landing the proof before the large export feature keeps assignment-export from encoding a stale key story.
 5. Issue #156 v1 (role-definition export) last. Largest feature. Independent of #150 for v1. v2 stays out of that PR.
 
-File overlap to rebase around: #163 and #150 can both touch `scoped_role_assignment.rb`. #163 and #164 both consume registry resolution. Serial order above removes the race.
+File overlap to rebase around: #163 and #150 can both touch `scoped_role_assignment.rb`. Serial order above removes that race. #164 does not need to wait on #163 for correctness.
 
 ## Items
 
@@ -68,12 +68,8 @@ Copy this for every item. Do not invent a second sequence.
 
 ## Trigger
 
-Do not start this loop from a docs-only PR that only lands the plans. Land the plans first. Then, in a new session on `main`:
+Do not start this loop from a docs-only PR that only lands the plans. Land the plans first. Then, in a new session on `main`, run one item at a time with `ce-work` against that item's plan. After each item, run the pre-PR gate in the header (ce-code-review, then ie-review, then cubic-loop local), then open the PR.
 
-```
-/dte-arc-work docs/plans/INDEX-five-issue-batch.md --ship
-```
-
-`--ship` means commit, gate, and open a PR per item. It does not mean merge.
+`--ship` on `/dte-arc-work` still means push and open a PR, not merge. Each item must still pass the AGENTS.md pre-PR gate on its own HEAD. Do not treat dte-arc-work as a substitute for that gate.
 
 Stop conditions: first red suite, first unresolved product fork that contradicts a plan, or the human says stop.

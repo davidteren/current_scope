@@ -56,7 +56,7 @@ Permission keys are route-derived catalog strings. They are already portable. Ro
 **Apply and gate**
 
 - R7. Apply reconciles through `Role.find_or_create_by!(name:)` and `permission_keys=` (strict). Unknown catalog keys fail the apply. Do not use `scrub: true` on this path.
-- R8. `Rails.env.production?` always requires an explicit confirm. Non-production requires confirm when any `Role` row already exists. A truly empty roles table may apply without confirm.
+- R8. `Rails.env.production?` always requires an explicit confirm, even when the roles table is empty. Non-production requires confirm when any `Role` row already exists. A non-production empty roles table may apply without confirm.
 - R9. Confirm is `confirm: true` on the API and `CONFIRM=1` on the rake task. A TTY prompt is allowed only when `$stdin.tty?` and `ENV["CI"]` is blank. Otherwise abort and name the flag. An agent must not set the flag unless a human asked in that turn.
 - R10. Apply refuses a change that would leave zero org-wide full-access holders. Check the post-document world, not one role at a time. Reuse the holder rule (held rows, not spare unassigned full-access roles). Do not bypass it.
 - R10b. Apply refuses to delete a role that still has org-wide or scoped holders. Diff names those holder counts first.
@@ -105,7 +105,7 @@ Permission keys are route-derived catalog strings. They are already portable. Ro
 
 ### Success Criteria
 
-Export of the dummy's roles is deterministic across two runs. Diff names a single added key in one line a reviewer can read. Import is idempotent. The last-holder lock holds. `bin/db` and `bin/rubocop` are green.
+Export of the dummy's roles is deterministic across two runs. Diff names a single added key in one line a reviewer can read. Import is idempotent. The last-holder lock holds. `bin/db test` and `bin/rubocop` are green.
 
 ### Scope Boundaries
 
@@ -160,7 +160,7 @@ flowchart TB
   empty -->|yes| noop[No write, no event]
   empty -->|no| gate{Production or Role.exists??}
   gate -->|yes, no confirm| refuse[Abort, no write]
-  gate -->|confirm or empty table| snap[Snapshot live YAML]
+  gate -->|confirm, or non-production empty table| snap[Snapshot live YAML]
   snap --> lock[Last held full-access check]
   lock -->|would lock| refuse
   lock -->|ok| apply[find_or_create_by name + permission_keys=]
@@ -241,8 +241,9 @@ U1 export schema → U2 diff → U3 apply + lock + gate → U4 snapshot/rollback
 - **Patterns to follow:** `would_lock_console_by_removing_role?`; `grant!` transaction + explicit actor later in U4.
 - **Test scenarios:**
   - Happy: add a key with confirm. Idempotent second apply.
-  - Happy: empty table, no confirm, creates roles from the document.
+  - Happy: non-production empty table, no confirm, creates roles from the document.
   - Error: populated, no confirm, no writes.
+  - Error: `Rails.env.production?`, empty roles table, confirm false, no writes.
   - Error: document key not in catalog, no writes.
   - Error: last held full-access removed or demoted, no writes.
   - Error: document omits a role that still has holders, no writes. Diff names the holder counts.
@@ -303,7 +304,7 @@ U1 export schema → U2 diff → U3 apply + lock + gate → U4 snapshot/rollback
 | Apply / lock / gate | `bin/rails test test/definitions_import_test.rb` | R7–R14 |
 | Rake | `bin/rails test test/definitions_task_test.rb` | R15 |
 | Existing UI lock | existing roles controller tests | R10 extract did not drift |
-| Adapters | `bin/db` | string keys and transactions |
+| Adapters | `bin/db test` | string keys and transactions |
 | Lint | `bin/rubocop` | house style |
 
 ### Definition of Done

@@ -53,6 +53,63 @@ namespace :current_scope do
     puts "Granted the full-access Owner role to #{klass}##{subject.id}."
   end
 
+  namespace :identity do
+    desc "Check that the configured subject identity is unique among live rows. " \
+         "Usage: bin/rails current_scope:identity:check"
+    task check: :environment do
+      # Read-only, and deliberately silent: IdentitySetup#unique? / #collisions
+      # never prompt, so this task is safe in CI, in cron, and in a deploy hook.
+      setup = CurrentScope::IdentitySetup.new
+      audited = setup.identity.inspect
+      if !setup.checkable?
+        # Exit 0: nothing is wrong, but do not claim an answer nobody gave.
+        puts "Subject identity #{audited} was NOT checked: that identity object " \
+             "does not implement unique?. Implement it, or switch to a column " \
+             "identity, if you want this task to answer the question."
+      elsif setup.unique?
+        puts "Subject identity #{audited} is unique (or is the default primary key)."
+      else
+        keys = setup.collisions
+        if keys.any?
+          sample = keys.first(10).map(&:inspect).join(", ")
+          abort "Subject identity #{audited} is not unique (#{keys.size} colliding key(s): #{sample})."
+        end
+        # A host resolver said "not unique" and cannot name a duplicate. Say
+        # exactly that, rather than printing a made-up key that looks real.
+        abort "Subject identity #{audited} is not unique. The configured resolver " \
+              "reports a duplicate but does not list the colliding keys — inspect " \
+              "it, or switch to a column identity, which does list them."
+      end
+    # StatementInvalid too: a subject_class whose table is missing reaches the
+    # scan and raises from the adapter, and a diagnostic should not answer that
+    # with a backtrace.
+    rescue CurrentScope::ConfigurationError, ActiveRecord::StatementInvalid => e
+      abort e.message
+    end
+
+    desc "Attach a subject to a role by portable identity. Dry-run by default. " \
+         "WRITE=1 grants. IDENTITY= column or comma list. SUBJECT= portable key. " \
+         "ROLE= name (default Owner). PLACEHOLDER=1 WRITE=1 creates a marked " \
+         "stand-in outside production only."
+    task setup: :environment do
+      CurrentScope::IdentitySetup.new.run
+    # ConfigurationError alongside Halt, because operator mistakes reach this
+    # task through both. A misspelled IDENTITY column (ColumnResolver's
+    # assert_columns!) or a SUBJECT that matches two rows raises
+    # ConfigurationError, and printing a stack trace for a typo tells the
+    # operator that the gem broke rather than that their input was wrong.
+    #
+    # RecordInvalid and RecordNotUnique because the WRITE path runs HOST code:
+    # a placeholder factory calls create! on the host's own model, which has
+    # validations this engine knows nothing about, and Role.find_or_create_by!
+    # can lose a race. Those are the operator's problem to fix and deserve the
+    # message, not a backtrace. The transaction has already rolled back.
+    rescue CurrentScope::IdentitySetup::Halt, CurrentScope::ConfigurationError,
+           ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => e
+      abort e.message
+    end
+  end
+
   desc "Summarize would-be denials recorded in report mode into a starter role grid. " \
        "Usage: bin/rails current_scope:report"
   task report: :environment do

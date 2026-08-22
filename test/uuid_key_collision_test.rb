@@ -385,11 +385,54 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       "db:setup_hostile" => false,
       "test" => false,                           # and everything else is still refused
       "current_scope:report" => false,
-      "middleware" => false
+      "middleware" => false,
+      # #158. identity:check READS the host's subject table and touches no
+      # grant column, so it is safe on an unrepaired schema. identity:setup
+      # WRITE=1 calls CurrentScope.grant!, which writes RoleAssignment rows
+      # and does NOT re-check the schema — the check runs once, at boot. If
+      # setup could boot here it would write grants on exactly the pre-#151
+      # columns that collapse two subjects into one.
+      "current_scope:identity:check" => true,
+      "current_scope:identity:setup" => false,
+      "app:current_scope:identity:setup" => false
     }.each do |task, exempt|
       with_top_level_tasks([ task ]) do
         assert_equal exempt, CurrentScope::SchemaGuard.send(:running_a_database_task?),
                      "#{task} should #{exempt ? '' : 'NOT '}be allowed to boot on an unmigrated schema"
+      end
+    end
+  end
+
+  # Rake takes a LIST. `bin/rails db:migrate db:import_users` is ONE invocation,
+  # ONE boot, two tasks — and the allow list used to ask "is ANY of these
+  # exempt?", so a single exempt name carried every task beside it past the
+  # check. The single-task table above passed the whole time: it never drove a
+  # list with more than one entry, which is exactly where the hole lived.
+  test "a chained command is exempt only when EVERY task in it is" do
+    {
+      # The #158 pair. check is read-only and exempt; setup writes grants
+      # through CurrentScope.grant! and is not. Chained, the writer must not
+      # inherit its own sibling's exemption.
+      [ "current_scope:identity:check", "current_scope:identity:setup" ] => false,
+      [ "app:current_scope:identity:check", "current_scope:identity:setup" ] => false,
+      # The older grant-writing task, same shape.
+      [ "db:migrate", "current_scope:grant" ] => false,
+      # The exact-name rule two lists up says a host's own db: task is host
+      # code and must not be exempt. It was, as soon as it followed a real one.
+      [ "db:migrate", "db:import_users" ] => false,
+      # Genuinely all-schema invocations still boot, which is the whole point
+      # of the list.
+      [ "db:create", "db:migrate" ] => true,
+      [ "db:drop", "db:create", "db:schema:load" ] => true,
+      [ "current_scope:identity:check" ] => true,
+      # A refused task still vetoes everything, unchanged.
+      [ "db:migrate", "db:seed" ] => false,
+      # No tasks at all is not a database task.
+      [] => false
+    }.each do |tasks, exempt|
+      with_top_level_tasks(tasks) do
+        assert_equal exempt, CurrentScope::SchemaGuard.send(:running_a_database_task?),
+                     "#{tasks.inspect} should #{exempt ? '' : 'NOT '}be allowed to boot on an unmigrated schema"
       end
     end
   end

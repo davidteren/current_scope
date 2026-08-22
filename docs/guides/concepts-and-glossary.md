@@ -44,6 +44,16 @@ list agree by construction.
 The identity permissions resolve against. Usually a person. Distinct from the
 actor when someone is impersonating.
 
+**Subject identity**
+The portable natural key for a subject (`config.subject_identity`): one
+column, a composite list, or a host `identify` / `resolve` object. Default
+is the primary key. Grants still store that primary key. Duplicate natural
+keys raise. This is not `subject_label`.
+
+**Subject label**
+The display string in the management UI (`config.subject_label`). Fail-soft
+and never used to find a subject.
+
 **Actor**
 The real account behind the request. Equals the subject unless impersonating.
 Attribution and the audit trail follow the actor; permission checks follow the

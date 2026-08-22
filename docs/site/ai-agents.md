@@ -79,6 +79,51 @@ Before finishing, read docs/SECURITY-CHECKLIST.md in the gem repo
 and verify each item that applies.
 ```
 
+## Declare subject identity and attach Owner
+
+```text
+Declare how a subject is identified so grants can be found across
+environments. This is config.subject_identity, NOT config.subject_label.
+Label is display-only and fail-soft. Identity is load-bearing: duplicate
+keys raise, and resolve never inserts a subject.
+
+1. Pick the identity:
+   - one column: config.subject_identity = :email
+   - composite: config.subject_identity = [:name, :email]
+   - split across tables: bin/rails generate current_scope:identity
+     then set config.subject_identity = CurrentScopeSubjectIdentity.new
+     and fill identify / resolve.
+2. Check uniqueness against live rows:
+   bin/rails current_scope:identity:check
+   The task exits non-zero and names the colliding keys; it does not raise.
+   A collision raises ConfigurationError at BOOT, and identity:setup stops
+   before it writes. Do not first-row-win.
+3. Dry-run a grant (writes nothing):
+   bin/rails current_scope:identity:setup SUBJECT=you@example.com
+   SUBJECT is whatever your identify returns. For a composite it is a YAML
+   sequence: SUBJECT='[Ada, you@example.com]'.
+   ROLE= defaults to Owner (full_access). Admin, if you create it, is not
+   full_access unless you set that yourself.
+   IDENTITY=email is an OVERRIDE for one run, for the case where
+   config.subject_identity is not written yet. Do not add it once step 1
+   is in the initializer: it replaces the configured identity, so under a
+   composite or an object identity it audits and grants by the wrong key,
+   and it removes the create_placeholder! factory step 5 needs.
+4. Write only after the dry-run looks right:
+   bin/rails current_scope:identity:setup SUBJECT=you@example.com WRITE=1
+   That calls CurrentScope.grant! (ledger source: bootstrap). WRITE=1 also
+   creates the Role row if it does not exist, and seeds the default Owner
+   and Member roles when ROLE is unset. The dry-run plan names both.
+5. Missing subject: never invent one in production. Outside production,
+   PLACEHOLDER=1 needs a create_placeholder! factory on the identity
+   object from `bin/rails generate current_scope:identity`. With one, a
+   dry-run prints the would-create line; without one the task stops and
+   says PLACEHOLDER=1 has no factory. Create the marked row with
+   PLACEHOLDER=1 WRITE=1. Production + PLACEHOLDER=1 is refused.
+
+Hard stop: never invent a production subject.
+```
+
 ## Enable separation of duties on an approve flow
 
 ```text

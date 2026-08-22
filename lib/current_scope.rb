@@ -1,4 +1,6 @@
 require "current_scope/version"
+require "current_scope/subject_identity"
+require "current_scope/identity_setup"
 require "current_scope/configuration"
 require "current_scope/permission_catalog"
 require "current_scope/permission_grid"
@@ -79,6 +81,57 @@ module  CurrentScope
 
     def configure
       yield config
+    end
+
+    # One definition, on the facade, exactly as mysql? is. Two unrelated callers
+    # ask it — the PLACEHOLDER=1 refusal in IdentitySetup and the impersonation
+    # mutation opt-in in Configuration — and neither should reach into an
+    # identity file for a basic environment check.
+    def production?
+      defined?(Rails) && Rails.respond_to?(:env) && Rails.env.production?
+    end
+
+    # Portable identity of a subject (#158). Default is the primary key.
+    #
+    # Refuses a record that is not config.subject_class, because the inverse is
+    # not symmetric: resolve_subject only ever returns a subject_class row. A
+    # key minted from another model with the same column value would therefore
+    # resolve to a DIFFERENT record in the next environment — silently, and
+    # holding whatever grants that record holds.
+    def identify_subject(subject)
+      return if subject.nil?
+
+      klass = config.resolved_subject_class
+      if klass && !subject.is_a?(klass)
+        raise ConfigurationError,
+              "#{subject.class} is not config.subject_class (#{klass}), so it has " \
+              "no portable identity. resolve_subject only ever returns a #{klass}, " \
+              "so this key would resolve to a different record."
+      end
+
+      config.subject_identity_resolver.identify(subject)
+    end
+
+    # Inverse of identify_subject. Returns the subject in this environment, or
+    # nil when missing. Never inserts. Sugar resolvers raise if two rows match.
+    #
+    # Holds the SAME class invariant identify_subject enforces. The sugar
+    # resolvers query subject_class and cannot break it, but a host object's
+    # resolve is host code, and a guard that covers only the outbound direction
+    # is not an invariant.
+    def resolve_subject(key)
+      found = config.subject_identity_resolver.resolve(key)
+      return found if found.nil?
+
+      klass = config.resolved_subject_class
+      if klass && !found.is_a?(klass)
+        raise ConfigurationError,
+              "config.subject_identity resolved #{key.inspect} to a #{found.class}, " \
+              "but config.subject_class is #{klass}. A grant can only be held by a " \
+              "#{klass}."
+      end
+
+      found
     end
 
     def resolver

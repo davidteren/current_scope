@@ -263,3 +263,12 @@ the old system"). Grid ticks still come from §6.2 seeding, not from the
 backfill. Scoped-grant caveat: direct `ScopedRoleAssignment` writes are not
 ledger-recorded (documented engine behavior) — the scoped audit trail
 starts at cutover.
+
+## Subject identity (not this skill)
+
+Greenfield identity (how a host names a person across environments) is
+`config.subject_identity` plus `bin/rails generate current_scope:identity`
+and `bin/rails current_scope:identity:setup`. See
+`docs/site/ai-agents.md` ("Declare subject identity and attach Owner")
+and `docs/guides/adopting-in-an-existing-app.md`. Do not fold that
+walkthrough into this Pundit/CanCanCan/Action Policy skill.

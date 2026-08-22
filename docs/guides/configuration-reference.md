@@ -26,7 +26,8 @@ at boot (skipped during `db:` tasks, and skipped for the default primary
 key). `resolve` returns nil when missing and never inserts. A blank identity
 column raises too: `identify` refuses to mint a key that `resolve` could
 never find. For a Symbol or Array identity, put a plain unique index on exactly those
-columns and the boot check answers from the index, with no query at all.
+columns and the boot check answers from the index, without scanning the
+subject table.
 Without one it is a grouping query over the subject table. An identity
 OBJECT owns its own `unique?`, so boot pays whatever that method costs.
 To list every duplicate, run `bin/rails current_scope:identity:check`. Guided attach:

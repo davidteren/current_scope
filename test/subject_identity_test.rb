@@ -248,6 +248,23 @@ class SubjectIdentityTest < ActiveSupport::TestCase
     assert_empty queries, "a unique index on the identity column already proves this"
   end
 
+  # The fast path lives in colliding_keys, not in unique?, so every caller gets
+  # it. When it lived on unique? alone, current_scope:identity:check scanned a
+  # table whose index already proved the answer.
+  test "colliding_keys honours the unique index too, not just unique?" do
+    CurrentScope.config.subject_class = "IdentityUser"
+    IdentityUser.create!(name: "Keys Ada", token: "keys-#{SecureRandom.hex(4)}")
+    CurrentScope.config.subject_identity = :token
+    resolver = CurrentScope.config.subject_identity_resolver
+
+    queries = grouping_queries do
+      assert_empty resolver.colliding_keys
+      assert resolver.unique?
+    end
+
+    assert_empty queries, "neither question should scan a table the index answers"
+  end
+
   test "without an index the boot check runs one grouping query, not one per column" do
     CurrentScope.config.subject_class = "IdentityUser"
     IdentityUser.create!(name: "Probe Ada", email: "probe-#{SecureRandom.hex(4)}@example.com")

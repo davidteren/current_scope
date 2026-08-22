@@ -165,22 +165,18 @@ module CurrentScope
         end
       end
 
-      # A unique index on exactly these columns already proves uniqueness, and
-      # the boot error tells hosts to add one. Honouring it is what makes that
-      # advice worth taking: without this, a host that adds the index keeps
-      # paying for the scan forever. Without an index this is a GROUP BY, and
-      # deliberately not a LIMITed one: LIMIT bounds the groups RETURNED, not
-      # the rows read, so it would buy nothing from the database and would
-      # break the Ruby blank filter below (a limited page could be all blanks,
-      # hiding a real duplicate behind them).
-      def unique?
-        return true if unique_index?
+      def unique? = colliding_keys.empty?
 
-        colliding_keys.empty?
-      end
-
-      # The full list, for the error message and for identity:check. Empty in
-      # the healthy case, and boot is about to raise in the other one.
+      # The full list, and the ONE place the index fast path lives, so every
+      # caller gets it — unique?, the boot error, and identity:check alike.
+      # Putting it on unique? instead made the answer depend on which question
+      # you asked first, which is how the task came to scan a table whose index
+      # already proved the answer.
+      #
+      # Without an index this is a GROUP BY, and deliberately not a LIMITed
+      # one: LIMIT bounds the groups RETURNED, not the rows read, so it buys
+      # nothing from the database, and a limited page could be all blanks,
+      # hiding a real duplicate behind them (see #171).
       #
       # NOT memoised, on purpose. This resolver is memoised on Configuration
       # and therefore lives as long as the process, so caching a scan here
@@ -190,6 +186,9 @@ module CurrentScope
       # answers from a cache is worse than a slow one.
       def colliding_keys
         assert_columns!
+        # A plain unique index proves there are none, without asking the table.
+        return [] if unique_index?
+
         colliding_groups.keys
       end
 

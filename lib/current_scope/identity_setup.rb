@@ -93,20 +93,19 @@ module CurrentScope
       parts.one? ? parts.first : parts
     end
 
-    # Asks for the list FIRST, then the predicate. colliding_keys is no longer
-    # memoised, so asking unique? first would scan once to answer yes/no and
-    # again to name the duplicates. This order costs one scan whenever there is
-    # something to report, and reaches unique? only when the list came back
-    # empty, where a column identity answers from its unique index or from the
-    # scan it has already done.
+    # unique? first, because it is the cheap question: a column identity
+    # answers it from its unique index without touching the subject table, and
+    # otherwise from the one scan colliding_keys.empty? already does. Asking
+    # for the list first would scan even where an index made that unnecessary.
     def report_collisions!
+      return if unique?
+
       keys = collisions
       if keys.any?
         sample = keys.first(5).map(&:inspect).join(", ")
         fail! "Identity is not unique (#{keys.size} colliding key(s): #{sample}). " \
               "No grant was written."
       end
-      return if unique?
 
       fail! "Identity is not unique: the configured resolver reports a duplicate " \
             "but does not list the colliding keys. No grant was written."

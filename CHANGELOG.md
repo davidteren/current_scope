@@ -30,7 +30,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     whitespace-only value is consistently a non-key rather than a collision.
   - **A unique index now answers the boot uniqueness check outright.** For a
     Symbol or Array identity, a plain unique index on exactly those columns
-    means boot issues no query at all, which is what makes the boot error's
+    means the subject table is never scanned, which is what makes the boot error's
     own "add a unique index" advice worth taking. Without an index it is a
     grouping query over the subject table (issue #171 tracks bounding that).
     An identity OBJECT owns its `unique?`, so boot pays whatever it costs.

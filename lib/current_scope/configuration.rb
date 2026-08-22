@@ -622,12 +622,13 @@ module CurrentScope
     # subject table is missing. A host object without unique? is not scanned;
     # resolve still raises if it matches two rows.
     #
-    # COST, and only for the Symbol / Array forms: ColumnResolver#unique?
-    # returns immediately when a plain unique index covers the identity
-    # columns, issuing no query at all. Without one it is a grouping query over
-    # the subject table, which is why the error tells the host to add the index
-    # and points a large table at current_scope:identity:check rather than at
-    # the boot path.
+    # COST, and only for the Symbol / Array forms: ColumnResolver answers from
+    # a plain unique index covering the identity columns, so the subject table
+    # is never scanned. It still asks the connection for the index list, which
+    # is schema introspection rather than a scan of the rows. Without such an
+    # index it is a grouping query over the whole table, which is why the error
+    # tells the host to add one and points a large table at
+    # current_scope:identity:check rather than at the boot path (see #171).
     #
     # A host object is NOT covered by that. HostResolver delegates unique? to
     # host code, so whatever that method costs is what boot pays. The generated

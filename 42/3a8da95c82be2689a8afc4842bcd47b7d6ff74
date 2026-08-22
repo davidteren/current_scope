@@ -1,0 +1,35 @@
+test/subject_identity_test.rb
+  s_ac986858915116::t_a1c1b699e1abc7 277-295
+lib/current_scope/configuration.rb
+  s_ac986858915116::t_699b924e9e16c1 625-634
+docs/guides/configuration-reference.md
+  s_ac986858915116::t_699b924e9e16c1 28-32
+lib/current_scope/subject_identity.rb
+  s_ac986858915116::t_1c97e4586cfb55 184-190,192-193
+lib/tasks/current_scope_tasks.rake
+  s_ac986858915116::t_fc66a6b447918e 63-67
+CHANGELOG.md
+  s_ac986858915116::t_699b924e9e16c1 31-38
+lib/current_scope/identity_setup.rb
+  s_ac986858915116::t_1c97e4586cfb55 96-101,109
+docs/guides/adopting-in-an-existing-app.md
+  s_ac986858915116::t_699b924e9e16c1 98-103
+lib/generators/current_scope/identity/templates/subject_identity.rb
+  s_ac986858915116::t_d5c546550a45da 35-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "423a8da95c82be2689a8afc4842bcd47b7d6ff74",
+  "prompts": {},
+  "sessions": {
+    "s_ac986858915116": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22976d14-bca5-4513-8868-2ad378c50f81",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

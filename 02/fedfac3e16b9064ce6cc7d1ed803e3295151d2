@@ -1,0 +1,16 @@
+STATUS.md
+  h_e8a5bb9272fa34 5
+docs/plans/2026-08-13-002-feat-role-definition-export-import-plan.md
+  h_e8a5bb9272fa34 108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "02fedfac3e16b9064ce6cc7d1ed803e3295151d2",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

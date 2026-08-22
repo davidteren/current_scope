@@ -1,0 +1,51 @@
+test/uuid_key_collision_test.rb
+  s_ac986858915116::t_847e89c9eca58b 406-435
+  s_ac986858915116::t_ef44d22d714b8e 402-405
+test/support/identity_user.rb
+  s_ac986858915116::t_e177c5e757340e 14-15
+lib/current_scope/schema_guard.rb
+  s_ac986858915116::t_1f8b968700da3d 222-237
+test/subject_identity_test.rb
+  s_ac986858915116::t_206066548f2548 294-320
+test/identity_task_test.rb
+  s_ac986858915116::t_7ad858d94ac399 64,67,75-94
+  s_ac986858915116::t_6d4a38dbe1ead7 95,292-331
+  s_ac986858915116::t_6a66bd4bb39124 96
+lib/generators/current_scope/identity/templates/subject_identity.rb
+  s_ac986858915116::t_7dc02dd50a5155 18-21,23-30
+docs/guides/configuration-reference.md
+  s_ac986858915116::t_13c137c919c50a 28-44
+lib/current_scope.rb
+  s_ac986858915116::t_7dc02dd50a5155 87-92,96-102
+  s_ac986858915116::t_2cc55fc12e9faf 103
+lib/generators/current_scope/identity/identity_generator.rb
+  s_ac986858915116::t_e177c5e757340e 25-27,31-34
+  s_ac986858915116::t_d266f71b1bfc1a 35
+README.md
+  s_ac986858915116::t_13c137c919c50a 313-315
+lib/current_scope/identity_setup.rb
+  s_ac986858915116::t_e177c5e757340e 259-268
+  s_ac986858915116::t_7dc02dd50a5155 64-71
+lib/tasks/current_scope_tasks.rake
+  s_ac986858915116::t_35160184cac727 63,65,70,74-76,78-81,96-103
+lib/current_scope/configuration.rb
+  s_ac986858915116::t_e177c5e757340e 732-735
+CHANGELOG.md
+  s_ac986858915116::t_41894c8f27d6ed 56-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "0e61dacea5512418b1219a02d284641145d7b1a4",
+  "prompts": {},
+  "sessions": {
+    "s_ac986858915116": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22976d14-bca5-4513-8868-2ad378c50f81",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

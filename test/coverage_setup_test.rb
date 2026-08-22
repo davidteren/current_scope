@@ -117,6 +117,22 @@ class CoverageSetupTest < ActiveSupport::TestCase
     ENV["COVERAGE"] = original
   end
 
+  test "the coverage floor is armed only in CI" do
+    skip "coverage is disabled" if ENV["COVERAGE"] == "0"
+
+    assert SimpleCov.respond_to?(:minimum_coverage),
+           "SimpleCov.minimum_coverage moved; re-derive this pin, do not drop it"
+
+    if ENV["CI"]
+      assert_equal({ line: 95, branch: 80 }, SimpleCov.minimum_coverage,
+                   "CI must fail when coverage collapses; do not lower the floor to pass a PR")
+    else
+      assert_empty SimpleCov.minimum_coverage,
+                   "a local single-file run must stay green; put CI=1 in front of the " \
+                   "SIMPLECOV_COMMAND_NAME commands to reproduce the floor"
+    end
+  end
+
   test "COVERAGE=0 opts out before the too-late guard can raise" do
     original = ENV["COVERAGE"]
     ENV["COVERAGE"] = "0"

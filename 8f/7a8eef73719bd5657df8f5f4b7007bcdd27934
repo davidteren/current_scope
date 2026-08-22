@@ -1,0 +1,30 @@
+test/subject_identity_test.rb
+  s_ac986858915116::t_7593f4d2cf786c 194-260
+lib/generators/current_scope/identity/templates/subject_identity.rb
+  s_ac986858915116::t_8882a7dd52f8bf 35-38,40-42
+lib/current_scope/subject_identity.rb
+  s_ac986858915116::t_ed6afe6114e2de 230,237
+  s_ac986858915116::t_82ba72db503ff5 56-61,86-93,132-136,138-149,168-177,179-182,185-186,206,212,231-233,238-256,258-259
+lib/current_scope/configuration.rb
+  s_ac986858915116::t_9331ac4112b14f 1-5,624-631
+test/subject_identity_placeholder_test.rb
+  s_ac986858915116::t_0deec1b2f018e5 2-9,17,25-34,36-41,52-53,57,60-64,67-68,73-74,84,86,88,92-94,97,100,103-111,113-114,116-134
+test/support/identity_user.rb
+  s_ac986858915116::t_a5605bc6b7cbe8 13-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "8f7a8eef73719bd5657df8f5f4b7007bcdd27934",
+  "prompts": {},
+  "sessions": {
+    "s_ac986858915116": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22976d14-bca5-4513-8868-2ad378c50f81",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

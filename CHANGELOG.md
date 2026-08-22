@@ -16,6 +16,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   unless `WRITE=1`; `PLACEHOLDER=1` refused in production). This is not
   `config.subject_label`. Assignment export is still issue #156 v2.
 
+  Details worth knowing before you adopt it:
+
+  - **`identity:setup` may not boot on an unrepaired #151 schema, and
+    `identity:check` may.** `setup WRITE=1` calls `CurrentScope.grant!`, which
+    writes grant rows and does not re-check the schema, because the check runs
+    once at boot. Run `current_scope:repair_schema` first if boot says so.
+    `check` only reads the host's subject table, so it stays exempt.
+  - **A blank identity column raises instead of minting a dead key.**
+    `identify` used to turn `nil` into `""`, and `resolve` treats a blank part
+    as no key at all, so an export could carry a key nothing would ever
+    resolve. One definition of "blank" now covers Ruby and SQL alike, so a
+    whitespace-only value is consistently a non-key rather than a collision.
+  - **The boot uniqueness check no longer scans the whole subject table.** A
+    plain unique index on exactly the identity columns answers it outright;
+    without one it runs a `LIMIT 1` duplicate probe. `identity:check` still
+    lists every duplicate, because that is what an operator asks it for.
+  - **`identity:check` never prompts**, so it is safe in CI, cron, and deploy
+    hooks. Both tasks turn an operator mistake (a misspelled `IDENTITY`
+    column, a composite `SUBJECT` of the wrong length or with a blank part)
+    into a task error rather than a stack trace, and an unlistable duplicate
+    now says so instead of printing the literal key `"(duplicate natural key)"`.
+
 ### Changed
 - **Docs site landing page is now a conversion page, not only a long
   technical write-up.** Hero CTAs (Star / Quickstart / Showcase / Docs),

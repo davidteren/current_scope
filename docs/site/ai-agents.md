@@ -95,7 +95,9 @@ keys raise, and resolve never inserts a subject.
      and fill identify / resolve.
 2. Check uniqueness against live rows:
    bin/rails current_scope:identity:check
-   A collision is a ConfigurationError. Do not first-row-win.
+   The task exits non-zero and names the colliding keys; it does not raise.
+   A collision raises ConfigurationError at BOOT, and identity:setup stops
+   before it writes. Do not first-row-win.
 3. Dry-run a grant (writes nothing):
    bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com
    ROLE= defaults to Owner (full_access). Admin, if you create it, is not
@@ -104,9 +106,11 @@ keys raise, and resolve never inserts a subject.
    bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com WRITE=1
    That calls CurrentScope.grant! (ledger source: bootstrap).
 5. Missing subject: never invent one in production. Outside production,
-   PLACEHOLDER=1 on a dry-run only prints the would-create line. Create
-   the marked row with PLACEHOLDER=1 WRITE=1. Production + PLACEHOLDER=1
-   is refused.
+   PLACEHOLDER=1 needs a create_placeholder! factory on the identity
+   object from `bin/rails generate current_scope:identity`. With one, a
+   dry-run prints the would-create line; without one the task stops and
+   says PLACEHOLDER=1 has no factory. Create the marked row with
+   PLACEHOLDER=1 WRITE=1. Production + PLACEHOLDER=1 is refused.
 
 Hard stop: never invent a production subject.
 ```

@@ -3,12 +3,14 @@
 > ## Last session handoff
 >
 > **What this is:** CurrentScope portability work. Issue #158 (subject
-> identity) is implemented on `feat/subject-identity`.
-> **What we finished:** The identify/resolve contract, boot uniqueness,
-> placeholder policy, generator, and `identity:setup` dry-run rake.
-> **What you do next:** Finish the pre-PR gate on this branch, then open
-> the #158 PR. After it lands, issue #156 v1 (role-definition export)
-> from `docs/plans/2026-08-13-002-feat-role-definition-export-import-plan.md`.
+> identity) is open as PR #169.
+> **What we finished:** Every one of the 23 review comments on PR #169 is
+> answered, and the fixes are in: the grant-writing setup task can no
+> longer boot on an unrepaired schema, a blank identity value now raises,
+> and boot stopped scanning the whole users table.
+> **What you do next:** Wait for CI to go green on PR #169, then merge it.
+> After that, start issue #156 v1 (role-definition export) from
+> `docs/plans/2026-08-13-002-feat-role-definition-export-import-plan.md`.
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >

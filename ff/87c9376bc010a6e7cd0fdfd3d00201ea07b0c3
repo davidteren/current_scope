@@ -1,0 +1,32 @@
+docs/plans/2026-08-22-002-refactor-polymorphic-registry-plan.md
+  s_ac986858915116::t_4120510d06be19 1-258
+docs/plans/2026-08-22-003-feat-members-inert-vs-deleted-plan.md
+  s_ac986858915116::t_ab882d354b619f 1-276
+docs/plans/2026-08-22-004-chore-minimum-coverage-floor-plan.md
+  s_ac986858915116::t_15a09dbc6cb5d4 1-222
+docs/plans/2026-08-13-002-feat-role-definition-export-import-plan.md
+  s_ac986858915116::t_31ad279478042f 327-328,330
+  s_ac986858915116::t_f895c56da9db7a 288
+  s_ac986858915116::t_8a3c4ce3d96ea4 140
+  s_ac986858915116::t_b4cfa28957702d 11,16
+  s_ac986858915116::t_496f80ead4ff91 24
+  s_ac986858915116::t_95346eeee54315 149-150
+  s_ac986858915116::t_7922819aa76603 118
+  s_ac986858915116::t_3eaee1a2b657fc 17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "ff87c9376bc010a6e7cd0fdfd3d00201ea07b0c3",
+  "prompts": {},
+  "sessions": {
+    "s_ac986858915116": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22976d14-bca5-4513-8868-2ad378c50f81",
+        "model": "claude-fable-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

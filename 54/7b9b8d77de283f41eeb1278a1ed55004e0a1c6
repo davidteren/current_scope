@@ -1,0 +1,22 @@
+CHANGELOG.md
+  h_e8a5bb9272fa34 46-49
+lib/current_scope.rb
+  h_e8a5bb9272fa34 19,311-312,314,318,322,326
+lib/current_scope/engine.rb
+  h_e8a5bb9272fa34 85,130
+lib/current_scope/polymorphic_registry.rb
+  h_e8a5bb9272fa34 1-138
+test/polymorphic_registry_test.rb
+  h_e8a5bb9272fa34 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "547b9b8d77de283f41eeb1278a1ed55004e0a1c6",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

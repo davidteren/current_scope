@@ -1,0 +1,27 @@
+docs/site/ai-agents.md
+  s_ac986858915116::t_dda72ddd277d5a 98-100,109-113
+docs/guides/adopting-in-an-existing-app.md
+  s_ac986858915116::t_95bf0276f08875 87-89,93-101
+CHANGELOG.md
+  s_ac986858915116::t_730dbca883f1b5 19-40
+docs/guides/configuration-reference.md
+  s_ac986858915116::t_95bf0276f08875 26-32
+STATUS.md
+  s_ac986858915116::t_7cad8fb732824a 6-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "37f42c4615581e362214e6a9276f301778f00f6d",
+  "prompts": {},
+  "sessions": {
+    "s_ac986858915116": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22976d14-bca5-4513-8868-2ad378c50f81",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

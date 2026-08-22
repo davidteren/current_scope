@@ -1,0 +1,18 @@
+app/models/concerns/current_scope/storable_keys.rb
+  h_e8a5bb9272fa34 22,32,77
+app/models/current_scope/scoped_role_assignment.rb
+  h_e8a5bb9272fa34 36
+lib/current_scope.rb
+  h_e8a5bb9272fa34 333,337,396,398
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "923591a24f261479083123a7517a297110e965b6",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

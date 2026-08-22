@@ -60,14 +60,13 @@ namespace :current_scope do
       # Read-only, and deliberately silent: IdentitySetup#unique? / #collisions
       # never prompt, so this task is safe in CI, in cron, and in a deploy hook.
       setup = CurrentScope::IdentitySetup.new
-      if setup.unique?
+      keys = setup.collisions
+      if keys.any?
+        sample = keys.first(10).map(&:inspect).join(", ")
+        abort "Subject identity is not unique (#{keys.size} colliding key(s): #{sample})."
+      elsif setup.unique?
         puts "Subject identity is unique (or is the default primary key)."
       else
-        keys = setup.collisions
-        if keys.any?
-          sample = keys.first(10).map(&:inspect).join(", ")
-          abort "Subject identity is not unique (#{keys.size} colliding key(s): #{sample})."
-        end
         # A host resolver said "not unique" and cannot name a duplicate. Say
         # exactly that, rather than printing a made-up key that looks real.
         abort "Subject identity is not unique. The configured resolver reports a " \

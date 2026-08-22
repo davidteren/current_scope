@@ -274,6 +274,25 @@ class SubjectIdentityTest < ActiveSupport::TestCase
     assert_nil CurrentScope.resolve_subject("\t")
   end
 
+  # The resolver is memoised on Configuration and lives as long as the process,
+  # so caching a scan on it made identity:check answer from boot's snapshot
+  # instead of from the table it was asked to audit.
+  test "the collision scan is not cached between calls" do
+    CurrentScope.config.subject_class = "IdentityUser"
+    CurrentScope.config.subject_identity = :email
+    resolver = CurrentScope.config.subject_identity_resolver
+    shared = "late-dupe-#{SecureRandom.hex(4)}@example.com"
+
+    assert_empty resolver.colliding_keys
+    assert resolver.unique?
+
+    IdentityUser.create!(name: "Late One", email: shared)
+    IdentityUser.create!(name: "Late Two", email: shared)
+
+    assert_includes resolver.colliding_keys, shared
+    assert_not resolver.unique?
+  end
+
   test "a real duplicate is still found when blank rows share the table" do
     CurrentScope.config.subject_class = "IdentityUser"
     IdentityUser.create!(name: "Blank", email: "\t")

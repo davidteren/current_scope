@@ -25,10 +25,11 @@ Identity is load-bearing: duplicate natural keys raise `ConfigurationError`
 at boot (skipped during `db:` tasks, and skipped for the default primary
 key). `resolve` returns nil when missing and never inserts. A blank identity
 column raises too: `identify` refuses to mint a key that `resolve` could
-never find. Put a plain unique index on exactly the identity columns and the boot
-check answers from the index, with no query at all. Without one it is a
-grouping query over the subject table. To list every duplicate, run
-`bin/rails current_scope:identity:check`. Guided attach:
+never find. For a Symbol or Array identity, put a plain unique index on exactly those
+columns and the boot check answers from the index, with no query at all.
+Without one it is a grouping query over the subject table. An identity
+OBJECT owns its own `unique?`, so boot pays whatever that method costs.
+To list every duplicate, run `bin/rails current_scope:identity:check`. Guided attach:
 `bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com`
 (dry-run) then `WRITE=1` to call `grant!`. `PLACEHOLDER=1` needs a
 `create_placeholder!` factory on the identity object from

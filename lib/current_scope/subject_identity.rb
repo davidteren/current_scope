@@ -181,11 +181,16 @@ module CurrentScope
 
       # The full list, for the error message and for identity:check. Empty in
       # the healthy case, and boot is about to raise in the other one.
+      #
+      # NOT memoised, on purpose. This resolver is memoised on Configuration
+      # and therefore lives as long as the process, so caching a scan here
+      # made the answer a snapshot of whenever boot happened to run it —
+      # current_scope:identity:check would then report boot's all-clear rather
+      # than reading the table it was asked to audit. A diagnostic that
+      # answers from a cache is worse than a slow one.
       def colliding_keys
-        @colliding_keys ||= begin
-          assert_columns!
-          colliding_groups.keys
-        end
+        assert_columns!
+        colliding_groups.keys
       end
 
       private

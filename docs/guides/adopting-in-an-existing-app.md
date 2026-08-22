@@ -95,10 +95,12 @@ column shape in place — run `current_scope:repair_schema` first if boot
 tells you to. `identity:check` reads only your users table and runs either
 way.
 
-Put a unique index on the host column. Boot then proves uniqueness from
-the index and runs no query at all; without one it groups the subject
-table on every boot. Run `current_scope:identity:check` in CI when you
-want every duplicate listed. The engine does not migrate your users table.
+Put a unique index on the host column. For a `:email` or `[:name, :email]`
+identity, boot then proves uniqueness from the index and runs no query at
+all; without one it groups the subject table on every boot. If you supply
+an identity object instead, its `unique?` is yours, and boot pays whatever
+it costs. Run `current_scope:identity:check` in CI when you want every
+duplicate listed. The engine does not migrate your users table.
 
 ---
 

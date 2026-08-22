@@ -32,6 +32,23 @@ class CurrentScopeSubjectIdentity
     end
   end
 
+  # THIS RUNS ON EVERY BOOT, and it is yours to make cheap. CurrentScope
+  # cannot do it for you: the engine short-circuits its own Symbol / Array
+  # identities when a plain unique index covers exactly those columns, but an
+  # identity OBJECT is host code, so boot pays whatever this method costs.
+  #
+  # If a unique index already proves this, say so and return before querying:
+  #
+  #   def unique?
+  #     return true if User.connection.indexes(User.table_name)
+  #                        .any? { |i| i.unique && i.where.nil? && i.columns == [ "email" ] }
+  #     ...
+  #   end
+  #
+  # For a key split across tables, where no single index proves it, keep the
+  # query and run bin/rails current_scope:identity:check in CI instead of
+  # relying on the boot check to be fast.
+  #
   # The blank test is Ruby's, not SQL's, so it agrees with resolve exactly.
   # resolve returns nil for key.blank?, so two users whose emails are both
   # whitespace are not a collision — neither can ever be resolved. Doing it

@@ -2,7 +2,7 @@
 
 > ## Last session handoff
 >
-> **What this is:** CurrentScope on main at 55f1c6b. Subject identity
+> **What this is:** CurrentScope on main. Subject identity
 > (#158) shipped as PR #169. Five follow-up issues now have plans.
 > **What we finished:** PR #169 merged and `feat/subject-identity` deleted.
 > Plans and a serial runbook exist for #146, #163, #164, #150, and #156 v1.

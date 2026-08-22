@@ -105,7 +105,7 @@ Permission keys are route-derived catalog strings. They are already portable. Ro
 
 ### Success Criteria
 
-Export of the dummy's roles is deterministic across two runs. Diff names a single added key in one line a reviewer can read. Import is idempotent. The last-holder lock holds. `bin/db test` and `bin/rubocop` are green.
+Export of the dummy's roles is deterministic across two runs. Diff names a single added key in one line a reviewer can read. Import is idempotent. The last-holder lock holds. `bin/db test` (the unit suite across SQLite, PostgreSQL, and MySQL) and `bin/rubocop` are green.
 
 ### Scope Boundaries
 

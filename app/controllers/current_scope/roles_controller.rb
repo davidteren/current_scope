@@ -72,6 +72,7 @@ module CurrentScope
       end
       @candidates = remaining.limit(ADD_LIMIT).to_a
       @more_candidates = remaining.offset(ADD_LIMIT).exists?
+      @no_subjects = @candidates.empty? && !subject_class.exists?
     end
 
     def update

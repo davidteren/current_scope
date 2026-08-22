@@ -28,6 +28,8 @@
     <% end %>
     <p><%= submit_tag "Add selected as org-wide members" %></p>
   <% end %>
+<% elsif @no_subjects %>
+  <p class="cs-subtle" id="org_add_empty">No subjects exist yet, so there is no one to add.</p>
 <% else %>
   <p class="cs-subtle">Every subject already holds this role org-wide.</p>
 <% end %>
@@ -42,24 +44,34 @@
           <% who = current_scope_holder_subject_label(assignment) %>
           <%# Through the canonical guard: a non-canonical stored subject_id must
               not resolve to an unrelated live subject whose GID the Remove button
-              would then post to the org-clear path (#151). nil -> orphaned branch. %>
-          <% subject_gid = (assignment.current_scope_resolved_record("subject")&.to_gid rescue nil) %>
-          <tr>
+              would then post to the org-clear path (#151). Split on the resolved
+              record, not to_gid: a live subject whose to_gid raises must not be
+              labeled deleted. %>
+          <% resolved = assignment.current_scope_resolved_record("subject") %>
+          <% inert = resolved.nil? && current_scope_unresolved_subject_state(assignment) == :inert %>
+          <tr id="org_holder_<%= assignment.id %>"<% if inert %> class="cs-row--inert"<% end %>>
             <td><%= who %></td>
             <td>
-              <% if subject_gid %>
+              <% if resolved %>
                 <%# Removing = clearing this subject's org-wide role (blank role_id). %>
                 <%= form_with url: role_assignments_path, method: :post,
                       data: { cs_confirm: "Remove #{who} from #{@role.name}?" } do %>
-                  <%= hidden_field_tag :subject_gid, subject_gid %>
+                  <%= hidden_field_tag :subject_gid, resolved.to_gid %>
                   <%= hidden_field_tag :role_id, "" %>
                   <%= submit_tag "Remove", name: nil, class: "cs-btn" %>
                 <% end %>
+              <% elsif inert %>
+                <%= button_to "Remove inert", role_assignment_path(assignment), method: :delete,
+                      id: "org_remove_#{assignment.id}",
+                      class: "cs-btn",
+                      form: { data: { cs_confirm: "Remove this inert org-wide assignment? The subject row may still exist." } } %>
+                <span class="cs-inert-badge"
+                      title="This subject cannot be resolved from the stored type and id. The row may still exist, but this assignment grants nothing.">inert</span>
               <% else %>
-                <%# Orphaned assignment (subject deleted): remove it by id. %>
                 <%= button_to "Remove", role_assignment_path(assignment), method: :delete,
+                      id: "org_remove_#{assignment.id}",
                       class: "cs-btn", form: { data: { cs_confirm: "Remove this orphaned org-wide assignment?" } } %>
-                <span class="cs-subtle">subject unavailable</span>
+                <span class="cs-subtle">subject deleted</span>
               <% end %>
             </td>
           </tr>

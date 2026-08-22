@@ -2,15 +2,15 @@
 
 > ## Last session handoff
 >
-> **What this is:** CurrentScope portability work. Issue #155 (custom storage
-> tokens) is shipped as open pull request #165 on
-> `fix/polymorphic-storage-token`. Issues #156 and #158 are planned only.
-> **What we finished:** Opened PR #165 through the full pre-PR gate, then worked
-> the post-open review: fixed the real cubic/Devin/qodo findings (STI-subclass
-> reverse resolution, config token-key collision) and replied on every thread.
-> **What you do next:** Wait for PR #165 checks and review bots to settle green,
-> then a human merges it. After merge, implement issue #156 (role export/import)
-> from `docs/plans/2026-08-13-002-feat-role-definition-export-import-plan.md`.
+> **What this is:** CurrentScope portability work. Issue #158 (subject
+> identity) is open as PR #169.
+> **What we finished:** Every one of the 23 review comments on PR #169 is
+> answered, and the fixes are in: the grant-writing setup task can no
+> longer boot on an unrepaired schema, a blank identity value now raises,
+> and boot stopped scanning the whole users table.
+> **What you do next:** Wait for CI to go green on PR #169, then merge it.
+> After that, start issue #156 v1 (role-definition export) from
+> `docs/plans/2026-08-13-002-feat-role-definition-export-import-plan.md`.
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >

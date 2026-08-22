@@ -6,6 +6,42 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Configurable subject identity (#158).** `config.subject_identity` accepts
+  a Symbol (one column), an Array of symbols (a composite list, never a
+  joined string), or an object with `identify` / `resolve`. Default is the
+  primary key. Duplicate natural keys raise at boot. `resolve` never
+  inserts. Generator `current_scope:identity` and rake tasks
+  `current_scope:identity:check` / `current_scope:identity:setup` (dry-run
+  unless `WRITE=1`; `PLACEHOLDER=1` refused in production). This is not
+  `config.subject_label`. Assignment export is still issue #156 v2.
+
+  Details worth knowing before you adopt it:
+
+  - **`identity:setup` may not boot on an unrepaired #151 schema, and
+    `identity:check` may.** `setup WRITE=1` calls `CurrentScope.grant!`, which
+    writes grant rows and does not re-check the schema, because the check runs
+    once at boot. Run `current_scope:repair_schema` first if boot says so.
+    `check` only reads the host's subject table, so it stays exempt.
+  - **A blank identity column raises instead of minting a dead key.**
+    `identify` used to turn `nil` into `""`, and `resolve` treats a blank part
+    as no key at all, so an export could carry a key nothing would ever
+    resolve. One definition of "blank" now covers Ruby and SQL alike, so a
+    whitespace-only value is consistently a non-key rather than a collision.
+  - **A unique index now answers the boot uniqueness check outright.** For a
+    Symbol or Array identity, a plain unique index on exactly those columns
+    means the subject table is never scanned, which is what makes the boot error's
+    own "add a unique index" advice worth taking. Without an index it is a
+    grouping query over the subject table (issue #171 tracks bounding that).
+    An identity OBJECT owns its `unique?`, so boot pays whatever it costs.
+    Nothing is cached between calls, so `identity:check` always reads the
+    table rather than reporting boot's snapshot.
+  - **`identity:check` never prompts**, so it is safe in CI, cron, and deploy
+    hooks. Both tasks turn an operator mistake (a misspelled `IDENTITY`
+    column, a composite `SUBJECT` of the wrong length or with a blank part)
+    into a task error rather than a stack trace, and an unlistable duplicate
+    now says so instead of printing the literal key `"(duplicate natural key)"`.
+
 ### Changed
 - **Docs site landing page is now a conversion page, not only a long
   technical write-up.** Hero CTAs (Star / Quickstart / Showcase / Docs),
@@ -17,6 +53,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pilots.
 
 ### Fixed
+- **A chained rake command no longer carries a non-exempt task past the #151
+  boot guard.** `SchemaGuard.running_a_database_task?` asked whether ANY task on
+  the command line was allowed to boot without the repaired grant-column shape.
+  Rake takes a list, so one exempt name exempted everything beside it:
+  `bin/rails current_scope:identity:check current_scope:identity:setup WRITE=1`
+  booted through and wrote grants on the vulnerable columns, and
+  `bin/rails db:migrate db:import_users` let a host's own task inherit the
+  exemption the file's exact-name rule exists to deny it. The allow list is now
+  unanimous — every task in the invocation must be exempt, or none of them is.
+  The refusal list is unchanged: one refused task still vetoes the whole
+  command. This is defence in depth rather than a remote exposure (it needs an
+  operator to chain the tasks deliberately at a shell), so no advisory is
+  issued, but it is the guard the #151 fix depends on.
+- **`CurrentScope.identify_subject` refuses a record that is not
+  `config.subject_class`.** `resolve_subject` only ever returns that class, so a
+  key minted from another model with the same column value resolved to a
+  different record in the next environment, silently, holding whatever grants
+  that record held.
 - **Custom `polymorphic_name` tokens now match on the list and the members page (#155).** Collection, ancestor, and record-less write lookups use the stored token (`polymorphic_name`), not `base_class.name`. Reverse lookup uses a closed registry (Rails first, then auto-detected overrides plus optional `config.polymorphic_class_names`). Two classes that claim the same token raise at rebuild, including a shortened name that matches another loaded class. Config may only name a class that actually stores that token. An unmapped token stays inert.
 - **The public resolver picture now matches the six-step order the engine already runs.** README, the docs-site include, and the landing-page steps named a five-step order that skipped the record-less listed-read arm. The Limitations table also still said parent hierarchy was deferred after `current_scope_parent` shipped.
 

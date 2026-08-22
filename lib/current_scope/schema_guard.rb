@@ -182,10 +182,22 @@ module CurrentScope
       db:create db:drop db:migrate db:rollback db:version db:prepare db:setup
       db:reset db:abort_if_pending_migrations db:_dump
       current_scope:install current_scope:repair_schema
+      current_scope:identity:check
     ].freeze
 
     # Namespaces whose children are all schema tooling (db:migrate:up,
     # db:schema:load, assets:precompile, …).
+    #
+    # `current_scope:identity:` is NOT here, and the omission is the point.
+    # Only `identity:check` is exempt, named individually above: it reads the
+    # HOST's subject table and touches no grant column, so it is safe on an
+    # unrepaired schema. `identity:setup WRITE=1` calls CurrentScope.grant!,
+    # which writes RoleAssignment rows — and grant! does not re-check the
+    # schema, because the check runs once at boot. Exempting the namespace
+    # would let the one #158 task that WRITES grants do so on exactly the
+    # pre-#151 columns that collapse two subjects into one. An operator on an
+    # unrepaired schema is told to run current_scope:repair_schema first, which
+    # is exempt and is the fix.
     BOOT_EXEMPT_NAMESPACES = %w[
       db:migrate: db:schema: db:structure: db:test: db:environment:
       current_scope:install: assets:
@@ -207,8 +219,22 @@ module CurrentScope
       # spelling every entry twice in both lists.
       tasks = Rake.application.top_level_tasks.map { |task| task.delete_prefix("app:") }
       return false if tasks.any? { |task| task.start_with?(*BOOT_REFUSED_TASKS) }
+      return false if tasks.empty?
 
-      tasks.any? do |task|
+      # EVERY task, not any task. Rake takes a LIST — `bin/rails db:migrate
+      # db:import_users` is one invocation, one boot, two tasks — so asking
+      # "is one of these exempt?" let a single exempt name carry every task
+      # beside it past the #151 guard. `current_scope:identity:check` is
+      # read-only and exempt; `current_scope:identity:setup` writes grants and
+      # is deliberately not. Chained, `any?` exempted the writer through its
+      # own sibling, which is precisely the hole listing them separately was
+      # meant to close. It also defeated the exact-name rule two lists up: the
+      # host task `db:import_users` is refused alone and was exempted when run
+      # after `db:migrate`.
+      #
+      # An exemption is a claim about what the whole command does. One
+      # non-exempt task makes the command non-exempt.
+      tasks.all? do |task|
         BOOT_EXEMPT_TASKS.include?(task) || task.start_with?(*BOOT_EXEMPT_NAMESPACES)
       end
     rescue StandardError

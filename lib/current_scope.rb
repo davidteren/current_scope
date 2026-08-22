@@ -343,7 +343,6 @@ module  CurrentScope
     def rebuild_polymorphic_registry!
       @polymorphic_registry_error = nil
       map = {}
-      owners = {}
       ActiveRecord::Base.descendants.each do |klass|
         next if klass.abstract_class?
         next unless klass.respond_to?(:polymorphic_name)
@@ -354,33 +353,10 @@ module  CurrentScope
         # Every loaded class occupies its token, including default names.
         # Skipping only custom overrides let Admin::User (token "User") sit
         # next to ::User without a raise, and then granted_ids aliased ids.
-        base = klass.base_class
-        existing_base = owners[token]
-        if existing_base && existing_base != base
-          raise ConfigurationError,
-                "polymorphic token #{token.inspect} is claimed by both #{existing_base.name} " \
-                "and #{base.name}. Two classes cannot share a storage token."
-        end
-        owners[token] = base
-
-        # Default Rails tokens that already constantize (User, Document, STI
-        # siblings) stay out of the reverse map. A shortened namespaced token
-        # ("User" for Admin::User when ::User does not exist) cannot reverse
-        # through Rails; register the base so lookup works after load.
-        if default_storage_token?(klass, token)
-          other = token.safe_constantize
-          rails_reverses = other.respond_to?(:polymorphic_name) &&
-                           other.polymorphic_name.to_s == token &&
-                           other.base_class == base
-          next if rails_reverses
-
-          claim!(map, token, base)
-          next
-        end
-
-        # Custom tokens register the base so STI siblings that inherit the
-        # same override share one claim instead of colliding on the leaf.
-        claim!(map, token, base)
+        # claim! is the single collision net. Default tokens in the map are
+        # dead weight at lookup (Rails reverses them first) but keep one
+        # structure instead of a parallel owners hash.
+        claim!(map, token, klass.base_class)
       end
       CurrentScope.config.polymorphic_class_names.each do |token, class_name|
         token = token.to_s
@@ -452,16 +428,7 @@ module  CurrentScope
       end
       map[token] = klass
     end
-
-    def default_storage_token?(klass, token)
-      default = if klass.respond_to?(:store_full_class_name) && !klass.store_full_class_name
-        klass.base_class.name.demodulize
-      else
-        klass.base_class.name
-      end
-      token == klass.name || token == default
-    end
-    private :claim!, :default_storage_token?, :resolve_polymorphic_token
+    private :claim!, :resolve_polymorphic_token
 
     # #151. `subject_id` and `resource_id` are string columns, so ANY single-value
     # primary key stores whole — an integer as "1", a UUID as "7f00aaaa-…". What

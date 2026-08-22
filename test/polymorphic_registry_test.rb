@@ -261,7 +261,10 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
     assert_nothing_raised { CurrentScope.rebuild_polymorphic_registry! }
     assert_equal "Document", Invoice.polymorphic_name
     assert_equal "Document", Receipt.polymorphic_name
-    assert_nil CurrentScope.polymorphic_registry["Document"]
+    # Default tokens now live in the map (#163). The old nil pin was a size
+    # optimization, not a collision check: Invoice and Receipt share Document
+    # as base_class, so claim! accepts both.
+    assert_equal Document, CurrentScope.polymorphic_registry["Document"]
   ensure
     Document.store_full_class_name = original
     CurrentScope.rebuild_polymorphic_registry!

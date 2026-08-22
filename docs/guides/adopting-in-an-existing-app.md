@@ -96,9 +96,9 @@ tells you to. `identity:check` reads only your users table and runs either
 way.
 
 Put a unique index on the host column. Boot then proves uniqueness from
-the index and runs no scan at all; without one it runs a `LIMIT 1`
-duplicate probe. Run `current_scope:identity:check` in CI when you want
-every duplicate listed. The engine does not migrate your users table.
+the index and runs no query at all; without one it groups the subject
+table on every boot. Run `current_scope:identity:check` in CI when you
+want every duplicate listed. The engine does not migrate your users table.
 
 ---
 

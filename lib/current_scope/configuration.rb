@@ -623,12 +623,10 @@ module CurrentScope
     # resolve still raises if it matches two rows.
     #
     # COST: resolver.unique? returns immediately when a plain unique index
-    # covers the identity columns, and otherwise runs a LIMIT 1 duplicate
-    # probe, not a full grouping of the subject table. The full colliding_keys
-    # list below is only ever built on the way to raising, which ends the boot
-    # anyway. That is why the error still points a large-table host at
-    # current_scope:identity:check: the check lists every duplicate, and this
-    # one deliberately stops at the first.
+    # covers the identity columns, and issues no query at all. Without one it
+    # is a grouping query over the subject table, which is why the error tells
+    # the host to add the index — and why it points a large table at
+    # current_scope:identity:check rather than at the boot path.
     def validate_subject_identity!
       return if CurrentScope::SchemaGuard.running_a_database_task?
 

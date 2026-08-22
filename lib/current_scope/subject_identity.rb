@@ -165,25 +165,22 @@ module CurrentScope
         end
       end
 
-      # Boot asks only "is there a duplicate?", so answer that and nothing more.
-      # This used to call colliding_keys, which GROUPs the entire subject table
-      # and materialises every colliding key — on every boot of every server,
-      # console, and job, for the life of the install. The later .first(5) in
-      # the error message bounded the OUTPUT, never the query.
-      #
       # A unique index on exactly these columns already proves uniqueness, and
       # the boot error tells hosts to add one. Honouring it is what makes that
       # advice worth taking: without this, a host that adds the index keeps
-      # paying for the scan forever.
+      # paying for the scan forever. Without an index this is a GROUP BY, and
+      # deliberately not a LIMITed one: LIMIT bounds the groups RETURNED, not
+      # the rows read, so it would buy nothing from the database and would
+      # break the Ruby blank filter below (a limited page could be all blanks,
+      # hiding a real duplicate behind them).
       def unique?
         return true if unique_index?
 
-        assert_columns!
-        colliding_groups(limit: 1).empty?
+        colliding_keys.empty?
       end
 
-      # The full list, for the error message and for identity:check — an
-      # explicit audit, where a full scan is what the operator asked for.
+      # The full list, for the error message and for identity:check. Empty in
+      # the healthy case, and boot is about to raise in the other one.
       def colliding_keys
         @colliding_keys ||= begin
           assert_columns!
@@ -227,18 +224,27 @@ module CurrentScope
               "but #{relation.name} has no such column."
       end
 
-      # TRIM, not a bare `<> ''`, so SQL agrees with SubjectIdentity.blank_value? about
-      # what "  " is. Two rows whose only shared value is whitespace are not a
-      # collision, because neither of them resolves in the first place.
-      def colliding_groups(limit: nil)
+      # Two rows whose shared value is only whitespace are not a collision,
+      # because neither of them resolves in the first place.
+      #
+      # Ruby has the FINAL say on that, and the SQL is only a pre-filter. SQL
+      # TRIM() removes spaces and nothing else, while Ruby's String#strip also
+      # removes tabs, newlines, and the rest — so `TRIM(col) <> ''` leaves a
+      # "\t" row standing that blank_value? calls blank. It never removes a row
+      # Ruby would keep, which is the direction that matters: it can only ever
+      # give Ruby less to reject, never a wrong answer. Rejecting in Ruby is
+      # what makes the two agree exactly, on every adapter.
+      def colliding_groups
         scope = relation.all
         @columns.each do |column|
           scope = scope.where.not(column => nil)
           scope = scope.where("TRIM(#{qualified(column)}) <> ''") if stringish?(column)
         end
-        scope = scope.group(*@columns).having("COUNT(*) > 1")
-        scope = scope.limit(limit) if limit
-        scope.count
+
+        groups = scope.group(*@columns).having("COUNT(*) > 1").count
+        groups.reject do |key, _count|
+          Array(key).any? { |value| SubjectIdentity.blank_value?(value) }
+        end
       end
 
       def qualified(column)

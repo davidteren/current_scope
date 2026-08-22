@@ -28,10 +28,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     as no key at all, so an export could carry a key nothing would ever
     resolve. One definition of "blank" now covers Ruby and SQL alike, so a
     whitespace-only value is consistently a non-key rather than a collision.
-  - **The boot uniqueness check no longer scans the whole subject table.** A
-    plain unique index on exactly the identity columns answers it outright;
-    without one it runs a `LIMIT 1` duplicate probe. `identity:check` still
-    lists every duplicate, because that is what an operator asks it for.
+  - **The boot uniqueness check no longer materialises every colliding key on
+    every boot.** A plain unique index on exactly the identity columns now
+    answers it outright, with no query at all. Without an index it is still a
+    grouping query over the subject table, so add the index: that is the case
+    the advice in the boot error was always aiming at, and now taking it
+    actually makes boot cheaper. `identity:check` lists every duplicate,
+    because that is what an operator asks it for.
   - **`identity:check` never prompts**, so it is safe in CI, cron, and deploy
     hooks. Both tasks turn an operator mistake (a misspelled `IDENTITY`
     column, a composite `SUBJECT` of the wrong length or with a blank part)

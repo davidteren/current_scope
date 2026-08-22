@@ -25,15 +25,17 @@ Identity is load-bearing: duplicate natural keys raise `ConfigurationError`
 at boot (skipped during `db:` tasks, and skipped for the default primary
 key). `resolve` returns nil when missing and never inserts. A blank identity
 column raises too: `identify` refuses to mint a key that `resolve` could
-never find. The boot check is cheap — a plain unique index on exactly the
-identity columns answers it outright, and without one it runs a `LIMIT 1`
-duplicate probe rather than grouping the whole table. To list every
-duplicate, run `bin/rails current_scope:identity:check`, which scans in
-full because that is what you asked it for. Guided attach:
+never find. Put a plain unique index on exactly the identity columns and the boot
+check answers from the index, with no query at all. Without one it is a
+grouping query over the subject table. To list every duplicate, run
+`bin/rails current_scope:identity:check`. Guided attach:
 `bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com`
-(dry-run) then `WRITE=1` to call `grant!`. `PLACEHOLDER=1` writes a
-marked row only together with `WRITE=1`, and only outside production.
-Never invent a production subject.
+(dry-run) then `WRITE=1` to call `grant!`. `PLACEHOLDER=1` needs a
+`create_placeholder!` factory on the identity object from
+`bin/rails generate current_scope:identity`; without one the task stops
+with "PLACEHOLDER=1 has no factory". With a factory it writes a marked row
+only together with `WRITE=1`, and only outside production. Never invent a
+production subject.
 
 **`config.subject_label`** is not the same knob. Label names a subject in
 the management UI and is allowed to fail soft. Pointing both at `:email`

@@ -248,14 +248,43 @@ class SubjectIdentityTest < ActiveSupport::TestCase
     assert_empty queries, "a unique index on the identity column already proves this"
   end
 
-  test "without an index the boot check probes for one duplicate, not all of them" do
+  test "without an index the boot check runs one grouping query, not one per column" do
     CurrentScope.config.subject_class = "IdentityUser"
     IdentityUser.create!(name: "Probe Ada", email: "probe-#{SecureRandom.hex(4)}@example.com")
-    CurrentScope.config.subject_identity = :email
+    CurrentScope.config.subject_identity = [ :name, :email ]
 
     queries = grouping_queries { assert_nothing_raised { CurrentScope.config.validate! } }
 
-    assert_equal 1, queries.size, "one probe, not a scan per column"
-    assert_match(/LIMIT/i, queries.first, "the probe must stop at the first duplicate")
+    assert_equal 1, queries.size, "one grouping query for the whole composite"
+  end
+
+  # SQL TRIM() removes spaces and nothing else; Ruby's String#strip also
+  # removes tabs and newlines. Ruby therefore has the final say, or boot would
+  # refuse to start over a duplicate that resolve treats as no key at all.
+  test "tab-only and newline-only values are not a collision on any adapter" do
+    CurrentScope.config.subject_class = "IdentityUser"
+    IdentityUser.create!(name: "Tab One", email: "\t")
+    IdentityUser.create!(name: "Tab Two", email: "\t")
+    IdentityUser.create!(name: "Newline One", email: "\n")
+    IdentityUser.create!(name: "Newline Two", email: "\n")
+    CurrentScope.config.subject_identity = :email
+
+    assert_nothing_raised { CurrentScope.config.validate! }
+    assert_empty CurrentScope.config.subject_identity_resolver.colliding_keys
+    assert_nil CurrentScope.resolve_subject("\t")
+  end
+
+  test "a real duplicate is still found when blank rows share the table" do
+    CurrentScope.config.subject_class = "IdentityUser"
+    IdentityUser.create!(name: "Blank", email: "\t")
+    IdentityUser.create!(name: "Blank Too", email: "\t")
+    shared = "real-dupe-#{SecureRandom.hex(4)}@example.com"
+    IdentityUser.create!(name: "Real One", email: shared)
+    IdentityUser.create!(name: "Real Two", email: shared)
+    CurrentScope.config.subject_identity = :email
+
+    error = assert_raises(CurrentScope::ConfigurationError) { CurrentScope.config.validate! }
+    assert_match "not unique", error.message
+    assert_match shared, error.message
   end
 end

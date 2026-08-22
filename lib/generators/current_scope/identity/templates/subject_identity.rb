@@ -32,14 +32,17 @@ class CurrentScopeSubjectIdentity
     end
   end
 
-  # TRIM so this agrees with resolve about what a blank email is. resolve
-  # returns nil for key.blank?, which is true of "  " — so two users whose
-  # emails are both whitespace are not a collision, because neither of them
-  # can ever be resolved. Comparing against '' alone would call them one.
+  # The blank test is Ruby's, not SQL's, so it agrees with resolve exactly.
+  # resolve returns nil for key.blank?, so two users whose emails are both
+  # whitespace are not a collision — neither can ever be resolved. Doing it
+  # in SQL would not match: TRIM() removes spaces only, while blank? also
+  # covers tabs and newlines, and the answer would differ per adapter.
+  # No table prefix either, so this keeps working if User maps to a table
+  # that is not named "users".
   def unique?
-    !User.where.not(email: nil)
-         .where("TRIM(users.email) <> ''")
-         .group(:email).having("COUNT(*) > 1").exists?
+    User.where.not(email: nil)
+        .group(:email).having("COUNT(*) > 1")
+        .pluck(:email).none?(&:present?)
   end
 
   def create_placeholder!(key)

@@ -22,7 +22,7 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
     CurrentScope.rebuild_polymorphic_registry!
     CurrentScope.polymorphic_registry.dup.tap do |map|
       map["User"] = TokenDocument
-      CurrentScope.instance_variable_set(:@polymorphic_registry, map.freeze)
+      CurrentScope::PolymorphicRegistry.instance_variable_set(:@polymorphic_registry, map.freeze)
     end
 
     error = assert_raises(CurrentScope::ConfigurationError) do

@@ -219,8 +219,22 @@ module CurrentScope
       # spelling every entry twice in both lists.
       tasks = Rake.application.top_level_tasks.map { |task| task.delete_prefix("app:") }
       return false if tasks.any? { |task| task.start_with?(*BOOT_REFUSED_TASKS) }
+      return false if tasks.empty?
 
-      tasks.any? do |task|
+      # EVERY task, not any task. Rake takes a LIST — `bin/rails db:migrate
+      # db:import_users` is one invocation, one boot, two tasks — so asking
+      # "is one of these exempt?" let a single exempt name carry every task
+      # beside it past the #151 guard. `current_scope:identity:check` is
+      # read-only and exempt; `current_scope:identity:setup` writes grants and
+      # is deliberately not. Chained, `any?` exempted the writer through its
+      # own sibling, which is precisely the hole listing them separately was
+      # meant to close. It also defeated the exact-name rule two lists up: the
+      # host task `db:import_users` is refused alone and was exempted when run
+      # after `db:migrate`.
+      #
+      # An exemption is a claim about what the whole command does. One
+      # non-exempt task makes the command non-exempt.
+      tasks.all? do |task|
         BOOT_EXEMPT_TASKS.include?(task) || task.start_with?(*BOOT_EXEMPT_NAMESPACES)
       end
     rescue StandardError

@@ -15,8 +15,19 @@
 # ("current_scope_placeholder") so you can find and delete them.
 # Production never creates one.
 class CurrentScopeSubjectIdentity
+  # Raise rather than return a blank key. resolve treats a blank key as no key
+  # at all and returns nil, so a blank email here would mint an identity that
+  # can never find this subject again — and an export would carry it forward
+  # silently. This mirrors what the built-in column identities do.
   def identify(subject)
-    subject.email
+    email = subject.email
+    if CurrentScope::SubjectIdentity.blank_value?(email)
+      raise CurrentScope::ConfigurationError,
+            "#{subject.class}##{subject.id} has a blank email, which is its " \
+            "portable identity. Fill it, or identify by a column that is always present."
+    end
+
+    email
   end
 
   def resolve(key)

@@ -61,18 +61,37 @@ class IdentityTaskTest < ActiveSupport::TestCase
   end
 
   test "dry-run PLACEHOLDER without a factory does not pretend it can create" do
+    CurrentScope.config.subject_identity = :name
     before = User.count
     error = assert_raises(CurrentScope::IdentitySetup::Halt) do
-      run_setup(
-        "IDENTITY" => "name",
-        "SUBJECT" => "ghost-dry",
-        "PLACEHOLDER" => "1"
-      )
+      run_setup("SUBJECT" => "ghost-dry", "PLACEHOLDER" => "1")
     end
 
     assert_equal before, User.count
     assert_match "no factory", error.message
     assert_match MARK, error.message
+  end
+
+  # The generator used to print IDENTITY=email beside PLACEHOLDER=1, which
+  # cannot work: IDENTITY= replaces config.subject_identity for the run, so it
+  # replaces the very object holding create_placeholder!. Saying only "has no
+  # factory" sent the host looking for a factory they had already written.
+  test "PLACEHOLDER with IDENTITY= names the override as the reason" do
+    factory = Object.new
+    factory.define_singleton_method(:identify) { |subject| subject.name }
+    factory.define_singleton_method(:resolve) { |key| User.find_by(name: key) }
+    factory.define_singleton_method(:unique?) { true }
+    factory.define_singleton_method(:create_placeholder!) { |key| User.create!(name: key) }
+    CurrentScope.config.subject_identity = factory
+    before = User.count
+
+    error = assert_raises(CurrentScope::IdentitySetup::Halt) do
+      run_setup("IDENTITY" => "name", "SUBJECT" => "ghost-override", "PLACEHOLDER" => "1")
+    end
+
+    assert_equal before, User.count
+    assert_match "IDENTITY=:name replaced config.subject_identity", error.message
+    assert_match "Drop IDENTITY=", error.message
   end
 
   test "dry-run PLACEHOLDER with a factory writes nothing" do
@@ -268,6 +287,46 @@ class IdentityTaskTest < ActiveSupport::TestCase
     assert_match "blank part", error.message
   ensure
     CurrentScope.config.subject_class = "User"
+  end
+
+  def load_rake_tasks
+    Rake::Task.clear
+    load Rails.root.join("../../lib/tasks/current_scope_tasks.rake").expand_path
+    Rake::Task.define_task(:environment)
+  end
+
+  # identity:setup was driven through Rake; identity:check never was, so its own
+  # branching, its sample formatting, and the identity it names were untested.
+  test "the check task names the audited identity and succeeds when unique" do
+    User.create!(name: "check-unique-#{SecureRandom.hex(4)}")
+    load_rake_tasks
+    ENV["IDENTITY"] = "name"
+    Rake::Task["current_scope:identity:check"].reenable
+
+    out, = capture_io { Rake::Task["current_scope:identity:check"].invoke }
+
+    assert_match ":name", out, "the operator must see WHICH identity earned the answer"
+    assert_match "is unique", out
+  ensure
+    Rake::Task.clear
+  end
+
+  test "the check task exits non-zero and names the colliding keys" do
+    User.create!(name: "check-collide-ada")
+    User.create!(name: "check-collide-ada")
+    load_rake_tasks
+    ENV["IDENTITY"] = "name"
+    Rake::Task["current_scope:identity:check"].reenable
+
+    error = assert_raises(SystemExit) do
+      capture_io { Rake::Task["current_scope:identity:check"].invoke }
+    end
+
+    assert_match "check-collide-ada", error.message
+    assert_match ":name", error.message
+    assert_match "not unique", error.message
+  ensure
+    Rake::Task.clear
   end
 
   test "the rake task dry-run writes nothing" do

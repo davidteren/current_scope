@@ -22,10 +22,16 @@ module CurrentScope
             3. Check uniqueness:
                  bin/rails current_scope:identity:check
             4. Dry-run a grant, then write:
-                 bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com
-                 bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com WRITE=1
+                 bin/rails current_scope:identity:setup SUBJECT=you@example.com
+                 bin/rails current_scope:identity:setup SUBJECT=you@example.com WRITE=1
+               SUBJECT is whatever your identify returns.
                PLACEHOLDER=1 WRITE=1 creates a marked stand-in outside production only.
                Never invent a production subject.
+
+               Do NOT add IDENTITY= to those commands. IDENTITY= replaces
+               config.subject_identity for one run, so it replaces THIS object
+               too — and a plain column has no create_placeholder!, so the
+               placeholder step would stop with "PLACEHOLDER=1 has no factory".
 
         NEXT
       end

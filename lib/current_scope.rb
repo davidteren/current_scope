@@ -84,8 +84,22 @@ module  CurrentScope
     end
 
     # Portable identity of a subject (#158). Default is the primary key.
+    #
+    # Refuses a record that is not config.subject_class, because the inverse is
+    # not symmetric: resolve_subject only ever returns a subject_class row. A
+    # key minted from another model with the same column value would therefore
+    # resolve to a DIFFERENT record in the next environment — silently, and
+    # holding whatever grants that record holds.
     def identify_subject(subject)
       return if subject.nil?
+
+      klass = config.resolved_subject_class
+      if klass && !subject.is_a?(klass)
+        raise ConfigurationError,
+              "#{subject.class} is not config.subject_class (#{klass}), so it has " \
+              "no portable identity. resolve_subject only ever returns a #{klass}, " \
+              "so this key would resolve to a different record."
+      end
 
       config.subject_identity_resolver.identify(subject)
     end

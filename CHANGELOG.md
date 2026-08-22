@@ -53,6 +53,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pilots.
 
 ### Fixed
+- **A chained rake command no longer carries a non-exempt task past the #151
+  boot guard.** `SchemaGuard.running_a_database_task?` asked whether ANY task on
+  the command line was allowed to boot without the repaired grant-column shape.
+  Rake takes a list, so one exempt name exempted everything beside it:
+  `bin/rails current_scope:identity:check current_scope:identity:setup WRITE=1`
+  booted through and wrote grants on the vulnerable columns, and
+  `bin/rails db:migrate db:import_users` let a host's own task inherit the
+  exemption the file's exact-name rule exists to deny it. The allow list is now
+  unanimous — every task in the invocation must be exempt, or none of them is.
+  The refusal list is unchanged: one refused task still vetoes the whole
+  command. This is defence in depth rather than a remote exposure (it needs an
+  operator to chain the tasks deliberately at a shell), so no advisory is
+  issued, but it is the guard the #151 fix depends on.
+- **`CurrentScope.identify_subject` refuses a record that is not
+  `config.subject_class`.** `resolve_subject` only ever returns that class, so a
+  key minted from another model with the same column value resolved to a
+  different record in the next environment, silently, holding whatever grants
+  that record held.
 - **Custom `polymorphic_name` tokens now match on the list and the members page (#155).** Collection, ancestor, and record-less write lookups use the stored token (`polymorphic_name`), not `base_class.name`. Reverse lookup uses a closed registry (Rails first, then auto-detected overrides plus optional `config.polymorphic_class_names`). Two classes that claim the same token raise at rebuild, including a shortened name that matches another loaded class. Config may only name a class that actually stores that token. An unmapped token stays inert.
 - **The public resolver picture now matches the six-step order the engine already runs.** README, the docs-site include, and the landing-page steps named a five-step order that skipped the record-less listed-read arm. The Limitations table also still said parent hierarchy was deferred after `current_scope_parent` shipped.
 

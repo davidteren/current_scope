@@ -25,7 +25,23 @@ Identity is load-bearing: duplicate natural keys raise `ConfigurationError`
 at boot (skipped during `db:` tasks, and skipped for the default primary
 key). `resolve` returns nil when missing and never inserts. A blank identity
 column raises too: `identify` refuses to mint a key that `resolve` could
-never find. For a Symbol or Array identity, put a plain unique index on exactly those
+never find. `CurrentScope.identify_subject(subject)` and `CurrentScope.resolve_subject(key)`
+are the public entry points for the key itself: `identify_subject` returns the
+portable key for a record, `resolve_subject` returns the record for a key in
+this environment, or nil. `identify_subject` refuses a record that is not
+`config.subject_class`, because `resolve_subject` only ever returns one of
+those, so a key minted from another model would resolve to a different record.
+
+**Duplicate detection follows your database's collation**, because it compares
+your own identity columns. MySQL's default collation is case-insensitive, so
+`Ada@example.com` and `ada@example.com` count as one duplicate key there and as
+two distinct keys on PostgreSQL and SQLite. Each database stays self-consistent
+(`resolve` matches under the same rules), but a host that tests on SQLite and
+deploys on MySQL can meet a boot refusal that CI never showed. Run
+`current_scope:identity:check` against a copy of production data, or use a
+case-insensitive unique index, if that difference matters to you.
+
+For a Symbol or Array identity, put a plain unique index on exactly those
 columns and the boot check answers from the index, without scanning the
 subject table.
 Without one it is a grouping query over the subject table. An identity

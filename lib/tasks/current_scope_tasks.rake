@@ -60,21 +60,25 @@ namespace :current_scope do
       # Read-only, and deliberately silent: IdentitySetup#unique? / #collisions
       # never prompt, so this task is safe in CI, in cron, and in a deploy hook.
       setup = CurrentScope::IdentitySetup.new
+      audited = setup.identity.inspect
       if setup.unique?
-        puts "Subject identity is unique (or is the default primary key)."
+        puts "Subject identity #{audited} is unique (or is the default primary key)."
       else
         keys = setup.collisions
         if keys.any?
           sample = keys.first(10).map(&:inspect).join(", ")
-          abort "Subject identity is not unique (#{keys.size} colliding key(s): #{sample})."
+          abort "Subject identity #{audited} is not unique (#{keys.size} colliding key(s): #{sample})."
         end
         # A host resolver said "not unique" and cannot name a duplicate. Say
         # exactly that, rather than printing a made-up key that looks real.
-        abort "Subject identity is not unique. The configured resolver reports a " \
-              "duplicate but does not list the colliding keys — inspect it, or " \
-              "switch to a column identity, which does list them."
+        abort "Subject identity #{audited} is not unique. The configured resolver " \
+              "reports a duplicate but does not list the colliding keys — inspect " \
+              "it, or switch to a column identity, which does list them."
       end
-    rescue CurrentScope::ConfigurationError => e
+    # StatementInvalid too: a subject_class whose table is missing reaches the
+    # scan and raises from the adapter, and a diagnostic should not answer that
+    # with a backtrace.
+    rescue CurrentScope::ConfigurationError, ActiveRecord::StatementInvalid => e
       abort e.message
     end
 
@@ -89,7 +93,14 @@ namespace :current_scope do
     # assert_columns!) or a SUBJECT that matches two rows raises
     # ConfigurationError, and printing a stack trace for a typo tells the
     # operator that the gem broke rather than that their input was wrong.
-    rescue CurrentScope::IdentitySetup::Halt, CurrentScope::ConfigurationError => e
+    #
+    # RecordInvalid and RecordNotUnique because the WRITE path runs HOST code:
+    # a placeholder factory calls create! on the host's own model, which has
+    # validations this engine knows nothing about, and Role.find_or_create_by!
+    # can lose a race. Those are the operator's problem to fix and deserve the
+    # message, not a backtrace. The transaction has already rolled back.
+    rescue CurrentScope::IdentitySetup::Halt, CurrentScope::ConfigurationError,
+           ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => e
       abort e.message
     end
   end

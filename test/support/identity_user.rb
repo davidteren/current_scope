@@ -11,8 +11,8 @@ ActiveRecord::Base.connection.create_table(IdentityUser.table_name, force: true)
   t.string :name
   t.string :email
   # A column the host has already unique-indexed, so the #158 boot check can
-  # prove uniqueness from the index and run no scan at all. :email carries no
-  # index and takes the LIMIT 1 duplicate probe instead.
+  # prove uniqueness from the index and never scan the table. :email carries no
+  # index and takes the full GROUP BY duplicate scan instead (see #171).
   t.string :token, index: { unique: true }
 end
 

@@ -61,6 +61,14 @@ module CurrentScope
       resolver.primary_key? || resolver.unique?
     end
 
+    # What was actually audited. IDENTITY= overrides config.subject_identity for
+    # one run, so "unique" on its own does not tell the operator which identity
+    # earned that answer.
+    def identity
+      compile_identity_override!(prompt: false)
+      declared_identity
+    end
+
     private
 
     def compile_identity_override!(prompt: true)
@@ -247,6 +255,16 @@ module CurrentScope
 
     def require_placeholder_factory!
       return if placeholder_factory
+
+      # Naming the override matters: the host may have a working factory on
+      # config.subject_identity and be told it has none, because IDENTITY=
+      # replaced that object with a plain column for this run.
+      if @override_identity
+        fail! "PLACEHOLDER=1 has no factory: IDENTITY=#{@override_identity.inspect} " \
+              "replaced config.subject_identity for this run, and a column identity " \
+              "has no create_placeholder!. Drop IDENTITY= to use the configured " \
+              "identity object and its factory."
+      end
 
       fail! "PLACEHOLDER=1 has no factory. Generate `bin/rails generate " \
             "current_scope:identity` and implement create_placeholder!(key) " \

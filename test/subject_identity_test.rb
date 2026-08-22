@@ -291,6 +291,33 @@ class SubjectIdentityTest < ActiveSupport::TestCase
     assert_nil CurrentScope.resolve_subject("\t")
   end
 
+  # identify mints a key; resolve only ever returns a subject_class row. Minting
+  # from another model would hand the next environment a key that resolves to a
+  # different record holding different grants.
+  test "identify_subject refuses a record that is not the configured subject_class" do
+    CurrentScope.config.subject_class = "User"
+    CurrentScope.config.subject_identity = :name
+    other = IdentityUser.create!(name: "twin-#{SecureRandom.hex(4)}", email: "twin@example.com")
+
+    error = assert_raises(CurrentScope::ConfigurationError) { CurrentScope.identify_subject(other) }
+    assert_match "IdentityUser", error.message
+    assert_match "User", error.message
+  end
+
+  # Every other test sets subject_class before subject_identity, so the identity
+  # setter's own reset masked whether this one does anything at all.
+  test "reassigning subject_class drops the resolver bound to the old class" do
+    CurrentScope.config.subject_class = "User"
+    CurrentScope.config.subject_identity = :name
+    User.create!(name: "rebind-ada")
+    assert_equal "User", CurrentScope.config.subject_identity_resolver.resolve("rebind-ada").class.name
+
+    CurrentScope.config.subject_class = "IdentityUser"
+    IdentityUser.create!(name: "rebind-ada", email: "rebind@example.com")
+
+    assert_equal "IdentityUser", CurrentScope.config.subject_identity_resolver.resolve("rebind-ada").class.name
+  end
+
   # The resolver is memoised on Configuration and lives as long as the process,
   # so caching a scan on it made identity:check answer from boot's snapshot
   # instead of from the table it was asked to audit.

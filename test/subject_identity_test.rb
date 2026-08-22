@@ -37,6 +37,32 @@ class SubjectIdentityTest < ActiveSupport::TestCase
     assert_match "one value", error.message
   end
 
+  # ColumnResolver accepts [ "ada" ] through Array(key); PrimaryKeyResolver
+  # raised on [ 5 ]. Two sibling resolvers answering the same shape differently
+  # is the surprise — a genuine two-value key still raises, above.
+  test "primary-key resolve accepts a one-element array like its sibling does" do
+    user = User.create!(name: "one-element-ada")
+
+    assert_equal user, CurrentScope.resolve_subject([ user.id ])
+  end
+
+  # identify_subject refuses a foreign class; resolve must hold the same line,
+  # or the invariant only covers the outbound direction.
+  test "resolve_subject refuses a host resolver that returns a foreign class" do
+    other = IdentityUser.create!(name: "foreign", email: "foreign@example.com")
+    resolver = Object.new
+    resolver.define_singleton_method(:identify) { |subject| subject.name }
+    resolver.define_singleton_method(:resolve) { |_key| other }
+    CurrentScope.config.subject_class = "User"
+    CurrentScope.config.subject_identity = resolver
+
+    error = assert_raises(CurrentScope::ConfigurationError) do
+      CurrentScope.resolve_subject("anything")
+    end
+    assert_match "IdentityUser", error.message
+    assert_match "User", error.message
+  end
+
   test "a PK-only install still grants by id" do
     user = User.create!(name: "Owner candidate")
     CurrentScope.grant!(user)

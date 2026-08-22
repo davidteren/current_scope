@@ -69,6 +69,17 @@ module CurrentScope
       declared_identity
     end
 
+    # False when nothing was actually asked. A host identity object that does
+    # not implement unique? makes HostResolver#unique? return true by default —
+    # a reasonable default for BOOT, which must not invent a join scan, and a
+    # lie for the diagnostic whose entire job is to answer this question.
+    def checkable?
+      compile_identity_override!(prompt: false)
+      return true unless resolver.respond_to?(:unique_checkable?)
+
+      resolver.unique_checkable?
+    end
+
     private
 
     def compile_identity_override!(prompt: true)
@@ -147,7 +158,7 @@ module CurrentScope
     # joins the outer transaction and reads as protection that is not there.
     # A fail! here still rolls the placeholder back, through the outer one.
     def materialize_placeholder(key)
-      created = placeholder_factory.call(key)
+      created = declared_identity.create_placeholder!(key)
       klass = CurrentScope.config.resolved_subject_class
       unless klass && created.is_a?(klass)
         fail! "placeholder factory returned #{created.class}, expected #{klass}."
@@ -207,8 +218,10 @@ module CurrentScope
         "e.g. SUBJECT='[Ada, ada@example.com]'."
     end
 
+    def role_name = @env["ROLE"].presence || "Owner"
+
     def prepare_role(persist:)
-      name = @env["ROLE"].presence || "Owner"
+      name = role_name
       if persist
         if name == "Owner"
           CurrentScope.seed_defaults!
@@ -230,6 +243,14 @@ module CurrentScope
            "replacing it with #{role.name}."
     end
 
+    # "Plan:", not "Would grant" — this printed the hypothetical tense on the
+    # WRITE=1 path too, one line before "Granted ...". A plan is a plan in both
+    # modes; whether it is about to happen is what the last line says.
+    #
+    # The role line also used to hide a write: WRITE=1 creates the Role row when
+    # it does not exist, and with ROLE unset it seeds the default Owner and
+    # Member roles. The subject line said "(would create placeholder)"; the role
+    # line said nothing at all.
     def print_plan(subject, role)
       access = role.full_access? ? "yes" : "no"
       say "Identity: #{declared_identity.inspect}"
@@ -238,10 +259,14 @@ module CurrentScope
       else
         say "Subject: #{portable_key.inspect} → (would create placeholder)"
       end
-      say "Role: #{role.name} (full_access: #{access})"
-      say "Would grant #{role.name} to #{portable_key.inspect}."
+      say "Role: #{role.name} (full_access: #{access})#{role.persisted? ? '' : ' (would create)'}"
+      say "Also seeds the default Owner and Member roles." if seeds_defaults?
+      say "Plan: grant #{role.name} to #{portable_key.inspect}."
       say "Dry-run only. Re-run with WRITE=1 to grant." unless write?
     end
+
+    # grant! seeds Owner and Member on the default path only.
+    def seeds_defaults? = role_name == "Owner"
 
     def write? = @env["WRITE"] == "1"
 
@@ -254,7 +279,7 @@ module CurrentScope
     end
 
     def require_placeholder_factory!
-      return if placeholder_factory
+      return if placeholder_factory?
 
       # Naming the override matters: the host may have a working factory on
       # config.subject_identity and be told it has none, because IDENTITY=
@@ -271,12 +296,7 @@ module CurrentScope
             "on that object, stamped with #{SubjectIdentity::PLACEHOLDER_MARK.inspect}."
     end
 
-    def placeholder_factory
-      raw = declared_identity
-      return ->(key) { raw.create_placeholder!(key) } if raw.respond_to?(:create_placeholder!)
-
-      nil
-    end
+    def placeholder_factory? = declared_identity.respond_to?(:create_placeholder!)
 
     def interactive? = @stdin.respond_to?(:tty?) && @stdin.tty?
 

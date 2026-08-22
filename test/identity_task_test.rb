@@ -36,8 +36,11 @@ class IdentityTaskTest < ActiveSupport::TestCase
     assert_no_difference -> { CurrentScope::RoleAssignment.count } do
       out = run_setup("IDENTITY" => "name", "SUBJECT" => "dry-run-ada")
       assert_match "dry-run-ada", out
-      assert_match "Would grant Owner", out
+      assert_match "Plan: grant Owner", out
       assert_match "WRITE=1", out
+      # A dry-run must name every write it is planning, not just the grant.
+      assert_match "(would create)", out, "the Role row WRITE=1 creates"
+      assert_match "seeds the default Owner and Member roles", out
     end
 
     assert_nil CurrentScope::RoleAssignment.find_by(subject: user)
@@ -53,7 +56,9 @@ class IdentityTaskTest < ActiveSupport::TestCase
         "SUBJECT" => "dry-role-ada",
         "ROLE" => "DryAdmin"
       )
-      assert_match "Would grant DryAdmin", out
+      assert_match "Plan: grant DryAdmin", out
+      assert_match "(would create)", out
+      assert_no_match(/seeds the default/, out, "a named role does not seed the defaults")
     end
 
     assert_not CurrentScope::Role.exists?(name: "DryAdmin")
@@ -143,6 +148,9 @@ class IdentityTaskTest < ActiveSupport::TestCase
     assert_equal "Owner", assignment.role.name
     assert assignment.role.full_access?
     assert_match "Granted Owner", out
+    # The plan printed the hypothetical "Would grant" one line before the real
+    # "Granted", at the moment of an irreversible write.
+    assert_no_match(/Would grant/, out)
 
     event = CurrentScope::Event.where(event: "org_role.assigned").order(:id).last
     assert_equal "bootstrap", event.details["source"]
@@ -218,6 +226,30 @@ class IdentityTaskTest < ActiveSupport::TestCase
     assert setup.unique?
     assert_empty setup.collisions
     assert_equal "", @stdout.string
+  end
+
+  # HostResolver#unique? defaults to true when the host object does not
+  # implement unique? — right for boot, which must not invent a join scan, and
+  # a lie for the diagnostic whose whole job is to answer that question.
+  test "the check task does not claim unique for an object it never asked" do
+    resolver = Object.new
+    resolver.define_singleton_method(:identify) { |subject| subject.name }
+    resolver.define_singleton_method(:resolve) { |key| User.find_by(name: key) }
+    CurrentScope.config.subject_identity = resolver
+    setup = CurrentScope::IdentitySetup.new(env: {}, stdout: @stdout, stdin: StringIO.new)
+
+    assert_not setup.checkable?
+    assert setup.unique?, "boot still gets its permissive default"
+
+    load_rake_tasks
+    Rake::Task["current_scope:identity:check"].reenable
+    out, = capture_io { Rake::Task["current_scope:identity:check"].invoke }
+
+    assert_match "was NOT checked", out
+    assert_match "does not implement unique?", out
+    assert_no_match(/is unique/, out)
+  ensure
+    Rake::Task.clear
   end
 
   # A host resolver may know it has a duplicate and be unable to name one.

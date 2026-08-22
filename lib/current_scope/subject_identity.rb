@@ -61,9 +61,7 @@ module CurrentScope
       value.nil? || value.to_s.strip.empty?
     end
 
-    def self.production?
-      defined?(Rails) && Rails.respond_to?(:env) && Rails.env.production?
-    end
+    def self.production? = CurrentScope.production?
 
     def self.column_or_primary(klass, columns)
       if columns.size == 1 && klass && columns.first.to_s == klass.primary_key.to_s
@@ -95,7 +93,12 @@ module CurrentScope
 
       def resolve(key)
         require_klass!
-        return if key.blank?
+        # A one-element Array is the same key, and ColumnResolver already
+        # accepts it through Array(key). Two sibling resolvers answering
+        # differently to [5] is the surprise; a genuine shape error (two values
+        # for a one-value identity) still raises.
+        key = key.first if key.is_a?(Array) && key.one?
+        return if SubjectIdentity.blank_value?(key)
         if key.is_a?(Array)
           raise ConfigurationError,
                 "primary-key identity expects one value, got #{key.inspect}."
@@ -146,7 +149,7 @@ module CurrentScope
                 "column, or pick identity columns that are always present."
         end
 
-        values = raw.map { |value| stringify(value) }
+        values = raw.map(&:to_s)
         @columns.one? ? values.first : values.freeze
       end
 
@@ -212,11 +215,7 @@ module CurrentScope
         end
         return if values.any? { |value| SubjectIdentity.blank_value?(value) }
 
-        @columns.zip(values.map { |value| stringify(value) }).to_h
-      end
-
-      def stringify(value)
-        value.nil? ? "" : value.to_s
+        @columns.zip(values.map(&:to_s)).to_h
       end
 
       def assert_columns!
@@ -296,6 +295,10 @@ module CurrentScope
         @object.unique?
       end
 
+      # Public so the diagnostic can tell "checked and unique" from "never
+      # checked". identity:check exists to answer the uniqueness question, and
+      # printing "is unique" for an object that was never asked is the one
+      # answer it must not give.
       def unique_checkable? = @object.respond_to?(:unique?)
 
       def colliding_keys = []

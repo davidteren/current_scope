@@ -61,7 +61,12 @@ namespace :current_scope do
       # never prompt, so this task is safe in CI, in cron, and in a deploy hook.
       setup = CurrentScope::IdentitySetup.new
       audited = setup.identity.inspect
-      if setup.unique?
+      if !setup.checkable?
+        # Exit 0: nothing is wrong, but do not claim an answer nobody gave.
+        puts "Subject identity #{audited} was NOT checked: that identity object " \
+             "does not implement unique?. Implement it, or switch to a column " \
+             "identity, if you want this task to answer the question."
+      elsif setup.unique?
         puts "Subject identity #{audited} is unique (or is the default primary key)."
       else
         keys = setup.collisions

@@ -729,9 +729,6 @@ module CurrentScope
       defined?(Rails) && Rails.respond_to?(:env) && Rails.env.local?
     end
 
-    # One definition, in SubjectIdentity. This used to be a byte-for-byte copy,
-    # and the two govern the same kind of refusal (PLACEHOLDER=1 there, mutation
-    # opt-in here) — a pair that must never drift apart.
-    def production? = SubjectIdentity.production?
+    def production? = CurrentScope.production?
   end
 end

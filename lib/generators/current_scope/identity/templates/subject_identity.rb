@@ -43,22 +43,10 @@ class CurrentScopeSubjectIdentity
     end
   end
 
-  # THIS RUNS ON EVERY BOOT, and it is yours to make cheap. CurrentScope
-  # cannot do it for you: the engine short-circuits its own Symbol / Array
-  # identities when a plain unique index covers exactly those columns, but an
-  # identity OBJECT is host code, so boot pays whatever this method costs.
-  #
-  # If a unique index already proves this, say so and return before querying:
-  #
-  #   def unique?
-  #     return true if User.connection.indexes(User.table_name)
-  #                        .any? { |i| i.unique && i.where.nil? && i.columns == [ "email" ] }
-  #     ...
-  #   end
-  #
-  # For a key split across tables, where no single index proves it, keep the
-  # query and run bin/rails current_scope:identity:check in CI instead of
-  # relying on the boot check to be fast.
+  # Runs on every boot, and the cost is yours: the engine short-circuits its
+  # own Symbol / Array identities from a unique index, but this is host code.
+  # The first line does that here — delete it if no single index proves your
+  # key (a key split across tables), and lean on identity:check in CI instead.
   #
   # The blank test is Ruby's, not SQL's, so it agrees with resolve exactly.
   # resolve returns nil for key.blank?, so two users whose emails are both
@@ -68,6 +56,9 @@ class CurrentScopeSubjectIdentity
   # No table prefix either, so this keeps working if User maps to a table
   # that is not named "users".
   def unique?
+    return true if User.connection.indexes(User.table_name)
+                       .any? { |i| i.unique && i.where.nil? && i.columns == [ "email" ] }
+
     User.where.not(email: nil)
         .group(:email).having("COUNT(*) > 1")
         .pluck(:email).none?(&:present?)

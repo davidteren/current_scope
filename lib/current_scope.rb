@@ -83,6 +83,14 @@ module  CurrentScope
       yield config
     end
 
+    # One definition, on the facade, exactly as mysql? is. Two unrelated callers
+    # ask it — the PLACEHOLDER=1 refusal in IdentitySetup and the impersonation
+    # mutation opt-in in Configuration — and neither should reach into an
+    # identity file for a basic environment check.
+    def production?
+      defined?(Rails) && Rails.respond_to?(:env) && Rails.env.production?
+    end
+
     # Portable identity of a subject (#158). Default is the primary key.
     #
     # Refuses a record that is not config.subject_class, because the inverse is
@@ -106,8 +114,24 @@ module  CurrentScope
 
     # Inverse of identify_subject. Returns the subject in this environment, or
     # nil when missing. Never inserts. Sugar resolvers raise if two rows match.
+    #
+    # Holds the SAME class invariant identify_subject enforces. The sugar
+    # resolvers query subject_class and cannot break it, but a host object's
+    # resolve is host code, and a guard that covers only the outbound direction
+    # is not an invariant.
     def resolve_subject(key)
-      config.subject_identity_resolver.resolve(key)
+      found = config.subject_identity_resolver.resolve(key)
+      return found if found.nil?
+
+      klass = config.resolved_subject_class
+      if klass && !found.is_a?(klass)
+        raise ConfigurationError,
+              "config.subject_identity resolved #{key.inspect} to a #{found.class}, " \
+              "but config.subject_class is #{klass}. A grant can only be held by a " \
+              "#{klass}."
+      end
+
+      found
     end
 
     def resolver

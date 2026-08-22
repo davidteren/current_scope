@@ -99,12 +99,21 @@ keys raise, and resolve never inserts a subject.
    A collision raises ConfigurationError at BOOT, and identity:setup stops
    before it writes. Do not first-row-win.
 3. Dry-run a grant (writes nothing):
-   bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com
+   bin/rails current_scope:identity:setup SUBJECT=you@example.com
+   SUBJECT is whatever your identify returns. For a composite it is a YAML
+   sequence: SUBJECT='[Ada, you@example.com]'.
    ROLE= defaults to Owner (full_access). Admin, if you create it, is not
    full_access unless you set that yourself.
+   IDENTITY=email is an OVERRIDE for one run, for the case where
+   config.subject_identity is not written yet. Do not add it once step 1
+   is in the initializer: it replaces the configured identity, so under a
+   composite or an object identity it audits and grants by the wrong key,
+   and it removes the create_placeholder! factory step 5 needs.
 4. Write only after the dry-run looks right:
-   bin/rails current_scope:identity:setup IDENTITY=email SUBJECT=you@example.com WRITE=1
-   That calls CurrentScope.grant! (ledger source: bootstrap).
+   bin/rails current_scope:identity:setup SUBJECT=you@example.com WRITE=1
+   That calls CurrentScope.grant! (ledger source: bootstrap). WRITE=1 also
+   creates the Role row if it does not exist, and seeds the default Owner
+   and Member roles when ROLE is unset. The dry-run plan names both.
 5. Missing subject: never invent one in production. Outside production,
    PLACEHOLDER=1 needs a create_placeholder! factory on the identity
    object from `bin/rails generate current_scope:identity`. With one, a

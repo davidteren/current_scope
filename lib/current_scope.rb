@@ -330,11 +330,11 @@ module  CurrentScope
     # the request-path raise is only reachable in an eager-load-off environment.
     # Inert-labeling callers that must never 500 (current_scope_resolved_record,
     # preload_resolvable_resources!) rescue the stale-token errors, NOT this one.
-    def polymorphic_class(type, owner: ActiveRecord::Base)
+    def polymorphic_class(type)
       return if type.blank?
       raise @polymorphic_registry_error if @polymorphic_registry_error
 
-      resolve_polymorphic_token(type.to_s, owner: owner)
+      resolve_polymorphic_token(type.to_s)
     end
 
     # Rebuild the token → class map. Safe to call from to_prepare (dev reload)
@@ -393,9 +393,9 @@ module  CurrentScope
       @polymorphic_registry ||= {}
     end
 
-    def resolve_polymorphic_token(token, owner:)
+    def resolve_polymorphic_token(token)
       resolved = begin
-        owner.polymorphic_class_for(token)
+        ActiveRecord::Base.polymorphic_class_for(token)
       rescue NameError
         nil
       end

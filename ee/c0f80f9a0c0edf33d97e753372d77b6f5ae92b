@@ -1,0 +1,48 @@
+CHANGELOG.md
+  h_e8a5bb9272fa34 10-15
+README.md
+  h_e8a5bb9272fa34 199-202
+STATUS.md
+  h_e8a5bb9272fa34 5-10
+app/controllers/current_scope/roles_controller.rb
+  h_e8a5bb9272fa34 201,219
+app/models/current_scope/event.rb
+  h_e8a5bb9272fa34 26-28,47,61-62,74-75,120-132
+docs/guides/configuration-reference.md
+  h_e8a5bb9272fa34 17-21
+docs/guides/role-definitions.md
+  h_e8a5bb9272fa34 1-66
+docs/site/ai-agents.md
+  h_e8a5bb9272fa34 77-97
+docs/site/llms.txt
+  h_e8a5bb9272fa34 39
+lib/current_scope.rb
+  h_e8a5bb9272fa34 20-21,265-291
+lib/current_scope/definitions_document.rb
+  h_e8a5bb9272fa34 1-329
+lib/current_scope/full_access_lock.rb
+  h_e8a5bb9272fa34 1-48
+lib/tasks/current_scope_tasks.rake
+  h_e8a5bb9272fa34 511-594
+test/definitions_document_test.rb
+  h_e8a5bb9272fa34 1-158
+test/definitions_import_test.rb
+  h_e8a5bb9272fa34 1-235
+test/definitions_task_test.rb
+  h_e8a5bb9272fa34 1-96
+test/integration/audit_events_test.rb
+  h_e8a5bb9272fa34 302-315
+test/models/event_test.rb
+  h_e8a5bb9272fa34 168-179
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "eec0f80f9a0c0edf33d97e753372d77b6f5ae92b",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

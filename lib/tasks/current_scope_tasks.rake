@@ -1,3 +1,5 @@
+require "set"
+
 namespace :current_scope do
   desc "Apply the #151 grant-column shape to an existing database, idempotently. " \
        "Usage: bin/rails current_scope:repair_schema"
@@ -128,7 +130,7 @@ namespace :current_scope do
 
     begin
       rows = CurrentScope::Event.where(event: "access.would_deny")
-                                .pluck(:subject, :target_label, :details)
+                                .pluck(:subject, :target_label, :details, :target)
       # #73: SoD blind-spot 403s are NOT would_deny (granting won't fix them).
       # Surface them as a separate section so the survey is complete.
       blind_rows = CurrentScope::Event.where(event: "access.sod_blind_spot")
@@ -178,33 +180,45 @@ namespace :current_scope do
     outstanding = []
     resolved = []
     unknown = []
-    rows.group_by { |subject_gid, _label, details|
-      [ subject_gid, details.is_a?(Hash) ? details["permission"] : nil ]
-    }.each do |(subject_gid, permission), group|
+    # Keyed on the TARGET too, not just subject and permission: a denial the host
+    # will clear with a scoped grant on one record is a different question from
+    # the same permission on another record, and collapsing them would re-ask
+    # with record: nil and count a scoped grant as permanently outstanding.
+    rows.group_by { |subject_gid, _label, details, target_gid|
+      [ subject_gid, (details.is_a?(Hash) ? details["permission"] : nil), target_gid ]
+    }.each do |(subject_gid, permission, target_gid), group|
+      pair = [ subject_gid, permission, target_gid, group.count ]
       if permission.nil?
-        unknown << [ subject_gid, permission, group.count ]
+        unknown << pair
         next
       end
 
-      subject = begin
-        GlobalID::Locator.locate(subject_gid)
-      rescue StandardError
-        nil
+      locate = lambda do |gid|
+        gid.presence && begin
+          GlobalID::Locator.locate(gid)
+        rescue StandardError
+          nil
+        end
       end
-      if subject.nil?
-        unknown << [ subject_gid, permission, group.count ]
+
+      subject = locate.call(subject_gid)
+      # A recorded target that no longer resolves is NOT the same as no target:
+      # re-asking without it would answer a question the ledger never asked.
+      record = locate.call(target_gid)
+      if subject.nil? || (target_gid.present? && record.nil?)
+        unknown << pair
         next
       end
 
       still_denied = begin
-        !CurrentScope.resolver.allow?(subject: subject, permission: permission, record: nil)
+        !CurrentScope.resolver.allow?(subject: subject, permission: permission, record: record)
       rescue StandardError
         nil
       end
       case still_denied
-      when true then outstanding << [ subject_gid, permission, group.count ]
-      when false then resolved << [ subject_gid, permission, group.count ]
-      else unknown << [ subject_gid, permission, group.count ]
+      when true then outstanding << pair
+      when false then resolved << pair
+      else unknown << pair
       end
     end
 
@@ -279,8 +293,7 @@ namespace :current_scope do
       # headline and the list below can never disagree. outstanding carries a
       # per-pair count because the re-check is per pair.
       "would-be denials STILL ungranted (grant these)" =>
-        outstanding.sum { |_gid, _permission, count| count } +
-        unknown.sum { |_gid, _permission, count| count },
+        outstanding.sum { |pair| pair.last } + unknown.sum { |pair| pair.last },
       "scoped grants that can never match" => dead_grants.count,
       "scoped grants worth checking" => untargeted_grants.count,
       "SoD actions that will RAISE (500, not grantable)" => preflight_rows.count,
@@ -295,7 +308,7 @@ namespace :current_scope do
       puts "CurrentScope report — #{signals.count} category(ies) with something in them:"
       signals.each { |label, count| puts "  #{count.to_s.rjust(6)}  #{label}" }
     end
-    if outstanding.empty? && resolved.any?
+    if outstanding.empty? && unknown.empty? && resolved.any?
       puts
       puts "  Every would-be denial recorded so far is now granted " \
            "(#{resolved.count} subject/permission pair(s) re-checked against live grants)."
@@ -304,9 +317,9 @@ namespace :current_scope do
     end
     if unknown.any?
       puts
-      puts "  #{unknown.count} recorded denial(s) could not be re-checked (the subject or the"
-      puts "  permission no longer resolves). Treat these as OUTSTANDING: cannot tell is"
-      puts "  not the same as ready."
+      puts "  #{unknown.sum { |pair| pair.last }} recorded denial(s) could not be re-checked, because the"
+      puts "  subject, the record or the permission no longer resolves. They are counted"
+      puts "  as OUTSTANDING above: cannot tell is not the same as ready."
     end
     puts
     # The SoD clause only when the host opted into SoD. A project that never set
@@ -365,12 +378,10 @@ namespace :current_scope do
     # resolved row stays in the ledger forever and printing it here is what made
     # the old survey unreadable: a finished rollout showed a long list under a
     # count of zero.
-    actionable = outstanding.to_set { |subject_gid, permission, _count| [ subject_gid, permission ] }
-    unknown_pairs = unknown.to_set { |subject_gid, permission, _count| [ subject_gid, permission ] }
-    open_rows = rows.select do |subject_gid, _label, details|
+    open_keys = (outstanding + unknown).to_set { |gid, permission, target, _count| [ gid, permission, target ] }
+    open_rows = rows.select do |subject_gid, _label, details, target_gid|
       permission = details.is_a?(Hash) ? details["permission"] : nil
-      actionable.include?([ subject_gid, permission ]) ||
-        unknown_pairs.include?([ subject_gid, permission ])
+      open_keys.include?([ subject_gid, permission, target_gid ])
     end
 
     unless open_rows.empty?

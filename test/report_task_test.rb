@@ -85,6 +85,24 @@ class ReportTaskTest < ActiveSupport::TestCase
                     "an unresolvable subject must never read as a finished rollout")
   end
 
+  test "an unre-checkable denial suppresses the all-clear even when the rest are granted" do
+    alice = User.create!(name: "Alice")
+    ghost = User.create!(name: "Ghost")
+    would_deny(alice, "reports#index")
+    would_deny(ghost, "reports#index")
+    role = CurrentScope::Role.create!(name: "Reader")
+    role.permission_keys = [ "reports#index" ]
+    role.save!
+    CurrentScope::RoleAssignment.create!(subject: alice, role: role)
+    ghost.delete
+
+    output = run_task
+
+    assert_match(/could not be re-checked/, output)
+    assert_no_match(/this is what empty looks like/, output,
+                    "an un-re-checkable denial must never render as a finished rollout")
+  end
+
   test "counts each subject's would-be denials, most-denied first" do
     would_deny(@alice, "reports#index", count: 5)
     would_deny(@alice, "reports#show", count: 2)

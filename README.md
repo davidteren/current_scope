@@ -236,7 +236,7 @@ bin/rails current_scope:report
 ```
 
 ```
-Would-be denials — grant these to stop them (most-denied first):
+Would-be denials still outstanding — grant these to stop them (most-denied first):
 
   Ada Lovelace — currently Member
       412x  reports#index

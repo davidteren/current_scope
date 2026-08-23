@@ -1,0 +1,23 @@
+test/coverage_setup_test.rb
+  s_422b70b7944d1a::t_e1e624960f3bea 72-74
+docs/solutions/workflow-issues/simplecov-reports-a-number-that-is-quietly-wrong.md
+  s_422b70b7944d1a::t_6212ecd35961a0 1-304
+test/coverage_setup.rb
+  s_422b70b7944d1a::t_e1e624960f3bea 51-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "98e2523a0dbac26e85fe387c89338c9356f43d95",
+  "prompts": {},
+  "sessions": {
+    "s_422b70b7944d1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6f5af15e-cc5c-46e3-8026-7cb4d68251d1",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -49,7 +49,12 @@
       <%# A labeling lookup swallowed a registry ConfigurationError (#166). Rows on
           this page are inert because the registry cannot say which class a token
           names, which is a misconfiguration, not a deleted record. Say so here
-          rather than 500ing the page an operator opened to diagnose it. %>
+          rather than 500ing the page an operator opened to diagnose it.
+
+          ORDER MATTERS: the marker is set as a side effect of a lookup in the
+          VIEW, and Rails renders the view before the layout, so it is already set
+          by the time this line runs. Moving a labeling lookup into the layout
+          below this point would silently stop the banner appearing. %>
       <% if CurrentScope::Current.polymorphic_registry_error.present? %>
         <p class="cs-flash cs-flash--alert" role="alert" id="cs-registry-error">
           Registry misconfigured: <%= CurrentScope::Current.polymorphic_registry_error %>

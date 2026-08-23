@@ -28,11 +28,11 @@ module CurrentScope
       # fail-loud on a real misconfiguration, distinct from the nil-inert path: it
       # is caught at boot under eager_load and self-heals on the next dev reload, so
       # the request-path raise is only reachable in an eager-load-off environment.
-      # Inert-labeling callers that must never 500 (current_scope_resolved_record,
-      # preload_resolvable_resources!) rescue the stale-token errors, NOT this one.
-      #
-      # Issue #166 (console should degrade, not 500, on a poisoned registry) lands
-      # here: this method is the one place both raise paths live.
+      # Issue #166 landed here, because this method is the one place both raise
+      # paths live. Inert-labeling callers now pass `inert_on_error: true` and get
+      # nil, so the console degrades instead of 500ing. The raise still propagates
+      # for every caller that does not ask, which is every WRITE path, and for the
+      # last-holder guard, which must not read a refusal as "nobody holds this".
       # `inert_on_error: true` is for the labeling and preloading callers that
       # must never 500 the console (#166). It turns both raise paths into nil, so
       # the row degrades to inert through the SAME path a stale token already

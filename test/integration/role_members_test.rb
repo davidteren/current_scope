@@ -186,6 +186,26 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
            "a registry that cannot resolve holders must not authorise the delete"
   end
 
+  # #166 — the UNLATCHED collision. registry_blind? cannot see this one before the
+  # scan starts, because nothing latches and no labeling lookup has run yet in
+  # this request. Found by qodo and Devin on PR #181 against the first fix.
+  test "an unlatched registry collision refuses to delete a full-access role" do
+    CurrentScope.rebuild_polymorphic_registry!
+    # A registered owner that disagrees with what Rails constantizes the token to.
+    CurrentScope.polymorphic_registry.dup.tap do |map|
+      map["User"] = Folder
+      CurrentScope::PolymorphicRegistry.instance_variable_set(:@polymorphic_registry, map.freeze)
+    end
+    assert_nil CurrentScope::PolymorphicRegistry.error, "this path must not latch"
+
+    delete current_scope.role_url(@owner_role), headers: as(@owner)
+
+    assert CurrentScope::Role.exists?(@owner_role.id),
+           "a collision the latch cannot see must still refuse the delete"
+  ensure
+    CurrentScope.rebuild_polymorphic_registry!
+  end
+
   # #90 — deleted resource leaves an inert scoped grant that must not look live.
   test "members labels a deleted resource as inert and can revoke it" do
     folder = Folder.create!(name: "Doomed")

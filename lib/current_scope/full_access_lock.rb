@@ -29,7 +29,16 @@ module CurrentScope
     # at the first live holder, so a widely held role costs one subject lookup
     # rather than one per row.
     def live_holder?(assignments)
-      assignments.any? { |assignment| assignment.current_scope_resolved_record("subject") }
+      assignments.any? do |assignment|
+        # STRICT on purpose, unlike every other reader. current_scope_resolved_record
+        # degrades a registry failure to nil (#166), which for a labeling caller is
+        # right and for a guard is a lie: it would report "nobody holds full access"
+        # when the truth is "this process cannot tell". Look the token up through the
+        # raising path first, so a collision reaches the rescue in the two callers
+        # below instead of being read as an inert row.
+        CurrentScope.polymorphic_class(assignment.subject_type)
+        assignment.current_scope_resolved_record("subject")
+      end
     end
     private_class_method :live_holder?
 
@@ -59,6 +68,10 @@ module CurrentScope
           .where(current_scope_roles: { full_access: true })
           .where.not(role_id: role.id)
       )
+    rescue CurrentScope::ConfigurationError
+      # The second raise path never latches, so registry_blind? cannot see it
+      # before the scan starts. Refuse: unknown is not "nobody".
+      true
     end
 
     def held_full_access?
@@ -74,6 +87,9 @@ module CurrentScope
       return false unless held_full_access?
 
       !live_holder?(RoleAssignment.joins(:role).where(current_scope_roles: { name: planned_fa_names }))
+    rescue CurrentScope::ConfigurationError
+      # Same reason as the sibling guard above.
+      true
     end
   end
 end

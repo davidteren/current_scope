@@ -33,11 +33,22 @@ module CurrentScope
       #
       # Issue #166 (console should degrade, not 500, on a poisoned registry) lands
       # here: this method is the one place both raise paths live.
-      def class_for(type)
+      # `inert_on_error: true` is for the labeling and preloading callers that
+      # must never 500 the console (#166). It turns both raise paths into nil, so
+      # the row degrades to inert through the SAME path a stale token already
+      # takes, and records the cause on CurrentScope::Current so the console can
+      # say why. Write paths never pass it: a grant must not be saved under a
+      # registry that cannot say which class a token names.
+      def class_for(type, inert_on_error: false)
         return if type.blank?
         raise @polymorphic_registry_error if @polymorphic_registry_error
 
         resolve_polymorphic_token(type.to_s)
+      rescue ConfigurationError => e
+        raise unless inert_on_error
+
+        CurrentScope::Current.polymorphic_registry_error ||= e.message
+        nil
       end
 
       # Rebuild the token → class map. Safe to call from to_prepare (dev reload)

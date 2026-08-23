@@ -32,6 +32,11 @@ module CurrentScope
     # RoleAssignment) so a grant-then-check within one request is never stale.
     attribute :org_role_cache
 
+    # Set by a labeling lookup that swallowed a registry ConfigurationError so the
+    # console can say why rows went inert (#166). Per-request, so it never leaks
+    # a stale cause into the next one.
+    attribute :polymorphic_registry_error
+
     # Falls back to the effective subject, so actor is never nil when user is
     # set — callers attribute to `actor` without a nil branch.
     #

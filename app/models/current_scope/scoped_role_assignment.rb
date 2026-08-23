@@ -33,7 +33,7 @@ module CurrentScope
         # Same canonical resolver the key guard uses: a namespaced, shortened or
         # custom polymorphic token must not read as missing here while passing
         # validation there.
-        klass = CurrentScope.polymorphic_class(type)
+        klass = CurrentScope.polymorphic_class(type, inert_on_error: true)
         next if klass.nil?
         next unless klass.respond_to?(:where)
 

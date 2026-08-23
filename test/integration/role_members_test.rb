@@ -12,6 +12,19 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
 
   def as(user) = { "X-User-Id" => user.id.to_s }
 
+  # Latches a real ConfigurationError on the registry: the config names a token
+  # that User does not store, so the rebuild refuses and every later lookup
+  # re-raises. Undone in teardown, because the latch is a process-wide ivar.
+  def poison_registry!
+    CurrentScope.config.polymorphic_class_names = { "old_token" => "User" }
+    assert_raises(CurrentScope::ConfigurationError) { CurrentScope.rebuild_polymorphic_registry! }
+  end
+
+  teardown do
+    CurrentScope.config.polymorphic_class_names = {}
+    CurrentScope.rebuild_polymorphic_registry!
+  end
+
   test "members lists org-wide and scoped holders and offers non-holders to add" do
     alice = User.create!(name: "Alice")
     bob = User.create!(name: "Bob")
@@ -122,6 +135,40 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
     assert_select "#scoped_holder_#{sra.id}.cs-scoped-holder.cs-row--inert"
     assert_match(/Remove inert/, response.body)
     assert_select "#scoped_revoke_#{sra.id}"
+  end
+
+  # #166 — a poisoned registry must degrade the console, not 500 it. This is the
+  # page an operator opens to find and fix broken grants, so it has to render.
+  test "members survives a poisoned polymorphic registry without 500ing" do
+    folder = Folder.create!(name: "Space")
+    bob = User.create!(name: "Bob")
+    # The grant is created BEFORE the poison: create! validates through the
+    # registry and would refuse afterwards, which is the write path staying
+    # fail-closed and is asserted separately below.
+    sra = CurrentScope::ScopedRoleAssignment.create!(subject: bob, resource: folder, role: @role)
+    poison_registry!
+
+    get current_scope.members_role_url(@role), headers: as(@owner)
+
+    assert_response :success
+    assert_select "#cs-registry-error"
+    assert_match(/Registry misconfigured/, response.body)
+    assert_select "#scoped_holder_#{sra.id}.cs-row--inert"
+    assert_match(/unavailable — inert/, response.body)
+  end
+
+  # Reads degrade; writes stay closed. A grant must not be saved under a registry
+  # that cannot say which class a token names, and the refusal must name the real
+  # cause rather than claim the token is unmapped.
+  test "a poisoned registry still refuses to write a grant, naming the cause" do
+    bob = User.create!(name: "Bob")
+    poison_registry!
+
+    error = assert_raises NameError do
+      CurrentScope::RoleAssignment.create!(subject: bob, role: @role)
+    end
+    assert_match(/old_token/, error.message, "the refusal must name the registry problem")
+    assert_not CurrentScope::RoleAssignment.exists?(subject_id: bob.id.to_s)
   end
 
   # #90 — deleted resource leaves an inert scoped grant that must not look live.

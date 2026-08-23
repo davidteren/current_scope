@@ -19,8 +19,21 @@ module CurrentScope
       # Do not fall through to Rails constantize when the registry is empty:
       # a token that equals another class name would bind the wrong model.
       def polymorphic_class_for(name)
-        CurrentScope.polymorphic_class(name) ||
-          raise(NameError, "unmapped polymorphic token #{name.inspect}")
+        # inert_on_error: a poisoned registry becomes the NameError every console
+        # reader already rescues, instead of a ConfigurationError none of them do.
+        # NameError is not a downgrade of the diagnosis, because the cause travels
+        # in the message: Rails calls this hook from association loads AND from the
+        # belongs_to presence validator, so a write under a poisoned registry still
+        # fails closed, and it says WHY rather than claiming the token is unmapped.
+        CurrentScope.polymorphic_class(name, inert_on_error: true) ||
+          raise(NameError, unmapped_token_message(name))
+      end
+
+      def unmapped_token_message(name)
+        cause = CurrentScope::Current.polymorphic_registry_error
+        return "unmapped polymorphic token #{name.inspect}" if cause.blank?
+
+        "unmapped polymorphic token #{name.inspect}: #{cause}"
       end
     end
 
@@ -29,7 +42,7 @@ module CurrentScope
     # record 7. Every engine path that labels or audits an existing grant uses
     # this checked reader so an inert grant never names an unrelated live record.
     def current_scope_resolved_record(side)
-      klass = CurrentScope.polymorphic_class(public_send("#{side}_type"))
+      klass = CurrentScope.polymorphic_class(public_send("#{side}_type"), inert_on_error: true)
       return if klass.nil?
 
       id = public_send("#{side}_id")

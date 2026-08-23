@@ -98,7 +98,7 @@ module CurrentScope
     # class and key are valid and the row is gone. Every other cause is inert:
     # the mapping or key is broken, so claiming deletion would be a lie.
     def current_scope_unresolved_subject_state(assignment)
-      klass = CurrentScope.polymorphic_class(assignment.subject_type)
+      klass = CurrentScope.polymorphic_class(assignment.subject_type, inert_on_error: true)
       if klass && CurrentScope.canonical_key?(klass, assignment.subject_id)
         :deleted
       else

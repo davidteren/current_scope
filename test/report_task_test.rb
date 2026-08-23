@@ -134,6 +134,35 @@ class ReportTaskTest < ActiveSupport::TestCase
     resolver&.singleton_class&.remove_method(:allow?)
   end
 
+  # #116 — a denial ON THE SUBJECT'S OWN RECORD stores a target equal to the
+  # subject GID, exactly like a record-less one. Guessing from the GIDs would
+  # re-check it on the more permissive record-less arm and could report it
+  # resolved while it is still denied, which is a false all-clear.
+  test "a self-targeted denial re-checks WITH the record, not as record-less" do
+    alice = User.create!(name: "Alice")
+    CurrentScope::Event.create!(
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name,
+      details: { "permission" => "users#update", "reason" => "no_grant", "record_less" => false }
+    )
+
+    asked = []
+    resolver = CurrentScope.resolver
+    original = resolver.method(:allow?)
+    resolver.define_singleton_method(:allow?) do |**kwargs|
+      asked << kwargs
+      original.call(**kwargs)
+    end
+
+    run_task
+
+    assert_equal 1, asked.size
+    assert_equal alice, asked.first[:record],
+                 "the gate asked about this record, so the re-check must too"
+  ensure
+    resolver&.singleton_class&.remove_method(:allow?)
+  end
+
   test "counts each subject's would-be denials, most-denied first" do
     would_deny(@alice, "reports#index", count: 5)
     would_deny(@alice, "reports#show", count: 2)

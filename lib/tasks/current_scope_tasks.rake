@@ -205,9 +205,17 @@ namespace :current_scope do
       # Guard writes `target: target || subject`, so a RECORD-LESS denial carries
       # the subject's own GID as its target. Re-asking with the subject as the
       # record would be a different question: the record-less arm of the resolver
-      # could no longer fire. Same GID therefore means record: nil, which is what
-      # the ledger actually asked.
-      record_less = target_gid.blank? || target_gid == subject_gid
+      # could no longer fire.
+      #
+      # Prefer the flag Guard now records. Fall back to comparing GIDs only for
+      # rows written before that flag existed, and say so, because the fallback is
+      # ambiguous: a denial on the subject's OWN record looks identical to a
+      # record-less one, and guessing record-less re-checks on the more
+      # permissive arm.
+      details_hash = group.first[2]
+      recorded_flag = details_hash.is_a?(Hash) ? details_hash["record_less"] : nil
+      record_less = recorded_flag.nil? ? (target_gid.blank? || target_gid == subject_gid)
+                                       : recorded_flag
       # A recorded target that no longer resolves is NOT the same as no target:
       # re-asking without it would answer a question the ledger never asked.
       record = record_less ? nil : locate.call(target_gid)

@@ -306,6 +306,17 @@ bounded rollback, the ledger rows, the rake wrappers, the guide.
   write this plan does not route through `grant!`, and it is named here so it does
   not arrive unannounced in U4.
 
+  > **Open against #182 (filed 2026-08-23, after this plan).** That issue reports
+  > that model-level grant writes bypass the ledger entirely, and the chosen
+  > direction is to record from model callbacks rather than from the console
+  > controllers. If that lands first, the MECHANISM here changes: `grant!` stops
+  > being where the event is written, so the three keywords carry the actor,
+  > subject and source to the callback instead. The DECISION does not change, and
+  > neither do R19 and R19b: one row per assignment, targeted at the grantee,
+  > `source` naming the operation, and the operator as both actor and subject.
+  > Reconcile this KTD with whichever of the two lands second. Do not implement
+  > U3 or U5 against this mechanism until that order is settled.
+
 - **KTD-7: Two documents, two applies, two snapshots.** A combined file would
   force one transaction holding both guard sets, and would invalidate every
   existing v1 file. `API_VERSION` on the v1 class is a single frozen constant
@@ -383,6 +394,10 @@ flowchart TB
   resolve is one query. Batch resolution is a later optimisation, not a v2 unit.
 
 ### Sequencing
+
+**Before U3, settle the #182 ordering** (see the note in KTD-6). U1, U2, U4 and
+U6 are unaffected by it, so the plan is startable; U3 and U5 write the ledger
+rows and must not be built against a mechanism that is about to move.
 
 U1 and U2 are the document and its diff, and nothing else depends on the write
 path. U3 adds the guards and the write. U4 adds the snapshot and rollback, which

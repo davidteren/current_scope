@@ -299,8 +299,13 @@ module CurrentScope
               target: CurrentScope::Event::DEFINITIONS_TARGET,
               details: {
                 "snapshot" => path,
+                # The file this document came from. On a rolled_back row that is
+                # the snapshot the operator restored FROM, which is the question
+                # an audit reader asks. "snapshot" is always the undo point this
+                # operation wrote, for both events.
+                "source" => @source_path,
                 "diff" => changeset.to_s
-              },
+              }.compact,
               actor: actor,
               subject: subject || actor
             )

@@ -220,6 +220,7 @@ class DefinitionsImportTest < ActiveSupport::TestCase
     assert_equal "Role definitions", applied.target_label
     assert_equal snapshot_path, applied.details["snapshot"]
     assert_match(/gains reports#approve/, applied.details["diff"])
+    assert_equal snapshot_path, rolled.details["source"], "the rolled_back row names what it restored from"
   end
 
   test "strict audit and a missing events table rolls back the apply" do

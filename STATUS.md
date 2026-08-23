@@ -2,12 +2,13 @@
 
 > ## Last session handoff
 >
-> **What this is:** CurrentScope on main. Four of five follow-up issues
-> shipped. Role-definition export (#156 v1) is the remaining item.
+> **What this is:** CurrentScope on main, plus open PR #177 for portable
+> role-definition export (#156 v1).
 > **What we finished:** PRs #172–#176 merged. Issues #146, #163, #164,
-> and #150 are closed.
-> **What you do next:** Review the #156 v1 PR (portable role-definition
-> export) from `docs/plans/2026-08-13-002-feat-role-definition-export-import-plan.md`.
+> and #150 are closed. #156 v1 is implemented on
+> `feat/156-role-definition-export`.
+> **What you do next:** Finish PR #177 (wait for cubic and Devin, reply
+> every thread, merge when the human asks). Then #156 v2 or the #116 bake.
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >
@@ -131,7 +132,7 @@
 > authorization semantics even though it is opt-in. See the [0.5.0] section
 > of CHANGELOG.md for the caveats a host must read before declaring a chain.
 
-> Last updated: 2026-08-12
+> Last updated: 2026-08-23
 >
 > **If you are a fresh session asked to audit this work, start at
 > [Verification brief](#verification-brief--for-a-fresh-session).**
@@ -774,6 +775,13 @@ quickstart, production checklist) + tests T1–T4.
 
 ## Next
 
+> **Now (2026-08-23):** [PR #177](https://github.com/davidteren/current_scope/pull/177)
+> implements #156 v1 (portable role-definition export, diff, gated apply,
+> snapshot rollback). Lint, test, Postgres, and MySQL are green. Cubic and
+> Devin are still settling. Do not merge until those reviewers finish and
+> every thread has an inline reply. After that PR: assignment export is
+> #156 v2. The GA bake stays #116.
+>
 > **The only things between here and dropping the banner** (tracking issue
 > **#116**, Wave 3):
 >

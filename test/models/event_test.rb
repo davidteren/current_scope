@@ -165,6 +165,18 @@ class EventTest < ActiveSupport::TestCase
     assert_equal @alice.to_gid.to_s, event.target
   end
 
+  test "a reserved definitions target stores the token and skips to_gid" do
+    event = with_current_user(@alice) do
+      CurrentScope::Event.record!(
+        event: "definitions.applied",
+        target: CurrentScope::Event::DEFINITIONS_TARGET
+      )
+    end
+
+    assert_equal CurrentScope::Event::DEFINITIONS_TARGET, event.target
+    assert_equal "Role definitions", event.target_label
+  end
+
   private
 
   def record_role_event(event: "role.created")

@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Portable role-definition export/import (#156 v1).** YAML document of role
+  names, descriptions, `full_access`, and permission keys, with diff, a confirm
+  gate on production or a populated roles table, snapshot rollback, and ledger
+  events `definitions.applied` / `definitions.rolled_back`. Assignments stay
+  out (v2). Rake: `current_scope:definitions:export|diff|import|rollback`.
+  Import reads `FILE=` and `CONFIRM=1`. Rollback reads `SNAPSHOT=`.
 - **Configurable subject identity (#158).** `config.subject_identity` accepts
   a Symbol (one column), an Array of symbols (a composite list, never a
   joined string), or an object with `identify` / `resolve`. Default is the

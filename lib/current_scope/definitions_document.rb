@@ -1,0 +1,329 @@
+require "fileutils"
+require "yaml"
+
+module CurrentScope
+  # Desired-state YAML for role definitions (names, descriptions, full_access,
+  # permission-key sets). Assignments are not in this document (#156 v1).
+  class DefinitionsDocument
+    API_VERSION = "current_scope/definitions-v1"
+    RESERVED_TARGET = "current_scope:definitions"
+
+    class Error < StandardError; end
+    class ConfirmRequired < Error; end
+    class InvalidDocument < Error; end
+    class LastHolderLock < Error; end
+    class HeldRoleDelete < Error; end
+    class UnknownCatalogKey < Error; end
+    class SnapshotMissing < Error; end
+
+    RoleSpec = Data.define(:name, :description, :full_access, :permission_keys)
+    RemovedRole = Data.define(:name, :org_holders, :scoped_holders)
+    RoleChange = Data.define(
+      :name, :full_access_from, :full_access_to,
+      :description_from, :description_to, :keys_added, :keys_removed
+    )
+
+    class Diff
+      attr_reader :added, :removed, :changes
+
+      def initialize(added:, removed:, changes:)
+        @added = added
+        @removed = removed
+        @changes = changes
+      end
+
+      def empty?
+        added.empty? && removed.empty? && changes.empty?
+      end
+
+      def added_names
+        added.map(&:name)
+      end
+
+      def removed_names
+        removed.map(&:name)
+      end
+
+      def change_for(name)
+        changes.find { |change| change.name == name }
+      end
+
+      def removed_for(name)
+        removed.find { |role| role.name == name }
+      end
+
+      # Removals, then FA demotions, then key removals, then adds.
+      def to_s
+        lines = []
+        removed.each do |role|
+          lines << "remove role #{role.name} (#{role.org_holders} org holders, #{role.scoped_holders} scoped holders)"
+        end
+        changes.each do |change|
+          if change.full_access_from && !change.full_access_to
+            lines << "role #{change.name} full_access false"
+          end
+        end
+        changes.each do |change|
+          change.keys_removed.each { |key| lines << "role #{change.name} loses #{key}" }
+        end
+        added.each { |role| lines << "add role #{role.name}" }
+        changes.each do |change|
+          change.keys_added.each { |key| lines << "role #{change.name} gains #{key}" }
+          if !change.full_access_from && change.full_access_to
+            lines << "role #{change.name} full_access true"
+          end
+          if change.description_from != change.description_to
+            lines << "role #{change.name} description changed"
+          end
+        end
+        lines.join("\n")
+      end
+    end
+
+    def self.from_live
+      specs = Role.order(:name).includes(:role_permissions).map do |role|
+        RoleSpec.new(
+          name: role.name,
+          description: role.description.to_s,
+          full_access: role.full_access?,
+          permission_keys: role.role_permissions.map(&:permission_key).sort
+        )
+      end
+      new(specs)
+    end
+
+    def self.parse(source)
+      data = load_source(source)
+      raise InvalidDocument, "document is empty" if data.nil? || data == false
+      raise InvalidDocument, "document must be a mapping" unless data.is_a?(Hash)
+
+      version = data["apiVersion"] || data[:apiVersion]
+      unless version == API_VERSION
+        raise InvalidDocument,
+              "Missing or unsupported apiVersion (need #{API_VERSION})."
+      end
+
+      raw_roles = data["roles"] || data[:roles]
+      raise InvalidDocument, "roles must be a list" unless raw_roles.is_a?(Array)
+
+      specs = raw_roles.map { |row| spec_from(row) }
+      names = specs.map(&:name)
+      if names.size != names.uniq.size
+        raise InvalidDocument, "duplicate role name in document"
+      end
+
+      new(specs)
+    end
+
+    def self.load_source(source)
+      case source
+      when Hash
+        stringify_keys(source)
+      when Pathname
+        raise SnapshotMissing, "No snapshot at #{source}" unless source.exist?
+
+        YAML.safe_load(source.read, permitted_classes: [], aliases: false)
+      when DefinitionsDocument
+        stringify_keys(source.to_h)
+      when String
+        if File.file?(source)
+          YAML.safe_load(File.read(source), permitted_classes: [], aliases: false)
+        else
+          YAML.safe_load(source, permitted_classes: [], aliases: false)
+        end
+      else
+        raise InvalidDocument, "cannot parse #{source.class}"
+      end
+    rescue Psych::SyntaxError => e
+      raise InvalidDocument, e.message
+    end
+    private_class_method :load_source
+
+    def self.spec_from(row)
+      raise InvalidDocument, "each role must be a mapping" unless row.is_a?(Hash)
+
+      row = stringify_keys(row)
+      name = row["name"].to_s
+      raise InvalidDocument, "role name is required" if name.blank?
+
+      keys = Array(row["permission_keys"]).map(&:to_s).reject(&:blank?).uniq.sort
+      full_access = row.key?("full_access") ? !!row["full_access"] : false
+      RoleSpec.new(
+        name: name,
+        description: row["description"].to_s,
+        full_access: full_access,
+        permission_keys: keys
+      )
+    end
+    private_class_method :spec_from
+
+    def self.stringify_keys(hash)
+      hash.to_h { |key, value| [ key.to_s, value ] }
+    end
+    private_class_method :stringify_keys
+
+    def self.default_snapshot_path
+      Rails.root.join("tmp/current_scope/last_definitions_snapshot.yml").to_s
+    end
+
+    def initialize(roles)
+      @roles = Array(roles).sort_by(&:name)
+    end
+
+    def roles
+      @roles
+    end
+
+    def to_h
+      {
+        "apiVersion" => API_VERSION,
+        "roles" => @roles.map do |role|
+          {
+            "name" => role.name,
+            "description" => role.description,
+            "full_access" => role.full_access,
+            "permission_keys" => role.permission_keys
+          }
+        end
+      }
+    end
+
+    def to_yaml
+      YAML.dump(to_h)
+    end
+
+    def diff(other = nil)
+      live = other || self.class.from_live
+      live_by_name = live.roles.index_by(&:name)
+      doc_by_name = @roles.index_by(&:name)
+
+      added = @roles.reject { |role| live_by_name.key?(role.name) }
+      removed = live.roles.reject { |role| doc_by_name.key?(role.name) }.map do |role|
+        record = Role.find_by(name: role.name)
+        RemovedRole.new(
+          name: role.name,
+          org_holders: record ? record.role_assignments.count : 0,
+          scoped_holders: record ? record.scoped_role_assignments.count : 0
+        )
+      end
+      changes = []
+      @roles.each do |spec|
+        current = live_by_name[spec.name]
+        next unless current
+
+        keys_added = spec.permission_keys - current.permission_keys
+        keys_removed = current.permission_keys - spec.permission_keys
+        next if spec.full_access == current.full_access &&
+                spec.description == current.description &&
+                keys_added.empty? && keys_removed.empty?
+
+        changes << RoleChange.new(
+          name: spec.name,
+          full_access_from: current.full_access,
+          full_access_to: spec.full_access,
+          description_from: current.description,
+          description_to: spec.description,
+          keys_added: keys_added,
+          keys_removed: keys_removed
+        )
+      end
+
+      Diff.new(added: added, removed: removed, changes: changes)
+    end
+
+    def apply(confirm: false, actor: nil, subject: nil, snapshot_path: nil, event: "definitions.applied")
+      unknown = @roles.flat_map(&:permission_keys).uniq.reject { |key| CurrentScope.catalog.include?(key) }
+      unless unknown.empty?
+        raise UnknownCatalogKey,
+              "Permission keys not in the catalog: #{unknown.join(', ')}"
+      end
+
+      changeset = diff
+      return changeset if changeset.empty?
+
+      if confirm_required? && confirm != true
+        raise ConfirmRequired,
+              "Confirm is required to apply role definitions on a populated or " \
+              "production database. Pass confirm: true (API) or CONFIRM=1 (rake)."
+      end
+
+      if CurrentScope.config.audit
+        actor ||= CurrentScope::Current.actor
+        if actor.nil?
+          raise CurrentScope::ConfigurationError,
+                "CurrentScope::Event.record! has no actor — CurrentScope::Current.actor is nil. " \
+                "Set the ambient context (the controller hook, or with_current_user in tests) before recording."
+        end
+      end
+
+      Role.transaction do
+        FullAccessLock.lock_console_state!
+        refuse_held_deletes!
+        planned_fa = @roles.select(&:full_access).map(&:name)
+        if FullAccessLock.would_lose_held_full_access?(planned_fa)
+          raise LastHolderLock,
+                "Refusing to apply: this document would leave zero org-wide full-access holders."
+        end
+
+        path = write_snapshot(snapshot_path)
+        persist_roles!
+        if CurrentScope.config.audit
+          Event.record!(
+            event: event,
+            target: CurrentScope::Event::DEFINITIONS_TARGET,
+            details: {
+              "snapshot" => path,
+              "added" => changeset.added_names,
+              "removed" => changeset.removed_names
+            },
+            actor: actor,
+            subject: subject || actor
+          )
+        end
+      end
+
+      changeset
+    end
+
+    def confirm_required?
+      Rails.env.production? || Role.exists?
+    end
+
+    private
+
+    def refuse_held_deletes!
+      doc_names = @roles.map(&:name)
+      Role.where.not(name: doc_names).find_each do |role|
+        org = role.role_assignments.count
+        scoped = role.scoped_role_assignments.count
+        next if org.zero? && scoped.zero?
+
+        raise HeldRoleDelete,
+              "Refusing to delete role #{role.name}: it still has #{org} org-wide " \
+              "and #{scoped} scoped holders."
+      end
+    end
+
+    def persist_roles!
+      doc_names = @roles.map(&:name)
+      live = Role.all.index_by(&:name)
+
+      @roles.each do |spec|
+        role = live[spec.name] || Role.new(name: spec.name)
+        role.description = spec.description
+        role.full_access = spec.full_access
+        role.permission_keys = spec.permission_keys
+        role.save!
+      end
+
+      (live.keys - doc_names).each { |name| live[name].destroy! }
+    end
+
+    def write_snapshot(snapshot_path)
+      path = (snapshot_path.presence || self.class.default_snapshot_path).to_s
+      FileUtils.mkdir_p(File.dirname(path))
+      File.write(path, self.class.from_live.to_yaml)
+      path
+    end
+  end
+end

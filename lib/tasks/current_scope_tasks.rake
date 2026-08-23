@@ -508,4 +508,88 @@ namespace :current_scope do
          "config.gating_tripwire = :warn and include CurrentScope::GatingTripwire " \
          "to inventory those at runtime."
   end
+
+  namespace :definitions do
+    # A lambda, not a def — a rake file's `def` lands on Object.
+    resolve_actor = lambda do
+      return unless CurrentScope.config.audit
+
+      id = ENV["ACTOR_ID"]
+      abort "ACTOR_ID is required, e.g. ACTOR_ID=1" if id.blank?
+
+      klass = CurrentScope.config.subject_class.constantize
+      actor = klass.find_by(id: id)
+      abort "No #{klass} with id=#{id}" if actor.nil?
+
+      actor
+    end
+
+    apply_document = lambda do |path, snapshot_path: nil, rolling_back: false|
+      document = CurrentScope::DefinitionsDocument.parse(path)
+      diff = document.diff
+      if diff.empty?
+        puts "No changes."
+        next
+      end
+
+      puts diff
+      confirm = ENV["CONFIRM"] == "1"
+      unless confirm
+        if $stdin.tty? && ENV["CI"].to_s.empty?
+          $stderr.print "Apply this change? Type yes: "
+          confirm = $stdin.gets.to_s.strip == "yes"
+        end
+      end
+
+      kwargs = { confirm: confirm, actor: resolve_actor.call }
+      kwargs[:snapshot_path] = snapshot_path if snapshot_path
+      kwargs[:event] = "definitions.rolled_back" if rolling_back
+      document.apply(**kwargs)
+      puts rolling_back ? "Rolled back role definitions from #{path}." : "Applied role definitions from #{path}."
+    rescue CurrentScope::DefinitionsDocument::Error, CurrentScope::ConfigurationError => e
+      abort e.message
+    end
+
+    desc "Export live role definitions to YAML. Usage: bin/rails current_scope:definitions:export FILE=config/current_scope/roles.yml"
+    task export: :environment do
+      path = ENV["FILE"]
+      abort "FILE is required, e.g. bin/rails current_scope:definitions:export FILE=roles.yml" if path.blank?
+
+      FileUtils.mkdir_p(File.dirname(File.expand_path(path)))
+      File.write(path, CurrentScope.export_definitions)
+      puts "Wrote role definitions to #{path}."
+    end
+
+    desc "Print the diff of a definitions document vs live roles. Usage: bin/rails current_scope:definitions:diff FILE=roles.yml"
+    task diff: :environment do
+      path = ENV["FILE"]
+      abort "FILE is required, e.g. bin/rails current_scope:definitions:diff FILE=roles.yml" if path.blank?
+      abort "No file at #{path}" unless File.file?(path)
+
+      diff = CurrentScope.diff_definitions(path)
+      if diff.empty?
+        puts "No changes."
+      else
+        puts diff
+      end
+    end
+
+    desc "Apply a definitions document. CONFIRM=1 required on production or a populated roles table. FILE= document. Usage: bin/rails current_scope:definitions:import FILE=roles.yml CONFIRM=1 ACTOR_ID=1"
+    task import: :environment do
+      path = ENV["FILE"]
+      abort "FILE is required, e.g. bin/rails current_scope:definitions:import FILE=roles.yml" if path.blank?
+      abort "No file at #{path}" unless File.file?(path)
+
+      apply_document.call(path, snapshot_path: "#{path}.pre.yml")
+    end
+
+    desc "Roll back to a pre-apply snapshot. SNAPSHOT= path. CONFIRM=1 as for import. Usage: bin/rails current_scope:definitions:rollback SNAPSHOT=roles.yml.pre.yml CONFIRM=1 ACTOR_ID=1"
+    task rollback: :environment do
+      path = ENV["SNAPSHOT"]
+      abort "SNAPSHOT is required, e.g. bin/rails current_scope:definitions:rollback SNAPSHOT=roles.yml.pre.yml" if path.blank?
+      abort "No snapshot at #{path}" unless File.file?(path)
+
+      apply_document.call(path, rolling_back: true)
+    end
+  end
 end

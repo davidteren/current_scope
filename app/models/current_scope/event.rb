@@ -23,6 +23,9 @@ module CurrentScope
     # AR layer. See the class header for the operations that bypass this.
     def readonly? = persisted?
 
+    # Role-definition apply (#156 v1). Not a class name — do not constantize it.
+    DEFINITIONS_TARGET = "current_scope:definitions"
+
     class << self
       # The ONE recording entry point. Reads the ambient actor/subject from
       # CurrentScope::Current, serializes actor/subject/target as GlobalID
@@ -41,7 +44,7 @@ module CurrentScope
       # without a controller. Omit both for byte-for-byte ambient behavior.
       # Pin BOTH on a self-attributed grant so an ambient Current.user cannot
       # leak into subject and mis-record the row as impersonation.
-      def record!(event:, target:, details: nil, actor: nil, subject: nil)
+      def record!(event:, target:, details: nil, actor: nil, subject: nil, target_label: nil)
         return unless CurrentScope.config.audit
 
         actor ||= CurrentScope::Current.actor
@@ -55,6 +58,8 @@ module CurrentScope
         # actor is set, equals actor when not impersonating).
         subject ||= CurrentScope::Current.user || actor
 
+        serialized_target, serialized_label = serialize_target(target, target_label)
+
         # requires_new: on PostgreSQL a StatementInvalid aborts the *whole*
         # open transaction even if rescued — so a missing events table would
         # poison grant!/controller mutation transactions that wrap record!.
@@ -66,8 +71,8 @@ module CurrentScope
             event: event.to_s,
             actor: actor.to_gid.to_s,
             subject: subject.to_gid.to_s,
-            target: target.to_gid.to_s,
-            target_label: label_for(target),
+            target: serialized_target,
+            target_label: serialized_label,
             details: details,
             request_id: CurrentScope::Current.request_id
           )
@@ -110,6 +115,19 @@ module CurrentScope
       # the screen can't disagree about what a record was called.
       def label_for(record)
         CurrentScope.label_for(record)
+      end
+
+      # Role-definition apply records against a reserved token, not a GID.
+      # Do not constantize this string; it is not a class name.
+      def serialize_target(target, target_label)
+        if target == DEFINITIONS_TARGET
+          [ DEFINITIONS_TARGET, target_label.presence || "Role definitions" ]
+        elsif target.respond_to?(:to_gid)
+          [ target.to_gid.to_s, target_label.presence || label_for(target) ]
+        else
+          raise ArgumentError,
+                "Event.record! target must be a record or #{DEFINITIONS_TARGET}"
+        end
       end
 
       # Recognizes "table is missing" across adapters and Rails' own schema

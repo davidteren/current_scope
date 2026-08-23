@@ -2,12 +2,12 @@
 
 > ## Last session handoff
 >
-> **What this is:** CurrentScope on main. Subject identity
-> (#158) shipped as PR #169. Five follow-up issues now have plans.
-> **What we finished:** PR #169 merged and `feat/subject-identity` deleted.
-> Plans and a serial runbook exist for #146, #163, #164, #150, and #156 v1.
-> **What you do next:** Land the plans PR, then start the batch at issue
-> #146 (coverage floor) from `docs/plans/INDEX-five-issue-batch.md`.
+> **What this is:** CurrentScope on main. Four of five follow-up issues
+> shipped. Role-definition export (#156 v1) is the remaining item.
+> **What we finished:** PRs #172–#176 merged. Issues #146, #163, #164,
+> and #150 are closed.
+> **What you do next:** Review the #156 v1 PR (portable role-definition
+> export) from `docs/plans/2026-08-13-002-feat-role-definition-export-import-plan.md`.
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >

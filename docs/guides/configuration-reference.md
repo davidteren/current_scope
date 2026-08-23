@@ -14,6 +14,11 @@ and `sod_identity` — are grouped in their own block and covered under
 `sod_identity` is only observable once a mutation is allowed past the read-only
 gate.
 
+Role **definitions** (name, description, `full_access`, permission keys) can
+move between environments as YAML. That is not a config knob: see
+[Portable role definitions](role-definitions.md). Assignments are not in
+that document.
+
 **`config.subject_identity`** — how a subject is identified for portable,
 cross-environment use. Default `nil` is the primary key, so existing
 installs change nothing. A Symbol names one column (`:email`). An Array of

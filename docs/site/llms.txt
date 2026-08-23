@@ -36,6 +36,7 @@ Key facts agents get wrong without reading:
 - [Upgrading](https://davidteren.github.io/current_scope/upgrading.html): posture-changing upgrades
 - [Limitations](https://davidteren.github.io/current_scope/limitations.html): SSR-first stance + intentional residuals
 - [For AI agents](https://davidteren.github.io/current_scope/ai-agents.html): copy-paste integration prompts, including subject identity
+- [Portable role definitions](https://github.com/davidteren/current_scope/blob/main/docs/guides/role-definitions.md): export/diff/import/rollback of role grids (not assignments)
 
 ## Source (canonical, deepest detail)
 

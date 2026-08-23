@@ -2,13 +2,12 @@
 
 > ## Last session handoff
 >
-> **What this is:** CurrentScope on main, plus open PR #177 for portable
-> role-definition export (#156 v1).
-> **What we finished:** Every review thread on PR #177 is answered and
-> closed. The review fixes are pushed and the suite is green on SQLite,
-> PostgreSQL and MySQL.
-> **What you do next:** Check that cubic and CI are green on the PR head,
-> then merge PR #177 yourself. Then #156 v2 or the #116 bake.
+> **What this is:** CurrentScope on main. Roles now travel between
+> environments as one YAML file (#156 v1).
+> **What we finished:** The five-issue batch is finished, and PR #177 merged
+> with every review thread answered.
+> **What you do next:** Start the real-host enforce bake, the last thing
+> between here and 1.0 (#116).
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >
@@ -779,12 +778,8 @@ quickstart, production checklist) + tests T1–T4.
 
 ## Next
 
-> **Now (2026-08-23):** [PR #177](https://github.com/davidteren/current_scope/pull/177)
-> implements #156 v1 (portable role-definition export, diff, gated apply,
-> snapshot rollback). Lint, test, Postgres, and MySQL are green. Cubic and
-> Devin are still settling. Do not merge until those reviewers finish and
-> every thread has an inline reply. After that PR: assignment export is
-> #156 v2. The GA bake stays #116.
+> **Now (2026-08-23):** the five-issue batch is finished. Assignment export is
+> #156 v2 and has no plan written yet. The GA bake stays #116.
 >
 > **The only things between here and dropping the banner** (tracking issue
 > **#116**, Wave 3):

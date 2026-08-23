@@ -46,7 +46,7 @@ File overlap to rebase around: #163 and #150 can both touch `scoped_role_assignm
   Plan: `docs/plans/2026-08-22-001-fix-scoped-grant-primary-keys-plan.md`
   Units: U1 dummy Ledger/Entry, U2 collision tests, U3 parent chain, U4 docs
   Gate extra: `bin/db test`; do not merge `fix/parent-chain-custom-primary-key`
-- [ ] #156 v1 · Portable role-definition export/import · status:pr · branch:feat/156-role-definition-export · result:PR #177
+- [x] #156 v1 · Portable role-definition export/import · status:done · branch:feat/156-role-definition-export · result:PR #177
   Plan: `docs/plans/2026-08-13-002-feat-role-definition-export-import-plan.md`
   Units: U1 document+export, U2 diff, U3 apply+lock, U4 snapshot/rollback/ledger, U5 rake+docs
   Gate extra: last-holder lock tests; stay off SchemaGuard `BOOT_EXEMPT_TASKS`; rollback uses `SNAPSHOT=`, not `FILE=`

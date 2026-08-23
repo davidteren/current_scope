@@ -48,13 +48,16 @@ SimpleCov.command_name ENV.fetch("SIMPLECOV_COMMAND_NAME", "minitest")
 SimpleCov.start do
   enable_coverage :branch
   root File.expand_path("..", __dir__)
-  # SimpleCov 1.x (pinned 1.0.2): cover = include + track unloaded files;
-  # skip = exclude. See simplecov/configuration/filters.rb.
+  # SimpleCov 1.x: cover = include + track unloaded files; skip = exclude. See
+  # simplecov/configuration/filters.rb. The Gemfile sets no version constraint,
+  # so read Gemfile.lock rather than trusting a version written here.
   cover "{app,lib}/**/*.rb"
   # PATTERNS: filters match `project_filename` — root-relative, NO leading slash
-  # ("lib/current_scope/version.rb"). Anchor with \A and never lead with a slash; a
-  # pattern like %r{/lib/current_scope/version\.rb\z} matches nothing and fails
-  # silently. test/coverage_setup_test.rb pins the resulting set for that reason.
+  # ("lib/current_scope/version.rb"). Anchor a REGEXP with \A and never lead with
+  # a slash; a pattern like %r{/lib/current_scope/version\.rb\z} matches nothing
+  # and fails silently. That rule is for regexps only: the `cover` line above is a
+  # shell glob, where \A is a literal that would match nothing.
+  # test/coverage_setup_test.rb pins the resulting set for that reason.
   #
   # Both exclusions below are lines no test could ever reach, for different reasons.
   # Generator templates are host-app code, copied out and executed there, never here:

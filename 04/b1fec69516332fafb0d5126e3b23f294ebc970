@@ -1,0 +1,34 @@
+docs/guides/role-definitions.md
+  s_422b70b7944d1a::t_7635fddf5cba0a 65-71
+STATUS.md
+  s_422b70b7944d1a::t_05a0b580236aab 8
+lib/current_scope.rb
+  s_422b70b7944d1a::t_7635fddf5cba0a 281,288
+test/definitions_document_test.rb
+  s_422b70b7944d1a::t_83e3398b00b185 150-164
+lib/current_scope/definitions_document.rb
+  s_422b70b7944d1a::t_40f5cdd07eabbc 117,120-130,152-154,187,189,280-291,293-306,308-313,353-356,358-363
+  s_422b70b7944d1a::t_0e98350307178b 155
+test/definitions_import_test.rb
+  s_422b70b7944d1a::t_41e295e6157512 229-262
+lib/tasks/current_scope_tasks.rake
+  s_422b70b7944d1a::t_e04c0b2083bf6f 536,546
+lib/current_scope/full_access_lock.rb
+  s_422b70b7944d1a::t_bb2f99e255cf6e 43-47,49-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "04b1fec69516332fafb0d5126e3b23f294ebc970",
+  "prompts": {},
+  "sessions": {
+    "s_422b70b7944d1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6f5af15e-cc5c-46e3-8026-7cb4d68251d1",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+CONCEPTS.md
+  s_422b70b7944d1a::t_38587af8c260fb 96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "487807e5bf65c6d026640e15f592507638e1bf89",
+  "prompts": {},
+  "sessions": {
+    "s_422b70b7944d1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6f5af15e-cc5c-46e3-8026-7cb4d68251d1",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

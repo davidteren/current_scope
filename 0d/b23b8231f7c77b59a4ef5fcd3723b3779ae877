@@ -1,0 +1,21 @@
+lib/current_scope/definitions_document.rb
+  s_422b70b7944d1a::t_cac04c6530164b 302-306,308
+test/definitions_import_test.rb
+  s_422b70b7944d1a::t_cac04c6530164b 223
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "0db23b8231f7c77b59a4ef5fcd3723b3779ae877",
+  "prompts": {},
+  "sessions": {
+    "s_422b70b7944d1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6f5af15e-cc5c-46e3-8026-7cb4d68251d1",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

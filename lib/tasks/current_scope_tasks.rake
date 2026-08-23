@@ -517,7 +517,7 @@ namespace :current_scope do
       id = ENV["ACTOR_ID"]
       abort "ACTOR_ID is required, e.g. ACTOR_ID=1" if id.blank?
 
-      klass = CurrentScope.config.subject_class.constantize
+      klass = CurrentScope.config.resolved_subject_class
       actor = klass.find_by(id: id)
       abort "No #{klass} with id=#{id}" if actor.nil?
 
@@ -533,14 +533,17 @@ namespace :current_scope do
       end
 
       puts diff
-      actor = resolve_actor.call
       confirm = ENV["CONFIRM"] == "1"
-      unless confirm
-        if $stdin.tty? && ENV["CI"].to_s.empty?
-          $stderr.print "Apply this change? Type yes: "
-          abort "Aborted." unless $stdin.gets.to_s.strip == "yes"
-          confirm = true
-        end
+      interactive = !confirm && $stdin.tty? && ENV["CI"].to_s.empty?
+      # Ask for ACTOR_ID before the operator types yes. Skip it only when apply
+      # is about to refuse for a missing confirm, because that is the message
+      # the operator needs first.
+      actor = resolve_actor.call unless !confirm && !interactive && document.confirm_required?
+
+      if interactive
+        $stderr.print "Apply this change? Type yes: "
+        abort "Aborted." unless $stdin.gets.to_s.strip == "yes"
+        confirm = true
       end
 
       kwargs = { confirm: confirm, actor: actor }

@@ -15,22 +15,33 @@ module CurrentScope
       RoleAssignment.where(id: ids).lock.load if ids.any?
     end
 
+    # Assignments whose stored subject still resolves to a live record. A row
+    # pointing at a deleted or unresolvable subject is not a holder: nobody can
+    # open the console with it, so it must not vouch for the console staying
+    # open, and it must not block a cleanup either. Counts are small (org-wide
+    # full-access holders), and every caller is a single-role mutation.
+    def live_holders(assignments)
+      assignments.select { |assignment| assignment.current_scope_resolved_record("subject") }
+    end
+    private_class_method :live_holders
+
     # True when removing/demoting this full_access role would leave zero
     # full_access org holders. An unassigned full_access role is always safe.
     def would_lock_console_by_removing_role?(role)
       return false unless role.full_access?
-      return false unless RoleAssignment.where(role: role).exists?
+      return false if live_holders(RoleAssignment.where(role: role)).empty?
 
-      !RoleAssignment.joins(:role)
-        .where(current_scope_roles: { full_access: true })
-        .where.not(role_id: role.id)
-        .exists?
+      live_holders(
+        RoleAssignment.joins(:role)
+          .where(current_scope_roles: { full_access: true })
+          .where.not(role_id: role.id)
+      ).empty?
     end
 
     def held_full_access?
-      RoleAssignment.joins(:role)
-        .where(current_scope_roles: { full_access: true })
-        .exists?
+      live_holders(
+        RoleAssignment.joins(:role).where(current_scope_roles: { full_access: true })
+      ).any?
     end
 
     # True when the live world has a held full-access org role and the planned
@@ -49,7 +60,7 @@ module CurrentScope
         .pluck(:id)
       return true if ids.empty?
 
-      RoleAssignment.where(id: ids).lock.load.empty?
+      live_holders(RoleAssignment.where(id: ids).lock.load).empty?
     end
   end
 end

@@ -165,7 +165,12 @@ module CurrentScope
       raise InvalidDocument, "role name is required" if name.blank?
 
       keys = Array(row["permission_keys"]).map(&:to_s).reject(&:blank?).uniq.sort
-      full_access = ActiveModel::Type::Boolean.new.cast(row.fetch("full_access", false))
+      full_access = row.fetch("full_access", false)
+      # No permissive cast. Boolean.new.cast turns every unrecognised value into
+      # true, so a typo ("ture", "yes", an empty key) would grant full access.
+      unless [ true, false ].include?(full_access)
+        raise InvalidDocument, "role #{name}: full_access must be true or false"
+      end
       RoleSpec.new(
         name: name,
         description: row["description"].to_s,

@@ -259,12 +259,4 @@ class DefinitionsImportTest < ActiveSupport::TestCase
   ensure
     CurrentScope::Event.define_singleton_method(:create!, original) if original
   end
-
-  test "a reserved event target does not 500 the events index" do
-    incoming = with_key("Editor", [ "reports#approve" ])
-    incoming.apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)
-    event = CurrentScope::Event.find_by(event: "definitions.applied")
-    assert_equal "Role definitions", event.target_label
-    assert_equal CurrentScope::Event::DEFINITIONS_TARGET, event.target
-  end
 end

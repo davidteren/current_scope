@@ -3,6 +3,10 @@ require "rake"
 
 class DefinitionsTaskTest < ActiveSupport::TestCase
   setup do
+    # Non-interactive: without this the confirm prompt reads $stdin and a local
+    # run from a terminal blocks instead of asserting the abort.
+    @previous_ci = ENV["CI"]
+    ENV["CI"] = "1"
     @user = User.create!(name: "Operator")
     @owner = CurrentScope::Role.create!(name: "Owner", full_access: true)
     @editor = CurrentScope::Role.create!(name: "Editor")
@@ -17,6 +21,7 @@ class DefinitionsTaskTest < ActiveSupport::TestCase
   end
 
   teardown do
+    ENV["CI"] = @previous_ci
     Rake::Task.clear
     FileUtils.remove_entry(@tmpdir)
     ENV.delete("FILE")
@@ -68,6 +73,23 @@ class DefinitionsTaskTest < ActiveSupport::TestCase
 
     error = assert_raises(SystemExit) { invoke("current_scope:definitions:import") }
     assert_match(/Confirm is required/, error.message)
+    assert_not_includes @editor.reload.permission_keys, "reports#approve"
+  end
+
+  test "import with CONFIRM but no ACTOR_ID names the missing actor" do
+    ENV["FILE"] = @file
+    invoke("current_scope:definitions:export")
+    document = CurrentScope::DefinitionsDocument.parse(@file)
+    edited = document.roles.map do |role|
+      next role unless role.name == "Editor"
+
+      role.with(permission_keys: (role.permission_keys + [ "reports#approve" ]).sort)
+    end
+    File.write(@file, CurrentScope::DefinitionsDocument.new(edited).to_yaml)
+    ENV["CONFIRM"] = "1"
+
+    error = assert_raises(SystemExit) { invoke("current_scope:definitions:import") }
+    assert_match(/ACTOR_ID is required/, error.message)
     assert_not_includes @editor.reload.permission_keys, "reports#approve"
   end
 

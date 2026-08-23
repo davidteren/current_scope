@@ -162,6 +162,19 @@ class DefinitionsDocumentTest < ActiveSupport::TestCase
     end
   end
 
+  test "parse refuses a full_access value that is not true or false" do
+    yaml = <<~YAML
+      apiVersion: #{CurrentScope::DefinitionsDocument::API_VERSION}
+      roles:
+        - name: Owner
+          full_access: ture
+    YAML
+    error = assert_raises CurrentScope::DefinitionsDocument::InvalidDocument do
+      CurrentScope::DefinitionsDocument.parse(yaml)
+    end
+    assert_match(/full_access must be true or false/, error.message)
+  end
+
   test "parse refuses a missing or foreign apiVersion" do
     assert_raises CurrentScope::DefinitionsDocument::InvalidDocument do
       CurrentScope::DefinitionsDocument.parse("roles: []\n")

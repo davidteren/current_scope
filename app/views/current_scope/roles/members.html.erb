@@ -49,16 +49,28 @@
               labeled deleted. %>
           <% resolved = assignment.current_scope_resolved_record("subject") %>
           <% inert = resolved.nil? && current_scope_unresolved_subject_state(assignment) == :inert %>
-          <tr id="org_holder_<%= assignment.id %>"<% if inert %> class="cs-row--inert"<% end %>>
+          <tr id="org_holder_<%= assignment.id %>"
+              class="cs-org-holder<%= ' cs-row--inert' if inert %>">
             <td><%= who %></td>
             <td>
               <% if resolved %>
-                <%# Removing = clearing this subject's org-wide role (blank role_id). %>
-                <%= form_with url: role_assignments_path, method: :post,
-                      data: { cs_confirm: "Remove #{who} from #{@role.name}?" } do %>
-                  <%= hidden_field_tag :subject_gid, resolved.to_gid %>
-                  <%= hidden_field_tag :role_id, "" %>
-                  <%= submit_tag "Remove", name: nil, class: "cs-btn" %>
+                <% gid = begin
+                     resolved.to_gid
+                   rescue StandardError
+                     nil
+                   end %>
+                <% if gid %>
+                  <%# Removing = clearing this subject's org-wide role (blank role_id). %>
+                  <%= form_with url: role_assignments_path, method: :post,
+                        data: { cs_confirm: "Remove #{who} from #{@role.name}?" } do %>
+                    <%= hidden_field_tag :subject_gid, gid %>
+                    <%= hidden_field_tag :role_id, "" %>
+                    <%= submit_tag "Remove", name: nil, class: "cs-btn" %>
+                  <% end %>
+                <% else %>
+                  <%= button_to "Remove", role_assignment_path(assignment), method: :delete,
+                        id: "org_remove_#{assignment.id}",
+                        class: "cs-btn", form: { data: { cs_confirm: "Remove #{who} from #{@role.name}?" } } %>
                 <% end %>
               <% elsif inert %>
                 <%= button_to "Remove inert", role_assignment_path(assignment), method: :delete,

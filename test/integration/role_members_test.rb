@@ -198,7 +198,7 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
 
     get current_scope.members_role_url(@role), headers: as(@owner)
     assert_response :success
-    assert_select "#org_holder_#{assignment.id}"
+    assert_select "#org_holder_#{assignment.id}.cs-org-holder"
     assert_select "#org_holder_#{assignment.id}.cs-row--inert", count: 0
     assert_select "#org_holder_#{assignment.id} .cs-inert-badge", count: 0
     assert_select "td", text: "Alice"

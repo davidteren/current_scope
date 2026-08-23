@@ -35,7 +35,12 @@ class MembersInertBadgeSystemTest < ApplicationSystemTestCase
     assert_selector "#org_holder_#{deleted.id}", text: /subject deleted/
     assert_no_selector "#org_holder_#{deleted.id} .cs-inert-badge"
 
+    before = page.evaluate_script("document.documentElement.getAttribute('data-cs-theme')")
     find("[data-cs-theme-toggle]").click
+    after = page.evaluate_script("document.documentElement.getAttribute('data-cs-theme')")
+    assert_includes %w[light dark], after
+    assert_not_equal before, after
     assert_selector "#org_holder_#{inert.id} .cs-inert-badge", text: /inert/i
+    assert_selector "#org_holder_#{deleted.id}", text: /subject deleted/
   end
 end

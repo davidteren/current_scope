@@ -71,6 +71,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pilots.
 
 ### Fixed
+- **`current_scope:report` now has an exit condition (#116).** The ledger is
+  append-only, so a would-be denial survives the grant that fixes it. The report
+  counted rows, which answers "what was ever denied", while an operator deciding
+  whether to flip to `:enforce` needs "what would still be denied". The guide told
+  them in three places to grant until the list empties, and it never could. The
+  report now re-checks every recorded denial against live grants, once per
+  distinct subject and permission, and counts only the ones still outstanding.
+  That count reaches zero. A denial that cannot be re-checked, because its subject
+  no longer resolves, counts as outstanding rather than ready.
 - **The management console degrades instead of 500ing on a poisoned polymorphic
   registry (#166).** A registry that cannot say which class a token names used to
   raise out of every labeling lookup, so the roles members and subjects pages

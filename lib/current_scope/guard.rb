@@ -448,9 +448,15 @@ module CurrentScope
       # `is_a?` would match every record there is.
       target = record.equal?(NO_RECORD) ? nil : record
 
+      # `target: target || subject` keeps the ledger's target non-nil, which means
+      # a record-less denial and a denial ON THE SUBJECT'S OWN RECORD both store
+      # the subject's GID. Only this side knows which it was, so say so: the #116
+      # report re-asks the resolver and must ask with the same record the gate
+      # did. Inferring it from equal GIDs would read a self-targeted denial as
+      # record-less and re-check on the more permissive arm.
       CurrentScope::Event.record!(
         event: "access.would_deny", target: target || subject,
-        details: { permission: permission, reason: "no_grant" }
+        details: { permission: permission, reason: "no_grant", record_less: target.nil? }
       )
     rescue StandardError => e
       # ponytail: swallow and warn ONCE. An unrecordable observation is a lost

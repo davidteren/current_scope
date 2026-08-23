@@ -44,6 +44,159 @@ class ReportTaskTest < ActiveSupport::TestCase
     capture_io { Rake::Task["current_scope:report"].invoke }.first
   end
 
+  # #116 — the rollout loop had no exit condition. The ledger is append-only, so
+  # a would_deny row survives the grant that fixes it, and the guide told
+  # operators to grant until the list empties. Re-checking each recorded denial
+  # against live grants is the signal that CAN reach zero.
+  test "a denial that has since been granted stops counting as outstanding" do
+    alice = User.create!(name: "Alice")
+    would_deny(alice, "reports#index", count: 4)
+
+    before = run_task
+    assert_match(/STILL ungranted/, before)
+    assert_match(/4\s+would-be denials STILL ungranted/, before,
+                 "counted in denials, the same unit the detail section totals")
+
+    role = CurrentScope::Role.create!(name: "Reader")
+    role.permission_keys = [ "reports#index" ]
+    role.save!
+    CurrentScope::RoleAssignment.create!(subject: alice, role: role)
+
+    after = run_task
+
+    assert_match(/Every would-be denial recorded so far is now granted/, after,
+                 "the grant must clear the outstanding list even though the rows remain")
+    assert_match(/append-only/, after)
+    assert_no_match(/would-be denials STILL ungranted/, after)
+    assert_no_match(/reports#index/, after,
+                    "a resolved denial must leave the detail list too, not just the count")
+  end
+
+  test "a denial whose subject no longer resolves counts as outstanding, not ready" do
+    ghost = User.create!(name: "Ghost")
+    would_deny(ghost, "reports#index")
+    ghost.delete
+
+    output = run_task
+
+    assert_match(/could not be re-checked/, output)
+    assert_match(/cannot tell is/, output)
+    assert_no_match(/Every would-be denial recorded so far is now granted/, output,
+                    "an unresolvable subject must never read as a finished rollout")
+  end
+
+  test "an unre-checkable denial suppresses the all-clear even when the rest are granted" do
+    alice = User.create!(name: "Alice")
+    ghost = User.create!(name: "Ghost")
+    would_deny(alice, "reports#index")
+    would_deny(ghost, "reports#index")
+    role = CurrentScope::Role.create!(name: "Reader")
+    role.permission_keys = [ "reports#index" ]
+    role.save!
+    CurrentScope::RoleAssignment.create!(subject: alice, role: role)
+    ghost.delete
+
+    output = run_task
+
+    assert_match(/could not be re-checked/, output)
+    assert_no_match(/this is what empty looks like/, output,
+                    "an un-re-checkable denial must never render as a finished rollout")
+  end
+
+  # #116 — Guard writes `target: target || subject`, so a record-less denial
+  # carries the subject's own GID. Re-asking with the subject as the record is a
+  # different question and would keep a granted denial outstanding forever.
+  test "a record-less denial re-checks with no record, so granting clears it" do
+    alice = User.create!(name: "Alice")
+    # This is the shape Guard writes for a record-less action: target == subject.
+    CurrentScope::Event.create!(
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name,
+      details: { "permission" => "reports#index", "reason" => "no_grant" }
+    )
+    # Assert the QUESTION, not a downstream answer: whether the difference is
+    # visible in the verdict depends on which resolver arm the host's grants
+    # happen to hit, and the defect is that the wrong question is asked at all.
+    asked = []
+    resolver = CurrentScope.resolver
+    original = resolver.method(:allow?)
+    resolver.define_singleton_method(:allow?) do |**kwargs|
+      asked << kwargs
+      original.call(**kwargs)
+    end
+
+    run_task
+
+    assert_equal 1, asked.size, "one re-check for the one recorded pair"
+    assert_nil asked.first[:record],
+               "a record-less denial must re-check with record: nil, never with the subject"
+  ensure
+    resolver&.singleton_class&.remove_method(:allow?)
+  end
+
+  # #116 — a denial ON THE SUBJECT'S OWN RECORD stores a target equal to the
+  # subject GID, exactly like a record-less one. Guessing from the GIDs would
+  # re-check it on the more permissive record-less arm and could report it
+  # resolved while it is still denied, which is a false all-clear.
+  test "a self-targeted denial re-checks WITH the record, not as record-less" do
+    alice = User.create!(name: "Alice")
+    CurrentScope::Event.create!(
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name,
+      details: { "permission" => "users#update", "reason" => "no_grant", "record_less" => false }
+    )
+
+    asked = []
+    resolver = CurrentScope.resolver
+    original = resolver.method(:allow?)
+    resolver.define_singleton_method(:allow?) do |**kwargs|
+      asked << kwargs
+      original.call(**kwargs)
+    end
+
+    run_task
+
+    assert_equal 1, asked.size
+    assert_equal alice, asked.first[:record],
+                 "the gate asked about this record, so the re-check must too"
+  ensure
+    resolver&.singleton_class&.remove_method(:allow?)
+  end
+
+  # #116 — a legacy row (no record_less flag) and a new one can share a subject,
+  # permission and target. Reading the flag off one member of that group would
+  # apply it to the other, which is a false all-clear in one direction.
+  test "legacy and flagged rows for the same key are re-checked separately" do
+    alice = User.create!(name: "Alice")
+    base = {
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name
+    }
+    # Written before the flag existed: ambiguous, falls back to the GID guess.
+    CurrentScope::Event.create!(**base, details: { "permission" => "users#update", "reason" => "no_grant" })
+    # Written after: explicitly ON the subject's own record.
+    CurrentScope::Event.create!(**base, details: { "permission" => "users#update", "reason" => "no_grant", "record_less" => false })
+
+    asked = []
+    resolver = CurrentScope.resolver
+    original = resolver.method(:allow?)
+    resolver.define_singleton_method(:allow?) do |**kwargs|
+      asked << kwargs
+      original.call(**kwargs)
+    end
+
+    run_task
+
+    assert_equal 2, asked.size, "the two rows must not be collapsed into one re-check"
+    # Compared as a set: the query has no ORDER BY, so which group is re-checked
+    # first is unspecified. The property under test is that BOTH questions get
+    # asked, not the order they arrive in.
+    assert_equal [ nil, alice ].to_set, asked.map { |kwargs| kwargs[:record] }.to_set,
+                 "the legacy row falls back; the flagged row keeps its record"
+  ensure
+    resolver&.singleton_class&.remove_method(:allow?)
+  end
+
   test "counts each subject's would-be denials, most-denied first" do
     would_deny(@alice, "reports#index", count: 5)
     would_deny(@alice, "reports#show", count: 2)

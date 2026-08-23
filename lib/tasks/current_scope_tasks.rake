@@ -1,3 +1,5 @@
+require "set"
+
 namespace :current_scope do
   desc "Apply the #151 grant-column shape to an existing database, idempotently. " \
        "Usage: bin/rails current_scope:repair_schema"
@@ -128,7 +130,7 @@ namespace :current_scope do
 
     begin
       rows = CurrentScope::Event.where(event: "access.would_deny")
-                                .pluck(:subject, :target_label, :details)
+                                .pluck(:subject, :target_label, :details, :target)
       # #73: SoD blind-spot 403s are NOT would_deny (granting won't fix them).
       # Surface them as a separate section so the survey is complete.
       blind_rows = CurrentScope::Event.where(event: "access.sod_blind_spot")
@@ -163,6 +165,79 @@ namespace :current_scope do
     # some other call has since reset a flag on the module.
     preflight = CurrentScope::SodPreflight.scan
     preflight_rows = preflight.rows
+
+    # #116: the ledger is APPEND-ONLY, so a would_deny row survives the grant that
+    # fixes it. Counting rows therefore answers "what was ever denied", while the
+    # operator's actual question before flipping to :enforce is "what would STILL
+    # be denied". Re-ask the resolver, once per distinct subject and permission
+    # rather than once per row, and split the survey on the answer. That
+    # outstanding list can reach zero and stay there, which is what makes the
+    # rollout loop terminate.
+    #
+    # Best effort by design, like every other section here: a subject or record
+    # that no longer resolves is reported as unknown rather than silently counted
+    # as fixed, because "cannot tell" must never read as "ready".
+    outstanding = []
+    resolved = []
+    unknown = []
+    # Keyed on the TARGET too, not just subject and permission: a denial the host
+    # will clear with a scoped grant on one record is a different question from
+    # the same permission on another record, and collapsing them would re-ask
+    # with record: nil and count a scoped grant as permanently outstanding.
+    # record_less is part of the KEY, not read off one member: a legacy row (written
+    # before the flag existed) and a new one can share a subject, permission and
+    # target, and taking either row's value would apply it to the other. A group is
+    # therefore uniform by construction, and the legacy rows fall back on their own.
+    rows.group_by { |subject_gid, _label, details, target_gid|
+      hash = details.is_a?(Hash) ? details : {}
+      [ subject_gid, hash["permission"], target_gid, hash["record_less"] ]
+    }.each do |(subject_gid, permission, target_gid, recorded_flag), group|
+      pair = [ subject_gid, permission, target_gid, group.count, recorded_flag ]
+      if permission.nil?
+        unknown << pair
+        next
+      end
+
+      locate = lambda do |gid|
+        gid.presence && begin
+          GlobalID::Locator.locate(gid)
+        rescue StandardError
+          nil
+        end
+      end
+
+      subject = locate.call(subject_gid)
+      # Guard writes `target: target || subject`, so a RECORD-LESS denial carries
+      # the subject's own GID as its target. Re-asking with the subject as the
+      # record would be a different question: the record-less arm of the resolver
+      # could no longer fire.
+      #
+      # Prefer the flag Guard now records. Fall back to comparing GIDs only for
+      # rows written before that flag existed, and say so, because the fallback is
+      # ambiguous: a denial on the subject's OWN record looks identical to a
+      # record-less one, and guessing record-less re-checks on the more
+      # permissive arm.
+      record_less = recorded_flag.nil? ? (target_gid.blank? || target_gid == subject_gid)
+                                       : recorded_flag
+      # A recorded target that no longer resolves is NOT the same as no target:
+      # re-asking without it would answer a question the ledger never asked.
+      record = record_less ? nil : locate.call(target_gid)
+      if subject.nil? || (!record_less && record.nil?)
+        unknown << pair
+        next
+      end
+
+      still_denied = begin
+        !CurrentScope.resolver.allow?(subject: subject, permission: permission, record: record)
+      rescue StandardError
+        nil
+      end
+      case still_denied
+      when true then outstanding << pair
+      when false then resolved << pair
+      else unknown << pair
+      end
+    end
 
     dead_grants = []
     untargeted_grants = []
@@ -231,7 +306,11 @@ namespace :current_scope do
     # cannot see — the same rule the preflight caveat and the ungated task
     # follow. (#133 review)
     signals = {
-      "would-be denials (grant these)" => rows.count,
+      # Counted in DENIALS, the same unit the detail section totals, so the
+      # headline and the list below can never disagree. outstanding carries a
+      # per-pair count because the re-check is per pair.
+      "would-be denials STILL ungranted (grant these)" =>
+        outstanding.sum { |pair| pair[3] } + unknown.sum { |pair| pair[3] },
       "scoped grants that can never match" => dead_grants.count,
       "scoped grants worth checking" => untargeted_grants.count,
       "SoD actions that will RAISE (500, not grantable)" => preflight_rows.count,
@@ -245,6 +324,19 @@ namespace :current_scope do
     else
       puts "CurrentScope report — #{signals.count} category(ies) with something in them:"
       signals.each { |label, count| puts "  #{count.to_s.rjust(6)}  #{label}" }
+    end
+    if outstanding.empty? && unknown.empty? && resolved.any?
+      puts
+      puts "  Every would-be denial recorded so far is now granted " \
+           "(#{resolved.count} subject/permission pair(s) re-checked against live grants)."
+      puts "  The ledger still lists them because it is append-only. That is the list"
+      puts "  you were waiting to see empty; this is what empty looks like."
+    end
+    if unknown.any?
+      puts
+      puts "  #{unknown.sum { |pair| pair[3] }} recorded denial(s) could not be re-checked, because the"
+      puts "  subject, the record or the permission no longer resolves. They are counted"
+      puts "  as OUTSTANDING above: cannot tell is not the same as ready."
     end
     puts
     # The SoD clause only when the host opted into SoD. A project that never set
@@ -299,11 +391,21 @@ namespace :current_scope do
         .each { |permission, count| puts "    #{count.to_s.rjust(5)}x  #{permission || '(unknown)'}" }
     end
 
-    unless rows.empty?
-      separate.call
-      grouped = rows.group_by { |subject, _label, _details| subject }
+    # Only the pairs still outstanding, so this list agrees with the headline. A
+    # resolved row stays in the ledger forever and printing it here is what made
+    # the old survey unreadable: a finished rollout showed a long list under a
+    # count of zero.
+    open_keys = (outstanding + unknown).to_set { |gid, permission, target, _count, flag| [ gid, permission, target, flag ] }
+    open_rows = rows.select do |subject_gid, _label, details, target_gid|
+      hash = details.is_a?(Hash) ? details : {}
+      open_keys.include?([ subject_gid, hash["permission"], target_gid, hash["record_less"] ])
+    end
 
-      puts "Would-be denials — grant these to stop them (most-denied first):"
+    unless open_rows.empty?
+      separate.call
+      grouped = open_rows.group_by { |subject, _label, _details| subject }
+
+      puts "Would-be denials still outstanding — grant these to stop them (most-denied first):"
       puts
 
       grouped.each do |subject_gid, subject_rows|
@@ -313,7 +415,12 @@ namespace :current_scope do
         puts
       end
 
-      puts "Total: #{rows.count} would-be denials across #{grouped.size} subject(s)."
+      puts "Total: #{open_rows.count} outstanding would-be denial(s) across " \
+           "#{grouped.size} subject(s)."
+      if resolved.any?
+        puts "#{resolved.count} more subject/permission pair(s) were recorded and are " \
+             "now granted; the ledger keeps them because it is append-only."
+      end
     end
 
     unless dead_grants.empty?

@@ -1,0 +1,29 @@
+CHANGELOG.md
+  s_422b70b7944d1a::t_8520393d2fbb77 74-82
+test/report_task_test.rb
+  s_422b70b7944d1a::t_95da2c7589c9c4 47-56,59-69,73-87
+  s_422b70b7944d1a::t_2de2c59233af51 57-58,70-72
+docs/guides/adopting-in-an-existing-app.md
+  s_422b70b7944d1a::t_108601f071fc31 50-58,336-338,402-403
+lib/tasks/current_scope_tasks.rake
+  s_422b70b7944d1a::t_033902ae0ef5df 298-303,305-309
+  s_422b70b7944d1a::t_0e156a171960cf 364-376,378,380,390-395
+  s_422b70b7944d1a::t_78cf1f750a0a4d 278-283
+  s_422b70b7944d1a::t_d1bf4d212fc52b 167-210,304,310
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "785c3660f46dc840095a71c9f6ca9f4e833d7cb8",
+  "prompts": {},
+  "sessions": {
+    "s_422b70b7944d1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6f5af15e-cc5c-46e3-8026-7cb4d68251d1",
+        "model": "claude-opus-5"
+      },
+      "human_author": null
+    }
+  }
+}

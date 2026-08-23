@@ -1,0 +1,16 @@
+STATUS.md
+  h_e8a5bb9272fa34 5-6,8-11,135,778-784
+docs/plans/INDEX-five-issue-batch.md
+  h_e8a5bb9272fa34 33,37,41,45,49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "fffcc849fb83597be9306043560cf3a3d7786209",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

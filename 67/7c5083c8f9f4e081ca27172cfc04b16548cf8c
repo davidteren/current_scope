@@ -1,0 +1,43 @@
+test/system/registry_error_banner_test.rb
+  s_422b70b7944d1a::t_f18e110aa0bef4 1-54
+test/integration/role_members_test.rb
+  s_422b70b7944d1a::t_2690d2c7b1e781 160-163,167,170-171
+  s_422b70b7944d1a::t_a67c0cafff3383 15-27,140-159,164-166,168-169,172
+  s_422b70b7944d1a::t_52199d9156c786 173
+app/models/current_scope/scoped_role_assignment.rb
+  s_422b70b7944d1a::t_048bad0829bded 36
+app/models/current_scope/current.rb
+  s_422b70b7944d1a::t_048bad0829bded 35-39
+app/models/concerns/current_scope/storable_keys.rb
+  s_422b70b7944d1a::t_2690d2c7b1e781 24-27,29-36
+  s_422b70b7944d1a::t_048bad0829bded 22-23,28,45
+app/views/layouts/current_scope/application.html.erb
+  s_422b70b7944d1a::t_8ae1a9e7185a8a 49-58
+lib/current_scope.rb
+  s_422b70b7944d1a::t_2684bb608e7b60 346
+  s_422b70b7944d1a::t_048bad0829bded 347
+app/helpers/current_scope/application_helper.rb
+  s_422b70b7944d1a::t_048bad0829bded 101
+app/models/current_scope/role_assignment.rb
+  s_422b70b7944d1a::t_048bad0829bded 34
+lib/current_scope/polymorphic_registry.rb
+  s_422b70b7944d1a::t_2684bb608e7b60 36-42,47-51
+CHANGELOG.md
+  s_422b70b7944d1a::t_0d17cf1ddec671 74-82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "677c5083c8f9f4e081ca27172cfc04b16548cf8c",
+  "prompts": {},
+  "sessions": {
+    "s_422b70b7944d1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6f5af15e-cc5c-46e3-8026-7cb4d68251d1",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

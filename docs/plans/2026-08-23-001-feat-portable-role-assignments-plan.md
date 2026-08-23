@@ -534,7 +534,9 @@ Unreleased.
 ### System-Wide Impact
 
 - The resolver, the guard, and the management UI are untouched.
-- `grant!` gains two optional keywords. Its default behaviour is pinned.
+- `grant!` gains three optional keywords, `actor:`, `subject:`, and `source:`.
+  Its default behaviour is pinned, and so is the imported row: both write actor
+  and subject together, so neither reads as an impersonation.
 - The events table gains two event names and one reserved target token.
 - `config.subject_identity` gets its first production callers. A host on the
   default primary-key identity boots silently today, because boot validation

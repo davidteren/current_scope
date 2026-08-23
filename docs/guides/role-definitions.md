@@ -62,12 +62,14 @@ CurrentScope.import_definitions(yaml_or_path, confirm: true, actor: user)
 CurrentScope.rollback_definitions(snapshot_path, confirm: true, actor: user)
 ```
 
-Both take an optional `snapshot_path:`. Without it the undo file goes to
-`tmp/current_scope/last_definitions_snapshot.yml`. An apply never writes that
-file over the document it is applying: rolling back from a snapshot writes the
-new undo file to `<snapshot>.pre.yml` instead, so the snapshot survives and a
-second rollback is a no-op. An apply that fails puts the undo file back the way
-it was.
+Both take an optional `snapshot_path:`, the path the undo file is written TO.
+Without it the undo file goes to `tmp/current_scope/last_definitions_snapshot.yml`.
+
+When the document was read from a file and the undo file would land on that same
+file, the undo file goes to `<document>.pre.yml` instead. That is what makes a
+rollback from `tmp/current_scope/last_definitions_snapshot.yml` safe: the
+snapshot survives, so a second rollback is a no-op instead of re-applying the
+change. An apply that does not commit puts the undo file back the way it was.
 
 Rake tasks are thin wrappers. `ACTOR_ID=` looks up `config.subject_class` by
 primary key, the same shape as `current_scope:grant` with `SUBJECT_ID=`.

@@ -162,6 +162,34 @@ class DefinitionsImportTest < ActiveSupport::TestCase
     assert_nil CurrentScope::Role.find_by(name: "Spare")
   end
 
+  test "demoting the held Owner is allowed when the document promotes a held role" do
+    CurrentScope::RoleAssignment.create!(subject: User.create!(name: "Lead"), role: @owner)
+    CurrentScope::RoleAssignment.create!(subject: User.create!(name: "Pat"), role: @editor)
+
+    incoming = CurrentScope::DefinitionsDocument.new(
+      document_from_live.roles.map do |role|
+        next role.with(full_access: false) if role.name == "Owner"
+        next role.with(full_access: true) if role.name == "Editor"
+
+        role
+      end
+    )
+    incoming.apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)
+
+    assert_not @owner.reload.full_access?
+    assert @editor.reload.full_access?, "a promoted held role keeps the console open"
+  end
+
+  test "rollback writes its undo point where the caller asks" do
+    with_key("Editor", [ "reports#approve" ]).apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)
+    undo = File.join(@tmpdir, "undo.yml")
+
+    CurrentScope.rollback_definitions(snapshot_path, confirm: true, actor: @actor, snapshot_path: undo)
+
+    editor = CurrentScope::DefinitionsDocument.parse(undo).roles.find { |role| role.name == "Editor" }
+    assert_includes editor.permission_keys, "reports#approve", "the undo point holds the pre-rollback world"
+  end
+
   test "apply then rollback restores keys" do
     incoming = with_key("Editor", [ "reports#approve" ])
     incoming.apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)
@@ -234,6 +262,7 @@ class DefinitionsImportTest < ActiveSupport::TestCase
 
     CurrentScope.rollback_definitions(default_path, confirm: true, actor: @actor)
     assert_not_includes @editor.reload.permission_keys, "reports#approve"
+    assert File.file?("#{default_path}.pre.yml"), "the undo point moves aside instead of overwriting the snapshot"
 
     CurrentScope.rollback_definitions(default_path, confirm: true, actor: @actor)
     assert_not_includes @editor.reload.permission_keys, "reports#approve"

@@ -546,11 +546,13 @@ namespace :current_scope do
         confirm = true
       end
 
-      kwargs = { confirm: confirm, actor: actor }
-      kwargs[:snapshot_path] = snapshot_path if snapshot_path
-      kwargs[:event] = "definitions.rolled_back" if rolling_back
-      document.apply(**kwargs)
+      undo_path = document.snapshot_destination(snapshot_path)
+      document.apply(
+        confirm: confirm, actor: actor, snapshot_path: undo_path,
+        event: rolling_back ? "definitions.rolled_back" : "definitions.applied"
+      )
       puts rolling_back ? "Rolled back role definitions from #{path}." : "Applied role definitions from #{path}."
+      puts "Undo point written to #{undo_path}."
     rescue CurrentScope::DefinitionsDocument::Error, CurrentScope::ConfigurationError => e
       abort e.message
     end

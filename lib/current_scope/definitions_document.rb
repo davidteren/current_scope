@@ -114,19 +114,12 @@ module CurrentScope
         raise InvalidDocument, "duplicate role name in document"
       end
 
-      new(specs, source_path: source_path_for(source))
+      # The file we were read from, if any: write_snapshot must never overwrite
+      # it. File.file? is the same test load_source used to pick this branch.
+      from_file = source.is_a?(Pathname) ||
+                  (source.is_a?(String) && !source.include?("\n") && File.file?(source))
+      new(specs, source_path: (source.to_s if from_file))
     end
-
-    # The file this document was read from, or nil for inline YAML. Mirrors the
-    # branches load_source takes: reaching here with a newline-free String means
-    # load_source already proved it is a file.
-    def self.source_path_for(source)
-      return source.to_s if source.is_a?(Pathname)
-      return source if source.is_a?(String) && !source.include?("\n") && !source.start_with?("---")
-
-      nil
-    end
-    private_class_method :source_path_for
 
     def self.load_source(source)
       case source
@@ -284,18 +277,21 @@ module CurrentScope
 
       path = snapshot_destination(snapshot_path)
       previous_snapshot = File.exist?(path) ? File.read(path) : nil
+      wrote_snapshot = false
+      committed = false
 
       begin
         Role.transaction do
-          FullAccessLock.lock_console_state!
-          refuse_held_deletes!
           planned_fa = @roles.select(&:full_access).map(&:name)
+          FullAccessLock.lock_console_state!(planned_fa)
+          refuse_held_deletes!
           if FullAccessLock.would_lose_held_full_access?(planned_fa)
             raise LastHolderLock,
                   "Refusing to apply: this document would leave zero org-wide full-access holders."
           end
 
           write_snapshot(path)
+          wrote_snapshot = true
           persist_roles!
           if CurrentScope.config.audit
             Event.record!(
@@ -310,12 +306,14 @@ module CurrentScope
             )
           end
         end
-      rescue StandardError
+        committed = true
+      ensure
         # The snapshot is written inside the transaction so an unwritable path
-        # stops the apply. A rolled-back apply changed nothing, so the undo file
-        # must go back to what it held: the previous apply's undo point.
-        previous_snapshot ? File.write(path, previous_snapshot) : FileUtils.rm_f(path)
-        raise
+        # stops the apply. An apply that does not commit changed nothing, so put
+        # back what the undo file held: the previous apply's undo point. Only
+        # what THIS run wrote, and an ensure rather than a rescue because Ctrl-C
+        # is not a StandardError.
+        restore_snapshot(path, previous_snapshot) if wrote_snapshot && !committed
       end
 
       changeset
@@ -323,6 +321,18 @@ module CurrentScope
 
     def confirm_required?
       Rails.env.production? || Role.exists?
+    end
+
+    # Where this apply writes its undo file. Never the document being applied: a
+    # rollback reading the default snapshot path would otherwise overwrite it
+    # with the state it is undoing, so running rollback twice would re-apply it.
+    # File.identical?, not a path compare: a symlink or a case-variant spelling
+    # is the same file under two names.
+    def snapshot_destination(snapshot_path)
+      path = (snapshot_path.presence || self.class.default_snapshot_path).to_s
+      return path unless @source_path && File.identical?(path, @source_path)
+
+      "#{path}.pre.yml"
     end
 
     private
@@ -355,14 +365,12 @@ module CurrentScope
       (live.keys - doc_names).each { |name| live[name].destroy! }
     end
 
-    # Where this apply's undo file goes. Never the document being applied: a
-    # rollback reading the default snapshot path would otherwise overwrite it
-    # with the state it is undoing, so running rollback twice would re-apply it.
-    def snapshot_destination(snapshot_path)
-      path = (snapshot_path.presence || self.class.default_snapshot_path).to_s
-      return path unless @source_path && File.expand_path(path) == File.expand_path(@source_path)
-
-      "#{path}.pre.yml"
+    # A failure here must never replace the error that stopped the apply.
+    def restore_snapshot(path, previous)
+      previous ? File.write(path, previous) : FileUtils.rm_f(path)
+    rescue StandardError => e
+      Rails.logger&.warn("[current_scope] could not restore the role definitions snapshot at #{path}: #{e.message}")
+      nil
     end
 
     def write_snapshot(path)

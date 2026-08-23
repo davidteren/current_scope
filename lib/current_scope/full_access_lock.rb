@@ -6,13 +6,20 @@ module CurrentScope
 
     # Serialize demote/delete/apply against concurrent last-holder removal.
     # Lock FA role rows and their org-wide holder assignments by id (FOR UPDATE
-    # + join is adapter-fragile). Call only inside a transaction.
-    def lock_console_state!
-      Role.where(full_access: true).lock.load
+    # + join is adapter-fragile). Pass the role names a definitions document
+    # plans to make full_access: a role the document PROMOTES is not full_access
+    # yet, so the queries below cannot see it or its holders. Ordered by id, so
+    # two concurrent applies take the rows in the same order. Call only inside a
+    # transaction.
+    def lock_console_state!(planned_fa_names = [])
+      Role.where(full_access: true).or(Role.where(name: planned_fa_names)).lock.load
       ids = RoleAssignment.joins(:role)
         .where(current_scope_roles: { full_access: true })
         .pluck(:id)
-      RoleAssignment.where(id: ids).lock.load if ids.any?
+      ids |= RoleAssignment.joins(:role)
+        .where(current_scope_roles: { name: planned_fa_names })
+        .pluck(:id)
+      RoleAssignment.where(id: ids).order(:id).lock.load if ids.any?
     end
 
     # Assignments whose stored subject still resolves to a live record. A row
@@ -51,16 +58,9 @@ module CurrentScope
     def would_lose_held_full_access?(planned_fa_names)
       return false unless held_full_access?
 
-      # Lock the planned holders as well. lock_console_state! covers roles that
-      # are ALREADY full_access; a role this document PROMOTES is not in that
-      # set, so its holders could be revoked between this check and the commit.
-      # Same by-id shape, for the same adapter reason.
-      ids = RoleAssignment.joins(:role)
-        .where(current_scope_roles: { name: planned_fa_names })
-        .pluck(:id)
-      return true if ids.empty?
-
-      live_holders(RoleAssignment.where(id: ids).lock.load).empty?
+      live_holders(
+        RoleAssignment.joins(:role).where(current_scope_roles: { name: planned_fa_names })
+      ).empty?
     end
   end
 end

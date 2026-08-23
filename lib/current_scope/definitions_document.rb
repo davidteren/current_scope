@@ -6,7 +6,6 @@ module CurrentScope
   # permission-key sets). Assignments are not in this document (#156 v1).
   class DefinitionsDocument
     API_VERSION = "current_scope/definitions-v1"
-    RESERVED_TARGET = "current_scope:definitions"
 
     class Error < StandardError; end
     class ConfirmRequired < Error; end

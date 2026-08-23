@@ -19,7 +19,7 @@ module CurrentScope
       # Do not fall through to Rails constantize when the registry is empty:
       # a token that equals another class name would bind the wrong model.
       def polymorphic_class_for(name)
-        CurrentScope.polymorphic_class(name, owner: ActiveRecord::Base) ||
+        CurrentScope.polymorphic_class(name) ||
           raise(NameError, "unmapped polymorphic token #{name.inspect}")
       end
     end
@@ -29,7 +29,7 @@ module CurrentScope
     # record 7. Every engine path that labels or audits an existing grant uses
     # this checked reader so an inert grant never names an unrelated live record.
     def current_scope_resolved_record(side)
-      klass = CurrentScope.polymorphic_class(public_send("#{side}_type"), owner: ActiveRecord::Base)
+      klass = CurrentScope.polymorphic_class(public_send("#{side}_type"))
       return if klass.nil?
 
       id = public_send("#{side}_id")
@@ -74,7 +74,7 @@ module CurrentScope
         # the association resolves to nothing, and reading it would skip exactly
         # the rows this guard exists for. Resolved through this model, which is
         # what wrote the token, so an overridden polymorphic_name still matches.
-        klass = CurrentScope.polymorphic_class(public_send("#{side}_type"), owner: self.class)
+        klass = CurrentScope.polymorphic_class(public_send("#{side}_type"))
         next if klass.nil?
 
         # A write fails CLOSED either way, but the two causes get different

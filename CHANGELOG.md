@@ -47,6 +47,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   falls below 80% (#146).** Local runs, including a single-file run, do
   not enforce the floor. Reproduce with `CI=1` in front of the documented
   `SIMPLECOV_COMMAND_NAME` commands.
+- **Polymorphic registry internals (#163).** One map with `claim!` as
+  the collision net, no `owner:` keyword on `polymorphic_class`, and the
+  registry extracted to `CurrentScope::PolymorphicRegistry`. Public
+  facade methods are unchanged.
 - **Docs site landing page is now a conversion page, not only a long
   technical write-up.** Hero CTAs (Star / Quickstart / Showcase / Docs),
   a theme-aware permission-grid mock, real screenshots plus SoD and

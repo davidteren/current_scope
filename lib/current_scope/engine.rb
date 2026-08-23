@@ -82,7 +82,7 @@ module CurrentScope
       # a dev's coverage grows as they work. The authoritative pass is the
       # eager-load one below. (#139)
       CurrentScope::ParentChain.validate_declarations!
-      CurrentScope.rebuild_polymorphic_registry!
+      CurrentScope::PolymorphicRegistry.rebuild!
       CurrentScope.config.reset_subject_identity_resolver!
     end
 
@@ -127,7 +127,7 @@ module CurrentScope
     # documented in UPGRADING.md.
     config.after_initialize do |app|
       CurrentScope::ParentChain.validate_declarations! if app.config.eager_load
-      CurrentScope.rebuild_polymorphic_registry! if app.config.eager_load
+      CurrentScope::PolymorphicRegistry.rebuild! if app.config.eager_load
     end
 
     # #133: a deploy must not boot green and 500 on the first gated request. An

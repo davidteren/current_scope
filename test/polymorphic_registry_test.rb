@@ -22,7 +22,7 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
     CurrentScope.rebuild_polymorphic_registry!
     CurrentScope.polymorphic_registry.dup.tap do |map|
       map["User"] = TokenDocument
-      CurrentScope.instance_variable_set(:@polymorphic_registry, map.freeze)
+      CurrentScope::PolymorphicRegistry.instance_variable_set(:@polymorphic_registry, map.freeze)
     end
 
     error = assert_raises(CurrentScope::ConfigurationError) do
@@ -67,6 +67,10 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
 
   test "an unmapped token stays nil" do
     assert_nil CurrentScope.polymorphic_class("old_token")
+  end
+
+  test "an abstract class token stays inert instead of returning the tableless class" do
+    assert_nil CurrentScope.polymorphic_class("ApplicationRecord")
   end
 
   test "a custom token shared by an STI base and subclass resolves to the base owner" do
@@ -261,7 +265,10 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
     assert_nothing_raised { CurrentScope.rebuild_polymorphic_registry! }
     assert_equal "Document", Invoice.polymorphic_name
     assert_equal "Document", Receipt.polymorphic_name
-    assert_nil CurrentScope.polymorphic_registry["Document"]
+    # Default tokens now live in the map (#163). The old nil pin was a size
+    # optimization, not a collision check: Invoice and Receipt share Document
+    # as base_class, so claim! accepts both.
+    assert_equal Document, CurrentScope.polymorphic_registry["Document"]
   ensure
     Document.store_full_class_name = original
     CurrentScope.rebuild_polymorphic_registry!

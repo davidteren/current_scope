@@ -65,7 +65,10 @@ module CurrentScope
         changes.each do |change|
           change.keys_removed.each { |key| lines << "role #{change.name} loses #{key}" }
         end
-        added.each { |role| lines << "add role #{role.name}" }
+        added.each do |role|
+          flag = role.full_access ? " full_access true" : ""
+          lines << "add role #{role.name}#{flag}"
+        end
         changes.each do |change|
           change.keys_added.each { |key| lines << "role #{change.name} gains #{key}" }
           if !change.full_access_from && change.full_access_to
@@ -125,10 +128,12 @@ module CurrentScope
       when DefinitionsDocument
         stringify_keys(source.to_h)
       when String
-        if File.file?(source)
+        if source.include?("\n") || source.start_with?("---")
+          YAML.safe_load(source, permitted_classes: [], aliases: false)
+        elsif File.file?(source)
           YAML.safe_load(File.read(source), permitted_classes: [], aliases: false)
         else
-          YAML.safe_load(source, permitted_classes: [], aliases: false)
+          raise SnapshotMissing, "No file at #{source}"
         end
       else
         raise InvalidDocument, "cannot parse #{source.class}"
@@ -146,7 +151,7 @@ module CurrentScope
       raise InvalidDocument, "role name is required" if name.blank?
 
       keys = Array(row["permission_keys"]).map(&:to_s).reject(&:blank?).uniq.sort
-      full_access = row.key?("full_access") ? !!row["full_access"] : false
+      full_access = ActiveModel::Type::Boolean.new.cast(row.fetch("full_access", false))
       RoleSpec.new(
         name: name,
         description: row["description"].to_s,
@@ -197,8 +202,10 @@ module CurrentScope
       doc_by_name = @roles.index_by(&:name)
 
       added = @roles.reject { |role| live_by_name.key?(role.name) }
-      removed = live.roles.reject { |role| doc_by_name.key?(role.name) }.map do |role|
-        record = Role.find_by(name: role.name)
+      missing = live.roles.reject { |role| doc_by_name.key?(role.name) }
+      live_removed = Role.where(name: missing.map(&:name)).index_by(&:name)
+      removed = missing.map do |role|
+        record = live_removed[role.name]
         RemovedRole.new(
           name: role.name,
           org_holders: record ? record.role_assignments.count : 0,
@@ -272,8 +279,7 @@ module CurrentScope
             target: CurrentScope::Event::DEFINITIONS_TARGET,
             details: {
               "snapshot" => path,
-              "added" => changeset.added_names,
-              "removed" => changeset.removed_names
+              "diff" => changeset.to_s
             },
             actor: actor,
             subject: subject || actor

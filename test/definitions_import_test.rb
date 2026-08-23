@@ -191,6 +191,7 @@ class DefinitionsImportTest < ActiveSupport::TestCase
     assert_equal CurrentScope::Event::DEFINITIONS_TARGET, applied.target
     assert_equal "Role definitions", applied.target_label
     assert_equal snapshot_path, applied.details["snapshot"]
+    assert_match(/gains reports#approve/, applied.details["diff"])
   end
 
   test "strict audit and a missing events table rolls back the apply" do

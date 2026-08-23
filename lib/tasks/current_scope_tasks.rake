@@ -529,7 +529,7 @@ namespace :current_scope do
       diff = document.diff
       if diff.empty?
         puts "No changes."
-        next
+        return
       end
 
       puts diff
@@ -537,7 +537,8 @@ namespace :current_scope do
       unless confirm
         if $stdin.tty? && ENV["CI"].to_s.empty?
           $stderr.print "Apply this change? Type yes: "
-          confirm = $stdin.gets.to_s.strip == "yes"
+          abort "Aborted." unless $stdin.gets.to_s.strip == "yes"
+          confirm = true
         end
       end
 

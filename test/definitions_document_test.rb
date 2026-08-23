@@ -69,7 +69,7 @@ class DefinitionsDocumentTest < ActiveSupport::TestCase
     diff = incoming.diff
 
     assert_equal [ "Auditor" ], diff.added_names
-    assert_match(/^add role Auditor/, diff.to_s)
+    assert_match(/^add role Auditor$/, diff.to_s)
   end
 
   test "diff names a removed role after FA demotions, with holder counts" do

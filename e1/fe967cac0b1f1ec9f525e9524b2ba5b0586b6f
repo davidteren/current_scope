@@ -1,0 +1,26 @@
+test/polymorphic_registry_test.rb
+  s_422b70b7944d1a::t_fe8f8f0769188b 49-69
+test/integration/role_members_test.rb
+  s_422b70b7944d1a::t_e8c017b7bfec1d 11,25-27
+test/system/registry_error_banner_test.rb
+  s_422b70b7944d1a::t_fe8f8f0769188b 13,18
+  s_422b70b7944d1a::t_ff99e3803d7938 30-32
+app/models/concerns/current_scope/storable_keys.rb
+  s_422b70b7944d1a::t_e8c017b7bfec1d 90-96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "e1fe967cac0b1f1ec9f525e9524b2ba5b0586b6f",
+  "prompts": {},
+  "sessions": {
+    "s_422b70b7944d1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6f5af15e-cc5c-46e3-8026-7cb4d68251d1",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

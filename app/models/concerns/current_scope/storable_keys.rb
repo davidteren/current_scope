@@ -87,6 +87,13 @@ module CurrentScope
         # the association resolves to nothing, and reading it would skip exactly
         # the rows this guard exists for. Resolved through this model, which is
         # what wrote the token, so an overridden polymorphic_name still matches.
+        # Deliberately WITHOUT inert_on_error (#166). This is the write side, and
+        # degrading here would return nil, hit the `next` below, and skip the key
+        # check entirely, so a grant would save under a registry that cannot say
+        # which class its token names. Reads degrade; writes stay loud. Today the
+        # belongs_to presence validator raises first, so this raise is a second
+        # line of defence rather than the usual path, which is exactly what it
+        # should be if that validator is ever made optional.
         klass = CurrentScope.polymorphic_class(public_send("#{side}_type"))
         next if klass.nil?
 

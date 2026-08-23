@@ -10,11 +10,12 @@ class RegistryErrorBannerTest < ApplicationSystemTestCase
     CurrentScope::RoleAssignment.create!(
       subject: @owner, role: CurrentScope::Role.create!(name: "Owner", full_access: true))
     @role = CurrentScope::Role.create!(name: "Editor")
+    @original_polymorphic_names = CurrentScope.config.polymorphic_class_names
     sign_in(@owner)
   end
 
   teardown do
-    CurrentScope.config.polymorphic_class_names = {}
+    CurrentScope.config.polymorphic_class_names = @original_polymorphic_names
     CurrentScope.rebuild_polymorphic_registry!
   end
 
@@ -26,7 +27,9 @@ class RegistryErrorBannerTest < ApplicationSystemTestCase
     sra = CurrentScope::ScopedRoleAssignment.create!(subject: bob, resource: folder, role: @role)
 
     CurrentScope.config.polymorphic_class_names = { "old_token" => "User" }
-    assert_raises(CurrentScope::ConfigurationError) { CurrentScope.rebuild_polymorphic_registry! }
+    error = assert_raises(CurrentScope::ConfigurationError) { CurrentScope.rebuild_polymorphic_registry! }
+    assert_match(/old_token/, error.message,
+                 "the poison must raise from THIS token mismatch, not a latch a previous test left behind")
 
     visit "/current_scope/roles/#{@role.id}/members"
 

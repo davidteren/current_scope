@@ -8,6 +8,7 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
     @owner_role = CurrentScope::Role.create!(name: "Owner", full_access: true)
     CurrentScope::RoleAssignment.create!(subject: @owner, role: @owner_role)
     @role = CurrentScope::Role.create!(name: "Editor")
+    @original_polymorphic_names = CurrentScope.config.polymorphic_class_names
   end
 
   def as(user) = { "X-User-Id" => user.id.to_s }
@@ -21,7 +22,9 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
   end
 
   teardown do
-    CurrentScope.config.polymorphic_class_names = {}
+    # Restore rather than blank: a future test may set these legitimately, and
+    # the latch is a process-wide ivar that outlives this test either way.
+    CurrentScope.config.polymorphic_class_names = @original_polymorphic_names
     CurrentScope.rebuild_polymorphic_registry!
   end
 

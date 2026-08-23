@@ -111,6 +111,12 @@ The columns become `varchar(64)`, so integer, UUID and ULID keys are all stored
 whole. **The engine raises at boot until this migration has run** — a gem upgrade
 alone would leave the escalation in place while every code path looked correct.
 
+A model whose declared primary key is a business column (`self.primary_key = "code"`)
+while a leftover `id` column still exists is also supported: grants store that
+declared key and lookups use it. Composite and nil primary keys are still refused.
+Do not merge leftover branch `fix/parent-chain-custom-primary-key`; it refused
+that shape on an older assumption that lookups used the `id` column.
+
 The migration rewrites both grant tables under an exclusive lock (PostgreSQL
 `ACCESS EXCLUSIVE`, MySQL `ALGORITHM=COPY`). Grant tables are normally small, so
 this is quick; if yours is large, schedule it like any other table rewrite, or

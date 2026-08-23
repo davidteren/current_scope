@@ -65,6 +65,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pilots.
 
 ### Fixed
+- **Scoped grants on a business primary key match that record (#150).** A
+  model that sets `self.primary_key` to a column other than `id`, while
+  keeping a leftover surrogate `id`, is covered by tests. Composite and
+  nil keys stay refused. No second column migration; #151 already stores
+  ids as strings.
 - **A chained rake command no longer carries a non-exempt task past the #151
   boot guard.** `SchemaGuard.running_a_database_task?` asked whether ANY task on
   the command line was allowed to boot without the repaired grant-column shape.

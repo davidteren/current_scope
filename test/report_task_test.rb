@@ -188,7 +188,10 @@ class ReportTaskTest < ActiveSupport::TestCase
     run_task
 
     assert_equal 2, asked.size, "the two rows must not be collapsed into one re-check"
-    assert_equal [ nil, alice ], asked.map { |kwargs| kwargs[:record] },
+    # Compared as a set: the query has no ORDER BY, so which group is re-checked
+    # first is unspecified. The property under test is that BOTH questions get
+    # asked, not the order they arrive in.
+    assert_equal [ nil, alice ].to_set, asked.map { |kwargs| kwargs[:record] }.to_set,
                  "the legacy row falls back; the flagged row keeps its record"
   ensure
     resolver&.singleton_class&.remove_method(:allow?)

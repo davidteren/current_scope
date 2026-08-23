@@ -430,7 +430,16 @@ unresolved row is named; a fingerprint mismatch refuses before any resolve.
 
 `apply(confirm:, actor:, subject: nil, source: "import", snapshot_path: nil,
 event: "assignments.applied")`, matching v1 keyword for keyword so U4 and U5 add
-behaviour rather than reopening the signature. Outside the transaction:
+behaviour rather than reopening the signature.
+
+**`subject:` here is the ledger subject of the SUMMARY row only** (R20), the same
+meaning v1 gives it, and it defaults to the actor. It is not the per-row subject.
+The per-row writes never take a default: the apply loop passes `actor: operator`
+and `subject: operator` explicitly on every row, with the grantee carried by
+`target:`. Relying on `grant!`'s default there would leave the subject as the
+grantee and record the whole import as an impersonation (R19b).
+
+Outside the transaction:
 fingerprint, then every distinct role name resolved against the live roles table
 with a refusal naming any that are missing (R24), then diff, returning early when
 nothing would change (R21). Then the confirm gate,
@@ -483,9 +492,13 @@ previous snapshot intact.
 ### U5. Facade and rake wrappers
 
 `CurrentScope.export_assignments`, `diff_assignments`, `import_assignments`,
-`rollback_assignments` (R22). Extend `grant!` with `actor:` and `source:`
-(KTD-6), defaulting to today's behaviour, and pin that the default path still
-records `source: "bootstrap"`.
+`rollback_assignments` (R22). Extend `grant!` with all THREE keywords KTD-6
+names, `actor:`, `subject:`, and `source:`, each defaulting to today's behaviour.
+Pin two things: the default path still records `source: "bootstrap"` with actor
+and subject both the grantee, and an imported row records actor and subject both
+the operator (R19b). Two keywords is not enough. Adding only `actor:` leaves
+`subject:` as the grantee, and a row whose subject differs from its actor is what
+the ledger defines as an impersonation.
 
 Rake: `current_scope:assignments:export|diff|import|rollback`, reusing the
 `apply_document` lambda shape, `resolve_actor`, the `CONFIRM=1` policy, and the

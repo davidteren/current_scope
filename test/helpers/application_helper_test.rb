@@ -320,5 +320,73 @@ module CurrentScope
 
       assert_equal "Alive", current_scope_gid_label(user.to_gid.to_s)
     end
+
+    test "unresolved subject is deleted when the class and key are valid and the row is gone" do
+      user = User.create!(name: "Gone")
+      role = CurrentScope::Role.create!(name: "Editor")
+      assignment = CurrentScope::RoleAssignment.create!(subject: user, role: role)
+      user.delete
+      assignment.reload
+
+      assert_nil assignment.current_scope_resolved_record("subject")
+      assert_equal :deleted, current_scope_unresolved_subject_state(assignment)
+    end
+
+    test "unresolved subject is inert when the token does not reverse" do
+      role = CurrentScope::Role.create!(name: "Editor")
+      now = Time.current
+      CurrentScope::RoleAssignment.insert!({
+        role_id: role.id,
+        subject_type: "token_people_unmapped_164",
+        subject_id: "1",
+        created_at: now,
+        updated_at: now
+      })
+      assignment = CurrentScope::RoleAssignment.find_by!(subject_type: "token_people_unmapped_164")
+
+      assert_equal :inert, current_scope_unresolved_subject_state(assignment)
+    end
+
+    test "unresolved subject is inert when the stored id is not a canonical key" do
+      role = CurrentScope::Role.create!(name: "Editor")
+      now = Time.current
+      CurrentScope::RoleAssignment.insert!({
+        role_id: role.id,
+        subject_type: "User",
+        subject_id: "007",
+        created_at: now,
+        updated_at: now
+      })
+      assignment = CurrentScope::RoleAssignment.find_by!(subject_id: "007")
+
+      assert_equal :inert, current_scope_unresolved_subject_state(assignment)
+    end
+
+    test "unresolved subject is inert when subject_id is blank" do
+      role = CurrentScope::Role.create!(name: "Editor")
+      now = Time.current
+      CurrentScope::RoleAssignment.insert!({
+        role_id: role.id,
+        subject_type: "User",
+        subject_id: "",
+        created_at: now,
+        updated_at: now
+      })
+      assignment = CurrentScope::RoleAssignment.find_by!(subject_id: "")
+
+      assert_equal :inert, current_scope_unresolved_subject_state(assignment)
+    end
+
+    test "unresolved subject is inert when classification raises NameError" do
+      role = CurrentScope::Role.create!(name: "Editor")
+      user = User.create!(name: "Live")
+      assignment = CurrentScope::RoleAssignment.create!(subject: user, role: role)
+      original = CurrentScope.method(:polymorphic_class)
+      CurrentScope.define_singleton_method(:polymorphic_class) { |*| raise NameError, "gone" }
+
+      assert_equal :inert, current_scope_unresolved_subject_state(assignment)
+    ensure
+      CurrentScope.define_singleton_method(:polymorphic_class, original)
+    end
   end
 end

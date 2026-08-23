@@ -51,6 +51,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the collision net, no `owner:` keyword on `polymorphic_class`, and the
   registry extracted to `CurrentScope::PolymorphicRegistry`. Public
   facade methods are unchanged.
+- **Members page distinguishes inert org-wide holders from deleted
+  subjects (#164).** An unmapped token or non-canonical id is badged
+  inert. A missing row reads "subject deleted". The add list no longer
+  claims every subject already holds the role when no subjects exist.
 - **Docs site landing page is now a conversion page, not only a long
   technical write-up.** Hero CTAs (Star / Quickstart / Showcase / Docs),
   a theme-aware permission-grid mock, real screenshots plus SoD and

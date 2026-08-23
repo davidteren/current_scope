@@ -159,11 +159,62 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
     get current_scope.members_role_url(@role), headers: as(@owner)
     assert_response :success
     assert_select "form[action=?]", current_scope.role_assignment_path(assignment)
+    assert_select "#org_holder_#{assignment.id}"
+    assert_select "#org_holder_#{assignment.id} .cs-inert-badge", count: 0
+    assert_select "#org_holder_#{assignment.id}", text: /subject deleted/
 
     assert_difference -> { CurrentScope::RoleAssignment.count }, -1 do
       delete current_scope.role_assignment_url(assignment), headers: as(@owner)
     end
     assert_not CurrentScope::RoleAssignment.exists?(assignment.id)
+  end
+
+  test "an unmapped-token org holder is badged inert, not deleted" do
+    now = Time.current
+    CurrentScope::RoleAssignment.insert!({
+      role_id: @role.id,
+      subject_type: "token_people_unmapped_164",
+      subject_id: "5",
+      created_at: now,
+      updated_at: now
+    })
+    assignment = CurrentScope::RoleAssignment.find_by!(subject_type: "token_people_unmapped_164")
+
+    get current_scope.members_role_url(@role), headers: as(@owner)
+    assert_response :success
+    assert_select "#org_holder_#{assignment.id}.cs-row--inert"
+    assert_select "#org_holder_#{assignment.id} .cs-inert-badge", text: "inert"
+    assert_select "#org_remove_#{assignment.id}", text: "Remove inert"
+    assert_select "#org_holder_#{assignment.id}", text: /subject deleted/, count: 0
+
+    assert_difference -> { CurrentScope::RoleAssignment.count }, -1 do
+      delete current_scope.role_assignment_url(assignment), headers: as(@owner)
+    end
+  end
+
+  test "a healthy org holder has a stable row id and no inert badge" do
+    alice = User.create!(name: "Alice")
+    assignment = CurrentScope::RoleAssignment.create!(subject: alice, role: @role)
+
+    get current_scope.members_role_url(@role), headers: as(@owner)
+    assert_response :success
+    assert_select "#org_holder_#{assignment.id}.cs-org-holder"
+    assert_select "#org_holder_#{assignment.id}.cs-row--inert", count: 0
+    assert_select "#org_holder_#{assignment.id} .cs-inert-badge", count: 0
+    assert_select "td", text: "Alice"
+  end
+
+  test "add copy does not claim full coverage when there are zero subjects" do
+    original = CurrentScope.config.subject_class
+    CurrentScope.config.subject_class = "UuidUser"
+    UuidUser.delete_all
+
+    get current_scope.members_role_url(@role), headers: as(@owner)
+    assert_response :success
+    assert_select "#org_add_empty"
+    assert_no_match(/Every subject already holds this role org-wide/, response.body)
+  ensure
+    CurrentScope.config.subject_class = original
   end
 
   test "removing an org-wide holder clears their role" do

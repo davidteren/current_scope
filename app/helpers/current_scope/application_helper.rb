@@ -93,6 +93,21 @@ module CurrentScope
       "#{assignment.subject_type} ##{assignment.subject_id}"
     end
 
+    # Why an org-wide holder's subject did not resolve. Call only after
+    # current_scope_resolved_record("subject") returned nil. Deleted means the
+    # class and key are valid and the row is gone. Every other cause is inert:
+    # the mapping or key is broken, so claiming deletion would be a lie.
+    def current_scope_unresolved_subject_state(assignment)
+      klass = CurrentScope.polymorphic_class(assignment.subject_type)
+      if klass && CurrentScope.canonical_key?(klass, assignment.subject_id)
+        :deleted
+      else
+        :inert
+      end
+    rescue NameError, ActiveRecord::RecordNotFound
+      :inert
+    end
+
     # #134: the console's one read of GrantDiagnosis. Returns
     # [css_class, badge_text, caveat] or nil. Never the word "inert" (#90's
     # badge, different state, different fix).

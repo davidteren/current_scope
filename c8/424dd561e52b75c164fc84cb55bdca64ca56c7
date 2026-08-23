@@ -1,0 +1,20 @@
+lib/current_scope/definitions_document.rb
+  h_e8a5bb9272fa34 68-71,131-133,136,154,205-208,282
+lib/tasks/current_scope_tasks.rake
+  h_e8a5bb9272fa34 532,540-541
+test/definitions_document_test.rb
+  h_e8a5bb9272fa34 72
+test/definitions_import_test.rb
+  h_e8a5bb9272fa34 194
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "c8424dd561e52b75c164fc84cb55bdca64ca56c7",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

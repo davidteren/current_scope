@@ -198,13 +198,7 @@ module CurrentScope
     # to delete/demote (cubic). An empty spare full_access role must NOT
     # authorize demoting the held Owner (CE) — check holders, not role rows.
     def would_lock_console_by_removing_role?(role)
-      return false unless role.full_access?
-      return false unless RoleAssignment.where(role: role).exists?
-
-      !RoleAssignment.joins(:role)
-        .where(current_scope_roles: { full_access: true })
-        .where.not(role_id: role.id)
-        .exists?
+      FullAccessLock.would_lock_console_by_removing_role?(role)
     end
 
     # True when the update would turn off full_access and lock the console.
@@ -222,11 +216,7 @@ module CurrentScope
     # role rows and their org-wide holder assignments (by id — FOR UPDATE + join
     # is adapter-fragile). Call only inside a transaction.
     def lock_full_access_console_state!
-      Role.where(full_access: true).lock.load
-      ids = RoleAssignment.joins(:role)
-        .where(current_scope_roles: { full_access: true })
-        .pluck(:id)
-      RoleAssignment.where(id: ids).lock.load if ids.any?
+      FullAccessLock.lock_console_state!
     end
 
     # The candidate's primary key, rendered as text so it can be compared to the

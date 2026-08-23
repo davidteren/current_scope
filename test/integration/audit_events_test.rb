@@ -299,6 +299,20 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     assert_match "impersonation.started", response.body
   end
 
+  test "events index renders a reserved definitions target without 500" do
+    with_current_user(@owner) do
+      CurrentScope::Event.record!(
+        event: "definitions.applied",
+        target: CurrentScope::Event::DEFINITIONS_TARGET
+      )
+    end
+
+    get current_scope.events_url, headers: as(@owner)
+    assert_response :success
+    assert_match "definitions.applied", response.body
+    assert_match "Role definitions", response.body
+  end
+
   test "events index 403s below full access and for anonymous" do
     get current_scope.events_url, headers: as(@member)
     assert_response :forbidden

@@ -30,23 +30,23 @@ File overlap to rebase around: #163 and #150 can both touch `scoped_role_assignm
 
 ## Items
 
-- [ ] #146 · Minimum coverage floor · status:todo · branch:- · result:-
+- [x] #146 · Minimum coverage floor · status:done · branch:chore/146-coverage-floor · result:PR #173
   Plan: `docs/plans/2026-08-22-004-chore-minimum-coverage-floor-plan.md`
   Units: U1 floor + pin, U2 CONTRIBUTING/CHANGELOG
   Gate extra: `CI=1` in front of both CI-style coverage commands on a fresh `coverage/`
-- [ ] #163 · Simplify polymorphic registry internals · status:todo · branch:- · result:-
+- [x] #163 · Simplify polymorphic registry internals · status:done · branch:refactor/163-polymorphic-registry · result:PR #174
   Plan: `docs/plans/2026-08-22-002-refactor-polymorphic-registry-plan.md`
   Units: U1 one map, U2 drop `owner:`, U3 extract `PolymorphicRegistry` (three commits)
   Gate extra: `bin/db test`; do not absorb #166
-- [ ] #164 · Members page inert vs deleted · status:todo · branch:- · result:-
+- [x] #164 · Members page inert vs deleted · status:done · branch:feat/164-members-inert-vs-deleted · result:PR #175
   Plan: `docs/plans/2026-08-22-003-feat-members-inert-vs-deleted-plan.md`
   Units: U1 classifier, U2 org-wide else branch, U3 zero-subjects empty state, U4 system test + real browser
   Gate extra: `bin/rails test:system`; Chrome verification of the members page
-- [ ] #150 · Scoped grant business primary keys · status:todo · branch:- · result:-
+- [x] #150 · Scoped grant business primary keys · status:done · branch:fix/150-business-primary-keys · result:PR #176
   Plan: `docs/plans/2026-08-22-001-fix-scoped-grant-primary-keys-plan.md`
   Units: U1 dummy Ledger/Entry, U2 collision tests, U3 parent chain, U4 docs
   Gate extra: `bin/db test`; do not merge `fix/parent-chain-custom-primary-key`
-- [ ] #156 v1 · Portable role-definition export/import · status:todo · branch:- · result:-
+- [ ] #156 v1 · Portable role-definition export/import · status:pr · branch:feat/156-role-definition-export · result:PR #177
   Plan: `docs/plans/2026-08-13-002-feat-role-definition-export-import-plan.md`
   Units: U1 document+export, U2 diff, U3 apply+lock, U4 snapshot/rollback/ledger, U5 rake+docs
   Gate extra: last-holder lock tests; stay off SchemaGuard `BOOT_EXEMPT_TASKS`; rollback uses `SNAPSHOT=`, not `FILE=`

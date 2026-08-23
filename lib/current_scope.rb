@@ -17,6 +17,8 @@ require "current_scope/gating_reflection"
 require "current_scope/sod_preflight"
 require "current_scope/schema_guard"
 require "current_scope/polymorphic_registry"
+require "current_scope/full_access_lock"
+require "current_scope/definitions_document"
 require "current_scope/engine"
 
 module  CurrentScope
@@ -258,6 +260,33 @@ module  CurrentScope
     def seed_defaults!
       Role.find_or_create_by!(name: "Owner") { |r| r.full_access = true }
       Role.find_or_create_by!(name: "Member")
+    end
+
+    # #156 v1. Role definitions (name, description, full_access, permission
+    # keys) as one YAML document. Assignments stay out.
+    def export_definitions
+      DefinitionsDocument.from_live.to_yaml
+    end
+
+    def diff_definitions(document)
+      DefinitionsDocument.parse(document).diff
+    end
+
+    def import_definitions(document, confirm: false, actor: nil, subject: nil, snapshot_path: nil)
+      DefinitionsDocument.parse(document).apply(
+        confirm: confirm, actor: actor, subject: subject, snapshot_path: snapshot_path
+      )
+    end
+
+    def rollback_definitions(snapshot, confirm: false, actor: nil, subject: nil, snapshot_path: nil)
+      if snapshot.is_a?(String) && !snapshot.include?("\n") && !File.file?(snapshot)
+        raise DefinitionsDocument::SnapshotMissing, "No snapshot at #{snapshot}"
+      end
+
+      DefinitionsDocument.parse(snapshot).apply(
+        confirm: confirm, actor: actor, subject: subject,
+        snapshot_path: snapshot_path, event: "definitions.rolled_back"
+      )
     end
 
     # Bootstrap the first admin: assign a role (default: the full_access Owner)

@@ -74,6 +74,27 @@ Add the current_scope gem to this Rails app (Rails >= 8.1, < 9 required).
    seeded — use the test helpers (grant_role!/grant_scoped_role!) from
    current_scope/test_helpers, not stubs.
 
+## Carry role definitions between environments
+
+```text
+Export and diff are safe for an agent to run. Import and rollback are not
+autonomous in production.
+
+1. Export live roles:
+   bin/rails current_scope:definitions:export FILE=config/current_scope/roles.yml
+2. Commit the YAML. Diff against another environment:
+   bin/rails current_scope:definitions:diff FILE=config/current_scope/roles.yml
+3. A human reviews the printed diff. The document is desired state for role
+   names, descriptions, full_access, and permission keys. It does not carry
+   assignments.
+4. A human applies, never an agent on its own:
+   bin/rails current_scope:definitions:import FILE=config/current_scope/roles.yml CONFIRM=1 ACTOR_ID=<id>
+   Production always needs CONFIRM=1. A populated non-production database
+   does too. Do not set CONFIRM=1 unless a human asked in that turn.
+5. Rollback reads the snapshot written beside the document, not FILE=:
+   bin/rails current_scope:definitions:rollback SNAPSHOT=config/current_scope/roles.yml.pre.yml CONFIRM=1 ACTOR_ID=<id>
+```
+
 Before finishing, read docs/SECURITY-CHECKLIST.md in the gem repo
 (https://github.com/davidteren/current_scope/blob/main/docs/SECURITY-CHECKLIST.md)
 and verify each item that applies.

@@ -197,6 +197,10 @@ expecting `/current_scope` to open.
 `X-Current-Scope-Reason` (`no_grant`, `sod_veto`, …) when the default
 engine rescue runs. Host `rescue_from` handlers can replace that response.
 
+To copy a role grid between environments, export YAML and apply it with a
+confirm flag. See [Portable role definitions](docs/guides/role-definitions.md).
+Assignments are not in that document.
+
 ### Retrofitting an app that already has users
 
 > **Retrofitting a real app?** There's a full guide:

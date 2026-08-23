@@ -169,6 +169,17 @@ class ManagementUiTest < ActionDispatch::IntegrationTest
     assert_not CurrentScope::Role.exists?(spare.id)
   end
 
+  test "a role held only by a deleted subject does not authorize removing the last live one" do
+    ghost = User.create!(name: "Ghost")
+    ghost_role = CurrentScope::Role.create!(name: "GhostOwner", full_access: true)
+    CurrentScope::RoleAssignment.create!(subject: ghost, role: ghost_role)
+    ghost.delete
+
+    delete current_scope.role_url(@owner_role), headers: as(@owner)
+    assert CurrentScope::Role.exists?(@owner_role.id),
+           "a holder whose subject row is gone cannot open the console"
+  end
+
   test "refuses to demote a held full-access role when no other holders remain" do
     patch current_scope.role_url(@owner_role), headers: as(@owner), params: {
       role: { name: "Owner", full_access: "0", permission_keys: [ "" ] }

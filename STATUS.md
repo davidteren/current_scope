@@ -2,12 +2,13 @@
 
 > ## Last session handoff
 >
-> **What this is:** CurrentScope on main. Subject identity
-> (#158) shipped as PR #169. Five follow-up issues now have plans.
-> **What we finished:** PR #169 merged and `feat/subject-identity` deleted.
-> Plans and a serial runbook exist for #146, #163, #164, #150, and #156 v1.
-> **What you do next:** Land the plans PR, then start the batch at issue
-> #146 (coverage floor) from `docs/plans/INDEX-five-issue-batch.md`.
+> **What this is:** CurrentScope on main, plus open PR #177 for portable
+> role-definition export (#156 v1).
+> **What we finished:** Every review thread on PR #177 is answered and
+> closed. The review fixes are pushed and the suite is green on SQLite,
+> PostgreSQL and MySQL.
+> **What you do next:** Check that cubic and CI are green on the PR head,
+> then merge PR #177 yourself. Then #156 v2 or the #116 bake.
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >
@@ -126,12 +127,16 @@
 > - **[#132](https://github.com/davidteren/current_scope/issues/132)** —
 >   adoption guide: report mode's two other outcomes (SoD blind-spot 403,
 >   `ConfigurationError` 500) are undocumented.
+> - **[#178](https://github.com/davidteren/current_scope/issues/178)** —
+>   definitions apply: bound the console lock when a document promotes a
+>   widely held role, and serialise the undo file between two applies that
+>   share one snapshot path. Raised by the PR #177 review.
 >
 > **Released:** **0.5.0 (minor)** (PR #159), not a patch — #108 moves
 > authorization semantics even though it is opt-in. See the [0.5.0] section
 > of CHANGELOG.md for the caveats a host must read before declaring a chain.
 
-> Last updated: 2026-08-12
+> Last updated: 2026-08-23
 >
 > **If you are a fresh session asked to audit this work, start at
 > [Verification brief](#verification-brief--for-a-fresh-session).**
@@ -774,6 +779,13 @@ quickstart, production checklist) + tests T1–T4.
 
 ## Next
 
+> **Now (2026-08-23):** [PR #177](https://github.com/davidteren/current_scope/pull/177)
+> implements #156 v1 (portable role-definition export, diff, gated apply,
+> snapshot rollback). Lint, test, Postgres, and MySQL are green. Cubic and
+> Devin are still settling. Do not merge until those reviewers finish and
+> every thread has an inline reply. After that PR: assignment export is
+> #156 v2. The GA bake stays #116.
+>
 > **The only things between here and dropping the banner** (tracking issue
 > **#116**, Wave 3):
 >

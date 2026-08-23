@@ -41,6 +41,7 @@ Key facts agents get wrong without reading:
 
 - [README](https://raw.githubusercontent.com/davidteren/current_scope/main/README.md): the full reference
 - [Adoption guide](https://raw.githubusercontent.com/davidteren/current_scope/main/docs/guides/adopting-in-an-existing-app.md): retrofit an existing app
+- [Portable role definitions](https://raw.githubusercontent.com/davidteren/current_scope/main/docs/guides/role-definitions.md): export/diff/import/rollback of role grids (not assignments)
 - [Security checklist](https://raw.githubusercontent.com/davidteren/current_scope/main/docs/SECURITY-CHECKLIST.md)
 - [CHANGELOG](https://raw.githubusercontent.com/davidteren/current_scope/main/CHANGELOG.md)
 - [Issues](https://github.com/davidteren/current_scope/issues)

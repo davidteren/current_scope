@@ -2,12 +2,13 @@
 
 > ## Last session handoff
 >
-> **What this is:** CurrentScope on main. Roles now travel between
-> environments as one YAML file (#156 v1).
-> **What we finished:** The five-issue batch is finished, and PR #177 merged
-> with every review thread answered.
-> **What you do next:** Start the real-host enforce bake, the last thing
-> between here and 1.0 (#116).
+> **What this is:** CurrentScope on main, Beta, with the 1.0 gate now
+> actually runnable.
+> **What we finished:** The rollout rehearsal could never be finished, because
+> the report counted history instead of what is still denied. It now reaches
+> zero (PR #184) and says what it cannot see (PR #185).
+> **What you do next:** Run report mode on a real app, then flip it to
+> enforce. That is the last gate before 1.0 (#116).
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >
@@ -778,8 +779,14 @@ quickstart, production checklist) + tests T1–T4.
 
 ## Next
 
-> **Now (2026-08-23):** the five-issue batch is finished. Assignment export is
-> #156 v2 and has no plan written yet. The GA bake stays #116.
+> **Now (2026-08-23):** the five-issue batch is finished, and #156 v2 has a plan
+> (`docs/plans/2026-08-23-001-feat-portable-role-assignments-plan.md`), whose
+> KTD-6 is open against #182. The GA bake stays #116, and its tooling now works:
+> the report reaches zero (#184) and names its blind spot (#185). **The bake can
+> start now; nothing below blocks it.** The readiness preflight (#187) would make
+> the flip more comfortable by giving one verdict instead of three signals to
+> assemble, and the banner inventory (8+ places, incl. `current_scope.gemspec:14`)
+> is needed only for the release PR that follows a successful bake.
 >
 > **The only things between here and dropping the banner** (tracking issue
 > **#116**, Wave 3):

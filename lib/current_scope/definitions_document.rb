@@ -290,8 +290,10 @@ module CurrentScope
                   "Refusing to apply: this document would leave zero org-wide full-access holders."
           end
 
-          write_snapshot(path)
+          # Set before the write, not after: File.write truncates first, so a
+          # write that dies part way through still has to be put back.
           wrote_snapshot = true
+          write_snapshot(path)
           persist_roles!
           if CurrentScope.config.audit
             Event.record!(

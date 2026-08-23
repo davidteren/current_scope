@@ -12,7 +12,7 @@ module CurrentScope
     # two concurrent applies take the rows in the same order. Call only inside a
     # transaction.
     def lock_console_state!(planned_fa_names = [])
-      Role.where(full_access: true).or(Role.where(name: planned_fa_names)).lock.load
+      Role.where(full_access: true).or(Role.where(name: planned_fa_names)).order(:id).lock.load
       ids = RoleAssignment.joins(:role)
         .where(current_scope_roles: { full_access: true })
         .pluck(:id)
@@ -22,33 +22,32 @@ module CurrentScope
       RoleAssignment.where(id: ids).order(:id).lock.load if ids.any?
     end
 
-    # Assignments whose stored subject still resolves to a live record. A row
-    # pointing at a deleted or unresolvable subject is not a holder: nobody can
-    # open the console with it, so it must not vouch for the console staying
-    # open, and it must not block a cleanup either. Counts are small (org-wide
-    # full-access holders), and every caller is a single-role mutation.
-    def live_holders(assignments)
-      assignments.select { |assignment| assignment.current_scope_resolved_record("subject") }
+    # True when at least one of these assignments still resolves to a live
+    # subject. A row pointing at a deleted or unresolvable subject is not a
+    # holder: nobody can open the console with it, so it must not vouch for the
+    # console staying open, and it must not block a cleanup either. `any?` stops
+    # at the first live holder, so a widely held role costs one subject lookup
+    # rather than one per row.
+    def live_holder?(assignments)
+      assignments.any? { |assignment| assignment.current_scope_resolved_record("subject") }
     end
-    private_class_method :live_holders
+    private_class_method :live_holder?
 
     # True when removing/demoting this full_access role would leave zero
     # full_access org holders. An unassigned full_access role is always safe.
     def would_lock_console_by_removing_role?(role)
       return false unless role.full_access?
-      return false if live_holders(RoleAssignment.where(role: role)).empty?
+      return false unless live_holder?(RoleAssignment.where(role: role))
 
-      live_holders(
+      !live_holder?(
         RoleAssignment.joins(:role)
           .where(current_scope_roles: { full_access: true })
           .where.not(role_id: role.id)
-      ).empty?
+      )
     end
 
     def held_full_access?
-      live_holders(
-        RoleAssignment.joins(:role).where(current_scope_roles: { full_access: true })
-      ).any?
+      live_holder?(RoleAssignment.joins(:role).where(current_scope_roles: { full_access: true }))
     end
 
     # True when the live world has a held full-access org role and the planned
@@ -58,9 +57,7 @@ module CurrentScope
     def would_lose_held_full_access?(planned_fa_names)
       return false unless held_full_access?
 
-      live_holders(
-        RoleAssignment.joins(:role).where(current_scope_roles: { name: planned_fa_names })
-      ).empty?
+      !live_holder?(RoleAssignment.joins(:role).where(current_scope_roles: { name: planned_fa_names }))
     end
   end
 end

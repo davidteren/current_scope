@@ -255,6 +255,22 @@ class DefinitionsImportTest < ActiveSupport::TestCase
     assert_includes @editor.reload.permission_keys, "reports#approve"
   end
 
+  test "an apply that dies part way through the write puts the undo file back" do
+    with_key("Editor", [ "reports#approve" ]).apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)
+    first_snapshot = File.read(snapshot_path)
+
+    document = with_key("Owner", [ "reports#approve" ])
+    document.define_singleton_method(:write_snapshot) do |path|
+      File.write(path, "")
+      raise Errno::ENOSPC
+    end
+    assert_raises(Errno::ENOSPC) do
+      document.apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)
+    end
+
+    assert_equal first_snapshot, File.read(snapshot_path)
+  end
+
   test "rollback from the default snapshot path is idempotent" do
     default_path = CurrentScope::DefinitionsDocument.default_snapshot_path
     FileUtils.rm_f(default_path)

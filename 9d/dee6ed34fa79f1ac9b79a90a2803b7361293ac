@@ -1,0 +1,26 @@
+docs/solutions/workflow-issues/simplecov-reports-a-number-that-is-quietly-wrong.md
+  s_422b70b7944d1a::t_33f5d6110a8774 20-21,36-39,93-96,140-147,165,195-196,203-207,252-254,262,287
+  s_422b70b7944d1a::t_a7882c8234fb85 232-237,289-290,293-296,299-309
+  s_422b70b7944d1a::t_ff3bca641e61bc 208
+test/coverage_setup_test.rb
+  s_422b70b7944d1a::t_ea96909be37eeb 74
+  s_422b70b7944d1a::t_a7882c8234fb85 73,75-78
+test/coverage_setup.rb
+  s_422b70b7944d1a::t_a7882c8234fb85 56-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "9ddee6ed34fa79f1ac9b79a90a2803b7361293ac",
+  "prompts": {},
+  "sessions": {
+    "s_422b70b7944d1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6f5af15e-cc5c-46e3-8026-7cb4d68251d1",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

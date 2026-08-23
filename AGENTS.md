@@ -109,6 +109,12 @@ work"; Grep/Glob for exhaustive exact matches; LSP or RubyMine MCP
 (`get_symbol_info`, `get_rails_routes`) for structural/runtime facts. Never
 Bash `grep`/`find`.
 
+**Prior art:** `docs/solutions/` holds documented learnings from past work (bugs,
+conventions, workflow traps), filed by category with YAML frontmatter (`module`,
+`tags`, `problem_type`) so it can be searched. `CONCEPTS.md` holds the shared
+domain vocabulary. Both are relevant when implementing or debugging in an area
+they cover.
+
 **Runtime verification:** Chrome DevTools MCP drives the running app; `/verify`
 for end-to-end confirmation of a change.
 

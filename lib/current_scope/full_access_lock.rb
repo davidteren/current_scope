@@ -29,16 +29,16 @@ module CurrentScope
     # at the first live holder, so a widely held role costs one subject lookup
     # rather than one per row.
     def live_holder?(assignments)
-      assignments.any? do |assignment|
-        # STRICT on purpose, unlike every other reader. current_scope_resolved_record
-        # degrades a registry failure to nil (#166), which for a labeling caller is
-        # right and for a guard is a lie: it would report "nobody holds full access"
-        # when the truth is "this process cannot tell". Look the token up through the
-        # raising path first, so a collision reaches the rescue in the two callers
-        # below instead of being read as an inert row.
-        CurrentScope.polymorphic_class(assignment.subject_type)
-        assignment.current_scope_resolved_record("subject")
-      end
+      rows = assignments.to_a
+      # STRICT on purpose, unlike every other reader, and once per DISTINCT token
+      # rather than once per row. current_scope_resolved_record degrades a registry
+      # failure to nil (#166), which for a labeling caller is right and for a guard
+      # is a lie: it would report "nobody holds full access" when the truth is
+      # "this process cannot tell". So ask the raising path first, and let a
+      # collision reach the rescue in the two callers below.
+      rows.map(&:subject_type).uniq.each { |type| CurrentScope.polymorphic_class(type) }
+
+      rows.any? { |assignment| assignment.current_scope_resolved_record("subject") }
     end
     private_class_method :live_holder?
 
@@ -54,13 +54,15 @@ module CurrentScope
       PolymorphicRegistry.error.present? ||
         CurrentScope::Current.polymorphic_registry_error.present?
     end
-    private_class_method :registry_blind?
 
     # True when removing/demoting this full_access role would leave zero
     # full_access org holders. An unassigned full_access role is always safe.
     def would_lock_console_by_removing_role?(role)
-      return true if registry_blind?
+      # full_access? FIRST: a non-full-access role cannot lock anyone out, so an
+      # unrelated registry problem must not block ordinary role cleanup, and must
+      # not report it as a last-full-access refusal.
       return false unless role.full_access?
+      return true if registry_blind?
       return false unless live_holder?(RoleAssignment.where(role: role))
 
       !live_holder?(
@@ -68,9 +70,12 @@ module CurrentScope
           .where(current_scope_roles: { full_access: true })
           .where.not(role_id: role.id)
       )
-    rescue CurrentScope::ConfigurationError
+    rescue CurrentScope::ConfigurationError => e
       # The second raise path never latches, so registry_blind? cannot see it
-      # before the scan starts. Refuse: unknown is not "nobody".
+      # before the scan starts. Refuse: unknown is not "nobody". Record the cause
+      # so registry_blind? answers true afterwards and the caller can say WHY it
+      # refused instead of blaming a last full-access holder that may not exist.
+      CurrentScope::Current.polymorphic_registry_error ||= e.message
       true
     end
 
@@ -87,8 +92,9 @@ module CurrentScope
       return false unless held_full_access?
 
       !live_holder?(RoleAssignment.joins(:role).where(current_scope_roles: { name: planned_fa_names }))
-    rescue CurrentScope::ConfigurationError
+    rescue CurrentScope::ConfigurationError => e
       # Same reason as the sibling guard above.
+      CurrentScope::Current.polymorphic_registry_error ||= e.message
       true
     end
   end

@@ -29,11 +29,14 @@ module CurrentScope
           raise(NameError, unmapped_token_message(name))
       end
 
+      # Ask about THIS token, rather than reading the per-request marker: the
+      # marker holds the first cause recorded in the request and would pin a
+      # registry collision on a token that is simply stale (#90).
       def unmapped_token_message(name)
-        cause = CurrentScope::Current.polymorphic_registry_error
-        return "unmapped polymorphic token #{name.inspect}" if cause.blank?
-
-        "unmapped polymorphic token #{name.inspect}: #{cause}"
+        CurrentScope.polymorphic_class(name)
+        "unmapped polymorphic token #{name.inspect}"
+      rescue CurrentScope::ConfigurationError => e
+        "unmapped polymorphic token #{name.inspect}: #{e.message}"
       end
     end
 

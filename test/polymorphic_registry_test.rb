@@ -55,11 +55,14 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
       CurrentScope::PolymorphicRegistry.instance_variable_set(:@polymorphic_registry, map.freeze)
     end
     CurrentScope::Current.polymorphic_registry_error = nil
-    # No latch: this collision is decided per token, at lookup time.
     assert_nil CurrentScope::PolymorphicRegistry.error
 
     assert_raises(CurrentScope::ConfigurationError) { CurrentScope.polymorphic_class("User") }
     assert_nil CurrentScope.polymorphic_class("User", inert_on_error: true)
+    # AFTER both lookups, which is the only position that proves the claim: this
+    # collision is decided per token at lookup time and never latches. Asserting
+    # it before the raise would pass whether or not the raise latched.
+    assert_nil CurrentScope::PolymorphicRegistry.error, "the owner collision must not latch"
     assert_match(/claimed by both/, CurrentScope::Current.polymorphic_registry_error.to_s,
                  "the swallowed cause must reach the console banner and the last-holder guard")
   ensure

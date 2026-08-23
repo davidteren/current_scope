@@ -55,9 +55,10 @@
           VIEW, and Rails renders the view before the layout, so it is already set
           by the time this line runs. Moving a labeling lookup into the layout
           below this point would silently stop the banner appearing. %>
-      <% if CurrentScope::Current.polymorphic_registry_error.present? %>
+      <% if CurrentScope::FullAccessLock.registry_blind? %>
         <p class="cs-flash cs-flash--alert" role="alert" id="cs-registry-error">
-          Registry misconfigured: <%= CurrentScope::Current.polymorphic_registry_error %>
+          Registry misconfigured: <%= CurrentScope::Current.polymorphic_registry_error ||
+                                       CurrentScope::PolymorphicRegistry.error&.message %>
           Grants below are labeled inert until this is fixed.
         </p>
       <% end %>

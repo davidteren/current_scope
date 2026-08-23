@@ -47,8 +47,12 @@ class RegistryErrorBannerTest < ApplicationSystemTestCase
         const el = document.querySelector("#cs-registry-error");
         const style = getComputedStyle(el);
         const box = el.getBoundingClientRect();
+        // Intersects the viewport, not merely "has a box": an element scrolled
+        // entirely off screen still reports a nonzero width and height.
         return style.display !== "none" && style.visibility !== "hidden" &&
-               box.height > 0 && box.width > 0;
+               box.height > 0 && box.width > 0 &&
+               box.bottom > 0 && box.right > 0 &&
+               box.top < window.innerHeight && box.left < window.innerWidth;
       })()
     JS
 

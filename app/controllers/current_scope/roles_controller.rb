@@ -101,10 +101,7 @@ module CurrentScope
       end
 
       if refused
-        redirect_to edit_role_path(@role),
-                    alert: "Refusing to remove full access — this is the last full-access role " \
-                           "any subject holds and would lock everyone out of this UI. Grant " \
-                           "full access to another subject first, then retry."
+        redirect_to edit_role_path(@role), alert: full_access_refusal_alert("remove full access from this role")
         return
       end
 
@@ -144,10 +141,7 @@ module CurrentScope
       end
 
       if refused
-        redirect_to roles_path,
-                    alert: "Refusing to delete this full-access role — it is the last one held by any " \
-                           "subject and would lock everyone out of this UI. Grant full access to " \
-                           "another subject first, then retry."
+        redirect_to roles_path, alert: full_access_refusal_alert("delete this full-access role")
         return
       end
 
@@ -191,6 +185,21 @@ module CurrentScope
         details.merge!(old_name: previous_name, new_name: role.name)
       end
       Event.record!(event: event, target: role, details: details)
+    end
+
+    # The guard answers a bare true for two different reasons. Telling them apart
+    # matters: "grant full access to another subject first" is useless advice when
+    # the truth is that this process cannot read who holds it (#166).
+    def full_access_refusal_alert(action)
+      if CurrentScope::FullAccessLock.registry_blind?
+        "Refusing to #{action} while the polymorphic registry is misconfigured: this " \
+          "process cannot tell which subjects still hold full access. Fix the registry, " \
+          "then retry."
+      else
+        "Refusing to #{action} — it is the last full access any subject holds and would " \
+          "lock everyone out of this UI. Grant full access to another subject first, " \
+          "then retry."
+      end
     end
 
     # True when removing/demoting this full_access role would leave zero

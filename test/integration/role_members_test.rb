@@ -182,8 +182,11 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
 
     delete current_scope.role_url(@owner_role), headers: as(@owner)
 
+    assert_response :redirect
     assert CurrentScope::Role.exists?(@owner_role.id),
            "a registry that cannot resolve holders must not authorise the delete"
+    assert_match(/registry is misconfigured/, flash[:alert].to_s,
+                 "the operator must be told the real reason, not blamed on a last holder")
   end
 
   # #166 — the UNLATCHED collision. registry_blind? cannot see this one before the
@@ -200,6 +203,9 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
 
     delete current_scope.role_url(@owner_role), headers: as(@owner)
 
+    # Refused CLEANLY, not by 500ing: a crash also leaves the role in place, so
+    # the existence check alone cannot tell the two apart.
+    assert_response :redirect
     assert CurrentScope::Role.exists?(@owner_role.id),
            "a collision the latch cannot see must still refuse the delete"
   ensure

@@ -184,10 +184,15 @@ namespace :current_scope do
     # will clear with a scoped grant on one record is a different question from
     # the same permission on another record, and collapsing them would re-ask
     # with record: nil and count a scoped grant as permanently outstanding.
+    # record_less is part of the KEY, not read off one member: a legacy row (written
+    # before the flag existed) and a new one can share a subject, permission and
+    # target, and taking either row's value would apply it to the other. A group is
+    # therefore uniform by construction, and the legacy rows fall back on their own.
     rows.group_by { |subject_gid, _label, details, target_gid|
-      [ subject_gid, (details.is_a?(Hash) ? details["permission"] : nil), target_gid ]
-    }.each do |(subject_gid, permission, target_gid), group|
-      pair = [ subject_gid, permission, target_gid, group.count ]
+      hash = details.is_a?(Hash) ? details : {}
+      [ subject_gid, hash["permission"], target_gid, hash["record_less"] ]
+    }.each do |(subject_gid, permission, target_gid, recorded_flag), group|
+      pair = [ subject_gid, permission, target_gid, group.count, recorded_flag ]
       if permission.nil?
         unknown << pair
         next
@@ -212,8 +217,6 @@ namespace :current_scope do
       # ambiguous: a denial on the subject's OWN record looks identical to a
       # record-less one, and guessing record-less re-checks on the more
       # permissive arm.
-      details_hash = group.first[2]
-      recorded_flag = details_hash.is_a?(Hash) ? details_hash["record_less"] : nil
       record_less = recorded_flag.nil? ? (target_gid.blank? || target_gid == subject_gid)
                                        : recorded_flag
       # A recorded target that no longer resolves is NOT the same as no target:
@@ -307,7 +310,7 @@ namespace :current_scope do
       # headline and the list below can never disagree. outstanding carries a
       # per-pair count because the re-check is per pair.
       "would-be denials STILL ungranted (grant these)" =>
-        outstanding.sum { |pair| pair.last } + unknown.sum { |pair| pair.last },
+        outstanding.sum { |pair| pair[3] } + unknown.sum { |pair| pair[3] },
       "scoped grants that can never match" => dead_grants.count,
       "scoped grants worth checking" => untargeted_grants.count,
       "SoD actions that will RAISE (500, not grantable)" => preflight_rows.count,
@@ -331,7 +334,7 @@ namespace :current_scope do
     end
     if unknown.any?
       puts
-      puts "  #{unknown.sum { |pair| pair.last }} recorded denial(s) could not be re-checked, because the"
+      puts "  #{unknown.sum { |pair| pair[3] }} recorded denial(s) could not be re-checked, because the"
       puts "  subject, the record or the permission no longer resolves. They are counted"
       puts "  as OUTSTANDING above: cannot tell is not the same as ready."
     end
@@ -392,10 +395,10 @@ namespace :current_scope do
     # resolved row stays in the ledger forever and printing it here is what made
     # the old survey unreadable: a finished rollout showed a long list under a
     # count of zero.
-    open_keys = (outstanding + unknown).to_set { |gid, permission, target, _count| [ gid, permission, target ] }
+    open_keys = (outstanding + unknown).to_set { |gid, permission, target, _count, flag| [ gid, permission, target, flag ] }
     open_rows = rows.select do |subject_gid, _label, details, target_gid|
-      permission = details.is_a?(Hash) ? details["permission"] : nil
-      open_keys.include?([ subject_gid, permission, target_gid ])
+      hash = details.is_a?(Hash) ? details : {}
+      open_keys.include?([ subject_gid, hash["permission"], target_gid, hash["record_less"] ])
     end
 
     unless open_rows.empty?

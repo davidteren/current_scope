@@ -163,6 +163,37 @@ class ReportTaskTest < ActiveSupport::TestCase
     resolver&.singleton_class&.remove_method(:allow?)
   end
 
+  # #116 — a legacy row (no record_less flag) and a new one can share a subject,
+  # permission and target. Reading the flag off one member of that group would
+  # apply it to the other, which is a false all-clear in one direction.
+  test "legacy and flagged rows for the same key are re-checked separately" do
+    alice = User.create!(name: "Alice")
+    base = {
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name
+    }
+    # Written before the flag existed: ambiguous, falls back to the GID guess.
+    CurrentScope::Event.create!(**base, details: { "permission" => "users#update", "reason" => "no_grant" })
+    # Written after: explicitly ON the subject's own record.
+    CurrentScope::Event.create!(**base, details: { "permission" => "users#update", "reason" => "no_grant", "record_less" => false })
+
+    asked = []
+    resolver = CurrentScope.resolver
+    original = resolver.method(:allow?)
+    resolver.define_singleton_method(:allow?) do |**kwargs|
+      asked << kwargs
+      original.call(**kwargs)
+    end
+
+    run_task
+
+    assert_equal 2, asked.size, "the two rows must not be collapsed into one re-check"
+    assert_equal [ nil, alice ], asked.map { |kwargs| kwargs[:record] },
+                 "the legacy row falls back; the flagged row keeps its record"
+  ensure
+    resolver&.singleton_class&.remove_method(:allow?)
+  end
+
   test "counts each subject's would-be denials, most-denied first" do
     would_deny(@alice, "reports#index", count: 5)
     would_deny(@alice, "reports#show", count: 2)

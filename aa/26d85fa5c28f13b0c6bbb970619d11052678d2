@@ -1,0 +1,33 @@
+test/system/registry_error_banner_test.rb
+  s_422b70b7944d1a::t_df7ca747d324fa 50-51,53-55
+lib/current_scope/full_access_lock.rb
+  s_422b70b7944d1a::t_d36c6a3a0fbe39 32-41
+  s_422b70b7944d1a::t_37ddcf161d3ffd 61-63,65,73,75-78,95,97
+test/integration/role_members_test.rb
+  s_422b70b7944d1a::t_df7ca747d324fa 185,188-189,206-208
+app/controllers/current_scope/roles_controller.rb
+  s_422b70b7944d1a::t_8602f9afb274b6 104,144,190-202
+  s_422b70b7944d1a::t_9a541cec36bbb9 203-204
+app/models/concerns/current_scope/storable_keys.rb
+  s_422b70b7944d1a::t_df7ca747d324fa 32-34,36-39
+test/polymorphic_registry_test.rb
+  s_422b70b7944d1a::t_df7ca747d324fa 62-65
+app/views/layouts/current_scope/application.html.erb
+  s_422b70b7944d1a::t_df7ca747d324fa 58,60-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "aa26d85fa5c28f13b0c6bbb970619d11052678d2",
+  "prompts": {},
+  "sessions": {
+    "s_422b70b7944d1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6f5af15e-cc5c-46e3-8026-7cb4d68251d1",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

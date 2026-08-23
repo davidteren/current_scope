@@ -70,9 +70,12 @@ class CoverageSetupTest < ActiveSupport::TestCase
 
     # Deliberately against SimpleCov's internals: there is no public API that answers
     # "what would this configuration measure" without running a whole suite. The
-    # Gemfile sets no version constraint, so the assertion below is the guard rather
-    # than a version claim in a comment: when it fails, re-derive this from
-    # SimpleCov::Result#apply_cover_filters! rather than deleting the test.
+    # Gemfile sets no version constraint, so read Gemfile.lock for the version in
+    # use. The assertion below guards the two method names only. An upgrade that
+    # keeps them and changes filter semantics walks straight through it, and the
+    # measured-set assertions further down are what would catch that. When it does
+    # fail, re-derive this from SimpleCov::Result#apply_cover_filters! rather than
+    # deleting the test.
     assert SimpleCov.respond_to?(:cover_filters) && SimpleCov.respond_to?(:filters),
            "SimpleCov's filter API moved; re-derive this pin, do not drop it"
 

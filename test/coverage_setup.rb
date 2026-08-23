@@ -53,9 +53,11 @@ SimpleCov.start do
   # so read Gemfile.lock rather than trusting a version written here.
   cover "{app,lib}/**/*.rb"
   # PATTERNS: filters match `project_filename` — root-relative, NO leading slash
-  # ("lib/current_scope/version.rb"). Anchor with \A and never lead with a slash; a
-  # pattern like %r{/lib/current_scope/version\.rb\z} matches nothing and fails
-  # silently. test/coverage_setup_test.rb pins the resulting set for that reason.
+  # ("lib/current_scope/version.rb"). Anchor a REGEXP with \A and never lead with
+  # a slash; a pattern like %r{/lib/current_scope/version\.rb\z} matches nothing
+  # and fails silently. That rule is for regexps only: the `cover` line above is a
+  # shell glob, where \A is a literal that would match nothing.
+  # test/coverage_setup_test.rb pins the resulting set for that reason.
   #
   # Both exclusions below are lines no test could ever reach, for different reasons.
   # Generator templates are host-app code, copied out and executed there, never here:

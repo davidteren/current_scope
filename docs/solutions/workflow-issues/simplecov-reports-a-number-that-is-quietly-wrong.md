@@ -17,8 +17,8 @@ symptoms:
   - "A `skip` or `add_filter` pattern has no effect and raises nothing"
   - "One filter works and its neighbour silently does not, for no visible reason"
   - "The percentage rises after a filter change, and the change looks unrelated"
-root_cause: silent_tool_misconfiguration
-resolution_type: guard_plus_pin
+root_cause: config_error
+resolution_type: test_fix
 related_components:
   - testing_framework
   - "test/coverage_setup.rb"
@@ -33,10 +33,10 @@ tags:
   - tooling
   - ruby-coverage
 related_issues:
-  - "#114 (closed) — add a SimpleCov coverage signal to CI (worklist T6)"
-  - "#145 (merged) — start SimpleCov before the engine loads, so coverage measures lib/"
-  - "#146 (closed, PR #173) — the CI coverage floor that now depends on this being right"
-  - "#147 (this entry) — recommended by the learnings reviewer across two review passes on #145"
+  - "#114 (closed): add a SimpleCov coverage signal to CI (worklist T6)"
+  - "#145 (merged): start SimpleCov before the engine loads, so coverage measures lib/"
+  - "#146 (closed, PR #173): the CI coverage floor that now depends on this being right"
+  - "#147 (this entry): recommended by the learnings reviewer across two passes on #145"
 ---
 
 ## Context
@@ -90,8 +90,10 @@ This file runs before the engine is loaded, so that class does not exist yet.
 
 ## Trap 2: SimpleCov filters match a path with no leading slash
 
-SimpleCov matches every filter against `project_filename`, not against the
-absolute path. In simplecov 1.1.1, `lib/simplecov/source_file.rb`:
+SimpleCov matches String, Regexp and glob filters against `project_filename`,
+not against the absolute path. (A block filter is the exception: it receives the
+whole `SourceFile` and can read the absolute name.) In simplecov 1.1.1,
+`lib/simplecov/source_file.rb`:
 
 ```ruby
 def project_filename
@@ -135,7 +137,14 @@ it. Two filters written in the same style, side by side, one live and one dead.
 That is why this was written wrong twice in one pull request. The house style
 looked confirmed by the filter that happened to work.
 
-The rule is one line: **anchor with `\A` and never lead with a slash.**
+The rule is one line, and it is about **Regexp** arguments only:
+**anchor a Regexp filter with `\A`, and never lead with a slash.**
+
+It does not carry over to the other two argument types, and applying it there
+produces the same silent failure. A String argument is a path-segment match, not
+a Regexp. A String passed to `cover` is a shell glob, where `\A` is four literal
+characters that match nothing. This entry's own `cover "{app,lib}/**/*.rb"` is a
+glob, and correctly carries no anchor.
 
 ### The third instance of the same shape, in the opposite direction
 
@@ -153,7 +162,7 @@ direction that flatters you is the one nobody investigates.
 ## Guidance
 
 **Treat a coverage percentage as an unverified claim until something in the repo
-fails when it goes wrong.** Two mechanisms, and this repo now has both.
+fails when it goes wrong.** Three mechanisms, and this repo now has all three.
 
 **1. Guard the ordering where the ordering lives.** `test/coverage_setup.rb`
 raises if the engine is already loaded when it runs:
@@ -183,14 +192,19 @@ assert_not measured.call("lib/current_scope/version.rb"),
 
 That test reaches into `SimpleCov.cover_filters` and `SimpleCov.filters`, which
 are internals, on purpose: there is no public API that answers "what would this
-configuration measure" without running a whole suite. It guards the version it
-was derived against, so an upgrade tells you to re-derive it rather than letting
-it rot:
+configuration measure" without running a whole suite. One assertion guards the
+two internals it reaches into:
 
 ```ruby
 assert SimpleCov.respond_to?(:cover_filters) && SimpleCov.respond_to?(:filters),
        "SimpleCov's filter API moved; re-derive this pin, do not drop it"
 ```
+
+Be exact about what that buys. It fails when SimpleCov renames or drops those
+two methods, and it tells you to re-derive rather than delete. It cannot see a
+version, and an upgrade that keeps both names while changing filter semantics
+walks straight through it. The measured-set assertions above are the real signal;
+this one only stops them from passing vacuously.
 
 **3. Build the assertion from the source, never from a second copy.** The test
 that checks which commands arm the bootstrap extracts the regex out of `bin/rails`
@@ -215,10 +229,12 @@ tooling error.
 filter can hit it, and the leading-slash habit comes straight from writing
 absolute paths everywhere else.
 
-**A code comment that states a measured figure is a claim with an expiry date.**
-The first attempt at the `version.rb` filter shipped with a comment asserting a
-measured fact that was not true, because the dead filter left the number looking
-unchanged.
+**A measurement can be real and still support a false conclusion.** The
+`version.rb` filter was dropped during #145 on the strength of an A/B test, and
+the comment recording that decision shipped at `fbe26005`: *"verified by A/B-ing
+the skip: identical output, 1501/1545 either way."* The output was identical
+because the pattern being A/B-ed was itself dead. The number was measured
+honestly, and it answered a question nobody had asked.
 
 > This entry found a live instance of that while it was being written. Both
 > coverage files said SimpleCov was "pinned 1.0.2". The `Gemfile` carries
@@ -233,8 +249,9 @@ unchanged.
   dummy app boot is what loads your library before your bootstrap runs. A plain
   application does not have this problem in the same shape.
 - **Always, when writing or editing any SimpleCov path pattern.** `skip`,
-  `add_filter`, `cover`, `add_group`. Anchor it with `\A`, and add or extend an
-  outcome pin so a dead pattern fails something.
+  `cover`, `group`, and their deprecated aliases `add_filter` and `add_group`.
+  Anchor a Regexp with `\A`, and add or extend an outcome pin so a dead pattern
+  fails something.
 - **Whenever a coverage percentage moves and no test changed.** A jump in either
   direction is a measurement change, not a quality change, until proven otherwise.
 - **When reviewing a filter that leads with a slash.** It may work. Check whether
@@ -242,7 +259,7 @@ unchanged.
 
 ## Examples
 
-### Example 1 — the load-order fix (#145)
+### Example 1: the load-order fix (#145)
 
 *Before:* the bootstrap ran from `test/test_helper.rb`, after the dummy app and
 the engine were loaded. Reported 34.95%, real 97.40%.
@@ -267,16 +284,29 @@ Both regexes are line-anchored with `^`, because both strings also appear in the
 explanatory comment above them and matching the comment would compare the wrong
 positions.
 
-### Example 2 — the dead filter (#145, written wrong twice)
+### Example 2: the dead filter (#145)
 
-*Before:*
+*Before* (`test/coverage_setup.rb` at `fbe26005`, readable with
+`git show fbe26005:test/coverage_setup.rb`):
 
 ```ruby
-skip %r{/lib/current_scope/version\.rb\z}
+cover "{app,lib}/**/*.rb"
+skip %r{/test/}
+skip %r{/dummy/}
+skip %r{/generators/.*/templates/}
 ```
 
-Matches nothing. `version.rb` stays in the denominator at 0%, and the reported
-figure is quietly a little lower than the truth.
+Three Regexp filters in one style, every one of them leading with a slash. Run
+against real `project_filename` values, two of them work and one does nothing:
+
+- `%r{/dummy/}` matches `test/dummy/config/environment.rb`
+- `%r{/generators/.*/templates/}` matches `lib/generators/.../templates/initializer.rb`
+- `%r{/test/}` matches **nothing**, because `test/` sits at position 0
+
+Nobody noticed, and the reason is worth keeping: `cover "{app,lib}/**/*.rb"` had
+already excluded everything under `test/`, so the dead filter and the live one
+produced exactly the same report. A filter that is both dead and redundant leaves
+no trace at all.
 
 *After:*
 

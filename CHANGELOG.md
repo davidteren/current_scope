@@ -71,6 +71,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pilots.
 
 ### Fixed
+- **`current_scope:report` names the blind spot that 403s first (#116).** All
+  three report-mode recorders skip a request that resolved no subject, because
+  the ledger requires an actor. That is the class of denial an operator meets
+  first after flipping to `:enforce`, and it could never appear in the survey, so
+  a clean report read as "ready" while unauthenticated traffic was untested. The
+  caveat now says so in the same breath as the counts.
 - **`current_scope:report` now has an exit condition (#116).** The ledger is
   append-only, so a would-be denial survives the grant that fixes it. The report
   counted rows, which answers "what was ever denied", while an operator deciding

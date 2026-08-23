@@ -344,7 +344,10 @@ namespace :current_scope do
     # about a feature they do not use — pinned by "no SoD config means no
     # preflight section at all".
     caveat_line = +"  This is a survey, not a clearance: the ledger only knows traffic that " \
-                   "has already run."
+                   "has already run, and only requests that resolved a subject. A request " \
+                   "that reaches the gate before authentication is downgraded and recorded " \
+                   "NOWHERE, so it cannot appear above and WILL be refused after the flip. " \
+                   "Confirm your authentication runs before the gate."
     if CurrentScope.config.sod_actions.any?
       caveat_line << " The SoD preflight is also partial by construction (its own note says how)."
       caveat_line << " It could not complete this run." if preflight.degraded?

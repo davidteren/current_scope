@@ -103,6 +103,37 @@ class ReportTaskTest < ActiveSupport::TestCase
                     "an un-re-checkable denial must never render as a finished rollout")
   end
 
+  # #116 — Guard writes `target: target || subject`, so a record-less denial
+  # carries the subject's own GID. Re-asking with the subject as the record is a
+  # different question and would keep a granted denial outstanding forever.
+  test "a record-less denial re-checks with no record, so granting clears it" do
+    alice = User.create!(name: "Alice")
+    # This is the shape Guard writes for a record-less action: target == subject.
+    CurrentScope::Event.create!(
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name,
+      details: { "permission" => "reports#index", "reason" => "no_grant" }
+    )
+    # Assert the QUESTION, not a downstream answer: whether the difference is
+    # visible in the verdict depends on which resolver arm the host's grants
+    # happen to hit, and the defect is that the wrong question is asked at all.
+    asked = []
+    resolver = CurrentScope.resolver
+    original = resolver.method(:allow?)
+    resolver.define_singleton_method(:allow?) do |**kwargs|
+      asked << kwargs
+      original.call(**kwargs)
+    end
+
+    run_task
+
+    assert_equal 1, asked.size, "one re-check for the one recorded pair"
+    assert_nil asked.first[:record],
+               "a record-less denial must re-check with record: nil, never with the subject"
+  ensure
+    resolver&.singleton_class&.remove_method(:allow?)
+  end
+
   test "counts each subject's would-be denials, most-denied first" do
     would_deny(@alice, "reports#index", count: 5)
     would_deny(@alice, "reports#show", count: 2)

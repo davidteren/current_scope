@@ -202,10 +202,16 @@ namespace :current_scope do
       end
 
       subject = locate.call(subject_gid)
+      # Guard writes `target: target || subject`, so a RECORD-LESS denial carries
+      # the subject's own GID as its target. Re-asking with the subject as the
+      # record would be a different question: the record-less arm of the resolver
+      # could no longer fire. Same GID therefore means record: nil, which is what
+      # the ledger actually asked.
+      record_less = target_gid.blank? || target_gid == subject_gid
       # A recorded target that no longer resolves is NOT the same as no target:
       # re-asking without it would answer a question the ledger never asked.
-      record = locate.call(target_gid)
-      if subject.nil? || (target_gid.present? && record.nil?)
+      record = record_less ? nil : locate.call(target_gid)
+      if subject.nil? || (!record_less && record.nil?)
         unknown << pair
         next
       end

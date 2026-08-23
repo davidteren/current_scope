@@ -43,7 +43,7 @@ Would-be denials still outstanding — grant these to stop them (most-denied fir
   Grace Hopper
         7x  reports#approve
 
-Total: 457 would-be denials across 2 subject(s).
+Total: 457 outstanding would-be denial(s) across 2 subject(s).
 ```
 
 That list is your migration plan, in the shape of the role grid you need to

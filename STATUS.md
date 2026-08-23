@@ -782,9 +782,11 @@ quickstart, production checklist) + tests T1–T4.
 > **Now (2026-08-23):** the five-issue batch is finished, and #156 v2 has a plan
 > (`docs/plans/2026-08-23-001-feat-portable-role-assignments-plan.md`), whose
 > KTD-6 is open against #182. The GA bake stays #116, and its tooling now works:
-> the report reaches zero (#184) and names its blind spot (#185). What is left
-> there is the readiness preflight (#187), the banner inventory (8+ places, incl.
-> `current_scope.gemspec:14`), and the human bake itself.
+> the report reaches zero (#184) and names its blind spot (#185). **The bake can
+> start now; nothing below blocks it.** The readiness preflight (#187) would make
+> the flip more comfortable by giving one verdict instead of three signals to
+> assemble, and the banner inventory (8+ places, incl. `current_scope.gemspec:14`)
+> is needed only for the release PR that follows a successful bake.
 >
 > **The only things between here and dropping the banner** (tracking issue
 > **#116**, Wave 3):

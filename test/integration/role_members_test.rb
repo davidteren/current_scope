@@ -5,8 +5,8 @@ require "test_helper"
 class RoleMembersTest < ActionDispatch::IntegrationTest
   setup do
     @owner = User.create!(name: "Owner")
-    CurrentScope::RoleAssignment.create!(
-      subject: @owner, role: CurrentScope::Role.create!(name: "Owner", full_access: true))
+    @owner_role = CurrentScope::Role.create!(name: "Owner", full_access: true)
+    CurrentScope::RoleAssignment.create!(subject: @owner, role: @owner_role)
     @role = CurrentScope::Role.create!(name: "Editor")
   end
 
@@ -169,6 +169,18 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
     end
     assert_match(/old_token/, error.message, "the refusal must name the registry problem")
     assert_not CurrentScope::RoleAssignment.exists?(subject_id: bob.id.to_s)
+  end
+
+  # #166 — the 500 was accidentally guarding the delete. Now that the page
+  # renders, the last-holder rule must refuse rather than read every holder as
+  # inert and conclude nobody holds full access.
+  test "a poisoned registry refuses to delete a full-access role" do
+    poison_registry!
+
+    delete current_scope.role_url(@owner_role), headers: as(@owner)
+
+    assert CurrentScope::Role.exists?(@owner_role.id),
+           "a registry that cannot resolve holders must not authorise the delete"
   end
 
   # #90 — deleted resource leaves an inert scoped grant that must not look live.

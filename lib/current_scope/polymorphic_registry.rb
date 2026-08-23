@@ -107,6 +107,12 @@ module CurrentScope
         @polymorphic_registry ||= {}
       end
 
+      # The latched rebuild failure, or nil. Public so the last-holder lock can
+      # refuse to answer while the registry cannot say which class a token names
+      # (#166): a guard that reads every holder as inert would report zero
+      # holders and wave through the delete that locks everyone out.
+      def error = @polymorphic_registry_error
+
       private
 
       def resolve_polymorphic_token(token)

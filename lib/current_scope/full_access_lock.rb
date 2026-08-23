@@ -33,9 +33,24 @@ module CurrentScope
     end
     private_class_method :live_holder?
 
+    # True when this process cannot tell who holds what. A poisoned registry
+    # resolves no subject, so every holder reads inert and the honest answer to
+    # "does anyone still hold full access" is "unknown", not "nobody". The console
+    # now RENDERS in that state (#166) rather than 500ing, so an operator can
+    # reach the delete and demote paths, and these guards have to refuse there.
+    # Checks the process-wide latch and the per-request marker, because the
+    # second raise path (a live constant disagreeing with the registered owner)
+    # never latches.
+    def registry_blind?
+      PolymorphicRegistry.error.present? ||
+        CurrentScope::Current.polymorphic_registry_error.present?
+    end
+    private_class_method :registry_blind?
+
     # True when removing/demoting this full_access role would leave zero
     # full_access org holders. An unassigned full_access role is always safe.
     def would_lock_console_by_removing_role?(role)
+      return true if registry_blind?
       return false unless role.full_access?
       return false unless live_holder?(RoleAssignment.where(role: role))
 
@@ -55,6 +70,7 @@ module CurrentScope
     # (or become) full_access — including a currently non-FA role that the
     # document promotes, whose live holders would then keep the console open.
     def would_lose_held_full_access?(planned_fa_names)
+      return true if registry_blind?
       return false unless held_full_access?
 
       !live_holder?(RoleAssignment.joins(:role).where(current_scope_roles: { name: planned_fa_names }))

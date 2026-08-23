@@ -343,8 +343,8 @@ module  CurrentScope
       PolymorphicRegistry.storage_token(klass)
     end
 
-    def polymorphic_class(type)
-      PolymorphicRegistry.class_for(type)
+    def polymorphic_class(type, inert_on_error: false)
+      PolymorphicRegistry.class_for(type, inert_on_error: inert_on_error)
     end
 
     def rebuild_polymorphic_registry!

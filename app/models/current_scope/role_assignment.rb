@@ -31,7 +31,7 @@ module CurrentScope
         next false if type.blank?
         next true if type == own_token
 
-        resolved = CurrentScope.polymorphic_class(type)
+        resolved = CurrentScope.polymorphic_class(type, inert_on_error: true)
         resolved && resolved.base_class == base
       end
     end

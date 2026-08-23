@@ -19,8 +19,24 @@ module CurrentScope
       # Do not fall through to Rails constantize when the registry is empty:
       # a token that equals another class name would bind the wrong model.
       def polymorphic_class_for(name)
-        CurrentScope.polymorphic_class(name) ||
-          raise(NameError, "unmapped polymorphic token #{name.inspect}")
+        # inert_on_error: a poisoned registry becomes the NameError every console
+        # reader already rescues, instead of a ConfigurationError none of them do.
+        # NameError is not a downgrade of the diagnosis, because the cause travels
+        # in the message: Rails calls this hook from association loads AND from the
+        # belongs_to presence validator, so a write under a poisoned registry still
+        # fails closed, and it says WHY rather than claiming the token is unmapped.
+        CurrentScope.polymorphic_class(name, inert_on_error: true) ||
+          raise(NameError, unmapped_token_message(name))
+      end
+
+      # Ask about THIS token, rather than reading the per-request marker: the
+      # marker holds the first cause recorded in the request and would pin a
+      # registry collision on a token that is simply stale (#90).
+      def unmapped_token_message(name)
+        CurrentScope.polymorphic_class(name)
+        "unmapped polymorphic token #{name.inspect}"
+      rescue CurrentScope::ConfigurationError => e
+        "unmapped polymorphic token #{name.inspect}: #{e.message}"
       end
     end
 
@@ -29,7 +45,7 @@ module CurrentScope
     # record 7. Every engine path that labels or audits an existing grant uses
     # this checked reader so an inert grant never names an unrelated live record.
     def current_scope_resolved_record(side)
-      klass = CurrentScope.polymorphic_class(public_send("#{side}_type"))
+      klass = CurrentScope.polymorphic_class(public_send("#{side}_type"), inert_on_error: true)
       return if klass.nil?
 
       id = public_send("#{side}_id")
@@ -74,6 +90,13 @@ module CurrentScope
         # the association resolves to nothing, and reading it would skip exactly
         # the rows this guard exists for. Resolved through this model, which is
         # what wrote the token, so an overridden polymorphic_name still matches.
+        # Deliberately WITHOUT inert_on_error (#166). This is the write side, and
+        # degrading here would return nil, hit the `next` below, and skip the key
+        # check entirely, so a grant would save under a registry that cannot say
+        # which class its token names. Reads degrade; writes stay loud. Today the
+        # belongs_to presence validator raises first, so this raise is a second
+        # line of defence rather than the usual path, which is exactly what it
+        # should be if that validator is ever made optional.
         klass = CurrentScope.polymorphic_class(public_send("#{side}_type"))
         next if klass.nil?
 

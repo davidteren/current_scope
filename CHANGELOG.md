@@ -71,6 +71,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pilots.
 
 ### Fixed
+- **The management console degrades instead of 500ing on a poisoned polymorphic
+  registry (#166).** A registry that cannot say which class a token names used to
+  raise out of every labeling lookup, so the roles members and subjects pages
+  returned a 500: the console died exactly when an operator opened it to find the
+  broken grants. Those lookups now pass `inert_on_error: true`, so a row degrades
+  to inert through the same path a stale token already takes, and the page shows
+  a banner naming the misconfiguration. Writes stay fail-closed: a grant cannot be
+  saved under a poisoned registry, and the refusal now names the real cause rather
+  than reporting the token as unmapped.
 - **Scoped grants on a business primary key match that record (#150).** A
   model that sets `self.primary_key` to a column other than `id`, while
   keeping a leftover surrogate `id`, is covered by tests. Composite and

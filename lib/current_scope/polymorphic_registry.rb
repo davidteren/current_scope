@@ -28,16 +28,27 @@ module CurrentScope
       # fail-loud on a real misconfiguration, distinct from the nil-inert path: it
       # is caught at boot under eager_load and self-heals on the next dev reload, so
       # the request-path raise is only reachable in an eager-load-off environment.
-      # Inert-labeling callers that must never 500 (current_scope_resolved_record,
-      # preload_resolvable_resources!) rescue the stale-token errors, NOT this one.
-      #
-      # Issue #166 (console should degrade, not 500, on a poisoned registry) lands
-      # here: this method is the one place both raise paths live.
-      def class_for(type)
+      # Issue #166 landed here, because this method is the one place both raise
+      # paths live. Inert-labeling callers now pass `inert_on_error: true` and get
+      # nil, so the console degrades instead of 500ing. The raise still propagates
+      # for every caller that does not ask, which is every WRITE path, and for the
+      # last-holder guard, which must not read a refusal as "nobody holds this".
+      # `inert_on_error: true` is for the labeling and preloading callers that
+      # must never 500 the console (#166). It turns both raise paths into nil, so
+      # the row degrades to inert through the SAME path a stale token already
+      # takes, and records the cause on CurrentScope::Current so the console can
+      # say why. Write paths never pass it: a grant must not be saved under a
+      # registry that cannot say which class a token names.
+      def class_for(type, inert_on_error: false)
         return if type.blank?
         raise @polymorphic_registry_error if @polymorphic_registry_error
 
         resolve_polymorphic_token(type.to_s)
+      rescue ConfigurationError => e
+        raise unless inert_on_error
+
+        CurrentScope::Current.polymorphic_registry_error ||= e.message
+        nil
       end
 
       # Rebuild the token → class map. Safe to call from to_prepare (dev reload)
@@ -95,6 +106,12 @@ module CurrentScope
       def registry
         @polymorphic_registry ||= {}
       end
+
+      # The latched rebuild failure, or nil. Public so the last-holder lock can
+      # refuse to answer while the registry cannot say which class a token names
+      # (#166): a guard that reads every holder as inert would report zero
+      # holders and wave through the delete that locks everyone out.
+      def error = @polymorphic_registry_error
 
       private
 

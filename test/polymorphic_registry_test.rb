@@ -46,6 +46,30 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
     CurrentScope.rebuild_polymorphic_registry!
   end
 
+  # #166 — the second raise path never latches, so registry_blind? depends on the
+  # per-request marker being set when a labeling lookup swallows this one.
+  test "inert_on_error degrades the unlatched owner collision and records the cause" do
+    CurrentScope.rebuild_polymorphic_registry!
+    CurrentScope.polymorphic_registry.dup.tap do |map|
+      map["User"] = TokenDocument
+      CurrentScope::PolymorphicRegistry.instance_variable_set(:@polymorphic_registry, map.freeze)
+    end
+    CurrentScope::Current.polymorphic_registry_error = nil
+    assert_nil CurrentScope::PolymorphicRegistry.error
+
+    assert_raises(CurrentScope::ConfigurationError) { CurrentScope.polymorphic_class("User") }
+    assert_nil CurrentScope.polymorphic_class("User", inert_on_error: true)
+    # AFTER both lookups, which is the only position that proves the claim: this
+    # collision is decided per token at lookup time and never latches. Asserting
+    # it before the raise would pass whether or not the raise latched.
+    assert_nil CurrentScope::PolymorphicRegistry.error, "the owner collision must not latch"
+    assert_match(/claimed by both/, CurrentScope::Current.polymorphic_registry_error.to_s,
+                 "the swallowed cause must reach the console banner and the last-holder guard")
+  ensure
+    CurrentScope::Current.polymorphic_registry_error = nil
+    CurrentScope.rebuild_polymorphic_registry!
+  end
+
   test "a failed rebuild leaves the registry empty, not the previous map" do
     assert_equal TokenDocument, CurrentScope.polymorphic_class("token_docs")
     original = Folder.method(:polymorphic_name)

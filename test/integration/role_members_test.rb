@@ -5,12 +5,28 @@ require "test_helper"
 class RoleMembersTest < ActionDispatch::IntegrationTest
   setup do
     @owner = User.create!(name: "Owner")
-    CurrentScope::RoleAssignment.create!(
-      subject: @owner, role: CurrentScope::Role.create!(name: "Owner", full_access: true))
+    @owner_role = CurrentScope::Role.create!(name: "Owner", full_access: true)
+    CurrentScope::RoleAssignment.create!(subject: @owner, role: @owner_role)
     @role = CurrentScope::Role.create!(name: "Editor")
+    @original_polymorphic_names = CurrentScope.config.polymorphic_class_names
   end
 
   def as(user) = { "X-User-Id" => user.id.to_s }
+
+  # Latches a real ConfigurationError on the registry: the config names a token
+  # that User does not store, so the rebuild refuses and every later lookup
+  # re-raises. Undone in teardown, because the latch is a process-wide ivar.
+  def poison_registry!
+    CurrentScope.config.polymorphic_class_names = { "old_token" => "User" }
+    assert_raises(CurrentScope::ConfigurationError) { CurrentScope.rebuild_polymorphic_registry! }
+  end
+
+  teardown do
+    # Restore rather than blank: a future test may set these legitimately, and
+    # the latch is a process-wide ivar that outlives this test either way.
+    CurrentScope.config.polymorphic_class_names = @original_polymorphic_names
+    CurrentScope.rebuild_polymorphic_registry!
+  end
 
   test "members lists org-wide and scoped holders and offers non-holders to add" do
     alice = User.create!(name: "Alice")
@@ -122,6 +138,78 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
     assert_select "#scoped_holder_#{sra.id}.cs-scoped-holder.cs-row--inert"
     assert_match(/Remove inert/, response.body)
     assert_select "#scoped_revoke_#{sra.id}"
+  end
+
+  # #166 — a poisoned registry must degrade the console, not 500 it. This is the
+  # page an operator opens to find and fix broken grants, so it has to render.
+  test "members survives a poisoned polymorphic registry without 500ing" do
+    folder = Folder.create!(name: "Space")
+    bob = User.create!(name: "Bob")
+    # The grant is created BEFORE the poison: create! validates through the
+    # registry and would refuse afterwards, which is the write path staying
+    # fail-closed and is asserted separately below.
+    sra = CurrentScope::ScopedRoleAssignment.create!(subject: bob, resource: folder, role: @role)
+    poison_registry!
+
+    get current_scope.members_role_url(@role), headers: as(@owner)
+
+    assert_response :success
+    assert_select "#cs-registry-error"
+    assert_match(/Registry misconfigured/, response.body)
+    assert_select "#scoped_holder_#{sra.id}.cs-row--inert"
+    assert_match(/unavailable — inert/, response.body)
+  end
+
+  # Reads degrade; writes stay closed. A grant must not be saved under a registry
+  # that cannot say which class a token names, and the refusal must name the real
+  # cause rather than claim the token is unmapped.
+  test "a poisoned registry still refuses to write a grant, naming the cause" do
+    bob = User.create!(name: "Bob")
+    poison_registry!
+
+    error = assert_raises NameError do
+      CurrentScope::RoleAssignment.create!(subject: bob, role: @role)
+    end
+    assert_match(/old_token/, error.message, "the refusal must name the registry problem")
+    assert_not CurrentScope::RoleAssignment.exists?(subject_id: bob.id.to_s)
+  end
+
+  # #166 — the 500 was accidentally guarding the delete. Now that the page
+  # renders, the last-holder rule must refuse rather than read every holder as
+  # inert and conclude nobody holds full access.
+  test "a poisoned registry refuses to delete a full-access role" do
+    poison_registry!
+
+    delete current_scope.role_url(@owner_role), headers: as(@owner)
+
+    assert_response :redirect
+    assert CurrentScope::Role.exists?(@owner_role.id),
+           "a registry that cannot resolve holders must not authorise the delete"
+    assert_match(/registry is misconfigured/, flash[:alert].to_s,
+                 "the operator must be told the real reason, not blamed on a last holder")
+  end
+
+  # #166 — the UNLATCHED collision. registry_blind? cannot see this one before the
+  # scan starts, because nothing latches and no labeling lookup has run yet in
+  # this request. Found by qodo and Devin on PR #181 against the first fix.
+  test "an unlatched registry collision refuses to delete a full-access role" do
+    CurrentScope.rebuild_polymorphic_registry!
+    # A registered owner that disagrees with what Rails constantizes the token to.
+    CurrentScope.polymorphic_registry.dup.tap do |map|
+      map["User"] = Folder
+      CurrentScope::PolymorphicRegistry.instance_variable_set(:@polymorphic_registry, map.freeze)
+    end
+    assert_nil CurrentScope::PolymorphicRegistry.error, "this path must not latch"
+
+    delete current_scope.role_url(@owner_role), headers: as(@owner)
+
+    # Refused CLEANLY, not by 500ing: a crash also leaves the role in place, so
+    # the existence check alone cannot tell the two apart.
+    assert_response :redirect
+    assert CurrentScope::Role.exists?(@owner_role.id),
+           "a collision the latch cannot see must still refuse the delete"
+  ensure
+    CurrentScope.rebuild_polymorphic_registry!
   end
 
   # #90 — deleted resource leaves an inert scoped grant that must not look live.

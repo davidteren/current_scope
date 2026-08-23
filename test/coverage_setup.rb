@@ -66,5 +66,13 @@ SimpleCov.start do
   skip %r{\Alib/current_scope/version\.rb\z}
   # merge_timeout stays at the 600s default: an expired result is dropped with a
   # warning, a merged stale one is silent. Delete coverage/ before re-measuring.
-  # No minimum_coverage yet — tracked in #146.
+  #
+  # Floor from unit-only 96.67% line / 83.99% branch on main (2026-08-22, 2105
+  # lines / 987 branches). The unit step is the binding evaluation. Lowering
+  # the floor is a maintainer decision, not a PR fix. Tracked in #146.
+  # Raw ENV["CI"] — this file loads before ActiveSupport, so String#present?
+  # is not defined here.
+  if ENV["CI"]
+    minimum_coverage line: 95, branch: 80
+  end
 end

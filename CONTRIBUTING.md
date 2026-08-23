@@ -31,6 +31,12 @@ The bootstrap (`test/coverage_setup.rb`) has to load before the engine does, or
 Ruby's `Coverage` cannot instrument `lib/`. It aborts the run if it ever starts
 too late, rather than reporting a figure that is far too low.
 
+CI enforces `minimum_coverage line: 95, branch: 80`. A failure means code landed
+without tests. Open the `coverage` artifact CI uploads, or local
+`coverage/index.html`, and cover the red lines. Reproduce locally by putting
+`CI=1` in front of the two `SIMPLECOV_COMMAND_NAME` commands above, after
+deleting `coverage/`. Do not lower the floor to make a PR pass.
+
 ## Running against PostgreSQL and MySQL
 
 The suite defaults to SQLite, which coerces comparisons the other two refuse — a

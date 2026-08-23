@@ -43,6 +43,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     now says so instead of printing the literal key `"(duplicate natural key)"`.
 
 ### Changed
+- **CI now fails when line coverage falls below 95% or branch coverage
+  falls below 80% (#146).** Local runs, including a single-file run, do
+  not enforce the floor. Reproduce with `CI=1` in front of the documented
+  `SIMPLECOV_COMMAND_NAME` commands.
 - **Docs site landing page is now a conversion page, not only a long
   technical write-up.** Hero CTAs (Star / Quickstart / Showcase / Docs),
   a theme-aware permission-grid mock, real screenshots plus SoD and

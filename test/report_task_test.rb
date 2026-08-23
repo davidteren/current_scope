@@ -197,6 +197,21 @@ class ReportTaskTest < ActiveSupport::TestCase
     resolver&.singleton_class&.remove_method(:allow?)
   end
 
+  # #116 — the survey cannot see a request that never resolved a subject, and that
+  # is the class that 403s FIRST after the flip. An operator reading "0
+  # outstanding" must not read it as "ready".
+  test "the caveat names the unauthenticated blind spot, so zero does not read as ready" do
+    # Deliberately an EMPTY ledger: this is the zero case the name describes, and
+    # the caveat must survive the branch that prints "nothing found in any
+    # category". Seeding a denial here would assert the caveat in the one
+    # scenario where it was never in doubt.
+    output = run_task
+
+    assert_match(/before authentication/, output)
+    assert_match(/recorded\s+NOWHERE/i, output)
+    assert_match(/WILL be refused after the flip/, output)
+  end
+
   test "counts each subject's would-be denials, most-denied first" do
     would_deny(@alice, "reports#index", count: 5)
     would_deny(@alice, "reports#show", count: 2)

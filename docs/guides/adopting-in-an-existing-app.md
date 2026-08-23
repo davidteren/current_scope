@@ -403,8 +403,14 @@ after the ladder.
    flip once. If you
    want a narrower blast radius, roll out `Guard` itself one base controller at a
    time (include it on `Admin::BaseController` before `ApplicationController`).
-5. **Flip to `:enforce`.** Keep the diagnostics on in dev/test — they're on by
-   default and they're how the next mistake tells on itself.
+5. **Flip to `:enforce`.** Before you do, check the one thing the report cannot
+   tell you: **does your authentication run before the gate?** A request that
+   reaches the gate with no subject resolved is downgraded in report mode and
+   recorded nowhere, so it can never appear in the survey, and it is refused the
+   moment you flip. A clean report plus an unauthenticated request reaching the
+   gate is the shape that turns a rehearsal into an outage. Keep the diagnostics
+   on in dev/test — they're on by default and they're how the next mistake tells
+   on itself.
 6. **Broaden `excluded_controllers` only deliberately.** Every entry is a
    controller that can never be granted; that's a decision, not a cleanup.
 

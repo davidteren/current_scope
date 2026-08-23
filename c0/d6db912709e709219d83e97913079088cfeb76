@@ -1,0 +1,18 @@
+app/views/current_scope/roles/members.html.erb
+  h_e8a5bb9272fa34 52-53,57-73
+test/integration/role_members_test.rb
+  h_e8a5bb9272fa34 201
+test/system/members_inert_badge_test.rb
+  h_e8a5bb9272fa34 38,40-42,44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "c0d6db912709e709219d83e97913079088cfeb76",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+CHANGELOG.md
+  h_e8a5bb9272fa34 54-57
+app/controllers/current_scope/roles_controller.rb
+  h_e8a5bb9272fa34 75
+app/helpers/current_scope/application_helper.rb
+  h_e8a5bb9272fa34 96-110
+app/views/current_scope/roles/members.html.erb
+  h_e8a5bb9272fa34 31-32,47-52,55,59,63-69,72,74
+test/helpers/application_helper_test.rb
+  h_e8a5bb9272fa34 323-390
+test/integration/role_members_test.rb
+  h_e8a5bb9272fa34 162-164,172-219
+test/system/members_inert_badge_test.rb
+  h_e8a5bb9272fa34 1-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "bfd2086501d1d20e40a7645c0e7cb743734a43ee",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+CHANGELOG.md
+  h_e8a5bb9272fa34 68-72
+UPGRADING.md
+  h_e8a5bb9272fa34 114-119
+test/business_primary_key_test.rb
+  h_e8a5bb9272fa34 1-99
+test/dummy/app/models/entry.rb
+  h_e8a5bb9272fa34 1-6
+test/dummy/app/models/ledger.rb
+  h_e8a5bb9272fa34 1-8
+test/dummy/db/migrate/20260823000100_create_ledgers_and_entries.rb
+  h_e8a5bb9272fa34 1-17
+test/dummy/db/schema.rb
+  h_e8a5bb9272fa34 13,23-24,33-34,40-41,50,61-64,74-81,88-95,101,110-111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "df9d3d65a7cf1c05c2742d1fbeadc86e771314b1",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

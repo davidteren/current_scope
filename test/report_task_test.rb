@@ -44,6 +44,47 @@ class ReportTaskTest < ActiveSupport::TestCase
     capture_io { Rake::Task["current_scope:report"].invoke }.first
   end
 
+  # #116 — the rollout loop had no exit condition. The ledger is append-only, so
+  # a would_deny row survives the grant that fixes it, and the guide told
+  # operators to grant until the list empties. Re-checking each recorded denial
+  # against live grants is the signal that CAN reach zero.
+  test "a denial that has since been granted stops counting as outstanding" do
+    alice = User.create!(name: "Alice")
+    would_deny(alice, "reports#index", count: 4)
+
+    before = run_task
+    assert_match(/STILL ungranted/, before)
+    assert_match(/4\s+would-be denials STILL ungranted/, before,
+                 "counted in denials, the same unit the detail section totals")
+
+    role = CurrentScope::Role.create!(name: "Reader")
+    role.permission_keys = [ "reports#index" ]
+    role.save!
+    CurrentScope::RoleAssignment.create!(subject: alice, role: role)
+
+    after = run_task
+
+    assert_match(/Every would-be denial recorded so far is now granted/, after,
+                 "the grant must clear the outstanding list even though the rows remain")
+    assert_match(/append-only/, after)
+    assert_no_match(/would-be denials STILL ungranted/, after)
+    assert_no_match(/reports#index/, after,
+                    "a resolved denial must leave the detail list too, not just the count")
+  end
+
+  test "a denial whose subject no longer resolves counts as outstanding, not ready" do
+    ghost = User.create!(name: "Ghost")
+    would_deny(ghost, "reports#index")
+    ghost.delete
+
+    output = run_task
+
+    assert_match(/could not be re-checked/, output)
+    assert_match(/cannot tell is/, output)
+    assert_no_match(/Every would-be denial recorded so far is now granted/, output,
+                    "an unresolvable subject must never read as a finished rollout")
+  end
+
   test "counts each subject's would-be denials, most-denied first" do
     would_deny(@alice, "reports#index", count: 5)
     would_deny(@alice, "reports#show", count: 2)

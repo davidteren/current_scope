@@ -164,6 +164,50 @@ namespace :current_scope do
     preflight = CurrentScope::SodPreflight.scan
     preflight_rows = preflight.rows
 
+    # #116: the ledger is APPEND-ONLY, so a would_deny row survives the grant that
+    # fixes it. Counting rows therefore answers "what was ever denied", while the
+    # operator's actual question before flipping to :enforce is "what would STILL
+    # be denied". Re-ask the resolver, once per distinct subject and permission
+    # rather than once per row, and split the survey on the answer. That
+    # outstanding list can reach zero and stay there, which is what makes the
+    # rollout loop terminate.
+    #
+    # Best effort by design, like every other section here: a subject or record
+    # that no longer resolves is reported as unknown rather than silently counted
+    # as fixed, because "cannot tell" must never read as "ready".
+    outstanding = []
+    resolved = []
+    unknown = []
+    rows.group_by { |subject_gid, _label, details|
+      [ subject_gid, details.is_a?(Hash) ? details["permission"] : nil ]
+    }.each do |(subject_gid, permission), group|
+      if permission.nil?
+        unknown << [ subject_gid, permission, group.count ]
+        next
+      end
+
+      subject = begin
+        GlobalID::Locator.locate(subject_gid)
+      rescue StandardError
+        nil
+      end
+      if subject.nil?
+        unknown << [ subject_gid, permission, group.count ]
+        next
+      end
+
+      still_denied = begin
+        !CurrentScope.resolver.allow?(subject: subject, permission: permission, record: nil)
+      rescue StandardError
+        nil
+      end
+      case still_denied
+      when true then outstanding << [ subject_gid, permission, group.count ]
+      when false then resolved << [ subject_gid, permission, group.count ]
+      else unknown << [ subject_gid, permission, group.count ]
+      end
+    end
+
     dead_grants = []
     untargeted_grants = []
     begin
@@ -231,7 +275,12 @@ namespace :current_scope do
     # cannot see — the same rule the preflight caveat and the ungated task
     # follow. (#133 review)
     signals = {
-      "would-be denials (grant these)" => rows.count,
+      # Counted in DENIALS, the same unit the detail section totals, so the
+      # headline and the list below can never disagree. outstanding carries a
+      # per-pair count because the re-check is per pair.
+      "would-be denials STILL ungranted (grant these)" =>
+        outstanding.sum { |_gid, _permission, count| count } +
+        unknown.sum { |_gid, _permission, count| count },
       "scoped grants that can never match" => dead_grants.count,
       "scoped grants worth checking" => untargeted_grants.count,
       "SoD actions that will RAISE (500, not grantable)" => preflight_rows.count,
@@ -245,6 +294,19 @@ namespace :current_scope do
     else
       puts "CurrentScope report — #{signals.count} category(ies) with something in them:"
       signals.each { |label, count| puts "  #{count.to_s.rjust(6)}  #{label}" }
+    end
+    if outstanding.empty? && resolved.any?
+      puts
+      puts "  Every would-be denial recorded so far is now granted " \
+           "(#{resolved.count} subject/permission pair(s) re-checked against live grants)."
+      puts "  The ledger still lists them because it is append-only. That is the list"
+      puts "  you were waiting to see empty; this is what empty looks like."
+    end
+    if unknown.any?
+      puts
+      puts "  #{unknown.count} recorded denial(s) could not be re-checked (the subject or the"
+      puts "  permission no longer resolves). Treat these as OUTSTANDING: cannot tell is"
+      puts "  not the same as ready."
     end
     puts
     # The SoD clause only when the host opted into SoD. A project that never set
@@ -299,11 +361,23 @@ namespace :current_scope do
         .each { |permission, count| puts "    #{count.to_s.rjust(5)}x  #{permission || '(unknown)'}" }
     end
 
-    unless rows.empty?
-      separate.call
-      grouped = rows.group_by { |subject, _label, _details| subject }
+    # Only the pairs still outstanding, so this list agrees with the headline. A
+    # resolved row stays in the ledger forever and printing it here is what made
+    # the old survey unreadable: a finished rollout showed a long list under a
+    # count of zero.
+    actionable = outstanding.to_set { |subject_gid, permission, _count| [ subject_gid, permission ] }
+    unknown_pairs = unknown.to_set { |subject_gid, permission, _count| [ subject_gid, permission ] }
+    open_rows = rows.select do |subject_gid, _label, details|
+      permission = details.is_a?(Hash) ? details["permission"] : nil
+      actionable.include?([ subject_gid, permission ]) ||
+        unknown_pairs.include?([ subject_gid, permission ])
+    end
 
-      puts "Would-be denials — grant these to stop them (most-denied first):"
+    unless open_rows.empty?
+      separate.call
+      grouped = open_rows.group_by { |subject, _label, _details| subject }
+
+      puts "Would-be denials still outstanding — grant these to stop them (most-denied first):"
       puts
 
       grouped.each do |subject_gid, subject_rows|
@@ -313,7 +387,12 @@ namespace :current_scope do
         puts
       end
 
-      puts "Total: #{rows.count} would-be denials across #{grouped.size} subject(s)."
+      puts "Total: #{open_rows.count} outstanding would-be denial(s) across " \
+           "#{grouped.size} subject(s)."
+      if resolved.any?
+        puts "#{resolved.count} more subject/permission pair(s) were recorded and are " \
+             "now granted; the ledger keeps them because it is append-only."
+      end
     end
 
     unless dead_grants.empty?

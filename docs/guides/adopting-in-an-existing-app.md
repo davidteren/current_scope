@@ -47,8 +47,15 @@ Total: 457 would-be denials across 2 subject(s).
 ```
 
 That list is your migration plan, in the shape of the role grid you need to
-build. Seed the roles it names, watch the list empty out, then set
-`config.enforcement = :enforce`. Every step is one line back.
+build. Seed the roles it names, re-run the report until nothing is **still
+ungranted**, then set `config.enforcement = :enforce`. Every step is one line
+back.
+
+**What "empty" means here.** The ledger is append-only, so a would-be denial
+stays listed after you grant it. The report therefore re-checks every recorded
+denial against your live grants and counts only the ones that would *still* be
+denied today. That count is the one that reaches zero, and a denial you cannot
+re-check (its subject is gone) is counted as outstanding, never as ready.
 
 **Report mode is an adoption ramp, not a way to run in production.** It relaxes
 exactly one thing — "nobody has granted this yet". It never lifts the
@@ -326,7 +333,9 @@ A workable order:
 1. Turn on `Context` + `Guard` in **report mode**. Nothing changes for users,
    with three named exceptions:
    [what report mode will not downgrade](#three-things-report-mode-will-not-downgrade).
-2. Seed roles from `current_scope:report` until the list is empty.
+2. Seed roles from `current_scope:report` until nothing is still ungranted. The
+   raw list never shrinks, because the ledger is append-only; the count the
+   report re-checks against live grants is the one that reaches zero.
 3. Flip to `:enforce`. Both systems now run; the gate admits, your policies still
    decide records.
 4. Port record rules incrementally: `authorize` / `policy_scope` become
@@ -390,7 +399,8 @@ after the ladder.
    [the three things report mode will not downgrade](#three-things-report-mode-will-not-downgrade)
    below: none of them is fixed by granting, and all three land in live traffic.
 4. **Flip one namespace to `:enforce`?** You can't — enforcement is global. What
-   you *can* do is watch `current_scope:report` empty out and flip once. If you
+   you *can* do is watch `current_scope:report` reach zero still-ungranted and
+   flip once. If you
    want a narrower blast radius, roll out `Guard` itself one base controller at a
    time (include it on `Admin::BaseController` before `ApplicationController`).
 5. **Flip to `:enforce`.** Keep the diagnostics on in dev/test — they're on by

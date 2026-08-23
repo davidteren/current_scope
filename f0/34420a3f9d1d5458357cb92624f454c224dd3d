@@ -1,0 +1,23 @@
+lib/tasks/current_scope_tasks.rake
+  s_422b70b7944d1a::t_477ca320bc7d82 347-350
+test/report_task_test.rb
+  s_422b70b7944d1a::t_6b954ba3e5f312 200-212
+CHANGELOG.md
+  s_422b70b7944d1a::t_492901e32a6b8f 74-79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "f034420a3f9d1d5458357cb92624f454c224dd3d",
+  "prompts": {},
+  "sessions": {
+    "s_422b70b7944d1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6f5af15e-cc5c-46e3-8026-7cb4d68251d1",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

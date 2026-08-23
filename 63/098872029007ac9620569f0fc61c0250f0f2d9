@@ -1,0 +1,21 @@
+STATUS.md
+  s_422b70b7944d1a::t_aa7401e04dcf7a 7-11,130-133
+docs/guides/role-definitions.md
+  s_422b70b7944d1a::t_95a20b8afe2e4a 27-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "63098872029007ac9620569f0fc61c0250f0f2d9",
+  "prompts": {},
+  "sessions": {
+    "s_422b70b7944d1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6f5af15e-cc5c-46e3-8026-7cb4d68251d1",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

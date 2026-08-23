@@ -147,6 +147,21 @@ class DefinitionsDocumentTest < ActiveSupport::TestCase
     assert_equal "", diff.to_s
   end
 
+  test "parse turns a refused YAML construct into InvalidDocument" do
+    yaml = <<~YAML
+      apiVersion: #{CurrentScope::DefinitionsDocument::API_VERSION}
+      roles:
+        - name: Editor
+          permission_keys: &base
+            - reports#index
+        - name: Reviewer
+          permission_keys: *base
+    YAML
+    assert_raises CurrentScope::DefinitionsDocument::InvalidDocument do
+      CurrentScope::DefinitionsDocument.parse(yaml)
+    end
+  end
+
   test "parse refuses a missing or foreign apiVersion" do
     assert_raises CurrentScope::DefinitionsDocument::InvalidDocument do
       CurrentScope::DefinitionsDocument.parse("roles: []\n")

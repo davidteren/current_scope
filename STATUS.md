@@ -5,8 +5,7 @@
 > **What this is:** CurrentScope on main, plus open PR #177 for portable
 > role-definition export (#156 v1).
 > **What we finished:** PRs #172–#176 merged. Issues #146, #163, #164,
-> and #150 are closed. #156 v1 is implemented on
-> `feat/156-role-definition-export`.
+> and #150 are closed. #156 v1 is implemented in PR #177.
 > **What you do next:** Finish PR #177 (wait for cubic and Devin, reply
 > every thread, merge when the human asks). Then #156 v2 or the #116 bake.
 >

@@ -114,8 +114,19 @@ module CurrentScope
         raise InvalidDocument, "duplicate role name in document"
       end
 
-      new(specs)
+      new(specs, source_path: source_path_for(source))
     end
+
+    # The file this document was read from, or nil for inline YAML. Mirrors the
+    # branches load_source takes: reaching here with a newline-free String means
+    # load_source already proved it is a file.
+    def self.source_path_for(source)
+      return source.to_s if source.is_a?(Pathname)
+      return source if source.is_a?(String) && !source.include?("\n") && !source.start_with?("---")
+
+      nil
+    end
+    private_class_method :source_path_for
 
     def self.load_source(source)
       case source
@@ -138,7 +149,10 @@ module CurrentScope
       else
         raise InvalidDocument, "cannot parse #{source.class}"
       end
-    rescue Psych::SyntaxError => e
+    # Psych::Exception, not Psych::SyntaxError: safe_load also refuses input
+    # that PARSES, e.g. a YAML anchor/alias or a tagged value. Those are
+    # operator documents, so they deserve InvalidDocument, not a backtrace.
+    rescue Psych::Exception => e
       raise InvalidDocument, e.message
     end
     private_class_method :load_source
@@ -170,8 +184,9 @@ module CurrentScope
       Rails.root.join("tmp/current_scope/last_definitions_snapshot.yml").to_s
     end
 
-    def initialize(roles)
+    def initialize(roles, source_path: nil)
       @roles = Array(roles).sort_by(&:name)
+      @source_path = source_path
     end
 
     def roles
@@ -262,29 +277,40 @@ module CurrentScope
         end
       end
 
-      Role.transaction do
-        FullAccessLock.lock_console_state!
-        refuse_held_deletes!
-        planned_fa = @roles.select(&:full_access).map(&:name)
-        if FullAccessLock.would_lose_held_full_access?(planned_fa)
-          raise LastHolderLock,
-                "Refusing to apply: this document would leave zero org-wide full-access holders."
-        end
+      path = snapshot_destination(snapshot_path)
+      previous_snapshot = File.exist?(path) ? File.read(path) : nil
 
-        path = write_snapshot(snapshot_path)
-        persist_roles!
-        if CurrentScope.config.audit
-          Event.record!(
-            event: event,
-            target: CurrentScope::Event::DEFINITIONS_TARGET,
-            details: {
-              "snapshot" => path,
-              "diff" => changeset.to_s
-            },
-            actor: actor,
-            subject: subject || actor
-          )
+      begin
+        Role.transaction do
+          FullAccessLock.lock_console_state!
+          refuse_held_deletes!
+          planned_fa = @roles.select(&:full_access).map(&:name)
+          if FullAccessLock.would_lose_held_full_access?(planned_fa)
+            raise LastHolderLock,
+                  "Refusing to apply: this document would leave zero org-wide full-access holders."
+          end
+
+          write_snapshot(path)
+          persist_roles!
+          if CurrentScope.config.audit
+            Event.record!(
+              event: event,
+              target: CurrentScope::Event::DEFINITIONS_TARGET,
+              details: {
+                "snapshot" => path,
+                "diff" => changeset.to_s
+              },
+              actor: actor,
+              subject: subject || actor
+            )
+          end
         end
+      rescue StandardError
+        # The snapshot is written inside the transaction so an unwritable path
+        # stops the apply. A rolled-back apply changed nothing, so the undo file
+        # must go back to what it held: the previous apply's undo point.
+        previous_snapshot ? File.write(path, previous_snapshot) : FileUtils.rm_f(path)
+        raise
       end
 
       changeset
@@ -324,8 +350,17 @@ module CurrentScope
       (live.keys - doc_names).each { |name| live[name].destroy! }
     end
 
-    def write_snapshot(snapshot_path)
+    # Where this apply's undo file goes. Never the document being applied: a
+    # rollback reading the default snapshot path would otherwise overwrite it
+    # with the state it is undoing, so running rollback twice would re-apply it.
+    def snapshot_destination(snapshot_path)
       path = (snapshot_path.presence || self.class.default_snapshot_path).to_s
+      return path unless @source_path && File.expand_path(path) == File.expand_path(@source_path)
+
+      "#{path}.pre.yml"
+    end
+
+    def write_snapshot(path)
       FileUtils.mkdir_p(File.dirname(path))
       File.write(path, self.class.from_live.to_yaml)
       path

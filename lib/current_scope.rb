@@ -278,14 +278,14 @@ module  CurrentScope
       )
     end
 
-    def rollback_definitions(snapshot, confirm: false, actor: nil, subject: nil)
+    def rollback_definitions(snapshot, confirm: false, actor: nil, subject: nil, snapshot_path: nil)
       if snapshot.is_a?(String) && !snapshot.include?("\n") && !File.file?(snapshot)
         raise DefinitionsDocument::SnapshotMissing, "No snapshot at #{snapshot}"
       end
 
       DefinitionsDocument.parse(snapshot).apply(
         confirm: confirm, actor: actor, subject: subject,
-        event: "definitions.rolled_back"
+        snapshot_path: snapshot_path, event: "definitions.rolled_back"
       )
     end
 

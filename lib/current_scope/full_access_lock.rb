@@ -40,9 +40,16 @@ module CurrentScope
     def would_lose_held_full_access?(planned_fa_names)
       return false unless held_full_access?
 
-      !RoleAssignment.joins(:role)
+      # Lock the planned holders as well. lock_console_state! covers roles that
+      # are ALREADY full_access; a role this document PROMOTES is not in that
+      # set, so its holders could be revoked between this check and the commit.
+      # Same by-id shape, for the same adapter reason.
+      ids = RoleAssignment.joins(:role)
         .where(current_scope_roles: { name: planned_fa_names })
-        .exists?
+        .pluck(:id)
+      return true if ids.empty?
+
+      RoleAssignment.where(id: ids).lock.load.empty?
     end
   end
 end

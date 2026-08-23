@@ -226,6 +226,40 @@ class DefinitionsImportTest < ActiveSupport::TestCase
     assert_includes @editor.reload.permission_keys, "reports#approve"
   end
 
+  test "rollback from the default snapshot path is idempotent" do
+    default_path = CurrentScope::DefinitionsDocument.default_snapshot_path
+    FileUtils.rm_f(default_path)
+    with_key("Editor", [ "reports#approve" ]).apply(confirm: true, actor: @actor)
+    assert_includes @editor.reload.permission_keys, "reports#approve"
+
+    CurrentScope.rollback_definitions(default_path, confirm: true, actor: @actor)
+    assert_not_includes @editor.reload.permission_keys, "reports#approve"
+
+    CurrentScope.rollback_definitions(default_path, confirm: true, actor: @actor)
+    assert_not_includes @editor.reload.permission_keys, "reports#approve"
+  ensure
+    FileUtils.rm_f(default_path)
+    FileUtils.rm_f("#{default_path}.pre.yml")
+  end
+
+  test "an apply that rolls back leaves the previous snapshot in place" do
+    with_key("Editor", [ "reports#approve" ]).apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)
+    first_snapshot = File.read(snapshot_path)
+
+    CurrentScope.config.audit = :strict
+    original = CurrentScope::Event.method(:create!)
+    CurrentScope::Event.define_singleton_method(:create!) do |*, **|
+      raise ActiveRecord::StatementInvalid, "SQLite3::SQLException: no such table: current_scope_events"
+    end
+    assert_raises(ActiveRecord::StatementInvalid) do
+      with_key("Owner", [ "reports#approve" ]).apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)
+    end
+
+    assert_equal first_snapshot, File.read(snapshot_path)
+  ensure
+    CurrentScope::Event.define_singleton_method(:create!, original) if original
+  end
+
   test "a reserved event target does not 500 the events index" do
     incoming = with_key("Editor", [ "reports#approve" ])
     incoming.apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)

@@ -533,6 +533,7 @@ namespace :current_scope do
       end
 
       puts diff
+      actor = resolve_actor.call
       confirm = ENV["CONFIRM"] == "1"
       unless confirm
         if $stdin.tty? && ENV["CI"].to_s.empty?
@@ -542,7 +543,7 @@ namespace :current_scope do
         end
       end
 
-      kwargs = { confirm: confirm, actor: resolve_actor.call }
+      kwargs = { confirm: confirm, actor: actor }
       kwargs[:snapshot_path] = snapshot_path if snapshot_path
       kwargs[:event] = "definitions.rolled_back" if rolling_back
       document.apply(**kwargs)

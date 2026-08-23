@@ -106,7 +106,8 @@ module CurrentScope
         end
         registered = registry[token]
 
-        if resolved && resolved.respond_to?(:polymorphic_name) &&
+        if resolved.is_a?(Class) && resolved < ActiveRecord::Base && !resolved.abstract_class? &&
+           resolved.respond_to?(:polymorphic_name) &&
            resolved.polymorphic_name.to_s == token
           if registered && registered.base_class != resolved.base_class
             raise ConfigurationError,

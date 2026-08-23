@@ -69,6 +69,10 @@ class PolymorphicRegistryTest < ActiveSupport::TestCase
     assert_nil CurrentScope.polymorphic_class("old_token")
   end
 
+  test "an abstract class token stays inert instead of returning the tableless class" do
+    assert_nil CurrentScope.polymorphic_class("ApplicationRecord")
+  end
+
   test "a custom token shared by an STI base and subclass resolves to the base owner" do
     # Base and leaf both emit the SAME custom token, and the leaf's constant name
     # IS that token, so Rails constantizes the token to the narrower subclass.

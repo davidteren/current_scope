@@ -24,7 +24,10 @@ roles:
   permission_keys: []
 ```
 
-Unknown catalog keys fail apply. Apply does not scrub.
+`full_access` must be `true` or `false`. There is no permissive cast, because a
+typo in an authorization document must not grant full access. Unknown catalog
+keys fail apply. Apply does not scrub. A YAML anchor, an alias, or a tagged
+value is refused: the document is plain data.
 
 ## Commands
 

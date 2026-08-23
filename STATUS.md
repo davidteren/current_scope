@@ -4,10 +4,11 @@
 >
 > **What this is:** CurrentScope on main, plus open PR #177 for portable
 > role-definition export (#156 v1).
-> **What we finished:** PRs #172–#176 merged. Issues #146, #163, #164,
-> and #150 are closed. #156 v1 is implemented in PR #177.
-> **What you do next:** Finish PR #177 (wait for cubic and Devin, reply
-> every thread, merge when the human asks). Then #156 v2 or the #116 bake.
+> **What we finished:** Every review thread on PR #177 is answered and
+> closed. The review fixes are pushed and the suite is green on SQLite,
+> PostgreSQL and MySQL.
+> **What you do next:** Check that cubic and CI are green on the PR head,
+> then merge PR #177 yourself. Then #156 v2 or the #116 bake.
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >
@@ -126,6 +127,10 @@
 > - **[#132](https://github.com/davidteren/current_scope/issues/132)** —
 >   adoption guide: report mode's two other outcomes (SoD blind-spot 403,
 >   `ConfigurationError` 500) are undocumented.
+> - **[#178](https://github.com/davidteren/current_scope/issues/178)** —
+>   definitions apply: bound the console lock when a document promotes a
+>   widely held role, and serialise the undo file between two applies that
+>   share one snapshot path. Raised by the PR #177 review.
 >
 > **Released:** **0.5.0 (minor)** (PR #159), not a patch — #108 moves
 > authorization semantics even though it is opt-in. See the [0.5.0] section

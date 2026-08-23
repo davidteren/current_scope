@@ -48,8 +48,9 @@ SimpleCov.command_name ENV.fetch("SIMPLECOV_COMMAND_NAME", "minitest")
 SimpleCov.start do
   enable_coverage :branch
   root File.expand_path("..", __dir__)
-  # SimpleCov 1.x (pinned 1.0.2): cover = include + track unloaded files;
-  # skip = exclude. See simplecov/configuration/filters.rb.
+  # SimpleCov 1.x: cover = include + track unloaded files; skip = exclude. See
+  # simplecov/configuration/filters.rb. The Gemfile sets no version constraint,
+  # so read Gemfile.lock rather than trusting a version written here.
   cover "{app,lib}/**/*.rb"
   # PATTERNS: filters match `project_filename` — root-relative, NO leading slash
   # ("lib/current_scope/version.rb"). Anchor with \A and never lead with a slash; a

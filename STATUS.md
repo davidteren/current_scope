@@ -2,15 +2,12 @@
 
 > ## Last session handoff
 >
-> **What this is:** CurrentScope portability work. Issue #158 (subject
-> identity) is open as PR #169.
-> **What we finished:** Every one of the 23 review comments on PR #169 is
-> answered, and the fixes are in: the grant-writing setup task can no
-> longer boot on an unrepaired schema, a blank identity value now raises,
-> and boot stopped scanning the whole users table.
-> **What you do next:** Wait for CI to go green on PR #169, then merge it.
-> After that, start issue #156 v1 (role-definition export) from
-> `docs/plans/2026-08-13-002-feat-role-definition-export-import-plan.md`.
+> **What this is:** CurrentScope on main. Subject identity
+> (#158) shipped as PR #169. Five follow-up issues now have plans.
+> **What we finished:** PR #169 merged and `feat/subject-identity` deleted.
+> Plans and a serial runbook exist for #146, #163, #164, #150, and #156 v1.
+> **What you do next:** Land the plans PR, then start the batch at issue
+> #146 (coverage floor) from `docs/plans/INDEX-five-issue-batch.md`.
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >

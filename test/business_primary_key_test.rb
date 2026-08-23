@@ -30,12 +30,17 @@ class BusinessPrimaryKeyTest < ActiveSupport::TestCase
     )
 
     assert_equal "200", grant.resource_id
-    assert_equal 1, @alpha.class.connection.select_value(
+    # Postgres and MySQL do not roll autoincrement back with the transaction,
+    # so Alpha's leftover `id` is not always 1. The collision that matters is
+    # Beta's surrogate 200 vs Alpha's business key "200".
+    alpha_surrogate = @alpha.class.connection.select_value(
       Ledger.sanitize_sql([ "SELECT id FROM ledgers WHERE code = ?", "200" ])
-    )
-    assert_equal 200, @alpha.class.connection.select_value(
+    ).to_i
+    beta_surrogate = @alpha.class.connection.select_value(
       Ledger.sanitize_sql([ "SELECT id FROM ledgers WHERE code = ?", "999" ])
-    )
+    ).to_i
+    assert_not_equal 200, alpha_surrogate
+    assert_equal 200, beta_surrogate
 
     assert_equal [ true, nil ],
                  @resolver.decide(subject: @holder, permission: "folders#show", record: @alpha)

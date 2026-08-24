@@ -1,0 +1,21 @@
+docs/site/upgrading.md
+  s_451c688433a06a::t_67bec91d914935 84,93-96
+README.md
+  s_451c688433a06a::t_67bec91d914935 132-134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "debe170a381156d8d65790585b3b9ac28c61c5b1",
+  "prompts": {},
+  "sessions": {
+    "s_451c688433a06a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6e35dad6-0d3e-4652-8a92-6c50923458ee",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

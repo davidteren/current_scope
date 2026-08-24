@@ -65,7 +65,14 @@ primary keys, you were affected on 0.2, 0.3 and 0.4.
 ```bash
 bin/rails current_scope:install:migrations
 bin/rails db:migrate
+bin/rails db:test:prepare
 ```
+
+The test database is a separate database with the same guard on it, so
+`bin/rails db:test:prepare` is part of the upgrade, not an afterthought: skip it
+and your next test run aborts at boot. The boot error names the first two
+commands, which cannot repair a test database you have already migrated
+development past.
 
 The engine **raises at boot until that migration has run**, because a gem
 upgrade alone would leave the escalation in place while every code path looked
@@ -96,7 +103,10 @@ Two things to know before you upgrade:
   real record.
 - **Grant ids now read back as strings for every host**, integer keys included:
   `grant.subject_id == user.id` is now `false` where it used to be `true`.
-  Compare `.to_s` on both sides in your own code.
+  Compare `.to_s` on both sides in your own code. This breaks host code
+  silently, with no exception and no log line: a tuple comparison against live
+  ids can delete every grant, and a hash keyed by `subject_id` misses every
+  lookup. `UPGRADING.md` lists the shapes to look for.
 
 Full detail, including the MySQL collation and the 64-character limit, is in
 [UPGRADING.md](https://github.com/davidteren/current_scope/blob/main/UPGRADING.md).

@@ -1,0 +1,31 @@
+require "test_helper"
+
+# UPGRADING.md is the only thing standing between a host and a silent grant
+# wipe on its next deploy seed (#191). These pins hold the two facts the #116
+# real-host bake proved were missing: the command that migrates the TEST
+# database, and the list of query forms a reader may leave alone. Both are
+# asserted against the 0.4 → 0.5 section only, so the same string elsewhere in
+# the file cannot satisfy them.
+class UpgradingDocTest < ActiveSupport::TestCase
+  UPGRADING = File.expand_path("../UPGRADING.md", __dir__)
+  SECTION_HEADING = "## 0.4 → 0.5: run the migrations".freeze
+
+  setup do
+    lines = File.readlines(UPGRADING)
+    start = lines.index { |line| line.start_with?(SECTION_HEADING) }
+    assert start, "expected a #{SECTION_HEADING.inspect} heading in UPGRADING.md"
+    rest = lines[(start + 1)..] || []
+    stop = rest.index { |line| line.start_with?("## ") } || rest.length
+    @section = rest[0...stop].join
+  end
+
+  test "the 0.4 to 0.5 section names db:test:prepare" do
+    assert_includes @section, "bin/rails db:test:prepare",
+                    "the 0.4 → 0.5 steps must name the command that migrates the test database"
+  end
+
+  test "the string-id subsection still clears the safe query forms" do
+    assert_includes @section, "where(subject_id: user.id)",
+                    "the string-id subsection must keep naming the query forms that stay safe"
+  end
+end

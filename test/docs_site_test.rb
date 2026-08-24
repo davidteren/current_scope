@@ -2,10 +2,13 @@ require "test_helper"
 
 # The marketing landing page is static HTML (Jekyll passthrough). These pins
 # catch a missing section, a reintroduced overclaim, or a lost interactive id
-# without standing up a browser harness for GitHub Pages.
+# without standing up a browser harness for GitHub Pages. The class covers the
+# other published site pages too, so a page can be pinned beside the one it
+# mirrors.
 class DocsSiteTest < ActiveSupport::TestCase
   LANDING = File.expand_path("../docs/site/index.html", __dir__)
   QUICKSTART = File.expand_path("../docs/site/quickstart.md", __dir__)
+  UPGRADING_PAGE = File.expand_path("../docs/site/upgrading.md", __dir__)
 
   setup do
     @html = File.read(LANDING)
@@ -39,6 +42,12 @@ class DocsSiteTest < ActiveSupport::TestCase
     assert_includes @html, "2600"
     assert_includes @html, "max-width:980px"
     assert_includes @html, "scroll-padding-top:72px"
+  end
+
+  test "upgrading page names the command that migrates the test database" do
+    source = File.read(UPGRADING_PAGE)
+    assert_includes source, "bin/rails db:test:prepare",
+                    "the site's 0.4 → 0.5 block must name db:test:prepare, like UPGRADING.md"
   end
 
   test "quickstart banner links the published security checklist" do

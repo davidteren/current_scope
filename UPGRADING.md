@@ -157,9 +157,12 @@ traffic turns the guard off and puts the escalation back.
 
 New apps, CI, and fresh checkouts load `schema.rb` rather than running
 migrations — and that marks every migration as already applied, so `db:migrate`
-finds nothing pending. `schema.rb` also cannot express a MySQL collation. On
-MySQL that combination leaves the columns case-insensitive, the engine refusing
-to boot, and `db:migrate` unable to help. Run the repair task instead:
+finds nothing pending. Whether `schema.rb` carries the binary collation depends
+on the adapter it was dumped from: a dump taken from MySQL keeps a per-column
+`collation:`, while a dump taken from PostgreSQL or SQLite carries none. So on a
+team that develops on one adapter and runs MySQL elsewhere, that combination
+leaves the columns case-insensitive, the engine refusing to boot, and
+`db:migrate` unable to help. Run the repair task instead:
 
 ```bash
 bin/rails current_scope:repair_schema
@@ -170,7 +173,7 @@ it works on a database the engine will not otherwise start against.
 
 **On MySQL, run the repair before seeds that create grants.** `db:setup`,
 `db:reset`, and `db:prepare` load `schema.rb` and then run your seeds in the same
-process — and `schema.rb` cannot carry the binary collation, so the columns are
+process, so if that `schema.rb` carries no collation (see above) the columns are
 still case-insensitive when the seeds run. A seed that creates a grant is
 refused (the write path re-checks the schema, on purpose — an unrepaired column
 is the #151 collision). Run `bin/rails current_scope:repair_schema` after loading

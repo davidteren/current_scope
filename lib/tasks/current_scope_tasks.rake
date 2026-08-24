@@ -352,16 +352,16 @@ namespace :current_scope do
 
     separate.call
     # `moot` is deliberately absent from `signals`: that list is the act-on-this
-    # list and a moot denial needs no action. It still decides the headline, in
-    # both directions. A moot-only ledger must print NEITHER line: not "nothing
-    # found in any category" (there is something, and it is on the moot line
-    # below), and not "0 category(ies) with something in them" followed by an
-    # empty list. The widened all-clear block below carries that case instead.
+    # list and a moot denial needs no action. It still decides the headline: a
+    # moot-only ledger must not read "nothing FOUND in any category" (there is
+    # something, and it is on the moot line below), and must not print "0
+    # category(ies)" over an empty list. It still gets a headline, because every
+    # other run names itself first and an unheaded report reads as a broken task.
     if signals.any?
       puts "CurrentScope report — #{signals.count} category(ies) with something in them:"
       signals.each { |label, count| puts "  #{count.to_s.rjust(6)}  #{label}" }
-    elsif moot.empty?
-      puts "CurrentScope report: nothing found in any category."
+    else
+      puts "CurrentScope report: nothing #{moot.any? ? 'to act on' : 'found'} in any category."
     end
     if outstanding.empty? && unknown.empty? && (resolved.any? || moot.any?)
       puts

@@ -278,6 +278,15 @@ silent hole results: `signals` is empty only when `outstanding.sum + unknown.sum
 is zero, every pair counts at least one, so both arrays are empty and the
 all-clear block's widened guard always fires in exactly that case.
 
+**Amended during the pre-PR review gate (ie-review).** Suppressing the line
+outright left a moot-only run with NO headline at all, so the report started
+mid-sentence on an indented paragraph and never named itself. That is the same
+"did the tool even run?" ambiguity this decision set out to avoid. The guard now
+prints a replacement headline instead of nothing: "CurrentScope report: nothing
+to act on in any category." It is true (`signals` is the act-on list and it is
+empty), it is not the false "nothing found" line, and it keeps the invariant that
+every run of this task names itself on its first line.
+
 ### High-Level Technical Design
 
 The change lives entirely in the per-group body of the re-check loop

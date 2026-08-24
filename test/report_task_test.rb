@@ -211,6 +211,8 @@ class ReportTaskTest < ActiveSupport::TestCase
     assert_no_match(/nothing found in any category/, output)
     assert_no_match(/0 category\(ies\)/, output,
                     "suppressing the nothing-found line must not fall through to an empty category list")
+    assert_match(/^CurrentScope report: nothing to act on in any category\.$/, output,
+                 "every run still names itself on the first line; a headless report reads as a broken task")
     assert_match(/Nothing recorded so far is still outstanding/, output)
     assert_match(/0 subject\/permission pair\(s\)/, output,
                  "no denial was granted, so the pair count reads zero rather than being hidden")

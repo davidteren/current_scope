@@ -15,6 +15,16 @@ class UpgradingDocTest < ActiveSupport::TestCase
   README = File.expand_path("../README.md", __dir__)
   SECTION_HEADING = "## 0.4 → 0.5: run the migrations".freeze
 
+  # The whole of #191 is that a host copies the command block and runs it. The
+  # prose around the block names db:test:prepare several times, so asserting the
+  # bare command name passes even when the block itself has lost the line. Pin
+  # the block: all three commands, in the order they must be run.
+  COMMAND_BLOCK = <<~SH
+    bin/rails current_scope:install:migrations
+    bin/rails db:migrate
+    bin/rails db:test:prepare
+  SH
+
   setup do
     lines = File.readlines(UPGRADING)
     start = lines.index { |line| line.start_with?(SECTION_HEADING) }
@@ -24,9 +34,9 @@ class UpgradingDocTest < ActiveSupport::TestCase
     @section = rest[0...stop].join
   end
 
-  test "the 0.4 to 0.5 section names db:test:prepare" do
-    assert_includes @section, "bin/rails db:test:prepare",
-                    "the 0.4 → 0.5 steps must name the command that migrates the test database"
+  test "the 0.4 to 0.5 command block runs db:test:prepare after db:migrate" do
+    assert_includes @section, COMMAND_BLOCK,
+                    "the 0.4 → 0.5 command block must end with the command that migrates the test database"
   end
 
   test "the string-id subsection still clears the safe query forms" do

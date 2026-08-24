@@ -44,10 +44,16 @@ class DocsSiteTest < ActiveSupport::TestCase
     assert_includes @html, "scroll-padding-top:72px"
   end
 
-  test "upgrading page names the command that migrates the test database" do
-    source = File.read(UPGRADING_PAGE)
-    assert_includes source, "bin/rails db:test:prepare",
-                    "the site's 0.4 → 0.5 block must name db:test:prepare, like UPGRADING.md"
+  # Pin the block, not the bare command name: the prose below the block also
+  # names db:test:prepare, so a looser assertion passes with the block broken.
+  test "upgrading page's command block runs db:test:prepare after db:migrate" do
+    block = <<~SH
+      bin/rails current_scope:install:migrations
+      bin/rails db:migrate
+      bin/rails db:test:prepare
+    SH
+    assert_includes File.read(UPGRADING_PAGE), block,
+                    "the site's 0.4 → 0.5 block must run db:test:prepare, like UPGRADING.md"
   end
 
   test "quickstart banner links the published security checklist" do

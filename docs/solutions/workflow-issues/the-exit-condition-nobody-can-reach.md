@@ -351,6 +351,11 @@ last one compares the captured records as a set, because the ledger query has no
 they arrive in.
 
 ## Related
+- [The crash that was holding the door](../design-patterns/the-crash-that-was-holding-the-door.md):
+  its sibling from the same session and the same engine. That one is about a
+  predicate that can lie ("nobody holds full access" when the truth is "cannot
+  tell"); this one is about a number that can. Both landed on the same rule from
+  opposite directions.
 
 - [A correction is a rot event](a-correction-rots-the-plan-it-fixes.md): the sibling
   about the same session's other recurring shape, a fix applied to the reasoning and left

@@ -71,6 +71,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pilots.
 
 ### Fixed
+- **`current_scope:report` tells a moot denial from one it cannot re-check
+  (#190).** Every failed lookup of a recorded denial's target landed in one
+  "could not be re-checked" bucket and was counted as outstanding, so a denial
+  naming a deleted record stayed outstanding for ever and no grant could clear
+  it. On any host that deletes records, that left the exit condition
+  unreachable again, one layer down. A target that raises
+  `ActiveRecord::RecordNotFound` is now moot: the class loaded and the row is
+  gone, so the gate can never be asked about that record again. Those denials
+  print on a line of their own and stay out of the headline count and the
+  grant-these list. A target whose class no longer resolves, and a subject
+  that no longer resolves, still count as outstanding, because cannot tell is
+  not the same as ready. This makes zero reachable; it does not make the count
+  zero. On the #116 bake host the reading falls from 1029 outstanding to 679,
+  with 350 denials moving to the moot line. A host that soft-deletes
+  (`acts_as_paranoid`, `discard`, or any row-hiding `default_scope`) reads a
+  hidden row as moot too; the moot line and step 5 of the rollout ladder both
+  say so.
 - **`current_scope:report` names the blind spot that 403s first (#116).** All
   three report-mode recorders skip a request that resolved no subject, because
   the ledger requires an actor. That is the class of denial an operator meets

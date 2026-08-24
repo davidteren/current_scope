@@ -55,7 +55,10 @@ back.
 stays listed after you grant it. The report therefore re-checks every recorded
 denial against your live grants and counts only the ones that would *still* be
 denied today. That count is the one that reaches zero, and a denial you cannot
-re-check (its subject is gone) is counted as outstanding, never as ready.
+re-check (its subject is gone) is counted as outstanding, never as ready. A
+denial that names a record which no longer loads is a different case: the gate
+can never be asked about that record again, so the report prints it on a line of
+its own and leaves it out of the count.
 
 **Report mode is an adoption ramp, not a way to run in production.** It relaxes
 exactly one thing — "nobody has granted this yet". It never lifts the
@@ -408,9 +411,15 @@ after the ladder.
    reaches the gate with no subject resolved is downgraded in report mode and
    recorded nowhere, so it can never appear in the survey, and it is refused the
    moment you flip. A clean report plus an unauthenticated request reaching the
-   gate is the shape that turns a rehearsal into an outage. Keep the diagnostics
-   on in dev/test — they're on by default and they're how the next mistake tells
-   on itself.
+   gate is the shape that turns a rehearsal into an outage. Denials naming a
+   record that no longer loads are reported on their own line and do not block
+   the flip: the gate can never be asked about that record again. One exception.
+   If you soft-delete (`acts_as_paranoid`, `discard`, or any `default_scope`
+   that hides rows), a hidden-but-live record is reported the same way, and a
+   controller that reads it with `unscoped` will still reach the gate. Check
+   that line before you read it as clear. Keep the diagnostics on in
+   dev/test — they're on by default and they're how the next mistake tells on
+   itself.
 6. **Broaden `excluded_controllers` only deliberately.** Every entry is a
    controller that can never be granted; that's a decision, not a cleanup.
 

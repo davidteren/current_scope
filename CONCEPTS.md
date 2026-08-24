@@ -45,6 +45,9 @@ A property of a role that satisfies every permission, present and future, rather
 **Grant**
 A role held by a subject, either org-wide or on a record. "Granted" describes a role a subject holds — not a decision, and not membership of a scoped list.
 
+**Inert**
+A grant that still exists as a row but no longer names anything the engine can act on: its stored type or key does not resolve. It is deliberately distinguished from **deleted**, which means the class and the key are both valid and the record is simply gone. The distinction is not cosmetic. Deleted is a fact about the world; inert is a fact about a mapping being broken, so calling an inert grant deleted would assert something the engine cannot know. An inert grant opens nothing, and the console labels it rather than hiding it, because it is exactly the row an operator needs to find.
+
 ## The machinery
 
 **Resolver**
@@ -91,6 +94,11 @@ A lifted veto is recorded wherever the gate enforces it and the audit ledger is 
 
 **Fail-closed**
 The posture that anything not granted is denied, and that a mistake resolves toward refusal rather than permission. Its counterpart obligation is loudness: a misconfiguration must announce itself, because a silent denial nobody can diagnose is only marginally better than a silent allow.
+
+**Last-holder rule**
+The refusal that stops the console locking everyone out: a role cannot be deleted, and full access cannot be taken off it, when doing so would leave zero org-wide holders of any full-access role. It counts HOLDERS, not roles, so an unassigned spare full-access role is not a safety net and never authorises removing the held one.
+
+A holder only counts if its subject still resolves, which means an **inert** grant cannot vouch for the console staying open. That has a consequence worth stating: when the engine cannot resolve subjects at all, the honest answer is not "nobody holds full access", it is "this process cannot tell", and the rule refuses on that too. Absence and ignorance look identical to a degraded read, and only one of them is safe to act on.
 
 **Report mode**
 The rehearsal posture: the gate still decides, but it lifts exactly one wall, "nobody has granted this yet". That refusal is downgraded to an observation, so the request proceeds and the would-be denial is recorded instead. Other refusals survive it and still refuse, and some of those cannot be cleared by granting at all, so they never leave the survey however much you grant. Which ones, and what each actually needs, is a table in the adoption guide rather than a list worth copying here. Report mode exists so a host can discover the grants it needs from real traffic before any user is refused, and flipping out of it is the culminating step of the rollout rather than its end.

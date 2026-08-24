@@ -56,9 +56,11 @@ stays listed after you grant it. The report therefore re-checks every recorded
 denial against your live grants and counts only the ones that would *still* be
 denied today. That count is the one that reaches zero, and a denial you cannot
 re-check (its subject is gone) is counted as outstanding, never as ready. A
-denial that names a record which no longer loads is a different case: the gate
-can never be asked about that record again, so the report prints it on a line of
-its own and leaves it out of the count.
+denial that names a record which no longer loads is a different case: the report
+prints it on a line of its own and leaves it out of the count, because the gate
+loads a target the same way the report does and so is never asked about a row it
+cannot load. If you soft-delete, that line has one exception, and step 5 of the
+rollout below states it.
 
 **Report mode is an adoption ramp, not a way to run in production.** It relaxes
 exactly one thing — "nobody has granted this yet". It never lifts the

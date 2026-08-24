@@ -250,13 +250,16 @@ namespace :current_scope do
       # re-asking without it would answer a question the ledger never asked.
       record = nil
       unless record_less
-        case (located = locate.call(target_gid))
-        when :moot then moot << pair
-                        next
-        when :unknown then unknown << pair
-                           next
-        else record = located
+        located = locate.call(target_gid)
+        case located
+        when :moot
+          moot << pair
+          next
+        when :unknown
+          unknown << pair
+          next
         end
+        record = located
       end
 
       still_denied = begin

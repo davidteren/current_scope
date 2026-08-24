@@ -86,7 +86,7 @@ list under the same headline count.
 
 PR #184 shipped the fix. The report now re-checks each recorded denial against live
 grants, once per distinct subject / permission / target, and counts only what would
-still be denied (`lib/tasks/current_scope_tasks.rake:169-272`). A pair it cannot
+still be denied (`lib/tasks/current_scope_tasks.rake:169-274`). A pair it cannot
 re-check counts as outstanding, never as ready, with the one exception Rule 1 draws
 out below: a target the report knows is gone.
 
@@ -128,9 +128,9 @@ Concretely, in this repo:
 `config.enforcement = :enforce`". The decreasing operation did not exist.
 
 *After.* The rake task groups the rows and asks the resolver again
-(`current_scope_tasks.rake:197-272`), splitting into `outstanding`, `resolved` and
+(`current_scope_tasks.rake:197-274`), splitting into `outstanding`, `resolved` and
 `unknown`. The headline counts denials, not pairs, so the summary and the detail list
-cannot disagree (`current_scope_tasks.rake:340-351`):
+cannot disagree (`current_scope_tasks.rake:343-354`):
 
 ```ruby
 "would-be denials STILL ungranted (grant these)" =>
@@ -151,7 +151,7 @@ Four properties make that count usable, and each is a separate decision:
 
 - **"Cannot tell" is counted on the not-ready side.** A subject that no longer resolves
   goes to `unknown` (`current_scope_tasks.rake:232-235`), `unknown` is added into the
-  headline, and the operator is told why (`current_scope_tasks.rake:382-387`): "They are
+  headline, and the operator is told why (`current_scope_tasks.rake:385-390`): "They are
   counted as OUTSTANDING above: cannot tell is not the same as ready."
 - **But knowably moot is not "cannot tell", and that was round six (#190).** The rule
   above was applied one notch too widely. Locating a denial's target failed for two
@@ -165,8 +165,8 @@ Four properties make that count usable, and each is a separate decision:
   different exceptions. `ActiveRecord::RecordNotFound` says the class loaded and the row
   is gone. That is knowledge, not doubt: the gate can never be asked about that record
   again, so the denial cannot recur, and granting the permission is not what would clear
-  it. Those rows now go to a third bucket (`current_scope_tasks.rake:252-260`), print on a
-  line of their own (`current_scope_tasks.rake:388-393`), and stay out of the headline and
+  it. Those rows now go to a third bucket (`current_scope_tasks.rake:252-262`), print on a
+  line of their own (`current_scope_tasks.rake:391-396`), and stay out of the headline and
   out of the grant-these list. Anything else, `NameError` included, is still doubt and is
   still counted. The subject is judged first and a dead subject is never moot
   (`current_scope_tasks.rake:225-235`), because a subject is who a grant is written FOR
@@ -180,11 +180,11 @@ Four properties make that count usable, and each is a separate decision:
   a default scope" out loud and why step 5 of the rollout ladder repeats it.
 - **The all-clear is a sentence, not a zero.** When `outstanding` and `unknown` are both
   empty and anything was resolved or found moot, the report says so in the operator's own
-  words (`current_scope_tasks.rake:366-381`): "The ledger still lists them because it is
+  words (`current_scope_tasks.rake:369-384`): "The ledger still lists them because it is
   append-only. That is the list you were waiting to see empty; this is what empty looks
   like." A bare zero is indistinguishable from a tool that recorded nothing.
 - **What the tool cannot see is printed next to what it found.** The caveat
-  (`current_scope_tasks.rake:399-408`) prints unconditionally and names the blind spot
+  (`current_scope_tasks.rake:402-411`) prints unconditionally and names the blind spot
   that 403s first after the flip: a request reaching the gate before authentication is
   downgraded, recorded nowhere, and refused the moment you flip. The same warning was
   added to step 5 of the rollout ladder (`adopting-in-an-existing-app.md:409-422`),
@@ -233,7 +233,7 @@ ensure
   resolver&.singleton_class&.remove_method(:allow?)
 ```
 
-The test's own comment states the rule (`test/report_task_test.rb:249-251`): "Assert the
+The test's own comment states the rule (`test/report_task_test.rb:251-253`): "Assert the
 QUESTION, not a downstream answer: whether the difference is visible in the verdict
 depends on which resolver arm the host's grants happen to hit, and the defect is that
 the wrong question is asked at all."

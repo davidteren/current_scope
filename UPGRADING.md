@@ -226,11 +226,14 @@ The repair is the same for all three: compare `.to_s` on both sides, as in
 **Your Active Record queries are safe, so do not rewrite them.** `where(subject: user)`,
 `where(subject_id: user.id)`, and `scope_for` all still match, because Active
 Record casts the bound value to the column type on the way in. That covers Active
-Record hash and record conditions. A raw SQL fragment such as
-`where("subject_id = ?", user.id)`, or a join comparing the column against an
-integer column, skips that cast, and what happens then depends on your database.
-Check those by hand: the evidence for this paragraph is one application's queries
-on PostgreSQL, and nothing here has been tested on MySQL or SQLite.
+Record hash and record conditions on every adapter: the cast runs in Ruby, in
+`ActiveModel::Type::String`, before the value reaches your database, so
+`where(subject_id: 7)` sends `subject_id = '7'` on PostgreSQL, MySQL and SQLite
+alike. A raw SQL fragment such as `where("subject_id = ?", user.id)`, or a join
+comparing the column against an integer column, skips that cast. There the
+comparison happens inside the database, each database treats a string against an
+integer differently, and this document has only been checked against PostgreSQL.
+Check those by hand.
 
 To find these shapes in your own application:
 

@@ -1,0 +1,19 @@
+lib/tasks/current_scope_tasks.rake
+  s_451c688433a06a::t_8d750bf4304a77 209-210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "56507739a30c89b35a1ef3887c6d616db0515b00",
+  "prompts": {},
+  "sessions": {
+    "s_451c688433a06a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6e35dad6-0d3e-4652-8a92-6c50923458ee",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

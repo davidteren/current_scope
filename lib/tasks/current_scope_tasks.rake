@@ -450,7 +450,10 @@ namespace :current_scope do
     # Only the pairs still outstanding, so this list agrees with the headline. A
     # resolved row stays in the ledger forever and printing it here is what made
     # the old survey unreadable: a finished rollout showed a long list under a
-    # count of zero.
+    # count of zero. `moot` is left out for the same reason it is left out of the
+    # headline: this is the grant-these list and a moot denial cannot be granted.
+    # Pinned by "the headline counts only outstanding denials and the moot line
+    # counts denials".
     open_keys = (outstanding + unknown).to_set { |gid, permission, target, _count, flag| [ gid, permission, target, flag ] }
     open_rows = rows.select do |subject_gid, _label, details, target_gid|
       hash = details.is_a?(Hash) ? details : {}

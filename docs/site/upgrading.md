@@ -81,7 +81,7 @@ your asset build still work; anything that serves traffic or runs your code is
 refused.
 
 **If your database was built from `schema.rb`** — a new app, CI, a fresh
-checkout — run this instead. `schema.rb` cannot carry a MySQL collation, and
+checkout — run this instead. `schema.rb` may not carry a MySQL collation, and
 loading a schema marks every migration as already applied, so `db:migrate` has
 nothing to do:
 
@@ -90,9 +90,10 @@ bin/rails current_scope:repair_schema
 ```
 
 On MySQL, run that repair **before** any seeds that create grants:
-`db:setup`/`db:reset`/`db:prepare` load `schema.rb` (still case-insensitive) and
-seed in the same process, so a grant-creating seed is refused until the collation
-is repaired. That refusal is the guard working, not a bug. See `UPGRADING.md`.
+`db:setup`/`db:reset`/`db:prepare` load `schema.rb` (which may leave the columns
+case-insensitive) and seed in the same process, so a grant-creating seed is
+refused until the collation is repaired. That refusal is the guard working, not a
+bug. See `UPGRADING.md`.
 
 Two things to know before you upgrade:
 

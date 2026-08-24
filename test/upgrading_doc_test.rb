@@ -6,8 +6,13 @@ require "test_helper"
 # database, and the list of query forms a reader may leave alone. Both are
 # asserted against the 0.4 → 0.5 section only, so the same string elsewhere in
 # the file cannot satisfy them.
+#
+# Three files repeat the upgrade command list, and #191 exists because one of
+# them was incomplete. The README callout is pinned here too, beside the
+# document it summarizes; the docs-site copy is pinned in docs_site_test.rb.
 class UpgradingDocTest < ActiveSupport::TestCase
   UPGRADING = File.expand_path("../UPGRADING.md", __dir__)
+  README = File.expand_path("../README.md", __dir__)
   SECTION_HEADING = "## 0.4 → 0.5: run the migrations".freeze
 
   setup do
@@ -27,5 +32,10 @@ class UpgradingDocTest < ActiveSupport::TestCase
   test "the string-id subsection still clears the safe query forms" do
     assert_includes @section, "where(subject_id: user.id)",
                     "the string-id subsection must keep naming the query forms that stay safe"
+  end
+
+  test "the README upgrade callout names db:test:prepare" do
+    assert_includes File.read(README), "bin/rails db:test:prepare",
+                    "the README upgrade callout must name db:test:prepare, like UPGRADING.md"
   end
 end

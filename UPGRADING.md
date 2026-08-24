@@ -120,11 +120,17 @@ normally keeps the test schema current: `maintain_test_schema!` runs from
 loads. Database tasks are exempt from the boot refusal, so `db:test:prepare` runs
 on a host that has not been migrated yet.
 
-On MySQL, `db:test:prepare` loads `schema.rb`, which cannot carry a collation, so
-the test columns come out case and accent insensitive and the engine still refuses
-to boot. Run `RAILS_ENV=test bin/rails current_scope:repair_schema` as well.
-(A host on `config.active_record.schema_format = :sql` builds the test database
-from `structure.sql`, which does carry the collation, and can skip this.)
+On MySQL, run `RAILS_ENV=test bin/rails current_scope:repair_schema` as well.
+Whether `db:test:prepare` gives the test columns their binary collation depends on
+where `schema.rb` was dumped. A dump taken from MySQL after `db:migrate` carries a
+per-column `collation:`, because the migration collates the column while the table
+keeps the server default and Rails dumps a column collation that differs from its
+table's. A dump taken from PostgreSQL or SQLite carries none, so on a team that
+develops on one adapter and runs MySQL in CI the test columns come out case and
+accent insensitive and the engine refuses to boot. The repair task is idempotent
+and changes nothing when the columns are already right, so running it settles the
+question either way. (A host on `config.active_record.schema_format = :sql` builds
+the test database from `structure.sql`, which always carries the collation.)
 
 The columns become `varchar(64)`, so integer, UUID and ULID keys are all stored
 whole. **The engine raises at boot until this migration has run** — a gem upgrade

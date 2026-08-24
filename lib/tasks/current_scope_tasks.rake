@@ -206,8 +206,8 @@ namespace :current_scope do
 
       # Returns the record, :moot (the class loaded and the row is gone), or
       # :unknown (we cannot tell). The CALLER decides what each means, because the
-      # same missing row is moot on a target and unknown on a subject. The same
-      # split is already made for labels in
+      # same missing row is moot on a target and unknown on a subject. That locate
+      # RAISES rather than returning nil is the contract already stated at
       # app/helpers/current_scope/application_helper.rb#current_scope_gid_label.
       locate = lambda do |gid|
         return :unknown if gid.blank?

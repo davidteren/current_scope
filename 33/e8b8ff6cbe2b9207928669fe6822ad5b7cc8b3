@@ -1,0 +1,21 @@
+README.md
+  s_451c688433a06a::t_dce0f1b9638993 132-136
+UPGRADING.md
+  s_451c688433a06a::t_32314ba642953b 229-236
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "33e8b8ff6cbe2b9207928669fe6822ad5b7cc8b3",
+  "prompts": {},
+  "sessions": {
+    "s_451c688433a06a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6e35dad6-0d3e-4652-8a92-6c50923458ee",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

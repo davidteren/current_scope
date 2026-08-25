@@ -1,0 +1,19 @@
+CONTRIBUTING.md
+  s_451c688433a06a::t_5aa4a2db7d5a85 71-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "af34f6d64f43727a22407cfe81f3ce269da5eef7",
+  "prompts": {},
+  "sessions": {
+    "s_451c688433a06a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6e35dad6-0d3e-4652-8a92-6c50923458ee",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

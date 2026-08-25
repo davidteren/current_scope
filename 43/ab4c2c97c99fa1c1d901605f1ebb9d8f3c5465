@@ -1,0 +1,22 @@
+UPGRADING.md
+  s_451c688433a06a::t_5520359683563a 123-133
+test/upgrading_doc_test.rb
+  s_451c688433a06a::t_e57c72d1e6f650 9-12,15
+  s_451c688433a06a::t_4194a18de6cba3 36-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "43ab4c2c97c99fa1c1d901605f1ebb9d8f3c5465",
+  "prompts": {},
+  "sessions": {
+    "s_451c688433a06a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6e35dad6-0d3e-4652-8a92-6c50923458ee",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

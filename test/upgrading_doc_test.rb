@@ -26,7 +26,7 @@ class UpgradingDocTest < ActiveSupport::TestCase
   SH
 
   setup do
-    lines = File.readlines(UPGRADING)
+    lines = File.readlines(UPGRADING, encoding: "UTF-8")
     start = lines.index { |line| line.start_with?(SECTION_HEADING) }
     assert start, "expected a #{SECTION_HEADING.inspect} heading in UPGRADING.md"
     rest = lines[(start + 1)..] || []
@@ -45,7 +45,7 @@ class UpgradingDocTest < ActiveSupport::TestCase
   end
 
   test "the README upgrade callout names db:test:prepare" do
-    assert_includes File.read(README), "bin/rails db:test:prepare",
+    assert_includes File.read(README, encoding: "UTF-8"), "bin/rails db:test:prepare",
                     "the README upgrade callout must name db:test:prepare, like UPGRADING.md"
   end
 end

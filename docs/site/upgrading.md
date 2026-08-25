@@ -87,6 +87,15 @@ nothing to do:
 
 ```bash
 bin/rails current_scope:repair_schema
+bin/rails db:test:prepare
+```
+
+Your test database is a separate database with the same guard on it, and
+`db:test:prepare` reloads the same `schema.rb`. On MySQL, repair it too, or the
+next `bin/rails test` still aborts at boot:
+
+```bash
+RAILS_ENV=test bin/rails current_scope:repair_schema
 ```
 
 On MySQL, run that repair **before** any seeds that create grants:

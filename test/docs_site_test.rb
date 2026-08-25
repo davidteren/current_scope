@@ -11,7 +11,7 @@ class DocsSiteTest < ActiveSupport::TestCase
   UPGRADING_PAGE = File.expand_path("../docs/site/upgrading.md", __dir__)
 
   setup do
-    @html = File.read(LANDING)
+    @html = File.read(LANDING, encoding: "UTF-8")
     @doc = Nokogiri::HTML5(@html)
   end
 
@@ -52,12 +52,12 @@ class DocsSiteTest < ActiveSupport::TestCase
       bin/rails db:migrate
       bin/rails db:test:prepare
     SH
-    assert_includes File.read(UPGRADING_PAGE), block,
+    assert_includes File.read(UPGRADING_PAGE, encoding: "UTF-8"), block,
                     "the site's 0.4 → 0.5 block must run db:test:prepare, like UPGRADING.md"
   end
 
   test "quickstart banner links the published security checklist" do
-    source = File.read(QUICKSTART)
+    source = File.read(QUICKSTART, encoding: "UTF-8")
     assert_includes source, "https://davidteren.github.io/current_scope/security-checklist.html"
     refute_match(/\]\(security-checklist\.html\)/, source)
   end

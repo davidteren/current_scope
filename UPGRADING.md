@@ -238,7 +238,7 @@ Check those by hand.
 To find these shapes in your own application:
 
 ```bash
-grep -rn "subject_id\|resource_id" app lib db
+grep -rnE "subject_id|resource_id" app lib db
 ```
 
 Read the hits that compare, that key a hash, or that sit in a tuple or a Set.

@@ -39,6 +39,19 @@ class ReportTaskTest < ActiveSupport::TestCase
     end
   end
 
+  # #190 — the existing would_deny helper always writes the SUBJECT's own GID as
+  # the target, which is the record-less shape. These arms need a denial that
+  # names a real, separate record, so the re-check takes the target branch.
+  def would_deny_on(subject, permission, target_gid, count: 1)
+    count.times do
+      CurrentScope::Event.create!(
+        event: "access.would_deny", subject: subject.to_gid.to_s, actor: subject.to_gid.to_s,
+        target: target_gid, target_label: "a target",
+        details: { "permission" => permission, "reason" => "no_grant", "record_less" => false }
+      )
+    end
+  end
+
   def run_task
     Rake::Task["current_scope:report"].reenable
     capture_io { Rake::Task["current_scope:report"].invoke }.first
@@ -101,6 +114,127 @@ class ReportTaskTest < ActiveSupport::TestCase
     assert_match(/could not be re-checked/, output)
     assert_no_match(/this is what empty looks like/, output,
                     "an un-re-checkable denial must never render as a finished rollout")
+  end
+
+  # #190 — a denial whose target RECORD was deleted can never recur, because the
+  # gate is never asked about a row that is gone. Counting it as outstanding held
+  # the #116 exit condition open on every host that deletes records. These arms
+  # split "the class loaded and the row is gone" (moot) from "we cannot tell"
+  # (unknown), which stays counted.
+
+  # CHANGE-DETECTING: red on main at 8036b33, where the deleted target locates to
+  # nil, lands in unknown, and is counted.
+  test "a denial whose target record was deleted is not counted as outstanding" do
+    report = Report.create!(title: "A report", requested_by: @alice)
+    gid = report.to_gid.to_s
+    would_deny_on(@alice, "reports#show", gid)
+    report.delete
+
+    output = run_task
+
+    assert_no_match(/would-be denials STILL ungranted/, output)
+    assert_no_match(/Would-be denials still outstanding/, output)
+    assert_match(/name a record that no longer loads/, output)
+  end
+
+  # PIN: green on main. Stops the fix widening :moot to cover NameError.
+  test "a denial whose target CLASS no longer resolves still counts as outstanding" do
+    would_deny_on(@alice, "reports#show", "gid://dummy/VanishedModel/1")
+
+    output = run_task
+
+    assert_match(/could not be re-checked/, output)
+    assert_match(/would-be denials STILL ungranted/, output)
+    assert_no_match(/name a record that no longer loads/, output)
+  end
+
+  # PIN, and the ORDERING pin: the only arm that fails if an implementer resolves
+  # the target before the subject.
+  test "a denial with both a dead subject and a dead target counts as unknown, not moot" do
+    ghost = User.create!(name: "Ghost")
+    report = Report.create!(title: "A report", requested_by: ghost)
+    would_deny_on(ghost, "reports#show", report.to_gid.to_s)
+    report.delete
+    ghost.delete
+
+    output = run_task
+
+    assert_match(/could not be re-checked/, output)
+    assert_match(/would-be denials STILL ungranted/, output)
+    assert_no_match(/name a record that no longer loads/, output)
+  end
+
+  # PIN: green on main. An unparseable GID is not evidence a record was deleted.
+  test "a denial with an unparseable target counts as unknown, not moot" do
+    would_deny_on(@alice, "reports#show", "not a gid")
+
+    output = run_task
+
+    assert_match(/could not be re-checked/, output)
+    assert_no_match(/name a record that no longer loads/, output)
+  end
+
+  # CHANGE-DETECTING: the bake scenario in miniature. One denial granted, one on a
+  # record that was deleted. The headline reaches zero, which is the whole point.
+  test "granting the last live denial reaches zero when the rest are moot" do
+    live = Report.create!(title: "A report", requested_by: @alice)
+    gone = Report.create!(title: "A report", requested_by: @alice)
+    would_deny_on(@alice, "reports#show", live.to_gid.to_s)
+    would_deny_on(@alice, "reports#show", gone.to_gid.to_s)
+    gone.delete
+
+    role = CurrentScope::Role.create!(name: "Reader")
+    role.permission_keys = [ "reports#show" ]
+    role.save!
+    CurrentScope::RoleAssignment.create!(subject: @alice, role: role)
+
+    output = run_task
+
+    assert_no_match(/would-be denials STILL ungranted/, output)
+    assert_no_match(/Would-be denials still outstanding/, output)
+    assert_match(/name a record that no longer loads/, output)
+    assert_match(/Nothing recorded so far is still outstanding/, output)
+    assert_no_match(/Every would-be denial recorded so far is now granted/, output,
+                    "a moot denial was never granted, so the all-clear must not say it was")
+  end
+
+  # CHANGE-DETECTING: pins the zero-resolved wording, and KTD-7's decision that
+  # "nothing found in any category" is suppressed on a moot-only ledger.
+  test "a moot-only ledger reports the moot line and never nothing-found" do
+    gone = Report.create!(title: "A report", requested_by: @alice)
+    would_deny_on(@alice, "reports#show", gone.to_gid.to_s)
+    gone.delete
+
+    output = run_task
+
+    assert_match(/name a record that no longer loads/, output)
+    assert_no_match(/nothing found in any category/, output)
+    assert_no_match(/0 category\(ies\)/, output,
+                    "suppressing the nothing-found line must not fall through to an empty category list")
+    assert_match(/^CurrentScope report: nothing to act on in any category\.$/, output,
+                 "every run still names itself on the first line; a headless report reads as a broken task")
+    assert_match(/Nothing recorded so far is still outstanding/, output)
+    assert_match(/0 subject\/permission pair\(s\)/, output,
+                 "no denial was granted, so the pair count reads zero rather than being hidden")
+  end
+
+  # CHANGE-DETECTING: units. The headline counts DENIALS and must exclude moot.
+  test "the headline counts only outstanding denials and the moot line counts denials" do
+    live = Report.create!(title: "A report", requested_by: @alice)
+    gone = Report.create!(title: "A report", requested_by: @alice)
+    would_deny_on(@alice, "reports#show", live.to_gid.to_s, count: 3)
+    would_deny_on(@alice, "reports#index", gone.to_gid.to_s, count: 2)
+    gone.delete
+
+    output = run_task
+
+    assert_match(/3\s+would-be denials STILL ungranted/, output,
+                 "3 outstanding denials, not 5 with the moot ones added, and not 2")
+    assert_match(/2 recorded denial\(s\) name a record that no longer loads/, output,
+                 "counted in denials, not in pairs")
+    assert_match(/reports#show/, output)
+    assert_no_match(/reports#index/, output,
+                    "a moot denial must leave the act-on-this list, not just the count")
   end
 
   # #116 — Guard writes `target: target || subject`, so a record-less denial

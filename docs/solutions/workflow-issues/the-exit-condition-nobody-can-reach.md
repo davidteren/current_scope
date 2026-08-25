@@ -17,6 +17,7 @@ symptoms:
   - "A mistyped window value prints the exact 'nothing found' text the guide tells the operator to act on"
   - "An item drops out of the report because it was not exercised recently, not because it was fixed"
   - "A record-less denial stays outstanding forever, or a denial on the subject's own record re-checks on the wrong arm"
+  - "A denial that names a deleted record is counted as outstanding for ever, and no grant can ever clear it"
   - "A test named for the zero case seeds a row, so the zero branch never runs and the test still passes"
 root_cause: missing_workflow_step
 resolution_type: code_fix
@@ -39,6 +40,7 @@ tags:
 related_issues:
   - "#116 (open): the real-host :report to :enforce bake that gates 1.0"
   - "#184 (merged as 25c2f9f): the report re-checks each recorded denial against live grants"
+  - "#190: found by the #116 bake, the report tells a knowably moot denial from one it cannot re-check"
 ---
 
 # An exit condition nobody can reach, and the tests that pass against the bug
@@ -84,8 +86,9 @@ list under the same headline count.
 
 PR #184 shipped the fix. The report now re-checks each recorded denial against live
 grants, once per distinct subject / permission / target, and counts only what would
-still be denied (`lib/tasks/current_scope_tasks.rake:169-240`). A pair it cannot
-re-check counts as outstanding, never as ready.
+still be denied (`lib/tasks/current_scope_tasks.rake:169-274`). A pair it cannot
+re-check counts as outstanding, never as ready, with the one exception Rule 1 draws
+out below: a target the report knows is gone.
 
 **The part worth keeping is not the fix. It is that the fix took five rounds, and every
 round was the same class of defect: an exit condition that cannot be reached, or an
@@ -125,9 +128,9 @@ Concretely, in this repo:
 `config.enforcement = :enforce`". The decreasing operation did not exist.
 
 *After.* The rake task groups the rows and asks the resolver again
-(`current_scope_tasks.rake:191-240`), splitting into `outstanding`, `resolved` and
+(`current_scope_tasks.rake:197-274`), splitting into `outstanding`, `resolved` and
 `unknown`. The headline counts denials, not pairs, so the summary and the detail list
-cannot disagree (`current_scope_tasks.rake:308-319`):
+cannot disagree (`current_scope_tasks.rake:343-354`):
 
 ```ruby
 "would-be denials STILL ungranted (grant these)" =>
@@ -135,7 +138,7 @@ cannot disagree (`current_scope_tasks.rake:308-319`):
 ```
 
 The guide now names the mechanism rather than the appearance
-(`docs/guides/adopting-in-an-existing-app.md:49-58`):
+(`docs/guides/adopting-in-an-existing-app.md:49-61`):
 
 > Seed the roles it names, re-run the report until nothing is **still ungranted**, then
 > set `config.enforcement = :enforce`.
@@ -144,23 +147,47 @@ The guide now names the mechanism rather than the appearance
 > listed after you grant it. The report therefore re-checks every recorded denial
 > against your live grants and counts only the ones that would *still* be denied today.
 
-Three properties make that count usable, and each is a separate decision:
+Four properties make that count usable, and each is a separate decision:
 
-- **"Cannot tell" is counted on the not-ready side.** A subject or record that no longer
-  resolves goes to `unknown` (`current_scope_tasks.rake:222-228`), `unknown` is added
-  into the headline, and the operator is told why
-  (`current_scope_tasks.rake:335-340`): "They are counted as OUTSTANDING above: cannot
-  tell is not the same as ready."
+- **"Cannot tell" is counted on the not-ready side.** A subject that no longer resolves
+  goes to `unknown` (`current_scope_tasks.rake:232-235`), `unknown` is added into the
+  headline, and the operator is told why (`current_scope_tasks.rake:385-390`): "They are
+  counted as OUTSTANDING above: cannot tell is not the same as ready."
+- **But knowably moot is not "cannot tell", and that was round six (#190).** The rule
+  above was applied one notch too widely. Locating a denial's target failed for two
+  different reasons and both became one `nil`, so a denial naming a DELETED record was
+  counted as outstanding for ever and no grant could ever clear it. The #116 bake host
+  read 1029 outstanding, of which 350 were exactly that shape: every recorded subject
+  still resolved, and every one of the 350 named a row that had been deleted. The
+  operator could grant the other 679 and the number would still read 350.
+
+  The two reasons are distinguishable at the point of failure, because they already raise
+  different exceptions. `ActiveRecord::RecordNotFound` says the class loaded and the row
+  is gone. That is knowledge, not doubt: the gate can never be asked about that record
+  again, so the denial cannot recur, and granting the permission is not what would clear
+  it. Those rows now go to a third bucket (`current_scope_tasks.rake:252-262`), print on a
+  line of their own (`current_scope_tasks.rake:391-396`), and stay out of the headline and
+  out of the grant-these list. Anything else, `NameError` included, is still doubt and is
+  still counted. The subject is judged first and a dead subject is never moot
+  (`current_scope_tasks.rake:225-235`), because a subject is who a grant is written FOR
+  and it can fail to resolve without being deleted.
+
+  Two things to carry away. "Cannot tell is not ready" is a rule about DOUBT, so before
+  you apply it, check that the failure in front of you is doubt and not a fact you can
+  act on; a bucket that mixes the two turns a conservative rule into a second unreachable
+  exit condition. And the trade is named rather than solved: a host that soft-deletes
+  reads a hidden-but-live row as moot too, which is why the moot line says "or hidden by
+  a default scope" out loud and why step 5 of the rollout ladder repeats it.
 - **The all-clear is a sentence, not a zero.** When `outstanding` and `unknown` are both
-  empty and anything was resolved, the report says so in the operator's own words
-  (`current_scope_tasks.rake:328-334`): "The ledger still lists them because it is
+  empty and anything was resolved or found moot, the report says so in the operator's own
+  words (`current_scope_tasks.rake:369-384`): "The ledger still lists them because it is
   append-only. That is the list you were waiting to see empty; this is what empty looks
   like." A bare zero is indistinguishable from a tool that recorded nothing.
 - **What the tool cannot see is printed next to what it found.** The caveat
-  (`current_scope_tasks.rake:346-355`) prints unconditionally and names the blind spot
+  (`current_scope_tasks.rake:402-411`) prints unconditionally and names the blind spot
   that 403s first after the flip: a request reaching the gate before authentication is
   downgraded, recorded nowhere, and refused the moment you flip. The same warning was
-  added to step 5 of the rollout ladder (`adopting-in-an-existing-app.md:406-413`),
+  added to step 5 of the rollout ladder (`adopting-in-an-existing-app.md:409-422`),
   which is where an operator actually plans the flip, rather than only in output they
   may skim.
 
@@ -186,7 +213,7 @@ regardless of record, so `record: nil` and `record: alice` give the same verdict
 second attempt used a scoped grant instead, and the resolver arm the fix was about never
 fired for that setup.
 
-*After (`test/report_task_test.rb:109-135`).* Capture the kwargs:
+*After (`test/report_task_test.rb:241-267`).* Capture the kwargs:
 
 ```ruby
 asked = []
@@ -206,7 +233,7 @@ ensure
   resolver&.singleton_class&.remove_method(:allow?)
 ```
 
-The test's own comment states the rule (`test/report_task_test.rb:117-119`): "Assert the
+The test's own comment states the rule (`test/report_task_test.rb:251-253`): "Assert the
 QUESTION, not a downstream answer: whether the difference is visible in the verdict
 depends on which resolver arm the host's grants happen to hit, and the defect is that
 the wrong question is asked at all."
@@ -220,7 +247,7 @@ Two corollaries, both paid for on this feature:
   reader does not re-invent the inference.
 - **A test named for the empty case must run empty.** The blind-spot test seeded a
   denial row, so the run was never empty and the branch its name describes never
-  executed. It now runs against an empty ledger (`test/report_task_test.rb:203-213`),
+  executed. It now runs against an empty ledger (`test/report_task_test.rb:335-345`),
   with the reason written down: seeding a denial "would assert the caveat in the one
   scenario where it was never in doubt".
 
@@ -312,7 +339,7 @@ equality, which re-checks on the more permissive arm, so a still-denied self-tar
 denial could be reported as resolved.
 
 The fix records the fact at the point where it is known, and says why in place
-(`guard.rb:451-459`):
+(`guard.rb:451-460`):
 
 ```ruby
 # `target: target || subject` keeps the ledger's target non-nil, which means
@@ -330,22 +357,22 @@ CurrentScope::Event.record!(
 Round 5 was the residue: rows written before that flag existed carry no `record_less`,
 and a legacy row can share a subject, permission and target with a flagged one. Reading
 the flag off one member of the group applied one row's answer to the other. The flag is
-now part of the grouping key (`current_scope_tasks.rake:187-194`), so a group is uniform
+now part of the grouping key (`current_scope_tasks.rake:193-200`), so a group is uniform
 by construction and the legacy rows fall back to the ambiguous GID comparison on their
-own (`current_scope_tasks.rake:220-221`).
+own (`current_scope_tasks.rake:247-248`).
 
 ### Example 4: the three tests that passed against the bug
 
 | Test | Why it passed against the defect | What made it real |
 | --- | --- | --- |
-| record-less denial re-checks with no record | The setup used an org-wide grant, which allows regardless of record, so `record: nil` and `record: alice` produced the same verdict | Capture the kwargs; assert `asked.first[:record]` is nil (`test/report_task_test.rb:109-135`) |
+| record-less denial re-checks with no record | The setup used an org-wide grant, which allows regardless of record, so `record: nil` and `record: alice` produced the same verdict | Capture the kwargs; assert `asked.first[:record]` is nil (`test/report_task_test.rb:241-267`) |
 | second attempt at the same test | Switched to a scoped grant, but the resolver arm under test never fired for that setup | Same capture, same assertion on the input |
-| "zero does not read as ready" | Seeded a `would_deny` row, so the run was non-empty and the zero branch its name describes never ran | Run against an empty ledger (`test/report_task_test.rb:203-213`) |
+| "zero does not read as ready" | Seeded a `would_deny` row, so the run was non-empty and the zero branch its name describes never ran | Run against an empty ledger (`test/report_task_test.rb:335-345`) |
 
 The two sibling tests use the same capture to pin the other half of the pair: a
 self-targeted denial must re-check **with** its record
-(`test/report_task_test.rb:141-164`), and a legacy row plus a flagged row for one key
-must produce two re-checks, one with each (`test/report_task_test.rb:169-198`). That
+(`test/report_task_test.rb:273-296`), and a legacy row plus a flagged row for one key
+must produce two re-checks, one with each (`test/report_task_test.rb:301-330`). That
 last one compares the captured records as a set, because the ledger query has no
 `ORDER BY` and the property under test is that both questions get asked, not the order
 they arrive in.
@@ -372,3 +399,7 @@ they arrive in.
 - **PR #184** (merged as 25c2f9f): the exit condition, and the five review rounds quoted
   above.
 - **PR #185**: the unauthenticated blind spot, and the empty-ledger test fix.
+- **Issue #190**: round six, found by the #116 bake. A denial on a deleted record is
+  knowably moot rather than unre-checkable, so it no longer counts against the flip.
+  That makes zero reachable on a host that deletes records; it does not make the count
+  zero, and on the bake host 679 denials still need real grants.

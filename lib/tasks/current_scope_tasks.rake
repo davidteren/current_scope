@@ -180,6 +180,12 @@ namespace :current_scope do
     outstanding = []
     resolved = []
     unknown = []
+    # #190: a denial whose TARGET RECORD no longer loads is knowably moot, not
+    # "cannot tell". The gate can never be asked about a row that is gone, so the
+    # denial cannot recur and must not be counted against the flip. Kept separate
+    # from `unknown`, which stays counted, and out of `signals`, because moot
+    # needs no operator action.
+    moot = []
     # Keyed on the TARGET too, not just subject and permission: a denial the host
     # will clear with a scoped grant on one record is a different question from
     # the same permission on another record, and collapsing them would re-ask
@@ -198,15 +204,36 @@ namespace :current_scope do
         next
       end
 
+      # Returns the record, :moot (the class loaded and the row is gone), or
+      # :unknown (we cannot tell). The CALLER decides what each means, because the
+      # same missing row is moot on a target and unknown on a subject. That locate
+      # RAISES rather than returning nil is the contract already stated at
+      # app/helpers/current_scope/application_helper.rb#current_scope_gid_label.
       locate = lambda do |gid|
-        gid.presence && begin
-          GlobalID::Locator.locate(gid)
-        rescue StandardError
-          nil
-        end
+        return :unknown if gid.blank?
+
+        # A nil return is an unparseable GID, which is not evidence of deletion.
+        GlobalID::Locator.locate(gid) || :unknown
+      rescue ActiveRecord::RecordNotFound
+        :moot
+      rescue StandardError
+        # NameError lands here: a class that no longer resolves is a host we
+        # cannot ask, not a record we know is gone.
+        :unknown
       end
 
       subject = locate.call(subject_gid)
+      # A dead SUBJECT is UNKNOWN, never moot, and it is judged BEFORE the target,
+      # so a row with both a dead subject and a dead target counts as unknown. Do
+      # not reorder these two blocks: it silently flips such a row onto the
+      # permissive side. A subject can fail to resolve for reasons that are not
+      # deletion (a class not loaded in this process, a tenant not connected), and
+      # a subject is who a grant is written FOR.
+      if subject.is_a?(Symbol)
+        unknown << pair
+        next
+      end
+
       # Guard writes `target: target || subject`, so a RECORD-LESS denial carries
       # the subject's own GID as its target. Re-asking with the subject as the
       # record would be a different question: the record-less arm of the resolver
@@ -221,10 +248,18 @@ namespace :current_scope do
                                        : recorded_flag
       # A recorded target that no longer resolves is NOT the same as no target:
       # re-asking without it would answer a question the ledger never asked.
-      record = record_less ? nil : locate.call(target_gid)
-      if subject.nil? || (!record_less && record.nil?)
-        unknown << pair
-        next
+      record = nil
+      unless record_less
+        located = locate.call(target_gid)
+        case located
+        when :moot
+          moot << pair
+          next
+        when :unknown
+          unknown << pair
+          next
+        end
+        record = located
       end
 
       still_denied = begin
@@ -319,16 +354,31 @@ namespace :current_scope do
     }.reject { |_label, count| count.zero? }
 
     separate.call
-    if signals.empty?
-      puts "CurrentScope report: nothing found in any category."
-    else
+    # `moot` is deliberately absent from `signals`: that list is the act-on-this
+    # list and a moot denial needs no action. It still decides the headline: a
+    # moot-only ledger must not read "nothing FOUND in any category" (there is
+    # something, and it is on the moot line below), and must not print "0
+    # category(ies)" over an empty list. It still gets a headline, because every
+    # other run names itself first and an unheaded report reads as a broken task.
+    if signals.any?
       puts "CurrentScope report — #{signals.count} category(ies) with something in them:"
       signals.each { |label, count| puts "  #{count.to_s.rjust(6)}  #{label}" }
+    else
+      puts "CurrentScope report: nothing #{moot.any? ? 'to act on' : 'found'} in any category."
     end
-    if outstanding.empty? && unknown.empty? && resolved.any?
+    if outstanding.empty? && unknown.empty? && (resolved.any? || moot.any?)
       puts
-      puts "  Every would-be denial recorded so far is now granted " \
-           "(#{resolved.count} subject/permission pair(s) re-checked against live grants)."
+      if moot.any?
+        # Two different units in one sentence, so each names its own: resolved
+        # counts PAIRS (as the sentence below it always has), moot counts
+        # DENIALS (the unit of the headline and of the unknown line).
+        puts "  Nothing recorded so far is still outstanding: #{resolved.count} subject/permission pair(s)"
+        puts "  re-checked against live grants are granted, and #{moot.sum { |pair| pair[3] }} recorded denial(s) name a"
+        puts "  record that no longer loads."
+      else
+        puts "  Every would-be denial recorded so far is now granted " \
+             "(#{resolved.count} subject/permission pair(s) re-checked against live grants)."
+      end
       puts "  The ledger still lists them because it is append-only. That is the list"
       puts "  you were waiting to see empty; this is what empty looks like."
     end
@@ -337,6 +387,12 @@ namespace :current_scope do
       puts "  #{unknown.sum { |pair| pair[3] }} recorded denial(s) could not be re-checked, because the"
       puts "  subject, the record or the permission no longer resolves. They are counted"
       puts "  as OUTSTANDING above: cannot tell is not the same as ready."
+    end
+    if moot.any?
+      puts
+      puts "  #{moot.sum { |pair| pair[3] }} recorded denial(s) name a record that no longer loads (deleted, or hidden"
+      puts "  by a default scope). The gate can never be asked about that record again, so"
+      puts "  they are NOT counted as outstanding."
     end
     puts
     # The SoD clause only when the host opted into SoD. A project that never set
@@ -397,7 +453,10 @@ namespace :current_scope do
     # Only the pairs still outstanding, so this list agrees with the headline. A
     # resolved row stays in the ledger forever and printing it here is what made
     # the old survey unreadable: a finished rollout showed a long list under a
-    # count of zero.
+    # count of zero. `moot` is left out for the same reason it is left out of the
+    # headline: this is the grant-these list and a moot denial cannot be granted.
+    # Pinned by "the headline counts only outstanding denials and the moot line
+    # counts denials".
     open_keys = (outstanding + unknown).to_set { |gid, permission, target, _count, flag| [ gid, permission, target, flag ] }
     open_rows = rows.select do |subject_gid, _label, details, target_gid|
       hash = details.is_a?(Hash) ? details : {}

@@ -137,6 +137,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   that record held.
 - **Custom `polymorphic_name` tokens now match on the list and the members page (#155).** Collection, ancestor, and record-less write lookups use the stored token (`polymorphic_name`), not `base_class.name`. Reverse lookup uses a closed registry (Rails first, then auto-detected overrides plus optional `config.polymorphic_class_names`). Two classes that claim the same token raise at rebuild, including a shortened name that matches another loaded class. Config may only name a class that actually stores that token. An unmapped token stays inert.
 - **The public resolver picture now matches the six-step order the engine already runs.** README, the docs-site include, and the landing-page steps named a five-step order that skipped the record-less listed-read arm. The Limitations table also still said parent hierarchy was deferred after `current_scope_parent` shipped.
+- **The 0.4 to 0.5 upgrade steps now cover the test database and the silent half
+  of the string-id change (#191).** "What you must do" listed
+  `current_scope:install:migrations` and `db:migrate`, which migrate development
+  only, so the next `bin/rails test` aborted at boot on a test database that
+  still had the integer columns, and the boot message named the pair the reader
+  had just run. The steps now name `bin/rails db:test:prepare`, say why Rails
+  cannot repair the test schema itself (the guard runs while
+  `config/environment` loads, before `rails/test_help` reaches
+  `maintain_test_schema!`), and add the MySQL clause
+  `RAILS_ENV=test bin/rails current_scope:repair_schema` for hosts on the
+  default `schema_format = :ruby`. "Grant ids now read back as strings" stated
+  the type change and stopped; on the #116 bake host that change silently broke
+  a grant-syncing seed, which deleted every scoped grant, and an id-keyed hash,
+  which rendered every role blank, both at exit status 0. The subsection now
+  names the three breaking code shapes, says the failures are silent, clears
+  `where(subject: user)`, `where(subject_id: user.id)`, and `scope_for` so
+  nobody rewrites a working query, sends raw SQL fragments and joins to a manual
+  check, and ends with one grep line. The docs-site page and the README upgrade
+  callout carry the same commands.
 
 ## [0.5.1] - 2026-08-12
 

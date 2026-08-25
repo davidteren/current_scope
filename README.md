@@ -127,11 +127,13 @@ Screenshot regenerate command: [CONTRIBUTING.md](CONTRIBUTING.md).
 > keys are stored whole instead of being truncated to an integer
 > ([#151](https://github.com/davidteren/current_scope/issues/151) — two subjects
 > could collapse into one identity, and one inherit the other's roles). Run
-> `bin/rails current_scope:install:migrations && bin/rails db:migrate`; the engine
+> `bin/rails current_scope:install:migrations && bin/rails db:migrate && bin/rails db:test:prepare`; the engine
 > refuses to boot until you do. If MySQL was loaded from `schema.rb`, also run
-> `bin/rails current_scope:repair_schema` to apply the binary collation that
-> `schema.rb` cannot represent. Integer, UUID and ULID keys all work, up to 64
-> characters. See [UPGRADING.md](UPGRADING.md).
+> `bin/rails current_scope:repair_schema`, then the same task under
+> `RAILS_ENV=test`, because `db:test:prepare` loads that same `schema.rb`. It
+> applies the binary collation and changes nothing when the columns are already
+> right. Integer, UUID and ULID keys all work, up to 64 characters. See
+> [UPGRADING.md](UPGRADING.md).
 
 This is the **canonical greenfield quickstart** (new app, or install before
 users hit gated controllers). The same numbered path lives on the

@@ -2,13 +2,16 @@ require "test_helper"
 
 # The marketing landing page is static HTML (Jekyll passthrough). These pins
 # catch a missing section, a reintroduced overclaim, or a lost interactive id
-# without standing up a browser harness for GitHub Pages.
+# without standing up a browser harness for GitHub Pages. The class covers the
+# other published site pages too, so a page can be pinned beside the one it
+# mirrors.
 class DocsSiteTest < ActiveSupport::TestCase
   LANDING = File.expand_path("../docs/site/index.html", __dir__)
   QUICKSTART = File.expand_path("../docs/site/quickstart.md", __dir__)
+  UPGRADING_PAGE = File.expand_path("../docs/site/upgrading.md", __dir__)
 
   setup do
-    @html = File.read(LANDING)
+    @html = File.read(LANDING, encoding: "UTF-8")
     @doc = Nokogiri::HTML5(@html)
   end
 
@@ -41,8 +44,20 @@ class DocsSiteTest < ActiveSupport::TestCase
     assert_includes @html, "scroll-padding-top:72px"
   end
 
+  # Pin the block, not the bare command name: the prose below the block also
+  # names db:test:prepare, so a looser assertion passes with the block broken.
+  test "upgrading page's command block runs db:test:prepare after db:migrate" do
+    block = <<~SH
+      bin/rails current_scope:install:migrations
+      bin/rails db:migrate
+      bin/rails db:test:prepare
+    SH
+    assert_includes File.read(UPGRADING_PAGE, encoding: "UTF-8"), block,
+                    "the site's 0.4 → 0.5 block must run db:test:prepare, like UPGRADING.md"
+  end
+
   test "quickstart banner links the published security checklist" do
-    source = File.read(QUICKSTART)
+    source = File.read(QUICKSTART, encoding: "UTF-8")
     assert_includes source, "https://davidteren.github.io/current_scope/security-checklist.html"
     refute_match(/\]\(security-checklist\.html\)/, source)
   end

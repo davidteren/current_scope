@@ -65,7 +65,17 @@ primary keys, you were affected on 0.2, 0.3 and 0.4.
 ```bash
 bin/rails current_scope:install:migrations
 bin/rails db:migrate
+bin/rails db:test:prepare
 ```
+
+The test database is a separate database with the same guard on it, so
+`bin/rails db:test:prepare` is part of the upgrade, not an afterthought: skip it
+and your next test run aborts at boot. The boot error names the first two
+commands, which cannot repair a test database you have already migrated
+development past. On MySQL, run `RAILS_ENV=test bin/rails
+current_scope:repair_schema` as well: `db:test:prepare` builds the test database
+from `schema.rb`, which may not carry the binary collation, so the guard refuses
+there even though development is now correct.
 
 The engine **raises at boot until that migration has run**, because a gem
 upgrade alone would leave the escalation in place while every code path looked
@@ -74,18 +84,28 @@ your asset build still work; anything that serves traffic or runs your code is
 refused.
 
 **If your database was built from `schema.rb`** — a new app, CI, a fresh
-checkout — run this instead. `schema.rb` cannot carry a MySQL collation, and
+checkout — run this instead. `schema.rb` may not carry a MySQL collation, and
 loading a schema marks every migration as already applied, so `db:migrate` has
 nothing to do:
 
 ```bash
 bin/rails current_scope:repair_schema
+bin/rails db:test:prepare
+```
+
+Your test database is a separate database with the same guard on it, and
+`db:test:prepare` reloads the same `schema.rb`. On MySQL, repair it too, or the
+next `bin/rails test` still aborts at boot:
+
+```bash
+RAILS_ENV=test bin/rails current_scope:repair_schema
 ```
 
 On MySQL, run that repair **before** any seeds that create grants:
-`db:setup`/`db:reset`/`db:prepare` load `schema.rb` (still case-insensitive) and
-seed in the same process, so a grant-creating seed is refused until the collation
-is repaired. That refusal is the guard working, not a bug. See `UPGRADING.md`.
+`db:setup`/`db:reset`/`db:prepare` load `schema.rb` (which may leave the columns
+case-insensitive) and seed in the same process, so a grant-creating seed is
+refused until the collation is repaired. That refusal is the guard working, not a
+bug. See `UPGRADING.md`.
 
 Two things to know before you upgrade:
 
@@ -96,7 +116,10 @@ Two things to know before you upgrade:
   real record.
 - **Grant ids now read back as strings for every host**, integer keys included:
   `grant.subject_id == user.id` is now `false` where it used to be `true`.
-  Compare `.to_s` on both sides in your own code.
+  Compare `.to_s` on both sides in your own code. This breaks host code
+  silently, with no exception and no log line: a tuple comparison against live
+  ids can delete every grant, and a hash keyed by `subject_id` misses every
+  lookup. `UPGRADING.md` lists the shapes to look for.
 
 Full detail, including the MySQL collation and the 64-character limit, is in
 [UPGRADING.md](https://github.com/davidteren/current_scope/blob/main/UPGRADING.md).

@@ -105,7 +105,32 @@ resolved, to the wrong record.
 ```bash
 bin/rails current_scope:install:migrations
 bin/rails db:migrate
+bin/rails db:test:prepare
 ```
+
+`db:migrate` migrates development only. The test database is a separate database
+with the same guard on it, so without `bin/rails db:test:prepare` the next
+`bin/rails test` aborts at boot with `CurrentScope::ConfigurationError` naming
+`subject_id`. That boot message tells you to run
+`bin/rails current_scope:install:migrations && bin/rails db:migrate`, which is the
+pair you have just run; for the test database it is not the fix, and
+`bin/rails db:test:prepare` is. Rails does not repair this for you, even though it
+normally keeps the test schema current: `maintain_test_schema!` runs from
+`rails/test_help`, and the engine's check runs earlier, while `config/environment`
+loads. Database tasks are exempt from the boot refusal, so `db:test:prepare` runs
+on a host that has not been migrated yet.
+
+On MySQL, run `RAILS_ENV=test bin/rails current_scope:repair_schema` as well.
+Whether `db:test:prepare` gives the test columns their binary collation depends on
+where `schema.rb` was dumped. A dump taken from MySQL after `db:migrate` carries a
+per-column `collation:`, because the migration collates the column while the table
+keeps the server default and Rails dumps a column collation that differs from its
+table's. A dump taken from PostgreSQL or SQLite carries none, so on a team that
+develops on one adapter and runs MySQL in CI the test columns come out case and
+accent insensitive and the engine refuses to boot. The repair task is idempotent
+and changes nothing when the columns are already right, so running it settles the
+question either way. (A host on `config.active_record.schema_format = :sql` builds
+the test database from `structure.sql`, which always carries the collation.)
 
 The columns become `varchar(64)`, so integer, UUID and ULID keys are all stored
 whole. **The engine raises at boot until this migration has run** — a gem upgrade
@@ -132,9 +157,12 @@ traffic turns the guard off and puts the escalation back.
 
 New apps, CI, and fresh checkouts load `schema.rb` rather than running
 migrations — and that marks every migration as already applied, so `db:migrate`
-finds nothing pending. `schema.rb` also cannot express a MySQL collation. On
-MySQL that combination leaves the columns case-insensitive, the engine refusing
-to boot, and `db:migrate` unable to help. Run the repair task instead:
+finds nothing pending. Whether `schema.rb` carries the binary collation depends
+on the adapter it was dumped from: a dump taken from MySQL keeps a per-column
+`collation:`, while a dump taken from PostgreSQL or SQLite carries none. So on a
+team that develops on one adapter and runs MySQL elsewhere, that combination
+leaves the columns case-insensitive, the engine refusing to boot, and
+`db:migrate` unable to help. Run the repair task instead:
 
 ```bash
 bin/rails current_scope:repair_schema
@@ -145,7 +173,7 @@ it works on a database the engine will not otherwise start against.
 
 **On MySQL, run the repair before seeds that create grants.** `db:setup`,
 `db:reset`, and `db:prepare` load `schema.rb` and then run your seeds in the same
-process — and `schema.rb` cannot carry the binary collation, so the columns are
+process, so if that `schema.rb` carries no collation (see above) the columns are
 still case-insensitive when the seeds run. A seed that creates a grant is
 refused (the write path re-checks the schema, on purpose — an unrepaired column
 is the #151 collision). Run `bin/rails current_scope:repair_schema` after loading
@@ -171,13 +199,50 @@ type changed for everyone:
 ```ruby
 grant = CurrentScope::RoleAssignment.find_by(subject: user)
 grant.subject_id        # => "7"  (was 7)
-grant.subject_id == user.id   # => false, and it used to be true
-grant.subject_id.to_s == user.id.to_s  # => true
 ```
 
-If your own code compares a grant id against a model id, compare `.to_s` on both
-sides. The engine's own queries are unaffected: `where(subject: user)` and
-`scope_for` cast for you.
+**Nothing raises.** Code that compares a stored grant id against a model id keeps
+running and quietly gets the wrong answer.
+
+**Check your own code for these shapes:**
+
+- **A tuple or Set comparison against live ids**, such as
+  `[subject_type, subject_id, resource_type, resource_id]` read from grants and
+  compared against the same tuple built from records. Every stored row now sorts
+  as stale and every wanted row as missing, so a sync that deletes the stale set
+  deletes every grant and creates nothing.
+- **A hash keyed by `subject_id` or `resource_id`**, then looked up with a model
+  id: `assignments.to_h { |a| [ a.subject_id, a.role.name ] }` followed by
+  `hash[user.id]`. Every lookup misses and the value renders blank.
+- **Any bare `==` between a stored id and a model id.**
+  `grant.subject_id == user.id` is now `false` where it used to be `true`.
+
+The first two are real cases from a live 0.4 to 0.5 upgrade of a production app.
+Neither raised, neither logged a line, and both exited 0.
+
+The repair is the same for all three: compare `.to_s` on both sides, as in
+`grant.subject_id.to_s == user.id.to_s`.
+
+**Your Active Record queries are safe, so do not rewrite them.** `where(subject: user)`,
+`where(subject_id: user.id)`, and `scope_for` all still match, because Active
+Record casts the bound value to the column type on the way in. That covers Active
+Record hash and record conditions on every adapter: the cast runs in Ruby, in
+`ActiveModel::Type::String`, before the value reaches your database, so
+`where(subject_id: 7)` sends `subject_id = '7'` on PostgreSQL, MySQL and SQLite
+alike. A raw SQL fragment such as `where("subject_id = ?", user.id)`, or a join
+comparing the column against an integer column, skips that cast. There the
+comparison happens inside the database, each database treats a string against an
+integer differently, and this document has only been checked against PostgreSQL.
+Check those by hand.
+
+To find these shapes in your own application:
+
+```bash
+grep -rnE "subject_id|resource_id" app lib db
+```
+
+Read the hits that compare, that key a hash, or that sit in a tuple or a Set.
+Leave the `where(...)` calls alone.
 
 A grant is also now refused at write time when the id is not a legal key for the
 model it names — `resource_type: "Project"` with a UUID `resource_id`, say. Such

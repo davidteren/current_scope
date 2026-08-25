@@ -68,9 +68,11 @@ If you add a migration, dump the schema from a server adapter:
 DATABASE_URL="$(bin/db url postgres)" RAILS_ENV=test bin/rails db:migrate
 ```
 
-Then check the diff shows only your change. `schema.rb` also cannot carry a MySQL
-collation, which is why `bin/db` and CI apply the #151 widening migration on top
-of the loaded schema rather than trusting the dump alone.
+Then check the diff shows only your change. A `schema.rb` dumped from a non-MySQL
+adapter carries no MySQL collation, which is why `bin/db` and CI apply the #151
+widening migration on top of the loaded schema rather than trusting the dump
+alone. (A dump taken from MySQL does carry one; see the 0.4 to 0.5 section of
+[UPGRADING.md](UPGRADING.md).)
 
 ## Regenerating screenshots
 

@@ -366,8 +366,8 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
 
   test "the boot refusal stands down for database tasks, or the fix could not be run" do
     # grant_columns_widened! raises from after_initialize, which EVERY rails
-    # command runs — including the db:migrate its own message tells the host to
-    # run. Without the exemption an upgrading host is stuck: the app will not
+    # command runs — including the repair its own refusals tell the host to run
+    # (#193). Without the exemption an upgrading host is stuck: the app will not
     # boot and the repair will not run, for the same reason.
     fake = { "subject_id" => Struct.new(:type).new(:integer) }
     CurrentScope::RoleAssignment.define_singleton_method(:columns_hash) { fake }

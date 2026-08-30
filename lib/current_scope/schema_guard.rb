@@ -203,9 +203,10 @@ module CurrentScope
     # Rake tasks that may BOOT even against an unrepaired schema.
     #
     # The check raises from after_initialize, which every Rails command runs —
-    # including `db:migrate`, the command its own error message tells the host to
-    # run. Without an exemption an upgrading host is stuck: the app refuses to
-    # boot and the repair refuses to run, for the same reason. `assets:` is the
+    # including `current_scope:repair_schema` and `db:migrate`, the commands its
+    # own refusals tell the host to run. Without an exemption an upgrading host
+    # is stuck: the app refuses to boot and the repair refuses to run, for the
+    # same reason. `assets:` is the
     # same trap one step less obvious — a deploy pipeline that precompiles before
     # migrating dies before it ever reaches the fix.
     #

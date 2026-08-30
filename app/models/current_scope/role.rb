@@ -6,6 +6,14 @@ module CurrentScope
     # #182: deleting a role is audited from here, so the console, a seed and a
     # console one-liner all leave the same row. The cascade below records its own
     # removals through each assignment's callback.
+    #
+    # CREATION is NOT here, and that asymmetry is deliberate rather than
+    # forgotten: role.created carries the role's initial permission set, and the
+    # role_permissions rows are not persisted yet when an after_create callback
+    # runs. Emitting from after_commit instead would see them and would forfeit
+    # the :strict rollback every other event in this file keeps. So a role
+    # created by a seed leaves no row while its deletion does, and the
+    # configuration guide says so (#182 review).
     include CurrentScope::AuditedWrites
     after_destroy :record_role_deleted
 

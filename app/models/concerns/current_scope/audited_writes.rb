@@ -27,16 +27,20 @@ module CurrentScope
     # Attribution follows CurrentScope.grant!'s bootstrap events rather than
     # inventing a second convention: Event.record! needs an actor it can name
     # with a GlobalID, and a seed has no human behind it, so the write is
-    # self-attributed to the record it is about. `source` says which path it
-    # came from, so the console's writes stay distinguishable from code's
-    # without either disappearing.
+    # self-attributed to the record it is about.
+    #
+    # `source` says which of those two it was, and NOTHING MORE. "actor" means
+    # something had set CurrentScope::Current.actor — a request, but also a job
+    # or with_current_user in a test — and "self" means nothing had. Calling the
+    # first one "request" would be a claim this code cannot make, and an auditor
+    # filtering on it would get a wrong set (#182 review).
     def audit_write!(event, target:, details: {})
       actor = CurrentScope::Current.actor
 
       CurrentScope::Event.record!(
         event: event,
         target: target,
-        details: details.merge(source: actor ? "request" : "model"),
+        details: details.merge(source: actor ? "actor" : "self"),
         actor: actor || target
       )
     end

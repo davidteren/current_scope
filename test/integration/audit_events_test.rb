@@ -62,8 +62,8 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     assert_equal @member.to_gid.to_s, event.target
     assert_equal "Member", event.details["role"]
     assert_equal "Q3", event.details["resource"]
-    assert_equal "model", event.details["source"],
-      "nothing ambient was set, so the row says where it came from"
+    assert_equal "self", event.details["source"],
+      "nothing had set an ambient actor, so the row is attributed to the grantee"
   end
 
   test "a grant destroyed through the model API is audited too" do
@@ -96,10 +96,10 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
 
     granted = CurrentScope::Event.where(event: "scoped_role.granted").last
     assert granted, "the restoration has to be in the ledger, or the revocations read as final"
-    assert_equal "model", granted.details["source"]
+    assert_equal "self", granted.details["source"]
   end
 
-  test "the console path says it was a request" do
+  test "a write with an ambient actor says so" do
     report = Report.create!(title: "Q3", requested_by: @owner)
     only_from_here
 
@@ -107,7 +107,8 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
       subject_gid: @member.to_gid.to_s, resource_gid: report.to_gid.to_s, role_id: @member_role.id
     }
 
-    assert_equal "request", only_event.details["source"]
+    assert_equal "actor", only_event.details["source"],
+      "the request set CurrentScope::Current.actor; the field claims no more than that"
   end
 
   # Minitest 6 dropped minitest/mock, so swap record! for a raiser by hand and

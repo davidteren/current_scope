@@ -82,15 +82,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `scoped_role.granted`, `scoped_role.revoked`, `org_role.removed` and
   `role.deleted` are emitted from model callbacks now rather than from the
   controllers, so every write path records the same row. Each carries
-  `details.source`: `"request"` when something ambient was set, `"model"`
-  otherwise. A write with no human behind it is self-attributed, the same way
-  `CurrentScope.grant!`'s bootstrap events already were.
+  `details.source`, which says one thing and no more: `"actor"` when something
+  had set `CurrentScope::Current.actor` (a request, but also a job or a test
+  helper), `"self"` when nothing had, in which case the row is self-attributed
+  to the record it is about — the same shape `CurrentScope.grant!`'s bootstrap
+  events already used.
 
   The callbacks run INSIDE the transaction, so `config.audit = :strict` still
-  rolls a mutation back when its audit row cannot be written. Creating an org
-  role directly, rather than through `CurrentScope.grant!`, is the one write
-  that still records nothing: that method knows the from/to a callback cannot
-  see, and emitting in both places would double every bootstrap.
+  rolls a mutation back when its audit row cannot be written.
+
+  Two CREATIONS remain unrecorded, both deliberately. A direct
+  `RoleAssignment.create!` records nothing, because `CurrentScope.grant!` is the
+  documented path and knows the from/to a callback cannot see. And
+  `role.created` stays in the controller, because it carries the role's initial
+  permission set, which is not yet persisted when an `after_create` callback
+  runs; moving it to `after_commit` would forfeit the `:strict` rollback every
+  other event keeps. A role created by a seed therefore leaves no `role.created`
+  row while its deletion leaves `role.deleted`.
 - **`current_scope:report` tells a moot denial from one it cannot re-check
   (#190).** Every failed lookup of a recorded denial's target landed in one
   "could not be re-checked" bucket and was counted as outstanding, so a denial

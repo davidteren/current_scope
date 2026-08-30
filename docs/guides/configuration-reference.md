@@ -112,11 +112,29 @@ boundary**, and **`CurrentScope.grant!`** (including the rake task and seeds
 bootstrap path — self-attributed, `details.source = "bootstrap"`), and degrades
 gracefully (skip + warn once) if the events table isn't migrated; `:strict`
 **raises** on a missing events table so an audit-mandatory app never commits an
-unaudited change (the mutation rolls back). Direct `RoleAssignment` /
-`ScopedRoleAssignment` writes and the test helpers (`grant_role!` /
-`grant_scoped_role!`) are **not** recorded — use `grant!` for bootstrap
-paths that need a ledger trail. UI events stamp `request_id` from
-`ActionDispatch::RequestId` via the Context hook.
+unaudited change (the mutation rolls back).
+
+Since #182 the ledger no longer depends on which door a change came through.
+`scoped_role.granted`, `scoped_role.revoked`, `org_role.removed` and
+`role.deleted` are emitted from model callbacks, so a seed, a rake task, a
+console one-liner and the test helpers (`grant_role!` / `grant_scoped_role!`)
+all record what the management UI records. Each row carries `details.source`:
+`"actor"` when something had set `CurrentScope::Current.actor` (a request, a
+job, `with_current_user` in a test), `"self"` when nothing had, in which case
+the row is self-attributed to the record it is about. `CurrentScope.grant!`
+keeps its own `"bootstrap"`.
+
+Two CREATIONS are still not recorded, and both are deliberate. A direct
+`RoleAssignment.create!` records nothing, because `CurrentScope.grant!` is the
+documented path and carries the from/to a callback cannot see. And
+`role.created` is emitted by the controller rather than the model, because it
+carries the role's initial permission set, which is not yet persisted when an
+`after_create` callback runs; moving it to `after_commit` would forfeit the
+`:strict` rollback every other event keeps. A role created by a seed therefore
+leaves no `role.created` row, while its deletion does leave `role.deleted`.
+
+UI events stamp `request_id` from `ActionDispatch::RequestId` via the Context
+hook.
 
 > **Note on the `!`:** despite the bang, `Event.record!` only guarantees
 > raise-on-failure under `:strict` (and for a missing actor). In the default

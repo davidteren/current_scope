@@ -29,7 +29,12 @@ module CurrentScope
       @bulk_subjects = resolve_bulk_subjects # [] unless a multi-select bulk grant
 
       @resource = deep_linked_resource
-      @resource_type = resolve_type(params[:resource_type]) || @resource&.class
+      # Resolved against the FILTERED list: the cascade carries resource_type on
+      # every autosubmit, so picking a role, then a type, then changing the role
+      # would otherwise leave the withheld type selected, its records loaded and
+      # a Grant button showing, directly under a hint saying that type was not
+      # listed — the dead end this filter exists to prevent (#183 review).
+      @resource_type = resolve_type(params[:resource_type], within: @scopeable) || @resource&.class
       @searchable = searchable?(@resource_type)
       @records = candidate_records(@resource_type, params[:q])
     end
@@ -86,8 +91,7 @@ module CurrentScope
       return types if role.nil?
 
       types.select do |klass|
-        allowed = klass.respond_to?(:current_scope_grantable_roles) ? klass.current_scope_grantable_roles : nil
-        allowed.blank? || allowed.include?(role.name)
+        !klass.respond_to?(:current_scope_grants_role?) || klass.current_scope_grants_role?(role)
       end
     end
 
@@ -153,8 +157,8 @@ module CurrentScope
 
     # Only registered Scopeable types are resolvable from params — never
     # constantize arbitrary visitor input.
-    def resolve_type(name)
-      CurrentScope.scopeable_resources.find { |model| model.name == name } if name.present?
+    def resolve_type(name, within: nil)
+      (within || CurrentScope.scopeable_resources).find { |model| model.name == name } if name.present?
     end
 
     def searchable?(klass)

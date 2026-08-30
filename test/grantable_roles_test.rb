@@ -101,6 +101,28 @@ class GrantableRolesTest < ActiveSupport::TestCase
     end
   end
 
+  # An empty declaration is a LOCKDOWN, not "no restriction" (#183 review). A
+  # host computing the list from config and getting an empty array must not find
+  # the type wide open.
+  test "an empty declaration accepts no role at all" do
+    Project.current_scope_grantable_roles []
+
+    assignment = grant(@container, @project)
+
+    assert_not assignment.valid?
+    assert_includes assignment.errors[:role].first, "accepts no scoped roles at all"
+  end
+
+  # And the caveat that goes with it: a splatted empty array cannot be told
+  # apart from the reader, so the documented form is to pass the array.
+  test "the declaration must be passed as an array, not splatted, when it is computed" do
+    computed = []
+    Project.current_scope_grantable_roles(computed)
+
+    assert_equal [], Project.current_scope_grantable_roles,
+      "passing the array declares the lockdown"
+  end
+
   test "a subclass inherits its parent's declaration until it states its own" do
     Project.current_scope_grantable_roles "Project Lead"
     subclass = Class.new(Project) { def self.name = "SpecialProject" }

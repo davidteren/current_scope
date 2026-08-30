@@ -29,6 +29,11 @@ module CurrentScope
       # (current_scope_parent, the searchable scope, Scopeable), it needs no
       # migration and no admin screen, and it is versioned in the code review
       # that introduces the pairing.
+      # COMPUTING THE LIST: pass the array, do not splat it.
+      # `current_scope_grantable_roles(*computed)` with an empty `computed`
+      # cannot be told apart from the reader, so it would silently declare
+      # nothing. `current_scope_grantable_roles(computed)` is unambiguous, and an
+      # empty array declared that way means NO role may be granted on this type.
       def current_scope_grantable_roles(*names)
         @current_scope_grantable_roles = names.flatten.map(&:to_s).freeze if names.any?
         return @current_scope_grantable_roles if defined?(@current_scope_grantable_roles)
@@ -39,6 +44,22 @@ module CurrentScope
         return superclass.current_scope_grantable_roles if superclass.respond_to?(:current_scope_grantable_roles)
 
         nil
+      end
+
+      # THE rule, in one place, so the gate and the console cannot drift (#183
+      # review). nil means the type never declared anything and accepts
+      # everything; an empty declaration is a lockdown and accepts nothing.
+      #
+      # Matched by NAME, and that is the trade a declaration written in code
+      # makes: role ids are per-database and cannot be named in a model file.
+      # Renaming a role therefore stops the declarations that name it from
+      # matching, and a new role that reuses the name inherits its acceptance.
+      # The check runs on write, so existing grants are unaffected either way.
+      def current_scope_grants_role?(role)
+        allowed = current_scope_grantable_roles
+        return true if allowed.nil?
+
+        role.present? && allowed.include?(role.name)
       end
     end
   end

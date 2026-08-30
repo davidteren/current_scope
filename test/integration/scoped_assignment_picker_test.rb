@@ -25,15 +25,23 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     CurrentScope.define_singleton_method(:scopeable_resources, original)
   end
 
+  # The real module, not a hand-rolled double: the picker and the model gate
+  # share one predicate, and a double that answers only half of it would let this
+  # test pass while the shipped code disagreed with itself (#183 review).
+  def picky_type
+    Class.new do
+      include CurrentScope::GrantableRoles
+      def self.name = "PickyThing"
+      def self.model_name = ActiveModel::Name.new(self, nil, "PickyThing")
+      current_scope_grantable_roles "Owner"
+    end
+  end
+
   # #183 — the picker chooses the ROLE first, so the types are what gets
   # narrowed. The model validation is the gate; this only keeps the operator out
   # of a dead end, and says so rather than silently shortening the dropdown.
   test "a type that does not accept the chosen role is withheld, and the reason is shown" do
-    picky = Class.new do
-      def self.name = "PickyThing"
-      def self.model_name = ActiveModel::Name.new(self, nil, "PickyThing")
-      def self.current_scope_grantable_roles = [ "Owner" ]
-    end
+    picky = picky_type
 
     with_scopeable_resources([ Folder, picky ]) do
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id), headers: as(@owner)
@@ -46,12 +54,30 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "a type that accepts the chosen role is offered" do
-    picky = Class.new do
-      def self.name = "PickyThing"
-      def self.model_name = ActiveModel::Name.new(self, nil, "PickyThing")
-      def self.current_scope_grantable_roles = [ "Owner" ]
+  # The two empties are different (#183 review). Sending an operator whose role
+  # matched nothing to "add include CurrentScope::Scopeable" is advice that
+  # cannot help them: the types ARE registered.
+  test "when every type withholds the role, the page says so rather than blaming setup" do
+    with_scopeable_resources([ picky_type ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id), headers: as(@owner)
+
+      assert_response :success
+      assert_match(/No resource type accepts/, response.body)
+      assert_match(/Member/, response.body)
+      assert_no_match(/No pickable resource types yet/, response.body)
     end
+  end
+
+  test "with nothing registered at all, the setup advice is still the right advice" do
+    with_scopeable_resources([]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id), headers: as(@owner)
+
+      assert_match(/No pickable resource types yet/, response.body)
+    end
+  end
+
+  test "a type that accepts the chosen role is offered" do
+    picky = picky_type
 
     with_scopeable_resources([ Folder, picky ]) do
       get current_scope.new_scoped_role_assignment_path(role_id: @owner_role.id), headers: as(@owner)

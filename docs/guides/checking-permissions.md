@@ -260,3 +260,41 @@ This is **browse-only sugar** — it does *not* gate anything. The raw-GlobalID
 path still accepts **any** model as a scoped-role target whether or not it opts
 in; the mixin only decides what shows up in the dropdown. `current_scope_label`
 is a plain instance method, so your own definition always wins over the default.
+
+### Which roles may be granted on a type (#183)
+
+A role's permission bundle is written for one **shape** of record. When that
+record declares a `current_scope_parent`, a grant held on the CONTAINER resolves
+for every record inside it — so granting a per-record role on the container hands
+the subject that per-record surface across the whole container. One wrong pick in
+a dropdown, and by default nothing objects.
+
+A type can say what it accepts:
+
+```ruby
+class Workstream < ApplicationRecord
+  include CurrentScope::Scopeable
+  current_scope_grantable_roles "Lead"
+end
+```
+
+- **Absent a declaration nothing changes**: every role stays grantable on every
+  type. Opting in is per type.
+- The rule is enforced on the **model**, so a seed, a rake task and a console
+  one-liner meet it as well as the management UI. The picker narrows the type
+  dropdown to those that accept the chosen role, and says how many it withheld.
+- An **empty** declaration, `current_scope_grantable_roles []`, means no role may
+  be granted on that type. When you compute the list, pass the array rather than
+  splatting it: `current_scope_grantable_roles(*computed)` with an empty
+  `computed` cannot be told apart from reading the value, and would declare
+  nothing.
+- A subclass inherits its parent's declaration until it states its own.
+- `CurrentScope::GrantableRoles` can be included on its own if you want the rule
+  without the picker registration.
+
+**Roles are matched by NAME**, and that is the trade a declaration written in
+code makes: role ids are per-database and cannot be named in a model file. So
+renaming a role stops the declarations that name it from matching, and a new role
+that reuses the name inherits its acceptance. The check runs on write, so grants
+already made are unaffected either way. If you rename a role, grep for its old
+name in your models.

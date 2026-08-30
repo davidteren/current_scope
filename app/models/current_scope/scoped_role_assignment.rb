@@ -113,13 +113,16 @@ module CurrentScope
       return if role.nil? || resource_type.blank?
 
       klass = CurrentScope.polymorphic_class(resource_type, inert_on_error: true)
-      return if klass.nil? || !klass.respond_to?(:current_scope_grantable_roles)
+      return if klass.nil? || !klass.respond_to?(:current_scope_grants_role?)
+      return if klass.current_scope_grants_role?(role)
 
       allowed = klass.current_scope_grantable_roles
-      return if allowed.blank? || allowed.include?(role.name)
-
-      errors.add(:role, "cannot be granted on #{klass.name}: it accepts " \
-                        "#{allowed.to_sentence(two_words_connector: ' or ', last_word_connector: ' or ')}")
+      accepts = if allowed.empty?
+        "it accepts no scoped roles at all"
+      else
+        "it accepts #{allowed.to_sentence(two_words_connector: ' or ', last_word_connector: ' or ')}"
+      end
+      errors.add(:role, "cannot be granted on #{klass.name}: #{accepts}")
     end
   end
 end

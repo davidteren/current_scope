@@ -52,7 +52,17 @@
 <% end %>
 
 <turbo-frame id="cascade">
-  <% if @scopeable.empty? %>
+  <%# Two different empties (#183 review): nothing registered at all, and
+      everything registered withheld because it does not accept the chosen role.
+      Sending the second reader to "add include CurrentScope::Scopeable" is
+      advice that cannot help them. %>
+  <% if @scopeable.empty? && @all_scopeable.any? %>
+    <p class="cs-alert cs-picker-empty">
+      No resource type accepts <strong><%= @selected_role.name %></strong>.
+      Each registered type declares which roles may be granted on it, and none
+      lists this one. Pick a different role.
+    </p>
+  <% elsif @scopeable.empty? %>
     <p class="cs-alert cs-picker-empty">
       No pickable resource types yet. Add
       <code>include CurrentScope::Scopeable</code> to a host model to make its

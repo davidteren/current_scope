@@ -1,0 +1,31 @@
+test/report_task_test.rb
+  s_240773ee81a9c0::t_db424df0c4f705 334-462
+CHANGELOG.md
+  s_240773ee81a9c0::t_c3cb4abe10b2a6 74-94
+lib/tasks/current_scope_tasks.rake
+  s_240773ee81a9c0::t_589499ae1ef5ef 189-194,203-207,210-212,277-298,300-301,306-311,437-444
+  s_240773ee81a9c0::t_a10401c4971049 445
+test/integration/report_only_test.rb
+  s_240773ee81a9c0::t_b0e305ac310cb1 76-109
+lib/current_scope/guard.rb
+  s_240773ee81a9c0::t_82160b2678360a 181,364,370,438,457-471,474-475
+  s_240773ee81a9c0::t_77c9c8f523b4ec 488-501
+docs/guides/adopting-in-an-existing-app.md
+  s_240773ee81a9c0::t_c3cb4abe10b2a6 65-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "3ee9d52884c64e6d5c2c728e1229fb24823bf0aa",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

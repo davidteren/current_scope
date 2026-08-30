@@ -1,0 +1,29 @@
+app/models/current_scope/role.rb
+  s_240773ee81a9c0::t_c2b338a226610c 18-23,125-134,137
+  s_240773ee81a9c0::t_3932bb4bfbe255 136
+lib/current_scope/definitions_document.rb
+  s_240773ee81a9c0::t_3932bb4bfbe255 317-323
+app/controllers/current_scope/role_assignments_controller.rb
+  s_240773ee81a9c0::t_3932bb4bfbe255 179
+test/integration/audit_events_test.rb
+  s_240773ee81a9c0::t_3932bb4bfbe255 144,154-156
+  s_240773ee81a9c0::t_77b19b659635a4 102-120
+CHANGELOG.md
+  s_240773ee81a9c0::t_4234e829d78f43 85-86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "e43ea1cb58117b90bac523df99e4c7d2d1fbbb3d",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -32,6 +32,14 @@ module CurrentScope
     # same rule; it lives here now so every path gets it.
     def audit_subject = current_scope_resolved_record("subject") || self
 
+    # The role row can be GONE by the time this runs: a cleanup script that
+    # deletes roles with delete_all or raw SQL bypasses dependent: :destroy and
+    # leaves orphaned assignments, and destroying one of those used to succeed.
+    # Now that every destroy path records, an unguarded role.name would turn that
+    # into a NoMethodError and abort the write. Name what is left instead
+    # (#182 review).
+    def audit_role_name = role&.name || "(role ##{role_id})"
+
     # Label from the record while it is still there, else from the stored
     # type/id, so an audit row never 500s on a stale reference or on a host
     # label method that raises.
@@ -128,7 +136,7 @@ module CurrentScope
       return unless CurrentScope.config.audit
 
       audit_write!(event, target: audit_subject,
-                          details: { role: role.name, resource: audit_resource_label })
+                          details: { role: audit_role_name, resource: audit_resource_label })
     end
   end
 end

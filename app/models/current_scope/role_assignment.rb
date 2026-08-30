@@ -73,7 +73,11 @@ module CurrentScope
       return unless CurrentScope.config.audit
 
       subject_record = current_scope_resolved_record("subject") || self
-      audit_write!("org_role.removed", target: subject_record, details: { role: role.name })
+      # role&.name: an orphaned assignment (its role deleted by delete_all or raw
+      # SQL, which bypasses dependent: :destroy) must still be destroyable
+      # (#182 review).
+      audit_write!("org_role.removed", target: subject_record,
+                                       details: { role: role&.name || "(role ##{role_id})" })
     end
   end
 end

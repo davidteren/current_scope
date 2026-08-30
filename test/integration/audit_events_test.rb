@@ -99,6 +99,23 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     assert_equal "self", granted.details["attribution"]
   end
 
+  # #182 review — an assignment whose ROLE is gone. A foreign key stops that
+  # happening on this schema, so the association is stubbed rather than the row
+  # orphaned: a host without that constraint, or one whose cleanup script uses
+  # raw SQL, could still reach it, and every destroy path records now, so an
+  # unguarded role.name would turn a survivable destroy into a NoMethodError.
+  test "a destroy whose role is already gone still records, and does not raise" do
+    report = Report.create!(title: "Q3", requested_by: @owner)
+    scoped = CurrentScope::ScopedRoleAssignment.create!(subject: @member, resource: report, role: @member_role)
+    scoped.define_singleton_method(:role) { nil }
+    only_from_here
+
+    assert_nothing_raised { scoped.destroy! }
+
+    assert_equal "(role ##{@member_role.id})", only_event.details["role"],
+      "the row names what is left of the role rather than raising on nil"
+  end
+
   # #182 review — with auditing off, a grant write must do NO audit work at all,
   # not merely discard the row at the end. Each recorder resolves a polymorphic
   # subject and a resource label to build one, which is two queries per grant on

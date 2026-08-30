@@ -19,7 +19,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ```ruby
   class Workstream < ApplicationRecord
     include CurrentScope::Scopeable
-    current_scope_grantable_roles "Lead"
+    self.current_scope_grantable_roles = %w[Lead]
   end
   ```
 

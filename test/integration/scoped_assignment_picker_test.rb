@@ -33,7 +33,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       include CurrentScope::GrantableRoles
       def self.name = "PickyThing"
       def self.model_name = ActiveModel::Name.new(self, nil, "PickyThing")
-      current_scope_grantable_roles "Owner"
+      self.current_scope_grantable_roles = [ "Owner" ]
     end
   end
 

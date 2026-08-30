@@ -34,7 +34,8 @@ module CurrentScope
       # would otherwise leave the withheld type selected, its records loaded and
       # a Grant button showing, directly under a hint saying that type was not
       # listed — the dead end this filter exists to prevent (#183 review).
-      @resource_type = resolve_type(params[:resource_type], within: @scopeable) || @resource&.class
+      @resource_type = resolve_type(params[:resource_type], within: @scopeable) ||
+                       grantable_types([ @resource&.class ].compact, @selected_role).first
       @searchable = searchable?(@resource_type)
       @records = candidate_records(@resource_type, params[:q])
     end

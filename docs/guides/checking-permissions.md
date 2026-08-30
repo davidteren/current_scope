@@ -274,7 +274,7 @@ A type can say what it accepts:
 ```ruby
 class Workstream < ApplicationRecord
   include CurrentScope::Scopeable
-  current_scope_grantable_roles "Lead"
+  self.current_scope_grantable_roles = %w[Lead]
 end
 ```
 
@@ -283,12 +283,13 @@ end
 - The rule is enforced on the **model**, so a seed, a rake task and a console
   one-liner meet it as well as the management UI. The picker narrows the type
   dropdown to those that accept the chosen role, and says how many it withheld.
-- An **empty** declaration, `current_scope_grantable_roles []`, means no role may
-  be granted on that type. When you compute the list, pass the array rather than
-  splatting it: `current_scope_grantable_roles(*computed)` with an empty
-  `computed` cannot be told apart from reading the value, and would declare
-  nothing.
-- A subclass inherits its parent's declaration until it states its own.
+- An **empty** declaration, `self.current_scope_grantable_roles = []`, means no
+  role may be granted on that type. It is an assignment rather than a DSL call
+  precisely so a computed empty list declares the lockdown instead of silently
+  reading the current value.
+- A subclass inherits its parent's declaration until it states its own, and an
+  **STI subclass** is governed by its own declaration even though the grant row
+  stores the base class's token.
 - `CurrentScope::GrantableRoles` can be included on its own if you want the rule
   without the picker registration.
 

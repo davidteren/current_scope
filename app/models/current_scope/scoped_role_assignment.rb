@@ -112,7 +112,13 @@ module CurrentScope
     def role_grantable_on_resource_type
       return if role.nil? || resource_type.blank?
 
-      klass = CurrentScope.polymorphic_class(resource_type, inert_on_error: true)
+      # The record's OWN class when it is loaded, and only then the token's.
+      # CurrentScope.polymorphic_class always answers with the BASE class — the
+      # registry claims each token with klass.base_class, and an STI grant
+      # stores the base token — so asking it would make a declaration on an STI
+      # subclass a silent no-op while the module, the guide and the reader all
+      # promise it is inherited and overridable (#183 review).
+      klass = resource&.class || CurrentScope.polymorphic_class(resource_type, inert_on_error: true)
       return if klass.nil? || !klass.respond_to?(:current_scope_grants_role?)
       return if klass.current_scope_grants_role?(role)
 

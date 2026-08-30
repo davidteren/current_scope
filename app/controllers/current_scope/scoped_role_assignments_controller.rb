@@ -36,9 +36,14 @@ module CurrentScope
       # listed — the dead end this filter exists to prevent (#183 review).
       @resource_type = resolve_type(params[:resource_type], within: @scopeable) ||
                        deep_linked_type
-      @resource = nil unless keep_deep_linked_resource?
+      # A deep-linked record survives only when it belongs to the type on screen
+      # AND its own class accepts the chosen role. A refusal is said out loud:
+      # a record that vanishes from the picker with no word is the invisible
+      # dead end #183 exists to remove (#183 review).
+      @refused_resource = refused_deep_link
+      @resource = nil unless deep_link_survives?
       @searchable = searchable?(@resource_type)
-      @records = candidate_records(@resource_type, params[:q], @selected_role)
+      @records, @records_withheld = candidate_records(@resource_type, params[:q], @selected_role)
       @grantable_gid = offered_gid
     end
 
@@ -110,14 +115,21 @@ module CurrentScope
       !klass.respond_to?(:current_scope_grants_role?) || klass.current_scope_grants_role?(role)
     end
 
-    # True when a row of this table can load as a class OTHER than this one —
-    # then the class the model gate will ask is not known until the row itself
-    # is loaded. An STI leaf answers for itself, so it is filtered like any
-    # other type.
+    # True when a row queried through this class can load as a class OTHER than
+    # this one — then the class the model gate will ask is not known until the
+    # row itself is loaded. An STI leaf answers for itself, so it is filtered
+    # like any other type; a mid-level class (SpecialInvoice < Invoice <
+    # Document) is not a leaf and must not be treated as one.
+    #
+    # ponytail: `subclasses` sees only LOADED classes, so under lazy loading a
+    # mid-level class can look like a leaf. The STI root is judged by
+    # base_class instead, which is always right, and Rails eager-loads in
+    # production. Eager-load the models if a deep hierarchy needs it in dev.
     def sti_base?(klass)
       return false unless klass.respond_to?(:base_class) && klass.respond_to?(:has_attribute?)
+      return false unless klass.has_attribute?(klass.inheritance_column)
 
-      klass.base_class == klass && klass.has_attribute?(klass.inheritance_column)
+      klass.base_class == klass || klass.subclasses.any?
     rescue StandardError
       false # tableless double, or no database to ask
     end
@@ -128,17 +140,17 @@ module CurrentScope
       @resource&.class if @resource && grants_role?(@resource.class, @selected_role)
     end
 
-    # A deep-linked record is kept only when it belongs to the type on screen
-    # AND its own class accepts the chosen role. Without the second half a
-    # carried-over gid rides into a DIFFERENT type's record list as the selected
-    # option, or an STI record the role gate rejects keeps a Grant button under
-    # the hint saying no record of that type accepts the role (#183 review).
-    def keep_deep_linked_resource?
-      return false unless @resource_type && @resource.is_a?(@resource_type)
-      return true if grants_role?(@resource.class, @selected_role)
+    # The deep-linked record when the chosen role may not be granted on its own
+    # class — the view names it, so the operator learns which pick to change.
+    def refused_deep_link
+      @resource if @resource && !grants_role?(@resource.class, @selected_role)
+    end
 
-      @records_withheld = true # the view explains the empty list
-      false
+    # Without the type half, a carried-over gid rides into a DIFFERENT type's
+    # record list as the selected option; without the role half, a refused
+    # record keeps a Grant button that only the model can then say no to.
+    def deep_link_survives?
+      @refused_resource.nil? && @resource_type.present? && @resource.is_a?(@resource_type)
     end
 
     # The Grant button must post only a record the operator can SEE selected.
@@ -226,8 +238,11 @@ module CurrentScope
       klass.respond_to?(:count) && klass.count > SEARCH_THRESHOLD
     end
 
+    # Returns [ records, withheld ]. `withheld` says the ROLE filter removed
+    # rows, which is what lets the view explain an empty list instead of
+    # blaming an empty table.
     def candidate_records(klass, query, role)
-      return unless klass.respond_to?(:limit) # tableless / nil type ⇒ nothing to pick
+      return [ nil, false ] unless klass.respond_to?(:limit) # tableless / nil type ⇒ nothing to pick
 
       # A14: if the host model opts in with a class-level current_scope_searchable_scope,
       # search via that indexed relation — no SCAN_CAP, no in-Ruby label filter.
@@ -237,8 +252,9 @@ module CurrentScope
         # just past it disappears. Everywhere else one class decides for the
         # whole type, so the indexed scope keeps its promise of no SCAN_CAP.
         cap = sti_base?(klass) && role ? SCAN_CAP : DISPLAY_LIMIT
-        return grantable_records(klass.current_scope_searchable_scope(query).limit(cap).to_a, role)
-                 .first(DISPLAY_LIMIT)
+        found = klass.current_scope_searchable_scope(query).limit(cap).to_a
+        kept = grantable_records(found, role)
+        return [ kept.first(DISPLAY_LIMIT), kept.size < found.size ]
       end
 
       # Fallback: current_scope_label is a Ruby method with no backing column, so
@@ -248,18 +264,16 @@ module CurrentScope
         needle = query.downcase
         records = records.select { |record| helpers.current_scope_label(record).downcase.include?(needle) }
       end
-      grantable_records(records, role).first(DISPLAY_LIMIT)
+      kept = grantable_records(records, role)
+      [ kept.first(DISPLAY_LIMIT), kept.size < records.size ]
     end
 
     # The model gate judges the record's OWN class, so an STI table can hold
-    # records that accept the role beside records that do not. @records_withheld
-    # lets the view say WHY the list came back empty.
+    # records that accept the role beside records that do not.
     def grantable_records(records, role)
       return records if role.nil?
 
-      kept = records.select { |record| grants_role?(record.class, role) }
-      @records_withheld ||= kept.size < records.size
-      kept
+      records.select { |record| grants_role?(record.class, role) }
     end
   end
 end

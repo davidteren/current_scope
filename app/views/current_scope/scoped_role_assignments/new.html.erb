@@ -92,6 +92,14 @@
             data: { current_scope_autosubmit: true } %>
     </p>
 
+    <% if @refused_resource %>
+      <p class="cs-hint cs-picker-empty">
+        The linked <strong><%= current_scope_label(@refused_resource) %></strong>
+        is not in the list: <strong><%= @selected_role.name %></strong> may not be
+        granted on it. Pick a different role, or a different record.
+      </p>
+    <% end %>
+
     <% if @resource_type %>
       <% if @records.blank? && params[:q].blank? %>
         <p class="cs-hint cs-picker-empty">
@@ -133,7 +141,14 @@
                 query matched nothing, and must not fake a "matches shown". %>
             <% if @records.blank? %>
               <span class="cs-hint cs-picker-empty">
-                No records match “<%= params[:q] %>” — try a different search.
+                <% if @records_withheld %>
+                  <%# The search DID match — a different search is the one thing
+                      that cannot help. Say which pick to change. %>
+                  No match for “<%= params[:q] %>” accepts
+                  <strong><%= @selected_role.name %></strong> — pick a different role.
+                <% else %>
+                  No records match “<%= params[:q] %>” — try a different search.
+                <% end %>
               </span>
             <% else %>
               <span class="cs-hint">

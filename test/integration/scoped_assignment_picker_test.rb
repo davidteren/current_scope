@@ -14,7 +14,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   end
 
   teardown do
-    [ Folder, Document, Invoice ].each do |klass|
+    [ Folder, Document, Invoice, Receipt, SpecialInvoice ].each do |klass|
       next unless klass.instance_variable_defined?(:@current_scope_grantable_roles)
 
       klass.send(:remove_instance_variable, :@current_scope_grantable_roles)
@@ -173,16 +173,73 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
   end
 
-  test "a registered STI subclass is withheld like any other type, because its records answer for themselves" do
-    Invoice.current_scope_grantable_roles = [ "Owner" ]
+  test "a registered STI leaf is withheld like any other type, because its records answer for themselves" do
+    Receipt.current_scope_grantable_roles = [ "Owner" ]
 
-    with_scopeable_resources([ Invoice ]) do
+    with_scopeable_resources([ Receipt ]) do
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id), headers: as(@owner)
 
-      assert_select "option[value=?]", "Invoice", count: 0
+      assert_select "option[value=?]", "Receipt", count: 0
       assert_match(/No resource type accepts/, response.body,
                    "a leaf class answers for itself, so it is withheld outright rather than offered empty")
     end
+  end
+
+  # A mid-level STI class is neither root nor leaf: rows queried through Invoice
+  # can still load as SpecialInvoice, with SpecialInvoice's own declaration
+  # (#183 review).
+  test "a mid-level STI class is not treated as a leaf" do
+    special = SpecialInvoice.create!(title: "SI-1")
+    Invoice.create!(title: "INV-1")
+    Invoice.current_scope_grantable_roles = [ "Owner" ]
+    SpecialInvoice.current_scope_grantable_roles = [ "Member" ]
+
+    with_scopeable_resources([ Invoice ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Invoice"),
+          headers: as(@owner)
+
+      assert_select "option[value=?]", "Invoice"
+      assert_select "select[name=resource_gid] option[value=?]", special.to_gid.to_s, count: 1
+    end
+  end
+
+  # The record does not simply disappear (#183 review): with other grantable
+  # records in the list there is nothing on screen to hint at what happened.
+  test "a deep-linked record the role refuses is named, not silently dropped" do
+    receipt = Receipt.create!(title: "RCT-1")
+    invoice = Invoice.create!(title: "INV-1")
+    Document.current_scope_grantable_roles = [ "Owner" ]
+    Invoice.current_scope_grantable_roles = [ "Member" ]
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(
+        role_id: @member_role.id, resource_type: "Document", resource_gid: receipt.to_gid.to_s
+      ), headers: as(@owner)
+
+      assert_match(/The linked/, response.body)
+      assert_match(/RCT-1/, response.body, "and it names the record the operator linked from")
+      assert_select "select[name=resource_gid] option[value=?]", invoice.to_gid.to_s,
+                    count: 1 # the rest of the list still works
+      assert_select "input[type=hidden][name=resource_gid]", count: 0
+    end
+  end
+
+  test "a search whose every match is refused says to change the role, not the search" do
+    # Past SEARCH_THRESHOLD, so the type really offers a search box.
+    21.times { |i| Receipt.create!(title: "Quarter close #{i}") }
+    Document.current_scope_grantable_roles = [ "Owner" ]
+    Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(
+        role_id: @member_role.id, resource_type: "Document", q: "Quarter"
+      ), headers: as(@owner)
+
+      assert_match(/accepts\s+<strong>Member/, response.body)
+      assert_no_match(/try a different search/, response.body)
+    end
+  ensure
+    Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
   end
 
   # The Grant button posts what the operator can SEE selected. A resource_gid

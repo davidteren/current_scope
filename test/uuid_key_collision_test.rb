@@ -255,9 +255,12 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       # who never installed the migration needs the pair that also updates
       # schema.rb; one whose database was built FROM schema.rb needs the repair,
       # because db:migrate has nothing pending there.
-      assert_match(/current_scope:install:migrations && bin\/rails db:migrate/, error.message)
-      assert_match(/also updates schema.rb/, error.message)
-      assert_match(/RAILS_ENV=test bin\/rails current_scope:repair_schema/, error.message)
+      assert_match(/current_scope:install:migrations && bin\/rails db:migrate` in\s+development/m,
+                   error.message, "not installed yet: the path that also updates schema.rb")
+      assert_match(/RAILS_ENV=test bin\/rails db:migrate/, error.message,
+                   "installed but not run here: plain db:migrate, against THIS database")
+      assert_match(/RAILS_ENV=test bin\/rails current_scope:repair_schema/, error.message,
+                   "built from schema.rb: nothing pending, so only the repair works")
     ensure
       CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
     end

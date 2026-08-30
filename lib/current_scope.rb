@@ -375,7 +375,16 @@ module  CurrentScope
     # answer differs per connection, and asking the wrong one produces a cast or
     # a collation the target server rejects.
     def mysql?(connection = ActiveRecord::Base.connection)
-      connection.adapter_name.match?(/mysql|trilogy|maria/i)
+      mysql_adapter?(connection.adapter_name)
+    end
+
+    # The same question WITHOUT leasing a connection (#193 review). Rails 8.1
+    # soft-deprecates `model.connection` and refuses it outright where
+    # permanent checkout is disallowed, and SchemaGuard asks this on every
+    # boot — before it can raise anything a host would find useful. A pool's
+    # db_config knows the adapter, so ask that instead. One regex, two callers.
+    def mysql_adapter?(name)
+      name.to_s.match?(/mysql|trilogy|maria/i)
     end
 
     # #151, VALUE side. storable_key? asks whether the CLASS can be named by one

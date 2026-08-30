@@ -107,13 +107,14 @@ module CurrentScope
             "#{column_label(model, column)} is still #{info.type}. CurrentScope stores a " \
             "record's primary key there, and an integer column silently truncates a " \
             "UUID — two subjects collapse into one identity and one inherits the " \
-            "other's roles (#151). If the widening migration is not in db/migrate yet, run " \
+            "other's roles (#151). Which command depends on where this database came " \
+            "from. If the widening migration is not in db/migrate yet, run " \
             "`bin/rails current_scope:install:migrations && bin/rails db:migrate` in " \
-            "development — that is the path that also updates schema.rb, so CI and your " \
-            "teammates get the same shape. If it is installed and this database was built " \
-            "from schema.rb, db:migrate has nothing pending: run " \
-            "`#{env_prefix}bin/rails current_scope:repair_schema` against this database " \
-            "instead."
+            "development: that is the path that also updates schema.rb, so CI and your " \
+            "teammates get the same shape. If it is installed but has not run here, run " \
+            "`#{env_prefix}bin/rails db:migrate`. If this database was BUILT from " \
+            "schema.rb, every version is stamped and db:migrate has nothing pending: run " \
+            "`#{env_prefix}bin/rails current_scope:repair_schema`."
     end
 
     # Collation matters as much as type on MySQL: its default is case AND accent
@@ -216,7 +217,7 @@ module CurrentScope
     # the engine's tables on a second connection would otherwise be judged by the
     # wrong server's collation rules.
     def self.mysql?
-      CurrentScope.mysql?(CurrentScope::RoleAssignment.connection)
+      CurrentScope.mysql_adapter?(CurrentScope::RoleAssignment.connection_pool.db_config.adapter)
     end
 
     # Rake tasks that may BOOT even against an unrepaired schema.

@@ -29,7 +29,9 @@ namespace :current_scope do
     # so claiming it everywhere would tell a PostgreSQL operator their columns
     # were re-collated when nothing of the sort happened.
     shape = "#{CurrentScope::KEY_LIMIT}-character"
-    shape += ", binary-collated" if CurrentScope.mysql?(CurrentScope::RoleAssignment.connection)
+    shape += ", binary-collated" if CurrentScope.mysql_adapter?(
+      CurrentScope::RoleAssignment.connection_pool.db_config.adapter
+    )
     puts "CurrentScope grant columns are in the #{shape} shape #151 requires."
   end
 

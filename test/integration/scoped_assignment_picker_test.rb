@@ -173,15 +173,41 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
   end
 
-  test "a registered STI leaf is withheld like any other type, because its records answer for themselves" do
+  # Even a leaf: the picker cannot ask a TABLE which classes its rows will load
+  # as without depending on what happens to be autoloaded, and offering a type
+  # whose records all refuse costs one dropdown entry, while withholding one
+  # whose records are grantable hides them with no way back (#183 review).
+  test "a class over an STI table stays on offer, and its record list carries the refusal" do
+    Receipt.create!(title: "RCT-1")
     Receipt.current_scope_grantable_roles = [ "Owner" ]
 
     with_scopeable_resources([ Receipt ]) do
-      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id), headers: as(@owner)
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Receipt"),
+          headers: as(@owner)
 
-      assert_select "option[value=?]", "Receipt", count: 0
-      assert_match(/No resource type accepts/, response.body,
-                   "a leaf class answers for itself, so it is withheld outright rather than offered empty")
+      assert_select "option[value=?]", "Receipt"
+      assert_match(/None of the receipts\s+looked at accept/, response.body)
+      assert_select "input[type=hidden][name=resource_gid]", count: 0
+    end
+  end
+
+  # A surviving deep-linked record is selected and grantable, so telling the
+  # operator that nothing matching accepts the role would contradict the Grant
+  # button right above it (#183 review).
+  test "a zero-match search does not tell the operator to change a role that already works" do
+    21.times { |i| Receipt.create!(title: "RCT-#{i}") }
+    invoice = Invoice.create!(title: "INV-1")
+    Document.current_scope_grantable_roles = [ "Owner" ]
+    Invoice.current_scope_grantable_roles = [ "Member" ]
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(
+        role_id: @member_role.id, subject_gid: @member.to_gid.to_s, resource_type: "Document",
+        resource_gid: invoice.to_gid.to_s, q: "RCT"
+      ), headers: as(@owner)
+
+      assert_select "input[type=hidden][name=resource_gid][value=?]", invoice.to_gid.to_s
+      assert_no_match(/pick a different role/, response.body)
     end
   end
 

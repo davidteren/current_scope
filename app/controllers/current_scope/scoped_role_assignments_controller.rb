@@ -42,16 +42,16 @@ module CurrentScope
       # Only an INDEXED scope looks past the scanned window. Without one, a
       # search re-reads the same rows the empty list came from, so telling the
       # operator to search would be advice that cannot work (#183 review).
-      @indexed_search = @resource_type.respond_to?(:current_scope_searchable_scope)
+      indexed_search = @resource_type.respond_to?(:current_scope_searchable_scope)
       @records, @records_withheld = candidate_records(@resource_type, params[:q], @selected_role)
       # ONE answer to "is there a search box on screen?", so the field and the
       # advice to use it cannot drift apart across the template (#183 review).
-      @offer_search = @searchable && (@records.present? || @indexed_search || params[:q].present?)
+      @offer_search = @searchable && (@records.present? || indexed_search || params[:q].present?)
       # And whether searching is worth SUGGESTING: only an indexed scope reads
       # past the scanned window, so only then can a search reach a record the
       # role filter left out. Derived here so the box and the advice to use it
       # cannot drift apart across the template (#183 review).
-      @advise_search = @records_withheld && @offer_search && @indexed_search
+      @advise_search = @records_withheld && @offer_search && indexed_search
       @grantable_gid = offered_gid(@resource, @records)
     end
 
@@ -111,7 +111,7 @@ module CurrentScope
     def grantable_types(types, role)
       return types if role.nil?
 
-      types.select { |klass| grants_role?(klass, role) || sti_base?(klass) }
+      types.select { |klass| grants_role?(klass, role) || sti_table?(klass) }
     end
 
     # No role chosen yet ⇒ nothing to filter by. THE one meaning of a nil role
@@ -125,19 +125,19 @@ module CurrentScope
 
     # True when a row queried through this class can load as a class OTHER than
     # this one — then the class the model gate will ask is not known until the
-    # row itself is loaded. An STI leaf answers for itself, so it is filtered
-    # like any other type; a mid-level class (SpecialInvoice < Invoice <
-    # Document) is not a leaf and must not be treated as one.
+    # row itself is loaded, and the RECORD list is what narrows.
     #
-    # ponytail: `subclasses` sees only LOADED classes, so under lazy loading a
-    # mid-level class can look like a leaf. The STI root is judged by
-    # base_class instead, which is always right, and Rails eager-loads in
-    # production. Eager-load the models if a deep hierarchy needs it in dev.
-    def sti_base?(klass)
-      return false unless klass.respond_to?(:base_class) && klass.respond_to?(:has_attribute?)
-      return false unless klass.has_attribute?(klass.inheritance_column)
+    # Every class over a table with an inheritance column answers yes, leaves
+    # included. Asking `subclasses` instead would be load-order dependent
+    # (Zeitwerk loads on reference, and the dummy app does not eager-load in
+    # test either), and the two ways of being wrong are not equal: offering a
+    # leaf whose records all refuse costs one dropdown entry and an honest
+    # empty message, while withholding a class whose subclass rows ARE
+    # grantable hides those records with no way to reach them (#183 review).
+    def sti_table?(klass)
+      return false unless klass.respond_to?(:has_attribute?) && klass.respond_to?(:inheritance_column)
 
-      klass.base_class == klass || klass.subclasses.any?
+      klass.has_attribute?(klass.inheritance_column)
     rescue StandardError
       false # tableless double, or no database to ask
     end
@@ -263,7 +263,7 @@ module CurrentScope
         # role filter has to run BEFORE the display cut or a grantable match
         # just past it disappears. Everywhere else one class decides for the
         # whole type, so the indexed scope keeps its promise of no SCAN_CAP.
-        cap = sti_base?(klass) && role ? SCAN_CAP : DISPLAY_LIMIT
+        cap = sti_table?(klass) && role ? SCAN_CAP : DISPLAY_LIMIT
         found = klass.current_scope_searchable_scope(query).limit(cap).to_a
         kept = grantable_records(found, role)
         return [ kept.first(DISPLAY_LIMIT), kept.size < found.size ]

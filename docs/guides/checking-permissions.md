@@ -292,9 +292,8 @@ end
 - A subclass inherits its parent's declaration until it states its own, and an
   **STI subclass** is governed by its own declaration even though the grant row
   stores the base class's token. One table therefore holds records with
-  different answers, so the picker keeps any STI class whose table can hold
-  subclass rows in the type dropdown and narrows the **record** list instead. A
-  leaf class answers for itself and is withheld like any other type.
+  different answers, so the picker keeps every class over an STI table in the
+  type dropdown and narrows the **record** list instead.
 - `CurrentScope::GrantableRoles` can be included on its own if you want the rule
   without the picker registration.
 

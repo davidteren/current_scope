@@ -164,7 +164,11 @@
                 query matched nothing, and must not fake a "matches shown". %>
             <% if @records.blank? %>
               <span class="cs-hint cs-picker-empty">
-                <% if @records_withheld && role_name %>
+                <%# @resource.nil? for the same reason as the blank-query empty
+                    state: a surviving deep-linked record is selected and
+                    grantable, so "pick a different role" would contradict what
+                    the operator can see (#183 review). %>
+                <% if @records_withheld && @resource.nil? && role_name %>
                   <%# The search DID match — a different search is the one thing
                       that cannot help. Say which pick to change. %>
                   No match for “<%= params[:q] %>” accepts

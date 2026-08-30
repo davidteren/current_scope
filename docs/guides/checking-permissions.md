@@ -300,6 +300,12 @@ end
 **Roles are matched by NAME**, and that is the trade a declaration written in
 code makes: role ids are per-database and cannot be named in a model file. So
 renaming a role stops the declarations that name it from matching, and a new role
-that reuses the name inherits its acceptance. The check runs on write, so grants
-already made are unaffected either way. If you rename a role, grep for its old
-name in your models.
+that reuses the name inherits its acceptance. If you rename a role, grep for its
+old name in your models.
+
+Adding a declaration does not rewrite or delete any grant already in the table.
+It does apply the next time such a row is **saved**, though: the check runs on
+every write, not only on create, so a pre-existing pairing the new declaration
+refuses will fail validation if host code saves that row again. That is
+deliberate. `assignment.update!(role: other_role)` has to meet the same rule as
+the grant that created it, or the console's gate would be one `update` wide.

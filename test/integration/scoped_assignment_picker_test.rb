@@ -57,8 +57,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_select "option[value=?]", "Folder"
       assert_select "option[value=?]", "PickyThing", count: 0
-      assert_match(/1 type not listed/, response.body)
-      assert_match(/Member/, response.body, "and it names the role that was not accepted")
+      assert_select ".cs-types-withheld", /Member/,
+                    "and it names the role that was not accepted"
     end
   end
 
@@ -70,9 +70,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id), headers: as(@owner)
 
       assert_response :success
-      assert_match(/No resource type accepts/, response.body)
-      assert_match(/Member/, response.body)
-      assert_no_match(/No pickable resource types yet/, response.body)
+      assert_select ".cs-types-none-accept", /Member/
+      assert_select ".cs-types-unregistered", count: 0
     end
   end
 
@@ -80,7 +79,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     with_scopeable_resources([]) do
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id), headers: as(@owner)
 
-      assert_match(/No pickable resource types yet/, response.body)
+      assert_select ".cs-types-unregistered"
     end
   end
 
@@ -100,7 +99,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_select "option[value=?]", "Document"
-      assert_no_match(/type not listed/, response.body)
+      assert_select ".cs-types-withheld", count: 0
       assert_select "select[name=resource_gid] option[value=?]", invoice.to_gid.to_s
       assert_select "select[name=resource_gid] option[value=?]", receipt.to_gid.to_s, count: 0
     end
@@ -114,10 +113,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
           headers: as(@owner)
 
-      assert_match(/None of the documents\s+looked at accept/, response.body)
-      assert_match(/Member/, response.body)
-      assert_no_match(/to pick from yet/, response.body,
-                      "there ARE documents — blaming an empty table sends the operator to create one")
+      assert_select ".cs-records-refused", /Member/,
+                    "there ARE documents — blaming an empty table sends the operator to create one"
     end
   end
 
@@ -148,7 +145,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_select "input[type=hidden][name=resource_gid]", count: 0,
                     message: "a Grant button under the hint saying no record accepts the role is the dead end"
-      assert_match(/None of the documents\s+looked at accept/, response.body)
+      assert_select ".cs-records-refused"
     end
   end
 
@@ -170,7 +167,11 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       assert_select "select[name=resource_gid] option[value=?]", invoice.to_gid.to_s, count: 1
     end
   ensure
-    Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
+    # Guarded: the hook is defined several statements in, and an unguarded
+    # remove_method would raise NameError over the real failure.
+    if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
+      Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
+    end
   end
 
   # Even a leaf: the picker cannot ask a TABLE which classes its rows will load
@@ -186,7 +187,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
           headers: as(@owner)
 
       assert_select "option[value=?]", "Receipt"
-      assert_match(/None of the receipts\s+looked at accept/, response.body)
+      assert_select ".cs-records-refused"
       assert_select "input[type=hidden][name=resource_gid]", count: 0
     end
   end
@@ -207,7 +208,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       ), headers: as(@owner)
 
       assert_select "input[type=hidden][name=resource_gid][value=?]", invoice.to_gid.to_s
-      assert_no_match(/pick a different role/, response.body)
+      assert_select ".cs-search-refused", count: 0
     end
   end
 
@@ -242,8 +243,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
         role_id: @member_role.id, resource_type: "Document", resource_gid: receipt.to_gid.to_s
       ), headers: as(@owner)
 
-      assert_match(/The linked/, response.body)
-      assert_match(/RCT-1/, response.body, "and it names the record the operator linked from")
+      assert_select ".cs-resource-refused", /RCT-1/,
+                    "and it names the record the operator linked from"
       assert_select "select[name=resource_gid] option[value=?]", invoice.to_gid.to_s,
                     count: 1 # the rest of the list still works
       assert_select "input[type=hidden][name=resource_gid]", count: 0
@@ -261,11 +262,15 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
         role_id: @member_role.id, resource_type: "Document", q: "Quarter"
       ), headers: as(@owner)
 
-      assert_match(/accepts\s+<strong>Member/, response.body)
-      assert_no_match(/try a different search/, response.body)
+      assert_select ".cs-search-refused", /Member/
+      assert_select ".cs-search-none", count: 0
     end
   ensure
-    Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
+    # Guarded: the hook is defined several statements in, and an unguarded
+    # remove_method would raise NameError over the real failure.
+    if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
+      Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
+    end
   end
 
   # The role filter runs over the SCANNED rows, so with an indexed scope a
@@ -282,10 +287,14 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
           headers: as(@owner)
 
       assert_select "input[name=q]"
-      assert_match(/Search\s+for one, or pick a different role/, response.body)
+      assert_select ".cs-records-refused-searchable"
     end
   ensure
-    Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
+    # Guarded: the hook is defined several statements in, and an unguarded
+    # remove_method would raise NameError over the real failure.
+    if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
+      Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
+    end
   end
 
   # And the other half: without an indexed scope a search re-reads the very rows
@@ -299,8 +308,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
           headers: as(@owner)
 
       assert_select "input[name=q]", count: 0
-      assert_match(/None of the documents\s+looked at accept/, response.body)
-      assert_no_match(/Search\s+for one/, response.body)
+      assert_select ".cs-records-refused"
+      assert_select ".cs-records-refused-searchable", count: 0
     end
   end
 
@@ -361,7 +370,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_select "option[selected][value=?]", "Report"
       assert_select "input[type=hidden][name=resource_gid][value=?]", report.to_gid.to_s
-      assert_no_match(/No resource type accepts/, response.body)
+      assert_select ".cs-types-none-accept", count: 0
     end
   end
 
@@ -374,9 +383,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
         role_id: @member_role.id, resource_gid: folder.to_gid.to_s
       ), headers: as(@owner)
 
-      assert_match(/The linked/, response.body)
-      assert_match(/Q3 Ledger/, response.body)
-      assert_match(/No resource type accepts/, response.body)
+      assert_select ".cs-resource-refused", /Q3 Ledger/
+      assert_select ".cs-types-none-accept"
     end
   end
 
@@ -419,7 +427,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       get current_scope.new_scoped_role_assignment_path(role_id: @owner_role.id), headers: as(@owner)
 
       assert_select "option[value=?]", "PickyThing"
-      assert_no_match(/type not listed/, response.body)
+      assert_select ".cs-types-withheld", count: 0
     end
   end
 
@@ -489,8 +497,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     get current_scope.new_scoped_role_assignment_url(resource_type: "Folder", q: "zzz-no-such"), headers: as(@owner)
     assert_response :success
 
-    assert_match "No records match", response.body
-    assert_no_match(/Showing up to \d+ matches/, response.body)
+    assert_select ".cs-search-none"
+    assert_select ".cs-search-shown", count: 0
     # The field that holds the query stays, or the advice to change it is
     # unreachable.
     assert_select "input[name=q]", count: 1
@@ -509,8 +517,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_response :success
 
     assert_select "select[name=resource_gid] option[value=?]", pinned.to_gid.to_s # still selectable
-    assert_match "No records match", response.body
-    assert_no_match(/Showing up to \d+ matches/, response.body)
+    assert_select ".cs-search-none"
+    assert_select ".cs-search-shown", count: 0
   end
 
   test "record search honors the display limit" do

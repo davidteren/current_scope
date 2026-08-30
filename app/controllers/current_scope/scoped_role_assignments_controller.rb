@@ -263,7 +263,12 @@ module CurrentScope
         # role filter has to run BEFORE the display cut or a grantable match
         # just past it disappears. Everywhere else one class decides for the
         # whole type, so the indexed scope keeps its promise of no SCAN_CAP.
-        cap = sti_table?(klass) && role ? SCAN_CAP : DISPLAY_LIMIT
+        # The wider fetch buys nothing unless this hierarchy actually declares
+        # its grantable roles: without an opt-in, every record is grantable and
+        # the filter removes nothing. A host that adopted the indexed scope but
+        # not #183 keeps the promise of no SCAN_CAP (#183 review).
+        widen = role && sti_table?(klass) && klass.respond_to?(:current_scope_grants_role?)
+        cap = widen ? SCAN_CAP : DISPLAY_LIMIT
         found = klass.current_scope_searchable_scope(query).limit(cap).to_a
         kept = grantable_records(found, role)
         return [ kept.first(DISPLAY_LIMIT), kept.size < found.size ]

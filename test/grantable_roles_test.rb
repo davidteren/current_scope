@@ -90,6 +90,16 @@ class GrantableRolesTest < ActiveSupport::TestCase
     assert_raises(ActiveRecord::RecordInvalid) { refused.save! }
   end
 
+  # The check runs on every write, not on create alone: an update has to meet
+  # the same rule, or the gate would be one `update` wide (#183 review).
+  test "changing an existing grant to a refused role is refused too" do
+    assignment = CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: @container, resource: @project)
+    Project.current_scope_grantable_roles = [ "Project Lead" ]
+
+    assert_raises(ActiveRecord::RecordInvalid) { assignment.update!(role: @per_record) }
+    assert_equal @container, assignment.reload.role
+  end
+
   # A seed, a rake task and a console one-liner all write through the model, so
   # the model is where the rule has to live — the console's filtering is a
   # convenience on top of it.

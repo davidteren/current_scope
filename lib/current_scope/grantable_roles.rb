@@ -73,7 +73,10 @@ module CurrentScope
       # makes: role ids are per-database and cannot be named in a model file.
       # Renaming a role therefore stops the declarations that name it from
       # matching, and a new role that reuses the name inherits its acceptance.
-      # The check runs on write, so existing grants are unaffected either way.
+      # Adding a declaration rewrites no existing grant, but the check runs on
+      # every write rather than on create alone, so a pre-existing row that the
+      # declaration refuses fails the next time host code saves it — an update
+      # must meet the same rule as the create did.
       def current_scope_grants_role?(role)
         allowed = current_scope_grantable_roles
         return true if allowed.nil?

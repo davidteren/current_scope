@@ -583,6 +583,22 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # A locked STI base is kept on offer, because its subclasses may declare their
+  # own roles. Counting it as withheld would describe a type that IS on the list
+  # and hide the one that is not (#183 review).
+  test "a locked type still on offer is not counted among the withheld ones" do
+    declare_grantable_roles(Document, [])
+    declare_grantable_roles(Folder, [ "Owner" ])
+
+    with_scopeable_resources([ Document, Folder ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id), headers: as(@owner)
+
+      assert_select "option[value=?]", "Document"
+      assert_select "#cs_types_withheld"
+      assert_select "#cs_types_locked", count: 0
+    end
+  end
+
   # And with nothing but lockdowns registered, the same promise would be just as
   # empty on the page that says no type accepts the role.
   test "with every type locked down, the page does not blame the role either" do

@@ -33,15 +33,23 @@ module CurrentScope
       :none_accept
     end
 
+    def withheld_types
+      @all_types - @offered
+    end
+
     def withheld_count
-      @all_types.size - @offered.size
+      withheld_types.size
     end
 
     # A type that declares an EMPTY list is a lockdown: withheld for every role,
     # so "pick a different role to see it" is a promise no role can keep
     # (#183 review).
+    #
+    # Counted among the WITHHELD types, not all of them: a locked STI base is
+    # kept on offer anyway (its subclasses may declare their own roles), and
+    # counting it here would describe types that are on the list.
     def locked_count
-      @all_types.count { |klass| klass.try(:current_scope_grantable_roles)&.empty? }
+      withheld_types.count { |klass| klass.try(:current_scope_grantable_roles)&.empty? }
     end
 
     def all_withheld_locked?

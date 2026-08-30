@@ -70,8 +70,13 @@ module CurrentScope
         role: @selected_role, deep_linked: @resource
       )
       # The step owns the list of records on offer, so the button and the select
-      # cannot disagree about what is on it (#183 review).
-      @grantable_gid = scalar_param(:resource_gid) if @step.offers?(scalar_param(:resource_gid))
+      # cannot disagree about what is on it. The RECORD's own GlobalID, not the
+      # param: a hand-written link can name an STI record by its base token
+      # (gid://app/Document/5 for a SpecialInvoice), which locates the right row
+      # and then matched nothing by string, leaving the record listed and
+      # selected with no Grant button and no reason (#183 review).
+      linked_gid = @resource&.to_gid&.to_s
+      @grantable_gid = linked_gid if @step.offers?(linked_gid)
     end
 
     def create

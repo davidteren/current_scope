@@ -639,6 +639,23 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # A hand-written link can name an STI record by its BASE token. It locates the
+  # right row, whose own GlobalID names the subclass, so a string compare
+  # against the param left the record selected with no Grant button (#183).
+  test "a deep link written with the base class token still grants" do
+    invoice = Invoice.create!(title: "INV-1")
+    base_gid = "gid://dummy/Document/#{invoice.id}"
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(
+        role_id: @member_role.id, subject_gid: @member.to_gid.to_s,
+        resource_type: "Document", resource_gid: base_gid
+      ), headers: as(@owner)
+
+      assert_select "input[type=hidden][name=resource_gid][value=?]", invoice.to_gid.to_s
+    end
+  end
+
   # The Grant button posts what the operator can SEE selected. A resource_gid
   # survives every autosubmit, so an earlier pick must not ride along after the
   # role or the type moves on (#183 review).

@@ -1,0 +1,21 @@
+docs/guides/checking-permissions.md
+  s_240773ee81a9c0::t_49f93ee89f22b0 284-288,294-297
+lib/current_scope/grantable_roles.rb
+  s_240773ee81a9c0::t_49f93ee89f22b0 53-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "2631780b6517851fe7af531d30fef71fee681f7e",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

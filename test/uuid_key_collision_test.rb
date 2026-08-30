@@ -314,6 +314,30 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     end
   end
 
+  # #194 review — the adapter question follows the model too. A host that splits
+  # the two grant tables across adapters used to get one model's answer applied
+  # to both: the collation check running against PostgreSQL columns and raising
+  # about an unreadable MySQL collation, or skipping the MySQL ones and leaving
+  # the #151 escalation live.
+  test "the adapter is asked of the model being judged" do
+    asked = []
+    guard = CurrentScope::SchemaGuard
+    original = guard.method(:mysql?)
+    guard.define_singleton_method(:mysql?) do |model|
+      asked << model
+      false
+    end
+
+    CurrentScope::SchemaGuard.check!
+
+    assert_includes asked, CurrentScope::RoleAssignment
+    assert_includes asked, CurrentScope::ScopedRoleAssignment,
+      "both grant models are judged, so both must be asked about their own adapter"
+  ensure
+    guard.define_singleton_method(:mysql?, original)
+    guard.singleton_class.send(:private, :mysql?)
+  end
+
   # #193 review — the reason the model is passed in rather than assumed. A host
   # that puts the grant tables on a second database has to be told WHICH one
   # failed, and every other test here stubs RoleAssignment, so a regression that
@@ -573,7 +597,9 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
   def with_mysql(answer)
     guard = CurrentScope::SchemaGuard
     original = guard.method(:mysql?)
-    guard.define_singleton_method(:mysql?) { answer }
+    # Takes the model now: the adapter is asked of the model being judged, so a
+    # split-adapter host gets the right answer for each (#194 review).
+    guard.define_singleton_method(:mysql?) { |_model| answer }
     yield
   ensure
     guard.define_singleton_method(:mysql?, original)

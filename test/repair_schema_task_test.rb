@@ -57,8 +57,11 @@ class RepairSchemaTaskTest < ActiveSupport::TestCase
   ensure
     # Guarded: an ensure that raises would replace the assertion failure this
     # test exists to report with a NoMethodError about the cleanup (#194 review).
-    if tasks&.singleton_class&.method_defined?(:migration_connection) ||
-       tasks&.singleton_class&.private_method_defined?(:migration_connection)
+    # instance_methods(FALSE), because DatabaseTasks does `extend self`: every
+    # module method answers method_defined? on the singleton whether or not this
+    # test defined one, so that check was always true and could not prevent the
+    # NameError it was added for (#194 review).
+    if tasks&.singleton_class&.instance_methods(false)&.include?(:migration_connection)
       tasks.singleton_class.send(:remove_method, :migration_connection)
     end
   end

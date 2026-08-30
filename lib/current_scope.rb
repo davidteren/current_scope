@@ -391,6 +391,28 @@ module  CurrentScope
       name.to_s.match?(/mysql|trilogy|maria/i)
     end
 
+    # The same question of a POOL'S CONFIG, without leasing anything, asked both
+    # ways and answered yes if either says so (#194 review).
+    #
+    # `db_config.adapter` is the key from database.yml; `adapter_class.name` is
+    # the class that key resolves to, which is what `mysql?` above reads. They
+    # agree for every common adapter, and where they could not, the cost of
+    # disagreeing is a SKIPPED collation check — silent, with the #151
+    # case-folding escalation left live. So ask both and fail closed.
+    #
+    # ScriptError as well as StandardError: `adapter_class` re-raises LoadError
+    # when the adapter file exists and fails to load for an unrelated reason,
+    # and LoadError is a ScriptError. Uncaught, it would boot the host into that
+    # load failure instead of the refusal this whole guard exists to print.
+    def mysql_config?(db_config)
+      class_name = begin
+        db_config.adapter_class.name
+      rescue StandardError, ScriptError
+        nil
+      end
+      mysql_adapter?(db_config.adapter) || mysql_adapter?(class_name)
+    end
+
     # #151, VALUE side. storable_key? asks whether the CLASS can be named by one
     # id; this asks whether THIS id is a legal one for that class.
     #

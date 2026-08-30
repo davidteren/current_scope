@@ -50,7 +50,7 @@ module CurrentScope
 
         groups[:ids].each { |column| check_id_column!(model, column) }
         # Type columns are varchar already; only their collation can be wrong.
-        groups[:types].each { |column| check_collation!(model, column) } if mysql?
+        groups[:types].each { |column| check_collation!(model, column) } if mysql?(model)
       end
     rescue ActiveRecord::NoDatabaseError, ActiveRecord::ConnectionNotEstablished
       # There is genuinely no database yet (a fresh checkout running db:create,
@@ -86,7 +86,7 @@ module CurrentScope
                 "restore the required NOT NULL constraint (#151)."
         end
 
-        check_collation!(model, column) if mysql?
+        check_collation!(model, column) if mysql?(model)
         return
       end
 
@@ -229,20 +229,15 @@ module CurrentScope
     # to be asked of the same database those columns live in — a host that puts
     # the engine's tables on a second connection would otherwise be judged by the
     # wrong server's collation rules.
-    def self.mysql?
-      config = CurrentScope::RoleAssignment.connection_pool.db_config
-      # BOTH names, ORed, and that is fail-closed on purpose (#194 review).
-      # `CurrentScope.mysql?` elsewhere reads the adapter CLASS name, while a
-      # db_config knows the key from database.yml. They agree for every common
-      # adapter, and where they could not, the cost of disagreeing is a skipped
-      # collation check — silent, with the #151 case-folding escalation left
-      # live. So ask for both and treat either as yes.
-      class_name = begin
-        config.adapter_class.name
-      rescue StandardError
-        nil
-      end
-      CurrentScope.mysql_adapter?(config.adapter) || CurrentScope.mysql_adapter?(class_name)
+    # Asked of the JUDGED MODEL, like database_context is (#194 review). Asking
+    # one fixed model for every model in the loop meant that a host splitting the
+    # two grant tables across adapters got one answer applied to both: the
+    # collation check running against PostgreSQL columns and raising about an
+    # unreadable MySQL collation, or skipping the MySQL columns and leaving the
+    # #151 escalation live. The refusal names each model's own database now, so
+    # the adapter question has to be asked of the same one.
+    def self.mysql?(model)
+      CurrentScope.mysql_config?(model.connection_pool.db_config)
     end
 
     # Rake tasks that may BOOT even against an unrepaired schema.

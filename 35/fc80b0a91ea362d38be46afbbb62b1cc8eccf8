@@ -1,0 +1,33 @@
+docs/guides/configuration-reference.md
+  s_240773ee81a9c0::t_5b08a5f0b75142 123-136
+test/definitions_import_test.rb
+  s_240773ee81a9c0::t_6520e2bfbaf7bc 45-48,62-68
+  s_240773ee81a9c0::t_01bfafb6dc08a5 52-60,73-86,88,90
+  s_240773ee81a9c0::t_99354caf44852c 38-44,49-51,61,69-72,87,89,91-97
+lib/current_scope/definitions_document.rb
+  s_240773ee81a9c0::t_8c699d6865fa25 291-299
+  s_240773ee81a9c0::t_5778a8b59c10ea 332-335
+test/integration/audit_events_test.rb
+  s_240773ee81a9c0::t_feaf9a58bc1b82 311
+  s_240773ee81a9c0::t_5b08a5f0b75142 105,116-123,125
+app/models/concerns/current_scope/audited_writes.rb
+  s_240773ee81a9c0::t_8046611ac77d38 33-37
+app/controllers/current_scope/role_assignments_controller.rb
+  s_240773ee81a9c0::t_5b08a5f0b75142 179-182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "35fc80b0a91ea362d38be46afbbb62b1cc8eccf8",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

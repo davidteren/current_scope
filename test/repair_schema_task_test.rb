@@ -3,8 +3,9 @@ require "rake"
 
 # #151. The repair task exists because db:migrate CANNOT fix a schema-loaded
 # database: loading a schema stamps every migration version as applied, so there
-# is nothing pending — while schema.rb cannot carry a MySQL collation, leaving
-# the columns case-insensitive and the engine unbootable. That was a dead end
+# is nothing pending — while a schema.rb dumped from PostgreSQL or SQLite
+# carries no per-column collation, so loading it on MySQL leaves the columns
+# case insensitive and the engine unbootable (#194). That was a dead end
 # with no way out, and this task is the way out, so it needs its own coverage
 # rather than being exercised only as a side effect of bin/db and CI.
 class RepairSchemaTaskTest < ActiveSupport::TestCase

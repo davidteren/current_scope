@@ -8,8 +8,10 @@ namespace :current_scope do
     #
     # A database built by `db:schema:load` / `db:setup` / `db:test:prepare` —
     # every new app, every CI run, every fresh checkout — comes out with the
-    # right column TYPE and the server's default collation, because schema.rb
-    # cannot express a MySQL collation. Loading a schema also stamps every
+    # right column TYPE, and with the server's default collation whenever that
+    # schema.rb was dumped from PostgreSQL or SQLite, which carry no per-column
+    # collation for Rails to write down. A dump taken from MySQL does carry one
+    # (#194). Loading a schema also stamps every
     # migration version as applied, so `db:migrate` has nothing pending and
     # prints nothing. On MySQL that left a host unable to boot, with the boot
     # error prescribing a command that could not possibly fix it.

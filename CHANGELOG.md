@@ -71,6 +71,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pilots.
 
 ### Fixed
+- **Four code comments stopped claiming `schema.rb` cannot carry a MySQL
+  collation (#194).** It can: Rails dumps a per-column `collation:` whenever a
+  column's collation differs from its table's, which is exactly what the #151
+  widening produces. The real hazard is narrower and is what the comments now
+  say: a dump taken from PostgreSQL or SQLite carries none, so a team that
+  develops on one adapter and runs MySQL in CI loads a schema whose grant
+  columns come out case and accent insensitive. The advice never changed,
+  because `current_scope:repair_schema` is idempotent and settles it either
+  way. #191 corrected the same claim in every prose file; these four were
+  deferred because that change could not edit `lib/`.
 - **Boot refusals name the database they judged (#193).** All five
   `CurrentScope::SchemaGuard` refusals prescribed a command and none said which
   database had failed, and every command was printed with no `RAILS_ENV`. That

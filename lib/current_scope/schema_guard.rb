@@ -15,8 +15,10 @@ module CurrentScope
     def self.check!(allow_database_task: true)
       return if allow_database_task && running_a_database_task?
       # Escape hatch for tooling that must BOOT in order to migrate — our own
-      # bin/db does exactly that, because schema.rb cannot carry a MySQL
-      # collation. Deliberately an explicit opt-out and not a config flag: a host
+      # bin/db does exactly that, because a schema.rb DUMPED FROM PostgreSQL or
+      # SQLite carries no collation, so loading it on MySQL leaves the grant
+      # columns case insensitive (#194; a dump taken from MySQL does carry a
+      # per-column collation, which is the half the old wording had wrong). Deliberately an explicit opt-out and not a config flag: a host
       # that sets this in production has chosen to run without the check.
       return if ENV["CURRENT_SCOPE_SKIP_SCHEMA_CHECK"] == "1"
 
@@ -167,9 +169,12 @@ module CurrentScope
 
       # NOT db:migrate. A database loaded from schema.rb has every migration
       # version already stamped, so db:migrate finds nothing pending and prints
-      # nothing while the collation stays wrong — and schema.rb cannot carry a
-      # MySQL collation, so that is the normal state of a new app and of CI.
-      # Naming db:migrate here sent hosts to a command that could not work.
+      # nothing while the collation stays wrong. Whether the collation IS wrong
+      # depends on where that schema.rb was dumped: a dump from MySQL carries a
+      # per-column collation, one from PostgreSQL or SQLite carries none (#194).
+      # A team that develops on one adapter and runs MySQL in CI is the case
+      # that lands here, and naming db:migrate sent them to a command that could
+      # not work.
       raise ConfigurationError,
             "#{column_label(model, column)} uses the #{info.collation} collation, which " \
             "is case and accent insensitive — \"ABC\" and \"abc\" would be the same " \

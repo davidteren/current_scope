@@ -1,0 +1,25 @@
+test/dummy/app/controllers/anonymous_model_controller.rb
+  s_240773ee81a9c0::t_220e7a1bce246e 1-5,10-14
+lib/current_scope/guard.rb
+  s_240773ee81a9c0::t_220e7a1bce246e 475-477,490,509,511-532
+test/integration/report_only_test.rb
+  s_240773ee81a9c0::t_220e7a1bce246e 128-132,139-140
+CHANGELOG.md
+  s_240773ee81a9c0::t_e300027a482df7 84-91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "9498051353270d8567f8fa8f7a9a8f17831c1723",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

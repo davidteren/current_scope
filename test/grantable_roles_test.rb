@@ -92,6 +92,17 @@ class GrantableRolesTest < ActiveSupport::TestCase
     assert_equal @container, assignment.reload.role
   end
 
+  # The setter takes a name or a Role, so the predicate does too — asking about
+  # a role by the name you declared it with is the first thing to try, and it
+  # raised NoMethodError (#183 review).
+  test "the predicate answers about a role NAME, not only a Role record" do
+    declare_grantable_roles(Project, [ "Project Lead" ])
+
+    assert Project.current_scope_grants_role?("Project Lead")
+    assert_not Project.current_scope_grants_role?("Report Editor")
+    assert_not Project.current_scope_grants_role?(nil), "a nil role is not a role"
+  end
+
   # A seed, a rake task and a console one-liner all write through the model, so
   # the model is where the rule has to live — the console's filtering is a
   # convenience on top of it.

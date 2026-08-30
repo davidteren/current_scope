@@ -38,7 +38,13 @@ module CurrentScope
     # is big enough to offer one: the rows on screen were filtered by that term,
     # and hiding the box would leave no way to clear it (#183 review).
     def offer_search?
-      query.present? || (@searchable && (records.present? || @indexed))
+      return true if query.present?
+      return false unless @searchable
+
+      # An empty list only earns a search box where searching can reach past
+      # what was read. On a table read to the end there is nothing left to
+      # find, and the box would sit beside a message saying so (#183 review).
+      records.present? || (@indexed && @unread)
     end
 
     # Searching can only turn up something new when an indexed scope reads past

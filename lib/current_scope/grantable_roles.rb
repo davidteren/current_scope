@@ -94,7 +94,11 @@ module CurrentScope
         allowed = current_scope_grantable_roles
         return true if allowed.nil?
 
-        role.present? && allowed.include?(role.name)
+        # A NAME is as good as a Role here, the way the setter takes either:
+        # the guide writes declarations as strings, so a host asking about one
+        # by name is the first thing to try (#183 review).
+        name = role.respond_to?(:name) ? role.name : role.to_s
+        name.present? && allowed.include?(name)
       end
     end
   end

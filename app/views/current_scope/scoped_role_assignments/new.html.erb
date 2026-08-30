@@ -107,9 +107,10 @@
   <% else %>
     <% if @types.withheld? %>
       <p id="cs_types_withheld" class="cs-hint cs-types-withheld">
-        <%= pluralize(@types.withheld_count, "type") %> not listed: they declare which roles
-        may be granted on them, and <strong><%= role_name %></strong>
-        is not one. Pick a different role to see them.
+        <%= pluralize(@types.withheld_count, "type") %> not listed. Each declares
+        which roles may be granted on it, and <strong><%= role_name %></strong>
+        is not one. Pick a different role to see
+        <%= @types.withheld_count == 1 ? "it" : "them" %>.
       </p>
     <% end %>
     <p>

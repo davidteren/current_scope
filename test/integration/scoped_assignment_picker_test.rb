@@ -336,6 +336,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_select "#cs_records_refused"
       assert_select "#cs_records_refused_searchable", count: 0
+      assert_select "input[name=q]", count: 0,
+                    message: "a box beside a message saying searching cannot help is its own contradiction"
     end
   ensure
     if Document.singleton_class.method_defined?(:current_scope_searchable_scope)

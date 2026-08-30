@@ -121,13 +121,17 @@ module CurrentScope
     def grantable_types(types, role)
       return types if role.nil?
 
-      types.select { |klass| grants_role?(klass, role) || sti_table?(klass) }
+      types.select { |klass| filter_allows?(klass, role) || sti_table?(klass) }
     end
 
-    # No role chosen yet ⇒ nothing to filter by. THE one meaning of a nil role
-    # in this controller: a call site that read it as "accepts nothing" broke
-    # the documented deep link, which carries no role_id (#183 review).
-    def grants_role?(klass, role)
+    # Deliberately NOT named grants_role?: the public
+    # CurrentScope::GrantableRoles.current_scope_grants_role? answers FALSE for a
+    # nil role (nothing can be granted for a role that is not there), while the
+    # filter's question is "does this survive the role the operator picked?",
+    # which nothing narrows when no role is picked. Two near-identical names
+    # with opposite nil answers is how the documented deep link broke once
+    # already in this branch (#183 review).
+    def filter_allows?(klass, role)
       return true if role.nil?
 
       !klass.respond_to?(:current_scope_grants_role?) || klass.current_scope_grants_role?(role)
@@ -158,7 +162,7 @@ module CurrentScope
     # The type for a deep link, only when the linked record's own class accepts
     # the chosen role.
     def deep_linked_type(linked, role)
-      linked.class if linked && grants_role?(linked.class, role)
+      linked.class if linked && filter_allows?(linked.class, role)
     end
 
     # → [ kept, refused ]. A deep-linked record survives only when it belongs to
@@ -170,7 +174,7 @@ module CurrentScope
     # is the invisible dead end #183 exists to remove (#183 review).
     def judge_deep_link(linked, type, role)
       return [ nil, nil ] if linked.nil?
-      return [ nil, linked ] unless grants_role?(linked.class, role)
+      return [ nil, linked ] unless filter_allows?(linked.class, role)
       return [ nil, nil ] unless type && linked.is_a?(type)
 
       [ linked, nil ]
@@ -306,7 +310,7 @@ module CurrentScope
     def grantable_records(records, role)
       return records if role.nil?
 
-      records.select { |record| grants_role?(record.class, role) }
+      records.select { |record| filter_allows?(record.class, role) }
     end
   end
 end

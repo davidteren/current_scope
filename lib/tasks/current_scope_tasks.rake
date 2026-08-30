@@ -494,9 +494,10 @@ namespace :current_scope do
       if dead_model.any?
         puts
         puts "  #{dead_model.sum(&:denials)} of those name a model class that no longer loads (renamed or removed)."
-        puts "  They were re-checked without a type, so an org-wide grant still clears them and"
-        puts "  a SCOPED grant cannot: the arm that reads the type is the one that cannot run."
-        puts "  Exercise the action again in report mode and read the fresh row."
+        puts "  The gate's own question cannot be put again, so these were asked the only way"
+        puts "  left, without a type. An org-wide grant still clears them; a SCOPED one cannot,"
+        puts "  because the arm that reads the type is the arm that cannot run. Exercise the"
+        puts "  action again in report mode and read the fresh row."
       end
     end
     if moot.any?

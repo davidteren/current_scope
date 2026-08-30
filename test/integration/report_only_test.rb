@@ -107,11 +107,9 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
       "and the key is still written: nil is knowledge, absent is a row from before this existed"
   end
 
-  # The third branch of recordable_model_name, and the one that costs the whole
-  # row if it is wrong: a controller that mis-declares current_scope_model as a
-  # String. `"Report".name` raises NoMethodError inside the rescued recorder,
-  # and the rescue would swallow the access.would_deny row with it (#196
-  # review).
+  # A controller that mis-declares current_scope_model as a String. The row must
+  # still be recorded, and it must record nil: the resolver refuses a String
+  # too, so re-asking without a type reproduces the gate's answer.
   test "a mis-declared model records no model and still records the row (#196)" do
     CurrentScope.config.enforcement = :report
 

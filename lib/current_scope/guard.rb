@@ -478,14 +478,22 @@ module CurrentScope
       # population: re-checked without a model, and warned about. nil is
       # knowledge, absent is not.
       details = { permission: permission, reason: "no_grant", record_less: target.nil? }
-      # Its own rescue, and deliberately not the one below. `model` is the host's
-      # object: a class with an overridden `self.name` that raises would
-      # otherwise lose the whole would_deny row AND burn the one per-process
-      # warning that sod_blind_spot and sod_initiator_missing still need, then
-      # label itself "could not record" and send an operator after a ledger
-      # problem that does not exist. This repo settled that argument in PR #93
-      # and again in PR #141. Omitting the key is the honest fallback: it puts
-      # the row in the population that is warned about.
+      # Its own rescue, and deliberately not the one below. `model` is the
+      # HOST'S object and this line asks it two questions: a class with an
+      # overridden `self.name` that raises, or one whose ancestry lookup does,
+      # would otherwise lose the whole would_deny row AND burn the one
+      # per-process warning that sod_blind_spot and sod_initiator_missing still
+      # need, then label itself "could not record" and send an operator after a
+      # ledger problem that does not exist. This repo settled that argument in
+      # PR #93 and again in PR #141. Omitting the key is the honest fallback: it
+      # puts the row in the population the report warns about.
+      #
+      # No test drives it. The shape needs a class that passes the resolver's
+      # collection_type? and then raises on .name, which means an anonymous or
+      # hostile ActiveRecord class in the dummy app — the same fixture that
+      # broke GrantDiagnosisTest once already, because PolymorphicRegistry and
+      # GrantDiagnosis both walk descendants. Cheap insurance, honestly
+      # unpinned (#196 review).
       begin
         details[:model] = recordable_model_name(record, model)
       rescue StandardError

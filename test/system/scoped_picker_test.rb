@@ -32,10 +32,13 @@ class ScopedPickerSystemTest < ApplicationSystemTestCase
   # narrows. The states this feature added are conditional renders, which a
   # layout-less request test can miss.
   test "picking a role narrows the type list, and picking another brings it back" do
+    # Gadget: autoloading it registers a SECOND type, so the page shows the type
+    # step rather than "no type accepts this role", whatever the test order.
+    Gadget
     CurrentScope::Role.create!(name: "Folder Editor")
     CurrentScope::Role.create!(name: "Vault Keeper")
     Folder.create!(name: "Shared Space")
-    Folder.current_scope_grantable_roles = [ "Folder Editor" ]
+    declare_grantable_roles(Folder, [ "Folder Editor" ])
 
     visit "/current_scope/scoped_role_assignments/new"
     # No role is applied yet, so nothing is filtered and nothing is claimed.
@@ -50,19 +53,16 @@ class ScopedPickerSystemTest < ApplicationSystemTestCase
     select "Folder Editor", from: "role_id"
     assert_no_selector "#cs_types_withheld"
     assert_selector "#resource_type option[value='Folder']"
-  ensure
-    if Folder.instance_variable_defined?(:@current_scope_grantable_roles)
-      Folder.send(:remove_instance_variable, :@current_scope_grantable_roles)
-    end
   end
 
   # The record step, in the browser: a type whose records refuse the role says so
   # where the list would be, and offers no Grant button.
   test "a record list emptied by the role filter explains itself" do
+    Gadget # autoload ⇒ a second registered type (see above)
     CurrentScope::Role.create!(name: "Vault Keeper")
     User.create!(name: "Pat Picker")
     Folder.create!(name: "Shared Space")
-    Folder.current_scope_grantable_roles = [ "Vault Keeper" ]
+    declare_grantable_roles(Folder, [ "Vault Keeper" ])
 
     visit "/current_scope/scoped_role_assignments/new"
     select "Vault Keeper", from: "role_id"
@@ -74,9 +74,5 @@ class ScopedPickerSystemTest < ApplicationSystemTestCase
     select "Owner", from: "role_id"
     assert_no_selector ".cs-btn-primary"
     assert_selector "#cs_types_withheld"
-  ensure
-    if Folder.instance_variable_defined?(:@current_scope_grantable_roles)
-      Folder.send(:remove_instance_variable, :@current_scope_grantable_roles)
-    end
   end
 end

@@ -44,6 +44,14 @@ module CurrentScope
       [ deep_linked, *list ]
     end
 
+    # Records dropped from a list that still HAS records, with no search in
+    # effect — the search hint covers the same thing when a query is typed, and
+    # without one nothing else on the page mentions them. Silently shortening a
+    # list is the surprise this feature exists to remove (#183 review).
+    def shortened?
+      @withheld && role.present? && records.present? && query.blank?
+    end
+
     # Both :shown states mean the list HAS matches — the difference is only
     # whether the role filter took some out of it.
     def matches_shown?

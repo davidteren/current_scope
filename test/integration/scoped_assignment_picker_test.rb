@@ -94,6 +94,9 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       assert_select "#cs_types_withheld", count: 0
       assert_select "select[name=resource_gid] option[value=?]", invoice.to_gid.to_s
       assert_select "select[name=resource_gid] option[value=?]", receipt.to_gid.to_s, count: 0
+      # And the list says it was shortened: dropping records without a word is
+      # the same surprise the type hint exists to prevent (#183 review).
+      assert_select "#cs_records_shortened", /Member/
     end
   end
 

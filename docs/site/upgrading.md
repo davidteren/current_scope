@@ -71,8 +71,8 @@ bin/rails db:test:prepare
 The test database is a separate database with the same guard on it, so
 `bin/rails db:test:prepare` is part of the upgrade, not an afterthought: skip it
 and your next test run aborts at boot. That boot error names the database it
-judged and prefixes its command with `RAILS_ENV=test`, so it points at the
-database that failed rather than the one you have just migrated. On MySQL, run `RAILS_ENV=test bin/rails
+judged, and prefixes the repair it prescribes with `RAILS_ENV=test`, so it
+points at the database that failed rather than the one you have just migrated. On MySQL, run `RAILS_ENV=test bin/rails
 current_scope:repair_schema` as well: `db:test:prepare` builds the test database
 from `schema.rb`, which may not carry the binary collation, so the guard refuses
 there even though development is now correct.

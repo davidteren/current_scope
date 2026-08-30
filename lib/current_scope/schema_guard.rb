@@ -108,11 +108,12 @@ module CurrentScope
             "record's primary key there, and an integer column silently truncates a " \
             "UUID — two subjects collapse into one identity and one inherits the " \
             "other's roles (#151). If the widening migration is not in db/migrate yet, run " \
-            "`bin/rails current_scope:install:migrations && bin/rails db:migrate` — that is " \
-            "the path that also updates schema.rb, so CI and your teammates get the same " \
-            "shape. If it is installed and this database was built from schema.rb, " \
-            "db:migrate has nothing pending: run " \
-            "`#{env_prefix}bin/rails current_scope:repair_schema` instead."
+            "`bin/rails current_scope:install:migrations && bin/rails db:migrate` in " \
+            "development — that is the path that also updates schema.rb, so CI and your " \
+            "teammates get the same shape. If it is installed and this database was built " \
+            "from schema.rb, db:migrate has nothing pending: run " \
+            "`#{env_prefix}bin/rails current_scope:repair_schema` against this database " \
+            "instead."
     end
 
     # Collation matters as much as type on MySQL: its default is case AND accent
@@ -183,8 +184,13 @@ module CurrentScope
     # not RoleAssignment's: the guard reads columns from more than one model, and
     # a host that puts them on more than one database has to be told which of
     # them failed (#193 review).
+    # connection_pool, not connection: `model.connection` leases one, which
+    # Rails 8.1 soft-deprecates and refuses outright where permanent checkout is
+    # disallowed. The rescue below would then swallow that and drop the database
+    # name — losing the fact this exists to add, on the hosts most likely to
+    # have tuned their pool (#193 review).
     def self.database_context(model)
-      name = model.connection.pool.db_config.database
+      name = model.connection_pool.db_config.database
       "the #{Rails.env} database #{name.inspect}"
     rescue StandardError
       # The message is the whole product at this moment, so a database whose
@@ -296,7 +302,8 @@ module CurrentScope
       # No rake application in scope (a server or console): not a database task.
       false
     end
-    private_class_method :check_id_column!, :check_collation!, :mysql?
+    private_class_method :check_id_column!, :check_collation!, :mysql?,
+                         :database_context, :env_prefix, :column_label
     # Public: Engine#validate_subject_key! asks the same "may this command boot
     # without the schema?" question and reuses this rather than re-deriving it.
     public_class_method :running_a_database_task?

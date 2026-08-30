@@ -15,7 +15,12 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
   # to name the database it judged and the environment to name on the command
   # line.
   def assert_guard_names_the_database(message)
-    name = CurrentScope::RoleAssignment.connection.pool.db_config.database
+    # From the Rails configuration, not from the same expression the guard uses:
+    # deriving it the production way would pin the FORMAT and let a wrong
+    # database pass (#193 review).
+    name = ActiveRecord::Base.configurations
+                             .configs_for(env_name: Rails.env, name: "primary")
+                             .database
     assert_includes message, "on the #{Rails.env} database #{name.inspect}",
       "the refusal must say WHICH database failed"
     assert_includes message, "RAILS_ENV=#{Rails.env} bin/rails",
@@ -301,6 +306,25 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     ensure
       CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
     end
+  end
+
+  # #193 review — the reason the model is passed in rather than assumed. A host
+  # that puts the grant tables on a second database has to be told WHICH one
+  # failed, and every other test here stubs RoleAssignment, so a regression that
+  # hard-coded it would pass them all.
+  test "the refusal names the judged model's database, not RoleAssignment's" do
+    elsewhere = Class.new do
+      def self.table_name = "grants_over_there"
+
+      def self.connection_pool
+        Struct.new(:db_config).new(Struct.new(:database).new("a_second_database"))
+      end
+    end
+
+    label = CurrentScope::SchemaGuard.send(:column_label, elsewhere, "subject_id")
+
+    assert_equal "grants_over_there.subject_id on the #{Rails.env} database " \
+                 "\"a_second_database\"", label
   end
 
   # #193 — the fifth refusal, and the one with no test until now. A nullable id

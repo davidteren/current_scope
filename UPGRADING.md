@@ -111,9 +111,9 @@ bin/rails db:test:prepare
 `db:migrate` migrates development only. The test database is a separate database
 with the same guard on it, so without `bin/rails db:test:prepare` the next
 `bin/rails test` aborts at boot with `CurrentScope::ConfigurationError` naming
-`subject_id`. That message names the database it judged and prefixes its command
-with `RAILS_ENV=test`, so it points at the right database rather than back at
-the one you have just migrated. `bin/rails db:test:prepare` is the
+`subject_id`. That message names the database it judged, and prefixes the repair
+it prescribes with `RAILS_ENV=test`, so it points at the right database rather
+than back at the one you have just migrated. `bin/rails db:test:prepare` is the
 fix here, and `RAILS_ENV=test bin/rails current_scope:repair_schema`, which the
 message prescribes, also works. Rails does not repair this for you, even though it
 normally keeps the test schema current: `maintain_test_schema!` runs from

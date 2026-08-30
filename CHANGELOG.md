@@ -81,12 +81,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   now names the environment and the connection's database, and prefixes the
   command with `RAILS_ENV=` wherever that is not the default.
 
-  The integer-column refusal also stops prescribing `current_scope:install:
-  migrations && db:migrate`. That pair cannot repair a database built from
-  `schema.rb`, which is where a host meets this message: every migration version
-  is stamped, so `db:migrate` finds nothing pending. It names
-  `current_scope:repair_schema`, which re-applies the widening directly and is
-  idempotent.
+  The integer-column refusal now names both repair paths and says which is
+  which, because it has two audiences. A host who has never installed the
+  widening migration needs
+  `current_scope:install:migrations && db:migrate`, the path that also updates
+  `schema.rb` so CI and teammates get the same shape. A host whose database was
+  built FROM `schema.rb` has every version stamped already, so `db:migrate`
+  finds nothing pending and `current_scope:repair_schema` is the one that
+  works.
 - **`current_scope:report` tells a moot denial from one it cannot re-check
   (#190).** Every failed lookup of a recorded denial's target landed in one
   "could not be re-checked" bucket and was counted as outstanding, so a denial

@@ -52,7 +52,7 @@ module CurrentScope
       # would otherwise leave the withheld type selected, its records loaded and
       # a Grant button showing, directly under a hint saying that type was not
       # listed — the dead end this filter exists to prevent (#183 review).
-      @resource_type = resolve_type(params[:resource_type], within: @scopeable) ||
+      @resource_type = resolve_type(scalar_param(:resource_type), within: @scopeable) ||
                        deep_linked_type(anchor, @selected_role)
       @resource, @refused_resource = judge_deep_link(linked, @resource_type, @selected_role)
       @type_anchor_gid = anchor&.to_gid&.to_s unless @scopeable.include?(@resource_type)

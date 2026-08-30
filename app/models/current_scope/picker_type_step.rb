@@ -25,13 +25,27 @@ module CurrentScope
     # a dead end and untrue.
     def state
       return :choose if @resolved || @offered.any?
-      return :none_accept if @all_types.any? && @role
+      return :unregistered unless @all_types.any? && @role
+      # Every registered type is a lockdown: no role will ever list one, so
+      # "pick a different role" is a promise none of them can keep.
+      return :none_accept_locked if locked_count == @all_types.size
 
-      :unregistered
+      :none_accept
     end
 
     def withheld_count
       @all_types.size - @offered.size
+    end
+
+    # A type that declares an EMPTY list is a lockdown: withheld for every role,
+    # so "pick a different role to see it" is a promise no role can keep
+    # (#183 review).
+    def locked_count
+      @all_types.count { |klass| klass.try(:current_scope_grantable_roles)&.empty? }
+    end
+
+    def all_withheld_locked?
+      withheld? && locked_count == withheld_count
     end
 
     def withheld?

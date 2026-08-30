@@ -98,6 +98,12 @@
       Each registered type declares which roles may be granted on it, and none
       lists this one. Pick a different role.
     </p>
+  <% when :none_accept_locked %>
+    <p id="cs_types_none_accept_locked" class="cs-alert cs-picker-empty cs-types-none-accept">
+      No resource type accepts any scoped role. Every registered type declares
+      an empty list, which is a lockdown — no role will list them. Give a type
+      the roles it should accept to grant here.
+    </p>
   <% when :unregistered %>
     <p id="cs_types_unregistered" class="cs-alert cs-picker-empty cs-types-unregistered">
       No pickable resource types yet. Add
@@ -105,12 +111,26 @@
       records selectable here.
     </p>
   <% else %>
-    <% if @types.withheld? %>
+    <% if @types.all_withheld_locked? %>
+      <%# Every withheld type is a LOCKDOWN — an empty declaration. Telling the
+          operator to pick a different role would be a promise no role can
+          keep (#183 review). %>
+      <p id="cs_types_locked" class="cs-hint cs-types-withheld">
+        <%= pluralize(@types.withheld_count, "type") %> not listed. Each accepts
+        no scoped roles at all, so no role will list
+        <%= @types.withheld_count == 1 ? "it" : "them" %>.
+      </p>
+    <% elsif @types.withheld? %>
       <p id="cs_types_withheld" class="cs-hint cs-types-withheld">
         <%= pluralize(@types.withheld_count, "type") %> not listed. Each declares
         which roles may be granted on it, and <strong><%= role_name %></strong>
         is not one. Pick a different role to see
         <%= @types.withheld_count == 1 ? "it" : "them" %>.
+        <% if @types.locked_count.positive? %>
+          Of those, <%= @types.locked_count %>
+          <%= @types.locked_count == 1 ? "accepts" : "accept" %> no scoped roles
+          at all.
+        <% end %>
       </p>
     <% end %>
     <p>
@@ -196,6 +216,10 @@
                       at its cap and cannot speak for the whole table. %>
                   No match for “<%= @query %>” among the records read accepts
                   <strong><%= role_name %></strong> — pick a different role.
+                <% when :none_linked %>
+                  No records match “<%= @query %>”. The linked
+                  <strong><%= current_scope_label(@step.deep_linked) %></strong>
+                  is still selectable.
                 <% else %>
                   No records match “<%= @query %>” — try a different search.
                 <% end %>

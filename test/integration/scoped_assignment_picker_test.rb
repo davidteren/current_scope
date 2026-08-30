@@ -565,6 +565,42 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # An empty declaration is a lockdown: withheld for EVERY role, so telling the
+  # operator to pick a different one is a promise no role can keep (#183 review).
+  test "a locked-down type is not blamed on the chosen role" do
+    locked = Class.new do
+      include CurrentScope::GrantableRoles
+      def self.name = "LockedThing"
+      def self.model_name = ActiveModel::Name.new(self, nil, "LockedThing")
+      self.current_scope_grantable_roles = [] # throwaway class: nothing to restore
+    end
+
+    with_scopeable_resources([ Folder, locked ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id), headers: as(@owner)
+
+      assert_select "#cs_types_locked"
+      assert_select "#cs_types_withheld", count: 0
+    end
+  end
+
+  # And with nothing but lockdowns registered, the same promise would be just as
+  # empty on the page that says no type accepts the role.
+  test "with every type locked down, the page does not blame the role either" do
+    locked = Class.new do
+      include CurrentScope::GrantableRoles
+      def self.name = "LockedThing"
+      def self.model_name = ActiveModel::Name.new(self, nil, "LockedThing")
+      self.current_scope_grantable_roles = [] # throwaway class: nothing to restore
+    end
+
+    with_scopeable_resources([ locked ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id), headers: as(@owner)
+
+      assert_select "#cs_types_none_accept_locked"
+      assert_select "#cs_types_none_accept", count: 0
+    end
+  end
+
   # The Grant button posts what the operator can SEE selected. A resource_gid
   # survives every autosubmit, so an earlier pick must not ride along after the
   # role or the type moves on (#183 review).
@@ -694,7 +730,10 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_response :success
 
     assert_select "select[name=resource_gid] option[value=?]", pinned.to_gid.to_s # still selectable
-    assert_select "#cs_search_none"
+    # Its own state (#183 review): "no records match" beside a visible selected
+    # option reads as a contradiction, so the hint names the linked record.
+    assert_select "#cs_search_none_linked"
+    assert_select "#cs_search_none", count: 0
     assert_select "#cs_search_shown", count: 0
   end
 

@@ -81,12 +81,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   that found it, 406 of 696 outstanding denials were this false positive.
 
   The `access.would_deny` ledger row now stores the model the gate decided
-  with, and the report resolves it and asks again with it. It is recorded only
-  when the gate could have used it: a controller that declares
-  `current_scope_model` without `current_scope_record` never reaches the
-  record-less arm, so nothing is stored and the report cannot answer allowed
-  where the gate denies. A recorded model name that no longer resolves to a
-  class counts as unknown, never as allowed.
+  with, and the report resolves it and asks again with it. A name is recorded
+  only when the gate could have used it, and `nil` when it could not: a
+  controller that declares `current_scope_model` without `current_scope_record`
+  never reaches the record-less arm, and a hook returning a type the resolver
+  refuses is no better off. Re-asking without a model reproduces the gate's
+  answer in both cases, so the report cannot answer allowed where the gate
+  denies. A row recording `nil` is not the same as one written before the field
+  existed, which has no key at all: `nil` is knowledge, absent is not.
 
   Rows written before this field existed are re-checked the old way, without a
   model, and the report now says how many of its outstanding denials those are,

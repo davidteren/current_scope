@@ -472,9 +472,9 @@ module CurrentScope
       # ALLOWED where the gate denies, which is the same bug pointing the other
       # way. Same condition as Current.collection_model above.
       #
-      # The key is written with nil for "no model here", and OMITTED when the
-      # gate had a model this row cannot name (see unnameable_model?). A row from
-      # before this field existed has no key either, and lands in the same
+      # The key is written with nil for "no usable model here" (see
+      # recordable_model_name), and is OMITTED only if building it raises. A row
+      # from before this field existed has no key either, and lands in the same
       # population: re-checked without a model, and warned about. nil is
       # knowledge, absent is not.
       details = { permission: permission, reason: "no_grant", record_less: target.nil? }
@@ -487,8 +487,7 @@ module CurrentScope
       # and again in PR #141. Omitting the key is the honest fallback: it puts
       # the row in the population that is warned about.
       begin
-        kind, name = model_detail(record, model)
-        details[:model] = name unless kind == :unnameable
+        details[:model] = recordable_model_name(record, model)
       rescue StandardError
         details.delete(:model)
       end
@@ -507,30 +506,30 @@ module CurrentScope
       nil
     end
 
-    # What the ledger should say about the model the gate used (#196). Three
-    # answers, in ONE place, because two methods sharing two conditions is two
-    # methods that can disagree (#196 review).
+    # The model NAME the report may re-ask with, or nil (#196).
     #
-    #   [ :name, "Report" ] the gate used this type and the report can re-ask
-    #                       with it.
-    #   [ :none, nil ]      the gate had no usable type: no record hook, so it
-    #                       never reached the record-less arm; or no model hook;
-    #                       or a hook that returned something the resolver
-    #                       refuses anyway. Re-asking without one reproduces the
-    #                       gate's answer, so nil is KNOWLEDGE and is recorded.
-    #   [ :unnameable, nil ] the gate used a real class the ledger cannot name.
-    #                       A class is anonymous until it is assigned to a
-    #                       constant. Recording nil here would read as "the gate
-    #                       had none" and the report would re-ask the stricter
-    #                       question with neither caveat nor marker, so the key
-    #                       is left OUT and the row joins the population the
-    #                       report warns about.
-    def model_detail(record, model)
-      return [ :none, nil ] if record.equal?(NO_RECORD)
-      return [ :none, nil ] unless model.is_a?(Class)
+    # nil in three cases, and in every one of them re-asking WITHOUT a type
+    # reproduces the gate's answer exactly, so nil is knowledge rather than a
+    # gap: the controller declared no record hook, so the gate never reached the
+    # record-less arm; it declared no model; or it declared one the resolver
+    # itself refuses. That last test is the resolver's own `collection_type?`,
+    # the same predicate the gate and SodPreflight use, so this cannot drift
+    # from what the gate would accept (#196 review).
+    #
+    # ONE residual, deliberately undefended: a hook returning an ANONYMOUS class
+    # the resolver would accept records nil, because Class#name stays nil until
+    # a class is assigned to a constant, and the report then re-checks without a
+    # type and can under-report an allow. Closing it needs an anonymous
+    # ActiveRecord class in the test app, and this gem's own PolymorphicRegistry
+    # and GrantDiagnosis both walk descendants, so that fixture changes what
+    # other tests see — it broke one. A host naming an anonymous class here is
+    # not a shape anyone has written.
+    def recordable_model_name(record, model)
+      return nil if record.equal?(NO_RECORD)
+      return nil unless model.is_a?(Class)
+      return nil unless CurrentScope.resolver.collection_type?(model)
 
-      name = model.name
-      name.nil? ? [ :unnameable, nil ] : [ :name, name ]
+      model.name
     end
 
     # The failure this catches is PERSISTENT, not incidental: :report + audit

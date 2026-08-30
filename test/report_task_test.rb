@@ -492,6 +492,32 @@ class ReportTaskTest < ActiveSupport::TestCase
       "and the one it lists is the legacy row, marked as the caveat says")
   end
 
+  # #196 review — `model:` only changes the record-less arm, so a row that names
+  # a live record is answerable with or without one. Refusing to re-check it
+  # because the recorded type was since renamed would strand it as outstanding
+  # for ever, and no grant could clear it: the unreachable exit condition #190
+  # fixed, one layer down.
+  test "a record-bound denial is re-checked even when its recorded model is gone" do
+    alice = User.create!(name: "Alice")
+    report = Report.create!(title: "Q3", requested_by: alice)
+    role = CurrentScope::Role.create!(name: "Reader")
+    role.role_permissions.create!(permission_key: "reports#show")
+    CurrentScope::RoleAssignment.create!(subject: alice, role: role)
+    CurrentScope::Event.create!(
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: report.to_gid.to_s, target_label: report.title,
+      details: { "permission" => "reports#show", "reason" => "no_grant",
+                 "record_less" => false, "model" => "LongDeletedThing" }
+    )
+
+    output = run_task
+
+    assert_no_match(/could not be re-checked/, output,
+      "the record loads and the grant answers it; the dead type name is irrelevant here")
+    assert_match(/nothing to act on|Every would-be denial/, output,
+      "so the grant clears it and the loop can still reach zero")
+  end
+
   # #116 — the survey cannot see a request that never resolved a subject, and that
   # is the class that 403s FIRST after the flip. An operator reading "0
   # outstanding" must not read it as "ready".

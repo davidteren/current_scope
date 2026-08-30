@@ -25,6 +25,42 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     CurrentScope.define_singleton_method(:scopeable_resources, original)
   end
 
+  # #183 — the picker chooses the ROLE first, so the types are what gets
+  # narrowed. The model validation is the gate; this only keeps the operator out
+  # of a dead end, and says so rather than silently shortening the dropdown.
+  test "a type that does not accept the chosen role is withheld, and the reason is shown" do
+    picky = Class.new do
+      def self.name = "PickyThing"
+      def self.model_name = ActiveModel::Name.new(self, nil, "PickyThing")
+      def self.current_scope_grantable_roles = [ "Owner" ]
+    end
+
+    with_scopeable_resources([ Folder, picky ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id), headers: as(@owner)
+
+      assert_response :success
+      assert_select "option[value=?]", "Folder"
+      assert_select "option[value=?]", "PickyThing", count: 0
+      assert_match(/1 type not listed/, response.body)
+      assert_match(/Member/, response.body, "and it names the role that was not accepted")
+    end
+  end
+
+  test "a type that accepts the chosen role is offered" do
+    picky = Class.new do
+      def self.name = "PickyThing"
+      def self.model_name = ActiveModel::Name.new(self, nil, "PickyThing")
+      def self.current_scope_grantable_roles = [ "Owner" ]
+    end
+
+    with_scopeable_resources([ Folder, picky ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @owner_role.id), headers: as(@owner)
+
+      assert_select "option[value=?]", "PickyThing"
+      assert_no_match(/type not listed/, response.body)
+    end
+  end
+
   # --- happy path ----------------------------------------------------------
 
   test "the full cascade grants the role on the chosen record" do

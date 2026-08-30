@@ -15,6 +15,12 @@ module CurrentScope
       scope: [ :subject_type, :subject_id, :resource_type, :resource_id ]
     }
 
+    # #183: a type may declare which roles are grantable on it. The gate, as
+    # opposed to the console's filtering, because a grant can be written by a
+    # seed, a rake task or a console one-liner and every one of those has to
+    # meet the same rule.
+    validate :role_grantable_on_resource_type
+
     # #151: a grant must name exactly one record on BOTH sides.
     include CurrentScope::StorableKeys
     validates_storable_polymorphic_keys "subject", "resource"
@@ -94,5 +100,26 @@ module CurrentScope
       end
     end
     private_class_method :mark_resources_loaded
+
+    private
+
+    # Silent unless the type opted in (#183): with no declaration every role
+    # stays grantable on every type, which is what every existing host has.
+    #
+    # An unresolvable type is left alone — the storable-key guard and the
+    # polymorphic registry already own that question, and answering it twice
+    # with two messages helps nobody.
+    def role_grantable_on_resource_type
+      return if role.nil? || resource_type.blank?
+
+      klass = CurrentScope.polymorphic_class(resource_type, inert_on_error: true)
+      return if klass.nil? || !klass.respond_to?(:current_scope_grantable_roles)
+
+      allowed = klass.current_scope_grantable_roles
+      return if allowed.blank? || allowed.include?(role.name)
+
+      errors.add(:role, "cannot be granted on #{klass.name}: it accepts " \
+                        "#{allowed.to_sentence(two_words_connector: ' or ', last_word_connector: ' or ')}")
+    end
   end
 end

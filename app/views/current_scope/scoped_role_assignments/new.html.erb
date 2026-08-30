@@ -66,6 +66,14 @@
         type_options.unshift([ @resource_type.model_name.human, @resource_type.name ])
       end
     %>
+    <% withheld = @all_scopeable.size - @scopeable.size %>
+    <% if withheld.positive? %>
+      <p class="cs-hint">
+        <%= pluralize(withheld, "type") %> not listed: they declare which roles
+        may be granted on them, and <strong><%= @selected_role.name %></strong>
+        is not one. Pick a different role to see them.
+      </p>
+    <% end %>
     <p>
       <%= label_tag :resource_type, "Resource type" %>
       <%= select_tag :resource_type,

@@ -18,7 +18,14 @@ module CurrentScope
       @assignment = ScopedRoleAssignment.new
       @roles = Role.order(:name)
       @subjects = subject_class.order(:id)
-      @scopeable = CurrentScope.scopeable_resources
+      # #183: the cascade picks the ROLE first, so the types are what gets
+      # narrowed. A type that declares its grantable roles and does not list this
+      # one is not offered, and the view says how many were withheld — silently
+      # shortening a dropdown is its own kind of surprise. The model validation
+      # is the actual gate; this only keeps the operator out of a dead end.
+      @selected_role = Role.find_by(id: params[:role_id]) if params[:role_id].present?
+      @all_scopeable = CurrentScope.scopeable_resources
+      @scopeable = grantable_types(@all_scopeable, @selected_role)
       @bulk_subjects = resolve_bulk_subjects # [] unless a multi-select bulk grant
 
       @resource = deep_linked_resource
@@ -72,6 +79,17 @@ module CurrentScope
     end
 
     private
+
+    # A type with no declaration accepts everything, which is every host that
+    # has not opted in.
+    def grantable_types(types, role)
+      return types if role.nil?
+
+      types.select do |klass|
+        allowed = klass.respond_to?(:current_scope_grantable_roles) ? klass.current_scope_grantable_roles : nil
+        allowed.blank? || allowed.include?(role.name)
+      end
+    end
 
     # The scoped record may be deleted (nil) or its class renamed (NameError) by
     # the time we revoke — label from the record when it's still there, else from

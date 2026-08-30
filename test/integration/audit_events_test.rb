@@ -99,6 +99,28 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     assert_equal "self", granted.details["source"]
   end
 
+  # #182 review — the field is only useful if it is on every event. An auditor
+  # filtering for human-driven changes must not silently lose org-role
+  # assignments and role edits because those emitters predate it.
+  test "every authorization event carries a source" do
+    report = Report.create!(title: "Q3", requested_by: @owner)
+    other = User.create!(name: "Other")
+    only_from_here
+
+    post current_scope.role_assignments_url, headers: as(@owner),
+         params: { subject_gid: other.to_gid.to_s, role_id: @member_role.id }
+    post current_scope.roles_url, headers: as(@owner),
+         params: { role: { name: "Fresh" }, permission_keys: [] }
+    CurrentScope::ScopedRoleAssignment.create!(subject: @member, resource: report, role: @member_role)
+
+    events = CurrentScope::Event.all.to_a
+    assert_operator events.size, :>=, 3
+    events.each do |event|
+      assert event.details["source"].present?,
+        "#{event.event} carries no source, so a filter on it would lose this row"
+    end
+  end
+
   test "a write with an ambient actor says so" do
     report = Report.create!(title: "Q3", requested_by: @owner)
     only_from_here

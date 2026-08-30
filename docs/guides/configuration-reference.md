@@ -117,8 +117,10 @@ unaudited change (the mutation rolls back).
 Since #182 the ledger no longer depends on which door a change came through.
 `scoped_role.granted`, `scoped_role.revoked`, `org_role.removed` and
 `role.deleted` are emitted from model callbacks, so a seed, a rake task, a
-console one-liner and the test helpers (`grant_role!` / `grant_scoped_role!`)
-all record what the management UI records. Each row carries `details.source`:
+console one-liner and the `grant_scoped_role!` test helper all record what the
+management UI records. (`grant_role!` is a direct `RoleAssignment.create!`, and
+org-role creation is one of the two writes named below as still unrecorded.)
+EVERY authorization event carries `details.source`:
 `"actor"` when something had set `CurrentScope::Current.actor` (a request, a
 job, `with_current_user` in a test), `"self"` when nothing had, in which case
 the row is self-attributed to the record it is about. `CurrentScope.grant!`

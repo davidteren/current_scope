@@ -178,11 +178,15 @@ module CurrentScope
 
       # Atomicity comes from create's outer bulk transaction (see clear_org_role).
       assignment.update!(role: new_role)
+      # source on both, so the field is on EVERY authorization event and an
+      # auditor filtering on it cannot silently lose a whole class of change
+      # (#182 review).
       if prior_role.nil?
-        Event.record!(event: "org_role.assigned", target: subject, details: { role: new_role.name })
+        Event.record!(event: "org_role.assigned", target: subject,
+                      details: { role: new_role.name, source: "actor" })
       elsif prior_role.id != new_role.id
         Event.record!(event: "org_role.changed", target: subject,
-                      details: { from: prior_role.name, to: new_role.name })
+                      details: { from: prior_role.name, to: new_role.name, source: "actor" })
       end
       # same role re-set ⇒ no change ⇒ no event
       changed

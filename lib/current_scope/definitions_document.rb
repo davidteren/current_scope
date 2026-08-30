@@ -281,36 +281,45 @@ module CurrentScope
       committed = false
 
       begin
-        Role.transaction do
-          planned_fa = @roles.select(&:full_access).map(&:name)
-          FullAccessLock.lock_console_state!(planned_fa)
-          refuse_held_deletes!
-          if FullAccessLock.would_lose_held_full_access?(planned_fa)
-            raise LastHolderLock,
-                  "Refusing to apply: this document would leave zero org-wide full-access holders."
-          end
+        # The resolved actor becomes the AMBIENT one for the duration (#182
+        # review). This method takes an actor explicitly — ACTOR_ID on the rake
+        # path — and the model callbacks that now record role.deleted and each
+        # cascaded revocation read CurrentScope::Current.actor. Without this the
+        # document's own definitions.applied row names the operator while the
+        # deletions it caused are self-attributed, so the ledger cannot say who
+        # deleted the role.
+        CurrentScope::Current.set(actor: actor || CurrentScope::Current.actor) do
+          Role.transaction do
+            planned_fa = @roles.select(&:full_access).map(&:name)
+            FullAccessLock.lock_console_state!(planned_fa)
+            refuse_held_deletes!
+            if FullAccessLock.would_lose_held_full_access?(planned_fa)
+              raise LastHolderLock,
+                    "Refusing to apply: this document would leave zero org-wide full-access holders."
+            end
 
-          # Set before the write, not after: File.write truncates first, so a
-          # write that dies part way through still has to be put back.
-          wrote_snapshot = true
-          write_snapshot(path)
-          persist_roles!
-          if CurrentScope.config.audit
-            Event.record!(
-              event: event,
-              target: CurrentScope::Event::DEFINITIONS_TARGET,
-              details: {
-                "snapshot" => path,
-                # The file this document came from. On a rolled_back row that is
-                # the snapshot the operator restored FROM, which is the question
-                # an audit reader asks. "snapshot" is always the undo point this
-                # operation wrote, for both events.
-                "source" => @source_path,
-                "diff" => changeset.to_s
-              }.compact,
-              actor: actor,
-              subject: subject || actor
-            )
+            # Set before the write, not after: File.write truncates first, so a
+            # write that dies part way through still has to be put back.
+            wrote_snapshot = true
+            write_snapshot(path)
+            persist_roles!
+            if CurrentScope.config.audit
+              Event.record!(
+                event: event,
+                target: CurrentScope::Event::DEFINITIONS_TARGET,
+                details: {
+                  "snapshot" => path,
+                  # The file this document came from. On a rolled_back row that is
+                  # the snapshot the operator restored FROM, which is the question
+                  # an audit reader asks. "snapshot" is always the undo point this
+                  # operation wrote, for both events.
+                  "source" => @source_path,
+                  "diff" => changeset.to_s
+                }.compact,
+                actor: actor,
+                subject: subject || actor
+              )
+            end
           end
         end
         committed = true

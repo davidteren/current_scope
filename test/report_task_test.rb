@@ -460,6 +460,38 @@ class ReportTaskTest < ActiveSupport::TestCase
       "this row DID record the gate's answer: there was no model")
   end
 
+  # #196 review — the mixed case, and the one that breaks the invariant the
+  # detail list is built on. A legacy row and a modern row can share a subject,
+  # permission and target and still belong in different buckets: the modern one
+  # re-checks WITH the type and is resolved, the legacy one cannot and stays
+  # outstanding. If the detail list keys on fewer things than the grouping does,
+  # it matches both ledger rows and prints a total the headline disagrees with.
+  test "a legacy row and a modern row for the same key are counted once each" do
+    alice = User.create!(name: "Alice")
+    report = Report.create!(title: "Q3", requested_by: alice)
+    scope_grant(alice, role_with("reports#index"), report)
+    base = {
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name
+    }
+    CurrentScope::Event.create!(**base, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true
+    })
+    CurrentScope::Event.create!(**base, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true,
+      "model" => "Report"
+    })
+
+    output = run_task
+
+    assert_match(/^\s+1\s+would-be denials STILL ungranted/, output,
+      "one legacy row outstanding; the modern row re-checks with the type and is granted")
+    assert_match(/Total: 1 outstanding would-be denial\(s\)/, output,
+      "the list below the headline must count the same denials the headline does")
+    assert_match(/reports#index \*/, output,
+      "and the one it lists is the legacy row, marked as the caveat says")
+  end
+
   # #116 — the survey cannot see a request that never resolved a subject, and that
   # is the class that 403s FIRST after the flip. An operator reading "0
   # outstanding" must not read it as "ready".

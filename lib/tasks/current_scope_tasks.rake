@@ -210,7 +210,7 @@ namespace :current_scope do
       [ subject_gid, hash["permission"], target_gid, hash["record_less"],
         hash.key?("model") ? hash["model"] : :absent ]
     }.each do |(subject_gid, permission, target_gid, recorded_flag, recorded_model), group|
-      pair = [ subject_gid, permission, target_gid, group.count, recorded_flag ]
+      pair = [ subject_gid, permission, target_gid, group.count, recorded_flag, recorded_model ]
       if permission.nil?
         unknown << pair
         next
@@ -425,8 +425,8 @@ namespace :current_scope do
     if unknown.any?
       puts
       puts "  #{unknown.sum { |pair| pair[3] }} recorded denial(s) could not be re-checked, because the"
-      puts "  subject, the record or the permission no longer resolves. They are counted"
-      puts "  as OUTSTANDING above: cannot tell is not the same as ready."
+      puts "  subject, the record, the permission or the recorded model no longer resolves."
+      puts "  They are counted as OUTSTANDING above: cannot tell is not the same as ready."
     end
     if moot.any?
       puts
@@ -442,6 +442,7 @@ namespace :current_scope do
       puts "  denied here. Do NOT grant a permission to clear these. Exercise the action again"
       puts "  in report mode and read the fresh row, or check one by hand with"
       puts "  CurrentScope.resolver.decide(subject:, permission:, record: nil, model: TheModel)."
+      puts "  They are marked * in the list below."
     end
     puts
     # The SoD clause only when the host opted into SoD. A project that never set
@@ -491,12 +492,20 @@ namespace :current_scope do
     #
     # Shared tally so would_deny and sod_blind_spot sections cannot drift on
     # ordering / unknown-permission handling (PR #103 review).
-    print_permission_counts = lambda do |event_rows|
+    # `mark_keys` is optional and only the would_deny section passes one: a
+    # caveat that gives a number and no way to tell which lines it covers leaves
+    # the reader to guess, on a list where the wrong guess is a grant (#196
+    # review).
+    print_permission_counts = lambda do |event_rows, mark_keys = nil|
+      subject_gid = event_rows.first&.first
       event_rows
         .group_by { |_s, _l, details| details.is_a?(Hash) ? details["permission"] : nil }
         .transform_values(&:count)
         .sort_by { |permission, count| [ -count, permission.to_s ] }
-        .each { |permission, count| puts "    #{count.to_s.rjust(5)}x  #{permission || '(unknown)'}" }
+        .each do |permission, count|
+          marker = mark_keys&.include?([ subject_gid, permission ]) ? " *" : ""
+          puts "    #{count.to_s.rjust(5)}x  #{permission || '(unknown)'}#{marker}"
+        end
     end
 
     # Only the pairs still outstanding, so this list agrees with the headline. A
@@ -506,11 +515,21 @@ namespace :current_scope do
     # headline: this is the grant-these list and a moot denial cannot be granted.
     # Pinned by "the headline counts only outstanding denials and the moot line
     # counts denials".
-    open_keys = (outstanding + unknown).to_set { |gid, permission, target, _count, flag| [ gid, permission, target, flag ] }
+    # Keyed on the recorded model too (#196 review), because the grouping above
+    # is. A legacy row and a modern row can share a subject, permission and
+    # target, land in different buckets (the modern one re-checks with the type
+    # and can be resolved), and a four-part key here would match BOTH ledger
+    # rows and print a total the headline disagrees with.
+    open_keys = (outstanding + unknown).to_set do |gid, permission, target, _count, flag, model|
+      [ gid, permission, target, flag, model ]
+    end
     open_rows = rows.select do |subject_gid, _label, details, target_gid|
       hash = details.is_a?(Hash) ? details : {}
-      open_keys.include?([ subject_gid, hash["permission"], target_gid, hash["record_less"] ])
+      open_keys.include?([ subject_gid, hash["permission"], target_gid, hash["record_less"],
+                           hash.key?("model") ? hash["model"] : :absent ])
     end
+
+    legacy_keys = legacy_model.to_set { |gid, permission, _target, _count, _flag, _model| [ gid, permission ] }
 
     unless open_rows.empty?
       separate.call
@@ -522,7 +541,7 @@ namespace :current_scope do
       grouped.each do |subject_gid, subject_rows|
         label = subject_rows.first[1].presence || subject_gid
         puts "  #{label}#{org_role_suffix.call(subject_gid)}"
-        print_permission_counts.call(subject_rows)
+        print_permission_counts.call(subject_rows, legacy_keys)
         puts
       end
 

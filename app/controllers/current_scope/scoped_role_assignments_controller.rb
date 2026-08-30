@@ -23,7 +23,11 @@ module CurrentScope
       # one is not offered, and the view says how many were withheld — silently
       # shortening a dropdown is its own kind of surprise. The model validation
       # is the actual gate; this only keeps the operator out of a dead end.
-      @selected_role = Role.find_by(id: params[:role_id]) if params[:role_id].present?
+      # scalar_param: a nested query string (?role_id[x]=1) is not an id, and
+      # every reader below expects a string. Rails answers nil for it today
+      # rather than raising, so this states the expectation rather than fixing a
+      # live break (#183 review).
+      @selected_role = Role.find_by(id: scalar_param(:role_id)) if params[:role_id].present?
       # A deleted role in a stale bookmark reads as "no role chosen" everywhere
       # downstream, which would show every type and every record with no hint
       # and a Grant button that can only fail on POST (#183 review).
@@ -33,13 +37,13 @@ module CurrentScope
       @bulk_subjects = resolve_bulk_subjects # [] unless a multi-select bulk grant
 
       # The record a deep link asked for, before any gate has judged it.
-      linked = deep_linked_resource(params[:resource_gid])
+      linked = deep_linked_resource(scalar_param(:resource_gid))
       # A type reached by deep link need not be registered, so it cannot be
       # resolved from its NAME on the next request — only from a record. Blanking
       # the Record select would otherwise drop the type out of the picker with no
       # way back but the browser's Back button, so the cascade carries the gid
       # that anchors it (#183 review).
-      anchor = linked || deep_linked_resource(params[:linked_gid])
+      anchor = linked || deep_linked_resource(scalar_param(:linked_gid))
       # Resolved against the FILTERED list: the cascade carries resource_type on
       # every autosubmit, so picking a role, then a type, then changing the role
       # would otherwise leave the withheld type selected, its records loaded and
@@ -62,7 +66,9 @@ module CurrentScope
         searchable: searchable?(@resource_type), query: params[:q],
         role: @selected_role, deep_linked: @resource
       )
-      @grantable_gid = offered_gid(@resource, records)
+      # The step owns the list of records on offer, so the button and the select
+      # cannot disagree about what is on it (#183 review).
+      @grantable_gid = scalar_param(:resource_gid) if @step.offers?(scalar_param(:resource_gid))
     end
 
     def create
@@ -180,21 +186,12 @@ module CurrentScope
       [ linked, nil ]
     end
 
-    # The Grant button must post only a record the operator can SEE selected.
-    # params[:resource_gid] survives every autosubmit, so changing the role or
-    # the type can leave a gid from an earlier pick: the record select shows
-    # nothing selected (it is not in the list) while the button would still post
-    # it — a raw validation alert at best, and at worst a silent grant on a
-    # record that is no longer on screen (#183 review).
-    def offered_gid(resource, records)
-      # The only source of a gid: a deep-linked resource is itself located from
-      # this param, so there is no second one to fall back to.
-      gid = params[:resource_gid].presence
-      return nil if gid.blank? || @resource_type.nil?
-
-      offered = Array(records).map { |record| record.to_gid.to_s }
-      offered << resource.to_gid.to_s if resource # the view keeps it selectable
-      gid if offered.include?(gid)
+    # Every param this picker reads is a string: an id, a GlobalID, a type name,
+    # a search term. A nested or array param is none of those, so it is read as
+    # absent and the page renders the state it has for "not found" (#183 review).
+    def scalar_param(name)
+      value = params[name]
+      value if value.is_a?(String)
     end
 
     # The scoped record may be deleted (nil) or its class renamed (NameError) by

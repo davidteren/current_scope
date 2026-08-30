@@ -159,14 +159,10 @@
       <% else %>
         <p>
           <%= label_tag :resource_gid, "Record" %>
-          <%
-            record_options = (@step.records || []).map { |record| [ current_scope_label(record), record.to_gid.to_s ] }
-            # Keep a deep-linked record selectable even if it fell outside the
-            # scanned window.
-            if @resource && record_options.none? { |(_, gid)| gid == @resource.to_gid.to_s }
-              record_options.unshift([ current_scope_label(@resource), @resource.to_gid.to_s ])
-            end
-          %>
+          <%# The step owns the LIST, and the Grant button is checked against
+              the same one, so it cannot post a record this select never showed
+              (#183 review). %>
+          <% record_options = @step.offered_records.map { |record| [ current_scope_label(record), record.to_gid.to_s ] } %>
           <%= select_tag :resource_gid,
                 options_for_select(record_options, params[:resource_gid] || @resource&.to_gid&.to_s),
                 include_blank: "— choose a record —", form: "cs-cascade",
@@ -175,7 +171,17 @@
             <%# Keyed off the raw SEARCH results, not record_options — a
                 deep-linked @resource is prepended to the options even when the
                 query matched nothing, and must not fake a "matches shown". %>
-            <% if @step.search_state != :shown %>
+            <% if @step.matches_shown? %>
+              <span id="cs_search_<%= @step.search_state %>" class="cs-hint cs-search-shown">
+                Showing up to <%= CurrentScope::ScopedRoleAssignmentsController::DISPLAY_LIMIT %> matches — refine the search to narrow.
+                <% if @step.search_state == :shown_withheld && role_name %>
+                  <%# No other hint on the page covers RECORDS the role filter
+                      took out of a list that still has matches (#183 review). %>
+                  Matches that do not accept <strong><%= role_name %></strong> are
+                  not listed.
+                <% end %>
+              </span>
+            <% else %>
               <span id="cs_search_<%= @step.search_state %>" class="cs-hint cs-picker-empty cs-search-<%= @step.search_state.to_s.dasherize %>">
                 <% case @step.search_state
                    when :refused_searchable %>
@@ -186,16 +192,13 @@
                   a different role.
                 <% when :refused %>
                   <%# The search DID match — a different search is the one thing
-                      that cannot help. Say which pick to change. %>
-                  No match for “<%= params[:q] %>” accepts
+                      that cannot help. "read", because the fallback scan stops
+                      at its cap and cannot speak for the whole table. %>
+                  No match for “<%= params[:q] %>” among the records read accepts
                   <strong><%= role_name %></strong> — pick a different role.
                 <% else %>
                   No records match “<%= params[:q] %>” — try a different search.
                 <% end %>
-              </span>
-            <% else %>
-              <span id="cs_search_shown" class="cs-hint cs-search-shown">
-                Showing up to <%= CurrentScope::ScopedRoleAssignmentsController::DISPLAY_LIMIT %> matches — refine the search to narrow.
               </span>
             <% end %>
           <% end %>

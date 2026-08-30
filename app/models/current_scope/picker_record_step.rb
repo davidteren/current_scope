@@ -31,7 +31,27 @@ module CurrentScope
     # prepended to the options, and skipping past them would leave a Grant
     # button posting a record the page never shows.
     def empty?
-      records.blank? && deep_linked.nil? && query.blank?
+      offered_records.empty? && query.blank?
+    end
+
+    # The records on offer, the deep-linked one first — the ONE list the select
+    # renders and the Grant button is checked against, so the button can never
+    # post a record the select did not show (#183 review).
+    def offered_records
+      list = Array(records)
+      return list if deep_linked.nil? || list.any? { |record| same?(record, deep_linked) }
+
+      [ deep_linked, *list ]
+    end
+
+    # Both :shown states mean the list HAS matches — the difference is only
+    # whether the role filter took some out of it.
+    def matches_shown?
+      [ :shown, :shown_withheld ].include?(search_state)
+    end
+
+    def offers?(gid)
+      gid.present? && offered_records.any? { |record| record.to_gid.to_s == gid }
     end
 
     # A query that is IN EFFECT always brings its field, whether or not the type
@@ -69,7 +89,9 @@ module CurrentScope
     # grantable, so "pick a different role" would contradict what is on screen.
     def search_state
       return nil unless offer_search? && query.present?
-      return :shown if records.present?
+      # Matches ARE shown, but the role filter took some of them out of the
+      # list, and no other hint on the page covers records (#183 review).
+      return @withheld ? :shown_withheld : :shown if records.present?
       # Records DID match and the role filter removed them, so "no records
       # match" would be untrue — and the linked record beside the hint is
       # selected and grantable, so "pick a different role" would contradict it.
@@ -78,6 +100,12 @@ module CurrentScope
       return :none unless @withheld && role
 
       advise_search? ? :refused_searchable : :refused
+    end
+
+    private
+
+    def same?(one, other)
+      one.to_gid.to_s == other.to_gid.to_s
     end
   end
 end

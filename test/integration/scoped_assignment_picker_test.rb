@@ -526,6 +526,33 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # A nested param is not an id. It reads as absent, and the page has a state
+  # for that (#183 review).
+  test "a nested role_id param renders the missing-role state" do
+    get current_scope.new_scoped_role_assignment_path(role_id: { x: "1" }), headers: as(@owner)
+
+    assert_response :success
+    assert_select "#cs_role_missing"
+  end
+
+  # Matches ARE shown, but the role filter took some out of the list, and no
+  # other hint on the page covers records (#183 review).
+  test "a search whose matches were partly withheld says so beside the list" do
+    21.times { |i| Receipt.create!(title: "Doc #{i}") }
+    invoice = Invoice.create!(title: "Doc 99")
+    declare_grantable_roles(Document, [ "Owner" ])
+    declare_grantable_roles(Invoice, [ "Member" ])
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(
+        role_id: @member_role.id, resource_type: "Document", q: "Doc"
+      ), headers: as(@owner)
+
+      assert_select "select[name=resource_gid] option[value=?]", invoice.to_gid.to_s
+      assert_select "#cs_search_shown_withheld", /Member/
+    end
+  end
+
   # The Grant button posts what the operator can SEE selected. A resource_gid
   # survives every autosubmit, so an earlier pick must not ride along after the
   # role or the type moves on (#183 review).

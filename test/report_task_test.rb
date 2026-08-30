@@ -501,10 +501,10 @@ class ReportTaskTest < ActiveSupport::TestCase
       event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
       target: alice.to_gid.to_s, target_label: alice.name
     }
-    CurrentScope::Event.create!(**base, details: {
+    CurrentScope::Event.create!(**base, created_at: 2.days.ago, details: {
       "permission" => "reports#index", "reason" => "no_grant", "record_less" => true
     })
-    CurrentScope::Event.create!(**base, details: {
+    CurrentScope::Event.create!(**base, created_at: 1.day.ago, details: {
       "permission" => "reports#index", "reason" => "no_grant", "record_less" => true,
       "model" => "Report"
     })
@@ -531,10 +531,10 @@ class ReportTaskTest < ActiveSupport::TestCase
     }
     # No record_less key AND no model key: the shape this file's own would_deny
     # helper writes, and the oldest thing a ledger can hold.
-    CurrentScope::Event.create!(**base, details: {
+    CurrentScope::Event.create!(**base, created_at: 2.days.ago, details: {
       "permission" => "reports#index", "reason" => "no_grant"
     })
-    CurrentScope::Event.create!(**base, details: {
+    CurrentScope::Event.create!(**base, created_at: 1.day.ago, details: {
       "permission" => "reports#index", "reason" => "no_grant", "record_less" => true,
       "model" => "Report"
     })
@@ -546,6 +546,64 @@ class ReportTaskTest < ActiveSupport::TestCase
     assert_match(/ASKED AGAIN/, output)
   end
 
+  # "Exercise the action AGAIN" means the answer has to be newer than the row it
+  # answers. During a rolling deploy an older new-format row would otherwise
+  # hide a later old-format denial, which is a real denial dropped off the list.
+  test "an OLDER model-bearing answer does not supersede a newer legacy row" do
+    alice = User.create!(name: "Alice")
+    report = Report.create!(title: "Q3", requested_by: alice)
+    scope_grant(alice, role_with("reports#index"), report)
+    base = {
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name
+    }
+    CurrentScope::Event.create!(**base, created_at: 2.days.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true,
+      "model" => "Report"
+    })
+    CurrentScope::Event.create!(**base, created_at: 1.day.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true
+    })
+
+    output = run_task
+
+    assert_match(/would-be denials STILL ungranted/, output,
+      "the legacy row is the LATER evidence; an older answer cannot speak for it")
+    assert_no_match(/ASKED AGAIN/, output)
+  end
+
+  # current_scope_model can return different types for the same permission, and
+  # record-less rows all carry the subject as their target, so a granted answer
+  # for one type is no answer for another. If any model-bearing sibling is still
+  # denied, the legacy row stands.
+  test "a still-denied model-bearing sibling blocks supersession" do
+    alice = User.create!(name: "Alice")
+    report = Report.create!(title: "Q3", requested_by: alice)
+    scope_grant(alice, role_with("reports#index"), report)
+    base = {
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name
+    }
+    CurrentScope::Event.create!(**base, created_at: 3.days.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true
+    })
+    CurrentScope::Event.create!(**base, created_at: 2.days.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true,
+      "model" => "Report"
+    })
+    # A second type for the same permission, with no grant behind it.
+    CurrentScope::Event.create!(**base, created_at: 1.day.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true,
+      "model" => "Document"
+    })
+
+    output = run_task
+
+    assert_match(/would-be denials STILL ungranted/, output,
+      "one type is still refused, so the row that named no type is not answered")
+    assert_no_match(/ASKED AGAIN/, output)
+  end
+
   # And when the fresher row is still DENIED there is nothing to supersede, so
   # both rows stand. This is the case that pins the headline and the detail list
   # on the same key: the grouping has five parts and the list must too.
@@ -555,10 +613,10 @@ class ReportTaskTest < ActiveSupport::TestCase
       event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
       target: alice.to_gid.to_s, target_label: alice.name
     }
-    CurrentScope::Event.create!(**base, details: {
+    CurrentScope::Event.create!(**base, created_at: 2.days.ago, details: {
       "permission" => "reports#index", "reason" => "no_grant", "record_less" => true
     })
-    CurrentScope::Event.create!(**base, details: {
+    CurrentScope::Event.create!(**base, created_at: 1.day.ago, details: {
       "permission" => "reports#index", "reason" => "no_grant", "record_less" => true,
       "model" => "Report"
     })

@@ -495,9 +495,12 @@ module CurrentScope
       # GrantDiagnosis both walk descendants. Cheap insurance, honestly
       # unpinned (#196 review).
       begin
-        details[:model] = recordable_model_name(record, model)
+        details[:model] = recordable_model_name(record, model) unless unnameable_model?(record, model)
       rescue StandardError
-        details.delete(:model)
+        # Nothing to undo: Ruby evaluates the right-hand side before assigning,
+        # so a raise leaves the key unset, which is the fallback this wants —
+        # the row joins the population the report warns about (#196 review).
+        nil
       end
 
       CurrentScope::Event.record!(
@@ -524,20 +527,25 @@ module CurrentScope
     # the same predicate the gate and SodPreflight use, so this cannot drift
     # from what the gate would accept (#196 review).
     #
-    # ONE residual, deliberately undefended: a hook returning an ANONYMOUS class
-    # the resolver would accept records nil, because Class#name stays nil until
-    # a class is assigned to a constant, and the report then re-checks without a
-    # type and can under-report an allow. Closing it needs an anonymous
-    # ActiveRecord class in the test app, and this gem's own PolymorphicRegistry
-    # and GrantDiagnosis both walk descendants, so that fixture changes what
-    # other tests see — it broke one. A host naming an anonymous class here is
-    # not a shape anyone has written.
+    # A type the resolver WOULD accept and the ledger cannot name is the one
+    # case that must record nothing at all rather than nil: a class is anonymous
+    # until it is assigned to a constant, and Class#name is nil until then.
+    # Recording nil would say "the gate had no type", the report would re-ask
+    # the stricter question, and a subject a scoped grant admits would be listed
+    # as denied with neither the caveat nor the marker that warn about exactly
+    # that. Absent puts the row in the population the report warns about
+    # (#196 review).
     def recordable_model_name(record, model)
       return nil if record.equal?(NO_RECORD)
       return nil unless model.is_a?(Class)
       return nil unless CurrentScope.resolver.collection_type?(model)
 
-      model.name
+      model.name.presence
+    end
+
+    def unnameable_model?(record, model)
+      !record.equal?(NO_RECORD) && model.is_a?(Class) &&
+        CurrentScope.resolver.collection_type?(model) && model.name.blank?
     end
 
     # The failure this catches is PERSISTENT, not incidental: :report + audit

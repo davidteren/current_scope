@@ -130,7 +130,7 @@ namespace :current_scope do
 
     begin
       rows = CurrentScope::Event.where(event: "access.would_deny")
-                                .pluck(:subject, :target_label, :details, :target)
+                                .pluck(:subject, :target_label, :details, :target, :created_at)
       # #73: SoD blind-spot 403s are NOT would_deny (granting won't fix them).
       # Surface them as a separate section so the survey is complete.
       blind_rows = CurrentScope::Event.where(event: "access.sod_blind_spot")
@@ -191,7 +191,7 @@ namespace :current_scope do
     # different, and using the raw one for the second silently excluded the
     # oldest rows from being answered at all (#196 review).
     denial_row = Struct.new(:subject_gid, :permission, :target_gid, :denials, :record_less,
-                            :asked_record_less, :model, keyword_init: true)
+                            :asked_record_less, :model, :last_seen, keyword_init: true)
 
     outstanding = []
     resolved = []
@@ -235,7 +235,8 @@ namespace :current_scope do
     }.each do |(subject_gid, permission, target_gid, recorded_flag, recorded_model), group|
       pair = denial_row.new(subject_gid: subject_gid, permission: permission, target_gid: target_gid,
                             denials: group.count, record_less: recorded_flag,
-                            asked_record_less: nil, model: recorded_model)
+                            asked_record_less: nil, model: recorded_model,
+                            last_seen: group.filter_map { |row| row[4] }.max)
       if permission.nil?
         unknown << pair
         next
@@ -324,7 +325,11 @@ namespace :current_scope do
         rescue StandardError
           nil
         end
-        unless model.is_a?(Class)
+        # collection_type?, not is_a?(Class): a name can survive and come back
+        # as something the resolver refuses (a renamed constant, a module, a
+        # PORO). Passing it would label the row as re-checked with the gate's
+        # type when it was not (#196 review).
+        unless model.is_a?(Class) && CurrentScope.resolver.collection_type?(model)
           model = nil
           dead_model_name = true
         end
@@ -362,14 +367,31 @@ namespace :current_scope do
     # are answered by different arms of the resolver. Matching on the three-part
     # key would let a record-bound answer drop a record-less row off the list,
     # which fails open (#196 review).
-    answered_with_model = resolved.select { |denial| denial.model.is_a?(String) }
-                                  .to_set do |denial|
+    replay_key = lambda do |denial|
       [ denial.subject_gid, denial.permission, denial.target_gid, denial.asked_record_less ]
     end
+    # The NEWEST model-bearing answer per question, and the questions where a
+    # model-bearing row is still denied. A legacy row is answered only when a
+    # model-bearing row for the same question came back granted, that row is
+    # newer than the legacy one, and no sibling of it is still denied.
+    #
+    # Newer, because during a rolling deploy an older new-format row would
+    # otherwise hide a later old-format denial, and the sentence this prints
+    # says "since". Not-still-denied, because `current_scope_model` may return
+    # different types for the same permission, and a granted answer for one of
+    # them is no answer for the other (#196 review).
+    answered_with_model = resolved.select { |denial| denial.model.is_a?(String) }
+                                  .group_by(&replay_key)
+                                  .transform_values { |denials| denials.filter_map(&:last_seen).max }
+    still_denied_with_model = outstanding.select { |denial| denial.model.is_a?(String) }
+                                         .to_set(&replay_key)
     superseded, outstanding = outstanding.partition do |denial|
-      denial.model == :absent && denial.asked_record_less &&
-        answered_with_model.include?([ denial.subject_gid, denial.permission, denial.target_gid,
-                                       denial.asked_record_less ])
+      next false unless denial.model == :absent && denial.asked_record_less
+
+      key = replay_key.call(denial)
+      answer = answered_with_model[key]
+      answer && !still_denied_with_model.include?(key) &&
+        (denial.last_seen.nil? || answer > denial.last_seen)
     end
     legacy_model -= superseded
 

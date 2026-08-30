@@ -99,11 +99,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ledger is append-only, so without that it could never clear itself and an
   over-grant would be the only thing that moved the number.
 
-  A recorded model name that no longer loads is re-checked anyway, without a
-  type, because every arm that can allow without one allows with one too. Only
-  a denial then counts as unknown, and the report says those name a class that
-  no longer loads: an org-wide grant still clears them, a scoped one cannot,
-  because the arm that reads the type is the one that cannot run.
+  A recorded model name that no longer loads, or that comes back as something
+  the resolver refuses, is re-checked anyway, without a type, because every arm
+  that can allow without one allows with one too. Only a denial then counts as
+  unknown, and the report says those name a class that no longer loads: an
+  org-wide grant still clears them, a scoped one cannot, because the arm that
+  reads the type is the one that cannot run.
+
+  One private method changed shape: `CurrentScope::Guard#report_would_deny`
+  takes the model as a required third argument. It is private and undocumented,
+  and the argument is required on purpose, because a default would let a call
+  site record "the gate had no model" when it simply forgot to say. A host or
+  test double that overrode the two-argument form has to add the parameter.
 - **`current_scope:report` tells a moot denial from one it cannot re-check
   (#190).** Every failed lookup of a recorded denial's target landed in one
   "could not be re-checked" bucket and was counted as outstanding, so a denial

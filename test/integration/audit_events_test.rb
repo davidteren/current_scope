@@ -118,6 +118,22 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     assert_equal [ "reports#index" ], event.details["permission_keys"]
   end
 
+  # And the PERSISTED set, not a staged one. `permission_keys` answers with an
+  # unsaved replacement when a caller has staged one, while the destroy removes
+  # what is in the table (#182 review).
+  test "role.deleted reports the permissions it removed, not an unsaved edit" do
+    doomed = CurrentScope::Role.create!(name: "Doomed")
+    doomed.permission_keys = [ "reports#index" ]
+    doomed.save!
+    doomed.permission_keys = [ "reports#show" ] # staged, never saved
+    only_from_here
+
+    doomed.destroy!
+
+    assert_equal [ "reports#index" ], only_event.details["permission_keys"],
+      "the deletion took away reports#index; the staged edit never existed"
+  end
+
   # #182 review — an assignment whose ROLE is gone. A foreign key stops that
   # happening on this schema, so the association is stubbed rather than the row
   # orphaned: a host without that constraint, or one whose cleanup script uses

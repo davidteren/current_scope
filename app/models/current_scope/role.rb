@@ -125,8 +125,12 @@ module CurrentScope
     def snapshot_for_audit
       return unless CurrentScope.config.audit
 
+      # The PERSISTED rows, not `permission_keys`: that reader answers with
+      # @pending_permission_keys when a caller has staged a replacement set
+      # without saving it, and a destroy removes what is in the table. The row
+      # must describe what the deletion actually took away (#182 review).
       @audit_snapshot = { name: name, full_access: full_access?,
-                          permission_keys: permission_keys }
+                          permission_keys: role_permissions.pluck(:permission_key) }
     end
 
     # What the deletion REMOVED, not just its name: role.created and

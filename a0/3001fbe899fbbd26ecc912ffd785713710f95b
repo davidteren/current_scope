@@ -1,0 +1,22 @@
+test/integration/scoped_assignment_picker_test.rb
+  s_240773ee81a9c0::t_10c58d1d82b8ac 509-511,514,517-518,520-522,524-526
+  s_240773ee81a9c0::t_b7a35641fdf1fb 512-513,515-516,519,523
+app/views/current_scope/scoped_role_assignments/new.html.erb
+  s_240773ee81a9c0::t_10c58d1d82b8ac 81-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "a03001fbe899fbbd26ecc912ffd785713710f95b",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

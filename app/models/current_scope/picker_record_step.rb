@@ -34,8 +34,11 @@ module CurrentScope
       records.blank? && deep_linked.nil? && query.blank?
     end
 
+    # A query that is IN EFFECT always brings its field, whether or not the type
+    # is big enough to offer one: the rows on screen were filtered by that term,
+    # and hiding the box would leave no way to clear it (#183 review).
     def offer_search?
-      @searchable && (records.present? || @indexed || query.present?)
+      query.present? || (@searchable && (records.present? || @indexed))
     end
 
     # Searching can only turn up something new when an indexed scope reads past

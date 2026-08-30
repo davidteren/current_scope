@@ -33,15 +33,22 @@ module CurrentScope
       @bulk_subjects = resolve_bulk_subjects # [] unless a multi-select bulk grant
 
       # The record a deep link asked for, before any gate has judged it.
-      linked = deep_linked_resource
+      linked = deep_linked_resource(params[:resource_gid])
+      # A type reached by deep link need not be registered, so it cannot be
+      # resolved from its NAME on the next request — only from a record. Blanking
+      # the Record select would otherwise drop the type out of the picker with no
+      # way back but the browser's Back button, so the cascade carries the gid
+      # that anchors it (#183 review).
+      anchor = linked || deep_linked_resource(params[:linked_gid])
       # Resolved against the FILTERED list: the cascade carries resource_type on
       # every autosubmit, so picking a role, then a type, then changing the role
       # would otherwise leave the withheld type selected, its records loaded and
       # a Grant button showing, directly under a hint saying that type was not
       # listed — the dead end this filter exists to prevent (#183 review).
       @resource_type = resolve_type(params[:resource_type], within: @scopeable) ||
-                       deep_linked_type(linked)
-      @resource, @refused_resource = judge_deep_link(linked, @resource_type)
+                       deep_linked_type(anchor, @selected_role)
+      @resource, @refused_resource = judge_deep_link(linked, @resource_type, @selected_role)
+      @type_anchor_gid = anchor&.to_gid&.to_s unless @scopeable.include?(@resource_type)
       @types = PickerTypeStep.new(all_types: @all_scopeable, offered: @scopeable,
                                   resolved: @resource_type, role: @selected_role)
       records, withheld, unread = candidate_records(@resource_type, params[:q], @selected_role)
@@ -150,8 +157,8 @@ module CurrentScope
 
     # The type for a deep link, only when the linked record's own class accepts
     # the chosen role.
-    def deep_linked_type(linked)
-      linked.class if linked && grants_role?(linked.class, @selected_role)
+    def deep_linked_type(linked, role)
+      linked.class if linked && grants_role?(linked.class, role)
     end
 
     # → [ kept, refused ]. A deep-linked record survives only when it belongs to
@@ -161,9 +168,9 @@ module CurrentScope
     # button that only the model can then say no to. A refusal is REFUSED rather
     # than dropped, because a record that vanishes from the picker with no word
     # is the invisible dead end #183 exists to remove (#183 review).
-    def judge_deep_link(linked, type)
+    def judge_deep_link(linked, type, role)
       return [ nil, nil ] if linked.nil?
-      return [ nil, linked ] unless grants_role?(linked.class, @selected_role)
+      return [ nil, linked ] unless grants_role?(linked.class, role)
       return [ nil, nil ] unless type && linked.is_a?(type)
 
       [ linked, nil ]
@@ -201,8 +208,8 @@ module CurrentScope
     # Deep-link prefill: a record page links here with resource_gid. A stale
     # link (deleted record → RecordNotFound, renamed class → NameError) must
     # not 500 — fall back to the blank picker with a friendly alert.
-    def deep_linked_resource
-      GlobalID::Locator.locate(params[:resource_gid]) if params[:resource_gid].present?
+    def deep_linked_resource(gid)
+      GlobalID::Locator.locate(gid) if gid.present?
     rescue ActiveRecord::RecordNotFound, NameError
       flash.now[:alert] = "That linked record is no longer available — pick one below."
       nil

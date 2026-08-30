@@ -474,6 +474,38 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_select "select[name=role_id] option[value='']"
   end
 
+  # A query that is in effect brings its field, whatever the type's size: the
+  # rows on screen were filtered by that term, so hiding the box would leave no
+  # way to clear it (#183 review).
+  test "a search term carried onto a small type keeps the field that can clear it" do
+    Folder.create!(name: "Q3 Ledger")
+
+    get current_scope.new_scoped_role_assignment_path(resource_type: "Folder", q: "zzz-no-such"),
+        headers: as(@owner)
+
+    assert_select "input[name=q]", count: 1
+    assert_select "#cs_search_none"
+  end
+
+  # A type reached by deep link is not registered, so it cannot be resolved from
+  # its name. Blanking the Record select would drop it out of the picker with no
+  # way back but the browser's Back button (#183 review).
+  test "an unregistered deep-linked type survives the record being cleared" do
+    project = Project.create!(name: "Q3")
+    report = Report.create!(title: "Q3 report", project: project, requested_by: @owner)
+
+    get current_scope.new_scoped_role_assignment_path(resource_gid: report.to_gid.to_s), headers: as(@owner)
+    assert_select "input[name=linked_gid][value=?]", report.to_gid.to_s
+
+    # The autosubmit that follows "— choose a record —": same form, empty gid.
+    get current_scope.new_scoped_role_assignment_path(
+      resource_type: "Report", resource_gid: "", linked_gid: report.to_gid.to_s
+    ), headers: as(@owner)
+
+    assert_select "option[selected][value=?]", "Report"
+    assert_select "select[name=resource_gid] option[value=?]", report.to_gid.to_s
+  end
+
   # The Grant button posts what the operator can SEE selected. A resource_gid
   # survives every autosubmit, so an earlier pick must not ride along after the
   # role or the type moves on (#183 review).

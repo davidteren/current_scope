@@ -104,6 +104,11 @@
         is not one. Pick a different role to see them.
       </p>
     <% end %>
+    <%# Anchors an unregistered deep-linked type across a change of record: the
+        type cannot be resolved from its name, only from a record (#183 review). %>
+    <% if @type_anchor_gid %>
+      <%= hidden_field_tag :linked_gid, @type_anchor_gid, form: "cs-cascade" %>
+    <% end %>
     <p>
       <%= label_tag :resource_type, "Resource type" %>
       <%= select_tag :resource_type,

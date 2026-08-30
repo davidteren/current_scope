@@ -89,9 +89,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   class counts as unknown, never as allowed.
 
   Rows written before this field existed are re-checked the old way, without a
-  model, and the report now says how many of its outstanding denials those are
-  and warns not to grant a permission to clear them. Exercise the action again
-  in report mode and read the fresh row instead.
+  model, and the report now says how many of its outstanding denials those are,
+  marks them in the list, and warns not to grant on the strength of that line.
+  Exercise the action again in report mode and read the fresh row instead: when
+  a newer row for the same subject, permission and target carries the model and
+  comes back granted, the old row is answered by it and leaves the count. The
+  ledger is append-only, so without that it could never clear itself and an
+  over-grant would be the only thing that moved the number.
+
+  A recorded model name that no longer loads is re-checked anyway, without a
+  type, because every arm that can allow without one allows with one too. Only
+  a denial then counts as unknown, and the report says those name a class that
+  no longer loads and that no grant can clear them.
 - **`current_scope:report` tells a moot denial from one it cannot re-check
   (#190).** Every failed lookup of a recorded denial's target landed in one
   "could not be re-checked" bucket and was counted as outstanding, so a denial

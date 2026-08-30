@@ -125,6 +125,21 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
       "a String is not a type the resolver would accept, so there is nothing to re-ask with"
   end
 
+  # The fourth way recordable_model_name can answer nil, and the only one where
+  # the gate DID decide with a real model. A nil recorded here would be read as
+  # knowledge and the row would carry neither the caveat nor the marker.
+  test "a model the ledger cannot name records no model (#196)" do
+    CurrentScope.config.enforcement = :report
+
+    get "/anonymous_model", headers: sign_in(@alice)
+
+    event = CurrentScope::Event.where(event: "access.would_deny").last
+    assert_equal "anonymous_model#index", event.details["permission"]
+    assert_not event.details.key?("model"),
+      "absent, not nil: nil would say the gate had no model, and this row would " \
+      "then be re-checked on the stricter question with no caveat and no marker"
+  end
+
   test "a granted action in report mode is an ordinary allow — no report, no header" do
     CurrentScope.config.enforcement = :report
     assign(@alice, role("Member", "reports#index"))

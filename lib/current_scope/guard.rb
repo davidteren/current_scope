@@ -472,13 +472,28 @@ module CurrentScope
       # ALLOWED where the gate denies, which is the same bug pointing the other
       # way. Same condition as Current.collection_model above.
       #
-      # The key is always written, with nil for "no model here". A row from
-      # before this field existed has NO key, and the report tells the two apart:
-      # nil is knowledge, absent is not.
+      # The key is written with nil for "no model here", and OMITTED when the
+      # gate had a model this row cannot name (see unnameable_model?). A row from
+      # before this field existed has no key either, and lands in the same
+      # population: re-checked without a model, and warned about. nil is
+      # knowledge, absent is not.
+      details = { permission: permission, reason: "no_grant", record_less: target.nil? }
+      # Its own rescue, and deliberately not the one below. `model` is the host's
+      # object: a class with an overridden `self.name` that raises would
+      # otherwise lose the whole would_deny row AND burn the one per-process
+      # warning that sod_blind_spot and sod_initiator_missing still need, then
+      # label itself "could not record" and send an operator after a ledger
+      # problem that does not exist. This repo settled that argument in PR #93
+      # and again in PR #141. Omitting the key is the honest fallback: it puts
+      # the row in the population that is warned about.
+      begin
+        details[:model] = recordable_model_name(record, model) unless unnameable_model?(record, model)
+      rescue StandardError
+        details.delete(:model)
+      end
+
       CurrentScope::Event.record!(
-        event: "access.would_deny", target: target || subject,
-        details: { permission: permission, reason: "no_grant", record_less: target.nil?,
-                   model: recordable_model_name(record, model) }
+        event: "access.would_deny", target: target || subject, details: details
       )
     rescue StandardError => e
       # ponytail: swallow and warn ONCE. An unrecordable observation is a lost
@@ -503,6 +518,18 @@ module CurrentScope
       return nil unless model.is_a?(Class)
 
       model.name
+    end
+
+    # The one case where the row must say NOTHING rather than nil: the gate
+    # decided with a real class the ledger cannot NAME. A class is anonymous
+    # until it is assigned to a constant, and Class#name is nil until then.
+    # Recording nil would read as "the gate had no model here" — knowledge, not
+    # absence — so the report would re-ask the stricter question and print a
+    # false denial carrying neither the caveat nor the marker. Leaving the key
+    # out puts the row in the legacy population instead, which is re-checked the
+    # same way AND warned about (#196 review).
+    def unnameable_model?(record, model)
+      !record.equal?(NO_RECORD) && model.is_a?(Class) && model.name.nil?
     end
 
     # The failure this catches is PERSISTENT, not incidental: :report + audit

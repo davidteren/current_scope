@@ -184,7 +184,7 @@ namespace :current_scope do
     # Enumerable#count on a Struct. Held in a LOCAL, not a constant: this file
     # is loaded into a host application, and a gem's rake task has no business
     # defining a name as generic as Denial at the top level.
-    denial_row = Struct.new(:subject, :permission, :target, :denials, :record_less, :model,
+    denial_row = Struct.new(:subject_gid, :permission, :target_gid, :denials, :record_less, :model,
                             keyword_init: true)
 
     outstanding = []
@@ -202,6 +202,11 @@ namespace :current_scope do
     # so the report can say how much of its own list it cannot vouch for,
     # instead of letting an operator grant a whole controller to clear it.
     legacy_model = []
+    # #196 review: a record-less row whose recorded model name no longer loads
+    # is pushed to `unknown` BEFORE the resolver is asked, so no grant of any
+    # kind can move it off the list. It needs its own sentence, or the operator
+    # grants, sees no change, and loses faith in the count.
+    dead_model = []
     # Keyed on the TARGET too, not just subject and permission: a denial the host
     # will clear with a scoped grant on one record is a different question from
     # the same permission on another record, and collapsing them would re-ask
@@ -220,7 +225,7 @@ namespace :current_scope do
       [ subject_gid, hash["permission"], target_gid, hash["record_less"],
         hash.key?("model") ? hash["model"] : :absent ]
     }.each do |(subject_gid, permission, target_gid, recorded_flag, recorded_model), group|
-      pair = denial_row.new(subject: subject_gid, permission: permission, target: target_gid,
+      pair = denial_row.new(subject_gid: subject_gid, permission: permission, target_gid: target_gid,
                             denials: group.count, record_less: recorded_flag, model: recorded_model)
       if permission.nil?
         unknown << pair
@@ -302,6 +307,7 @@ namespace :current_scope do
       # which no grant can clear — the unreachable exit condition #190 fixed,
       # one layer down.
       model = nil
+      dead_model_name = false
       if record_less && recorded_model.is_a?(String)
         model = begin
           recorded_model.constantize
@@ -309,8 +315,8 @@ namespace :current_scope do
           nil
         end
         unless model.is_a?(Class)
-          unknown << pair
-          next
+          model = nil
+          dead_model_name = true
         end
       end
 
@@ -322,15 +328,32 @@ namespace :current_scope do
       end
       case still_denied
       when true
-        outstanding << pair
-        # Only a record-less row can turn on the model, so only those are worth
-        # qualifying. A legacy row WITH a record is answered identically either
-        # way, and naming it would inflate the caveat.
-        legacy_model << pair if recorded_model == :absent && record_less
+        # A DENY is the one answer the missing type could have changed, so a
+        # dead model name makes it cannot-tell rather than grant-this. An ALLOW
+        # needs no such caveat: every arm that can allow without a type allows
+        # with one too (#196 review).
+        if dead_model_name
+          unknown << pair
+          dead_model << pair
+        else
+          outstanding << pair
+          # Only a record-less row can turn on the model, so only those are
+          # worth qualifying. A legacy row WITH a record is answered identically
+          # either way, and naming it would inflate the caveat.
+          legacy_model << pair if recorded_model == :absent && record_less
+        end
       when false then resolved << pair
       else unknown << pair
       end
     end
+
+    answered_with_model = resolved.select { |denial| denial.model.is_a?(String) }
+                                  .to_set { |denial| [ denial.subject_gid, denial.permission, denial.target_gid ] }
+    superseded, outstanding = outstanding.partition do |denial|
+      denial.model == :absent && denial.record_less &&
+        answered_with_model.include?([ denial.subject_gid, denial.permission, denial.target_gid ])
+    end
+    legacy_model -= superseded
 
     dead_grants = []
     untargeted_grants = []
@@ -411,6 +434,11 @@ namespace :current_scope do
       "SoD actions that already RAISED (500, not grantable)" => initiator_rows.count
     }.reject { |_label, count| count.zero? }
 
+    # The grouping key has five parts, so one subject and permission can produce
+    # two entries (a legacy row and a modern one). The sentences below say
+    # "pair(s)", so they count pairs (#196 review).
+    resolved_pairs = resolved.map { |denial| [ denial.subject_gid, denial.permission ] }.uniq.count
+
     separate.call
     # `moot` is deliberately absent from `signals`: that list is the act-on-this
     # list and a moot denial needs no action. It still decides the headline: a
@@ -424,18 +452,18 @@ namespace :current_scope do
     else
       puts "CurrentScope report: nothing #{moot.any? ? 'to act on' : 'found'} in any category."
     end
-    if outstanding.empty? && unknown.empty? && (resolved.any? || moot.any?)
+    if outstanding.empty? && unknown.empty? && (resolved.any? || moot.any? || superseded.any?)
       puts
       if moot.any?
         # Two different units in one sentence, so each names its own: resolved
         # counts PAIRS (as the sentence below it always has), moot counts
         # DENIALS (the unit of the headline and of the unknown line).
-        puts "  Nothing recorded so far is still outstanding: #{resolved.count} subject/permission pair(s)"
+        puts "  Nothing recorded so far is still outstanding: #{resolved_pairs} subject/permission pair(s)"
         puts "  re-checked against live grants are granted, and #{moot.sum(&:denials)} recorded denial(s) name a"
         puts "  record that no longer loads."
       else
         puts "  Every would-be denial recorded so far is now granted " \
-             "(#{resolved.count} subject/permission pair(s) re-checked against live grants)."
+             "(#{resolved_pairs} subject/permission pair(s) re-checked against live grants)."
       end
       puts "  The ledger still lists them because it is append-only. That is the list"
       puts "  you were waiting to see empty; this is what empty looks like."
@@ -445,6 +473,12 @@ namespace :current_scope do
       puts "  #{unknown.sum(&:denials)} recorded denial(s) could not be re-checked, because the"
       puts "  subject, the record, the permission or the recorded model no longer resolves."
       puts "  They are counted as OUTSTANDING above: cannot tell is not the same as ready."
+      if dead_model.any?
+        puts
+        puts "  #{dead_model.sum(&:denials)} of those name a model class that no longer loads (renamed or removed)."
+        puts "  No grant can clear them, because the question cannot be asked. Exercise the"
+        puts "  action again in report mode and read the fresh row."
+      end
     end
     if moot.any?
       puts
@@ -452,13 +486,21 @@ namespace :current_scope do
       puts "  by a default scope). The gate can never be asked about that record again, so"
       puts "  they are NOT counted as outstanding."
     end
+    if superseded.any?
+      puts
+      puts "  #{superseded.sum(&:denials)} recorded denial(s) predate the stored model and have since been"
+      puts "  ASKED AGAIN: a newer row for the same subject, permission and target carried the"
+      puts "  gate's model and came back granted. The old row cannot clear itself, because the"
+      puts "  ledger is append-only, so it is answered here and left out of the count."
+    end
     if legacy_model.any?
       puts
       puts "  #{legacy_model.sum(&:denials)} of the outstanding denial(s) were recorded BEFORE this task stored the"
       puts "  model the gate used, so they were re-checked without one. That is the stricter"
       puts "  question: a subject a scoped grant admits through current_scope_model reads as"
-      puts "  denied here. Do NOT grant a permission to clear these. Exercise the action again"
-      puts "  in report mode and read the fresh row, or check one by hand with"
+      puts "  denied here. Some of them may be exactly that, and the row is too old to tell."
+      puts "  Do not grant on the strength of THIS line. Exercise the action again in report"
+      puts "  mode and read the fresh row, or check one by hand with"
       puts "  CurrentScope.resolver.decide(subject:, permission:, record: nil, model: TheModel)."
       puts "  A * in the list below marks a line that INCLUDES one; a marked line can also"
       puts "  hold denials recorded since, which is why the two numbers need not match."
@@ -515,7 +557,8 @@ namespace :current_scope do
     # caveat that gives a number and no way to tell which lines it covers leaves
     # the reader to guess, on a list where the wrong guess is a grant (#196
     # review).
-    print_permission_counts = lambda do |event_rows, subject_gid = nil, mark_keys = nil|
+    print_permission_counts = lambda do |event_rows, mark: nil|
+      subject_gid, mark_keys = mark
       event_rows
         .group_by { |_s, _l, details| details.is_a?(Hash) ? details["permission"] : nil }
         .transform_values(&:count)
@@ -539,7 +582,7 @@ namespace :current_scope do
     # and can be resolved), and a four-part key here would match BOTH ledger
     # rows and print a total the headline disagrees with.
     open_keys = (outstanding + unknown).to_set do |denial|
-      [ denial.subject, denial.permission, denial.target, denial.record_less, denial.model ]
+      [ denial.subject_gid, denial.permission, denial.target_gid, denial.record_less, denial.model ]
     end
     open_rows = rows.select do |subject_gid, _label, details, target_gid|
       hash = details.is_a?(Hash) ? details : {}
@@ -547,26 +590,30 @@ namespace :current_scope do
                            hash.key?("model") ? hash["model"] : :absent ])
     end
 
-    legacy_keys = legacy_model.to_set { |denial| [ denial.subject, denial.permission ] }
+    legacy_keys = legacy_model.to_set { |denial| [ denial.subject_gid, denial.permission ] }
 
     unless open_rows.empty?
       separate.call
       grouped = open_rows.group_by { |subject, _label, _details| subject }
 
       puts "Would-be denials still outstanding — grant these to stop them (most-denied first):"
+      if legacy_keys.any?
+        puts "  * = includes denial(s) re-checked without the gate's model. Do not grant on"
+        puts "      the strength of those; see the note above."
+      end
       puts
 
       grouped.each do |subject_gid, subject_rows|
         label = subject_rows.first[1].presence || subject_gid
         puts "  #{label}#{org_role_suffix.call(subject_gid)}"
-        print_permission_counts.call(subject_rows, subject_gid, legacy_keys)
+        print_permission_counts.call(subject_rows, mark: [ subject_gid, legacy_keys ])
         puts
       end
 
       puts "Total: #{open_rows.count} outstanding would-be denial(s) across " \
            "#{grouped.size} subject(s)."
       if resolved.any?
-        puts "#{resolved.count} more subject/permission pair(s) were recorded and are " \
+        puts "#{resolved_pairs} more subject/permission pair(s) were recorded and are " \
              "now granted; the ledger keeps them because it is append-only."
       end
     end

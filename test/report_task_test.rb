@@ -397,7 +397,7 @@ class ReportTaskTest < ActiveSupport::TestCase
     resolver&.singleton_class&.remove_method(:allow?)
   end
 
-  test "a recorded model that no longer resolves counts as unknown, never as allowed" do
+  test "a recorded model that no longer resolves is still asked, and a deny is unknown" do
     alice = User.create!(name: "Alice")
     would_deny_with_model(alice, "reports#index", "LongDeletedThing")
 
@@ -411,12 +411,33 @@ class ReportTaskTest < ActiveSupport::TestCase
 
     output = run_task
 
-    assert_empty asked, "a type we cannot load is not a question worth asking"
+    assert_equal 1, asked.size, "ask anyway: an allow without the type is an allow with it"
+    assert_nil asked.first[:model], "and ask it the only way left, without one"
     assert_match(/could not be re-checked/, output)
     assert_match(/would-be denials STILL ungranted/, output,
-      "cannot tell is not the same as ready")
+      "the DENY is the answer the missing type could have changed, so it is cannot-tell")
+    assert_match(/name a model class that no longer loads/, output,
+      "and this row has its own remedy: no grant can clear it, so say so")
   ensure
     resolver&.singleton_class&.remove_method(:allow?)
+  end
+
+  # The other half: a dead type name must not strand a subject the gate already
+  # allows. `model:` is read only by an allow arm, so an org-wide grant answers
+  # this with or without the type, and refusing to ask would leave the row on
+  # the grant-these list for ever, under a subject the same report labels as
+  # holding the role that clears it.
+  test "a dead model name does not strand a subject an org-wide grant already allows" do
+    alice = User.create!(name: "Alice")
+    role = CurrentScope::Role.create!(name: "Admin", full_access: true)
+    CurrentScope::RoleAssignment.create!(subject: alice, role: role)
+    would_deny_with_model(alice, "reports#index", "LongDeletedThing")
+
+    output = run_task
+
+    assert_no_match(/would-be denials STILL ungranted/, output,
+      "full_access answers this without needing the type at all")
+    assert_match(/nothing found in any category|Every would-be denial/, output)
   end
 
   test "a legacy row with no model is re-checked without one, and the report says so" do
@@ -437,8 +458,10 @@ class ReportTaskTest < ActiveSupport::TestCase
       "without a recorded type the record-less arm cannot fire — today's behaviour, unchanged")
     assert_match(/recorded BEFORE this task stored the/, output,
       "and the report must say which rows it cannot vouch for")
-    assert_match(/Do NOT grant a permission to clear these/, output,
+    assert_match(/Do not grant on the strength of THIS line/, output,
       "because the obvious reading of the list is the dangerous one")
+    assert_match(/\* = includes denial\(s\) re-checked without the gate's model/, output,
+      "and the legend belongs beside the list, under a header that says grant these")
   end
 
   # A legacy row and a row that recorded no model are DIFFERENT: nil is
@@ -466,7 +489,11 @@ class ReportTaskTest < ActiveSupport::TestCase
   # re-checks WITH the type and is resolved, the legacy one cannot and stays
   # outstanding. If the detail list keys on fewer things than the grouping does,
   # it matches both ledger rows and prints a total the headline disagrees with.
-  test "a legacy row and a modern row for the same key are counted once each" do
+  # The caveat tells the operator to exercise the action again and read the
+  # fresh row. The ledger is append-only, so the fresh row is a NEW group and
+  # the old one cannot clear itself: without this the advice moves nothing, and
+  # the only thing that does is the org-wide grant #196 exists to prevent.
+  test "a legacy row is answered by a fresher row that carried the model" do
     alice = User.create!(name: "Alice")
     report = Report.create!(title: "Q3", requested_by: alice)
     scope_grant(alice, role_with("reports#index"), report)
@@ -484,12 +511,37 @@ class ReportTaskTest < ActiveSupport::TestCase
 
     output = run_task
 
-    assert_match(/^\s+1\s+would-be denials STILL ungranted/, output,
-      "one legacy row outstanding; the modern row re-checks with the type and is granted")
-    assert_match(/Total: 1 outstanding would-be denial\(s\)/, output,
+    assert_no_match(/would-be denials STILL ungranted/, output,
+      "the question was asked again with the type and came back granted")
+    assert_match(/predate the stored model and have since been/, output)
+    assert_match(/ASKED AGAIN/, output)
+  end
+
+  # And when the fresher row is still DENIED there is nothing to supersede, so
+  # both rows stand. This is the case that pins the headline and the detail list
+  # on the same key: the grouping has five parts and the list must too.
+  test "a legacy row and a still-denied modern row are both counted, once each" do
+    alice = User.create!(name: "Alice")
+    base = {
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name
+    }
+    CurrentScope::Event.create!(**base, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true
+    })
+    CurrentScope::Event.create!(**base, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true,
+      "model" => "Report"
+    })
+
+    output = run_task
+
+    assert_match(/^\s+2\s+would-be denials STILL ungranted/, output,
+      "no grant exists, so neither row is answered")
+    assert_match(/Total: 2 outstanding would-be denial\(s\)/, output,
       "the list below the headline must count the same denials the headline does")
     assert_match(/reports#index \*/, output,
-      "and the one it lists is the legacy row, marked as the caveat says")
+      "and the line includes the legacy row, marked as the caveat says")
   end
 
   # #196 review — `model:` only changes the record-less arm, so a row that names

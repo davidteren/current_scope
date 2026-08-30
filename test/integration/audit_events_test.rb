@@ -99,6 +99,25 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     assert_equal "self", granted.details["attribution"]
   end
 
+  # #182 review — role.created and role.updated both carry full_access and the
+  # permission set. A role.deleted row carrying only a name cannot tell an
+  # auditor what access the deletion removed, which is the gap this event exists
+  # to close.
+  test "role.deleted records what the deletion removed, not just the name" do
+    doomed = CurrentScope::Role.create!(name: "Doomed", full_access: true)
+    doomed.permission_keys = [ "reports#index" ]
+    doomed.save!
+    only_from_here
+
+    doomed.destroy!
+
+    event = only_event
+    assert_equal "role.deleted", event.event
+    assert_equal "Doomed", event.details["name"]
+    assert_equal true, event.details["full_access"]
+    assert_equal [ "reports#index" ], event.details["permission_keys"]
+  end
+
   # #182 review — an assignment whose ROLE is gone. A foreign key stops that
   # happening on this schema, so the association is stubbed rather than the row
   # orphaned: a host without that constraint, or one whose cleanup script uses
@@ -122,8 +141,8 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
   # a host that asked for none; the seed that motivated this issue restores 187.
   test "no audit work happens at all when auditing is off" do
     report = Report.create!(title: "Q3", requested_by: @owner)
+    original_audit = CurrentScope.config.audit
     CurrentScope.config.audit = false
-    CurrentScope::ScopedRoleAssignment.define_singleton_method(:audit_probe) { true }
 
     grant = CurrentScope::ScopedRoleAssignment.new(subject: @member, resource: report, role: @member_role)
     grant.define_singleton_method(:audit_subject) { raise "resolved a record for a row nobody wanted" }
@@ -132,7 +151,9 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     assert_nothing_raised { grant.save! }
     assert_nothing_raised { grant.destroy! }
   ensure
-    CurrentScope.config.audit = true
+    # The ORIGINAL, not true: config.audit is tri-state, and flattening a
+    # :strict host to best-effort would change every later test in the run.
+    CurrentScope.config.audit = original_audit
   end
 
   # #182 review — the field is only useful if it is on every event. An auditor

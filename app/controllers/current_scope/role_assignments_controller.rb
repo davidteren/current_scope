@@ -176,7 +176,7 @@ module CurrentScope
 
       # Atomicity comes from create's outer bulk transaction (see clear_org_role).
       assignment.update!(role: new_role)
-      # source on both, so every event that CHANGES an authorization carries it
+      # attribution on both, so every event in this family carries it
       # and an auditor filtering on it cannot silently lose a whole class of
       # change. The gate's own observation events are outside that family and
       # deliberately carry none (#182 review).

@@ -82,8 +82,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `scoped_role.granted`, `scoped_role.revoked`, `org_role.removed` and
   `role.deleted` are emitted from model callbacks now rather than from the
   controllers, so every write path records the same row. Each carries
-  `details.attribution`, which says one thing and no more: `"actor"` when something
-  an ambient identity existed (`Current.actor` answers `super || user`, so a
+  `details.attribution`, which says one thing and no more: `"actor"` when an
+  ambient identity existed (`Current.actor` answers `super || user`, so a
   request, a job, an ambient user or a test helper all produce it), `"self"`
   when none did, in which case the row is self-attributed to the record it is
   about — the same shape `CurrentScope.grant!`'s bootstrap events already used.

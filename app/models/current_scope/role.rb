@@ -15,6 +15,12 @@ module CurrentScope
     # created by a seed leaves no row while its deletion does, and the
     # configuration guide says so (#182 review).
     include CurrentScope::AuditedWrites
+    # The snapshot is taken BEFORE, because `dependent: :delete_all` on
+    # role_permissions below is itself a before_destroy: by the time
+    # after_destroy runs, permission_keys reads empty and the row would say the
+    # deletion removed nothing. Declared above that association so it runs first
+    # (#182 review).
+    before_destroy :snapshot_for_audit
     after_destroy :record_role_deleted
 
     has_many :role_permissions, dependent: :delete_all
@@ -116,8 +122,19 @@ module CurrentScope
       @pending_permission_keys = nil
       @scrub_permission_keys = false
     end
+    def snapshot_for_audit
+      return unless CurrentScope.config.audit
+
+      @audit_snapshot = { name: name, full_access: full_access?,
+                          permission_keys: permission_keys }
+    end
+
+    # What the deletion REMOVED, not just its name: role.created and
+    # role.updated both carry full_access and the permission set, and an auditor
+    # reading only a name cannot tell what access went with it.
     def record_role_deleted
-      audit_write!("role.deleted", target: self, details: { name: name })
+      audit_write!("role.deleted", target: self,
+                                   details: @audit_snapshot || { name: name })
     end
   end
 end

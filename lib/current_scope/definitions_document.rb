@@ -314,7 +314,13 @@ module CurrentScope
         # was standing in for someone.
         if actor
           CurrentScope::Current.actor = actor
-          CurrentScope::Current.user = actor if CurrentScope::Current.attributes[:user].nil?
+          # `subject || actor`, not the actor: apply takes an effective subject
+          # too, and definitions.applied uses it. Installing the actor as the
+          # user would make the callback rows say the operator acted as
+          # themselves while that row says otherwise (#182 review).
+          if CurrentScope::Current.attributes[:user].nil?
+            CurrentScope::Current.user = subject || actor
+          end
         end
         begin
           Role.transaction do

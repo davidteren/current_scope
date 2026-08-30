@@ -1,0 +1,25 @@
+UPGRADING.md
+  s_240773ee81a9c0::t_9d708813f1c732 114-116
+lib/current_scope/schema_guard.rb
+  s_240773ee81a9c0::t_84bd7afd4d5c9a 91-105,110-115,182-187,204
+docs/site/upgrading.md
+  s_240773ee81a9c0::t_9d708813f1c732 73-75
+test/uuid_key_collision_test.rb
+  s_240773ee81a9c0::t_9d708813f1c732 249-255
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "5ba8da566e4131a7ce70898984e60b897ce54c7b",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

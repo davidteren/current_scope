@@ -182,10 +182,10 @@ module CurrentScope
       # deliberately carry none (#182 review).
       if prior_role.nil?
         Event.record!(event: "org_role.assigned", target: subject,
-                      details: { role: new_role.name, source: "actor" })
+                      details: { role: new_role.name, attribution: "actor" })
       elsif prior_role.id != new_role.id
         Event.record!(event: "org_role.changed", target: subject,
-                      details: { from: prior_role.name, to: new_role.name, source: "actor" })
+                      details: { from: prior_role.name, to: new_role.name, attribution: "actor" })
       end
       # same role re-set ⇒ no change ⇒ no event
       changed

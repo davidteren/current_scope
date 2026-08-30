@@ -29,19 +29,32 @@ module CurrentScope
     # with a GlobalID, and a seed has no human behind it, so the write is
     # self-attributed to the record it is about.
     #
-    # `source` says which of those two it was, and NOTHING MORE. "actor" means
+    # `attribution`, NOT `source`: this ledger already uses `details["source"]`
+    # for two other things — the file path a definitions document came from, and
+    # "bootstrap" on CurrentScope.grant!'s rows — so a third meaning on nine more
+    # event types would leave an auditor unable to filter on any of them (#182
+    # review).
+    #
+    # It says which of the two attributions this row took, and NOTHING MORE.
+    # "actor" means
     # an ambient IDENTITY existed — Current.actor answers `super || user`, so a
     # request, a job, with_current_user in a test, or simply an ambient user all
     # produce it — and "self" means none did. Calling it "request" would be a
     # claim this code cannot make, and an auditor filtering on it would get a
     # wrong set (#182 review).
     def audit_write!(event, target:, details: {})
+      # Event.record! returns nil when auditing is off, but the CALLER has
+      # already resolved the subject and the resource label to get here — two
+      # queries per grant, on a host that asked for none. The seed that motivated
+      # this issue restores 187 grants (#182 review).
+      return unless CurrentScope.config.audit
+
       actor = CurrentScope::Current.actor
 
       CurrentScope::Event.record!(
         event: event,
         target: target,
-        details: details.merge(source: actor ? "actor" : "self"),
+        details: details.merge(attribution: actor ? "actor" : "self"),
         actor: actor || target
       )
     end

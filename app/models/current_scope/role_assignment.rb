@@ -70,6 +70,8 @@ module CurrentScope
     private
 
     def record_org_role_removed
+      return unless CurrentScope.config.audit
+
       subject_record = current_scope_resolved_record("subject") || self
       audit_write!("org_role.removed", target: subject_record, details: { role: role.name })
     end

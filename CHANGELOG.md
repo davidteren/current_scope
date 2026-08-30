@@ -82,11 +82,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `scoped_role.granted`, `scoped_role.revoked`, `org_role.removed` and
   `role.deleted` are emitted from model callbacks now rather than from the
   controllers, so every write path records the same row. Each carries
-  `details.source`, which says one thing and no more: `"actor"` when something
-  had set `CurrentScope::Current.actor` (a request, but also a job or a test
-  helper), `"self"` when nothing had, in which case the row is self-attributed
-  to the record it is about — the same shape `CurrentScope.grant!`'s bootstrap
-  events already used.
+  `details.attribution`, which says one thing and no more: `"actor"` when something
+  an ambient identity existed (`Current.actor` answers `super || user`, so a
+  request, a job, an ambient user or a test helper all produce it), `"self"`
+  when none did, in which case the row is self-attributed to the record it is
+  about — the same shape `CurrentScope.grant!`'s bootstrap events already used.
+  The key is `attribution` rather than `source` because `details["source"]`
+  was already taken twice, by `grant!`'s `"bootstrap"` and by the file path on
+  `definitions.applied`.
 
   The callbacks run INSIDE the transaction, so `config.audit = :strict` still
   rolls a mutation back when its audit row cannot be written.

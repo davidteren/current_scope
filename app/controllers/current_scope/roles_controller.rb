@@ -20,7 +20,7 @@ module CurrentScope
           Event.record!(event: "role.created", target: @role,
                         details: { name: @role.name, full_access: @role.full_access?,
                                    permission_keys: @role.permission_keys,
-                                   source: "actor" })
+                                   attribution: "actor" })
         end
       end
 
@@ -167,7 +167,7 @@ module CurrentScope
         event = "role.renamed"
         details.merge!(old_name: previous_name, new_name: role.name)
       end
-      Event.record!(event: event, target: role, details: details.merge(source: "actor"))
+      Event.record!(event: event, target: role, details: details.merge(attribution: "actor"))
     end
 
     # The guard answers a bare true for two different reasons. Telling them apart

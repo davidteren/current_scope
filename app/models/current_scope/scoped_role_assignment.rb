@@ -119,14 +119,16 @@ module CurrentScope
     private_class_method :mark_resources_loaded
     private
 
-    def record_scoped_role_granted
-      audit_write!("scoped_role.granted", target: audit_subject,
-                                          details: { role: role.name, resource: audit_resource_label })
-    end
+    def record_scoped_role_granted = record_scoped_role_audit("scoped_role.granted")
+    def record_scoped_role_revoked = record_scoped_role_audit("scoped_role.revoked")
 
-    def record_scoped_role_revoked
-      audit_write!("scoped_role.revoked", target: audit_subject,
-                                          details: { role: role.name, resource: audit_resource_label })
+    # The guard first: audit_subject and audit_resource_label each resolve a
+    # polymorphic record, and a host with auditing off should pay for neither.
+    def record_scoped_role_audit(event)
+      return unless CurrentScope.config.audit
+
+      audit_write!(event, target: audit_subject,
+                          details: { role: role.name, resource: audit_resource_label })
     end
   end
 end

@@ -120,7 +120,7 @@ Since #182 the ledger no longer depends on which door a change came through.
 console one-liner and the `grant_scoped_role!` test helper all record what the
 management UI records. (`grant_role!` is a direct `RoleAssignment.create!`, and
 org-role creation is one of the two writes named below as still unrecorded.)
-Every event that CHANGES an authorization carries `details.source` —
+Every event that CHANGES an authorization carries `details.attribution` —
 `org_role.assigned`, `org_role.changed`, `org_role.removed`, `role.created`,
 `role.updated`, `role.renamed`, `role.deleted`, `scoped_role.granted` and
 `scoped_role.revoked`. It is `"actor"` when an ambient identity existed
@@ -129,11 +129,19 @@ or `with_current_user` in a test all produce it), `"self"` when none did, in
 which case the row is self-attributed to the record it is about, and
 `"bootstrap"` from `CurrentScope.grant!`.
 
-The OBSERVATION events carry no source and are not meant to:
+It is `attribution` and not `source` because `details["source"]` was already
+taken, twice and for different things: `CurrentScope.grant!` writes
+`source: "bootstrap"`, and `definitions.applied` / `definitions.rolled_back`
+write the file path the document came from. Filter on `attribution` to isolate
+who was behind an authorization change; filter on `source` for neither.
+
+The OBSERVATION events carry no attribution and are not meant to:
 `impersonation.started` / `.stopped`, `sod.bypassed`, `access.would_deny`,
 `access.sod_blind_spot` and `access.sod_initiator_missing` record what happened
-at the gate rather than a change to a grant. Filter on `source` to isolate
-authorization CHANGES; do not read its absence as "not a human".
+at the gate rather than a change to a grant. The two definitions events are
+authorization changes and carry no `attribution` either — their actor is the
+one the document was applied with. Do not read an absent `attribution` as
+"not a human".
 
 Two CREATIONS are still not recorded, and both are deliberate. A direct
 `RoleAssignment.create!` records nothing, because `CurrentScope.grant!` is the

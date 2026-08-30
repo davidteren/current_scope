@@ -295,7 +295,18 @@ module CurrentScope
         # explicit actor. Current itself names that hazard, and TestHelpers
         # avoids it the same way this does.
         previous_current = CurrentScope::Current.attributes.dup
-        CurrentScope::Current.actor = actor if actor
+        # BOTH, not just the actor. Event.record! falls back to
+        # `subject ||= Current.user || actor`, and this ledger defines actor !=
+        # subject as an impersonated row. Setting only the actor inside a request
+        # where a different admin is signed in would stamp every row this import
+        # causes as impersonation, while the definitions.applied row written in
+        # the same transaction pins both and would not — one transaction
+        # disagreeing with itself (#182 review). The import acts AS the operator,
+        # so the ambient identity says so on both axes.
+        if actor
+          CurrentScope::Current.actor = actor
+          CurrentScope::Current.user = actor
+        end
         begin
           Role.transaction do
             planned_fa = @roles.select(&:full_access).map(&:name)

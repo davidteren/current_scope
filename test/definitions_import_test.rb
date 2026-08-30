@@ -64,8 +64,42 @@ class DefinitionsImportTest < ActiveSupport::TestCase
     deleted.each do |event|
       assert_equal @actor.to_gid.to_s, event.actor,
         "the operator identified themselves with ACTOR_ID; the row must name them"
-      assert_equal "actor", event.details["source"]
+      assert_equal "actor", event.details["attribution"]
     end
+  end
+
+  # #182 review — an import called from a REQUEST, where a different admin is
+  # signed in. Setting only the actor would leave every row the import causes
+  # with actor != subject, which this ledger defines as impersonation, while the
+  # definitions.applied row in the same transaction pins both and would not.
+  test "an import inside a request does not stamp its rows as impersonation" do
+    CurrentScope::Role.create!(name: "Retired")
+    yaml = <<~YAML
+      apiVersion: current_scope/definitions-v1
+      roles:
+      - name: Owner
+        description: ""
+        full_access: true
+        permission_keys: []
+      - name: Editor
+        description: ""
+        full_access: false
+        permission_keys:
+        - reports#index
+    YAML
+
+    with_current_user(User.create!(name: "Signed in admin")) do
+      CurrentScope::Event.delete_all
+      CurrentScope.import_definitions(yaml, actor: @actor, confirm: true, snapshot_path: snapshot_path)
+    end
+
+    deleted = CurrentScope::Event.find_by(event: "role.deleted")
+    assert deleted, "Retired is dropped by this document"
+    assert_equal deleted.actor, deleted.subject,
+      "actor != subject is what this ledger calls impersonation, and nobody impersonated anyone"
+    applied = CurrentScope::Event.find_by(event: "definitions.applied")
+    assert_equal applied.actor, deleted.actor,
+      "one transaction must not disagree with itself about who did this"
   end
 
   # And nothing about that swap outlives the call.

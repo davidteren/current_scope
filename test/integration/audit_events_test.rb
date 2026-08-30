@@ -62,7 +62,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     assert_equal @member.to_gid.to_s, event.target
     assert_equal "Member", event.details["role"]
     assert_equal "Q3", event.details["resource"]
-    assert_equal "self", event.details["source"],
+    assert_equal "self", event.details["attribution"],
       "nothing had set an ambient actor, so the row is attributed to the grantee"
   end
 
@@ -96,13 +96,32 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
 
     granted = CurrentScope::Event.where(event: "scoped_role.granted").last
     assert granted, "the restoration has to be in the ledger, or the revocations read as final"
-    assert_equal "self", granted.details["source"]
+    assert_equal "self", granted.details["attribution"]
+  end
+
+  # #182 review — with auditing off, a grant write must do NO audit work at all,
+  # not merely discard the row at the end. Each recorder resolves a polymorphic
+  # subject and a resource label to build one, which is two queries per grant on
+  # a host that asked for none; the seed that motivated this issue restores 187.
+  test "no audit work happens at all when auditing is off" do
+    report = Report.create!(title: "Q3", requested_by: @owner)
+    CurrentScope.config.audit = false
+    CurrentScope::ScopedRoleAssignment.define_singleton_method(:audit_probe) { true }
+
+    grant = CurrentScope::ScopedRoleAssignment.new(subject: @member, resource: report, role: @member_role)
+    grant.define_singleton_method(:audit_subject) { raise "resolved a record for a row nobody wanted" }
+    grant.define_singleton_method(:audit_resource_label) { raise "built a label for a row nobody wanted" }
+
+    assert_nothing_raised { grant.save! }
+    assert_nothing_raised { grant.destroy! }
+  ensure
+    CurrentScope.config.audit = true
   end
 
   # #182 review — the field is only useful if it is on every event. An auditor
   # filtering for human-driven changes must not silently lose org-role
   # assignments and role edits because those emitters predate it.
-  test "every event that changes an authorization carries a source" do
+  test "every event that changes an authorization carries an attribution" do
     report = Report.create!(title: "Q3", requested_by: @owner)
     other = User.create!(name: "Other")
     only_from_here
@@ -121,8 +140,8 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     changes.each do |name|
       event = CurrentScope::Event.find_by(event: name)
       assert event, "expected a #{name} row from this arrangement"
-      assert event.details["source"].present?,
-        "#{name} carries no source, so a filter on it would lose this row"
+      assert event.details["attribution"].present?,
+        "#{name} carries no attribution, so a filter on it would lose this row"
     end
   end
 
@@ -134,7 +153,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
       subject_gid: @member.to_gid.to_s, resource_gid: report.to_gid.to_s, role_id: @member_role.id
     }
 
-    assert_equal "actor", only_event.details["source"],
+    assert_equal "actor", only_event.details["attribution"],
       "the request set CurrentScope::Current.actor; the field claims no more than that"
   end
 

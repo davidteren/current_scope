@@ -78,6 +78,14 @@
     </p>
   <% end %>
 
+  <%# Anchors an unregistered deep-linked type across a change of record: the
+      type cannot be resolved from its name, only from a record. Outside the
+      case for the same reason the submit is: the states that render nothing
+      else are the ones an operator most needs to get back out of (#183 review). %>
+  <% if @type_anchor_gid %>
+    <%= hidden_field_tag :linked_gid, @type_anchor_gid, form: "cs-cascade" %>
+  <% end %>
+
   <%# Two different empties (#183 review): nothing registered at all, and
       everything registered withheld because it does not accept the chosen role.
       Both give way to a deep link that DID resolve a type: a type reached by
@@ -103,11 +111,6 @@
         may be granted on them, and <strong><%= role_name %></strong>
         is not one. Pick a different role to see them.
       </p>
-    <% end %>
-    <%# Anchors an unregistered deep-linked type across a change of record: the
-        type cannot be resolved from its name, only from a record (#183 review). %>
-    <% if @type_anchor_gid %>
-      <%= hidden_field_tag :linked_gid, @type_anchor_gid, form: "cs-cascade" %>
     <% end %>
     <p>
       <%= label_tag :resource_type, "Resource type" %>

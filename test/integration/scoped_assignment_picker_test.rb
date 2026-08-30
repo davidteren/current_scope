@@ -506,6 +506,24 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_select "select[name=resource_gid] option[value=?]", report.to_gid.to_s
   end
 
+  # The states that render nothing else are the ones an operator most needs to
+  # get back out of, so the anchor outlives them too (#183 review).
+  test "the linked type is still anchored when no type accepts the chosen role" do
+    folder = Folder.create!(name: "Q3 Ledger")
+    declare_grantable_roles(Folder, [ "Owner" ])
+
+    # Folder is not in this list, so it stands in for a type reached only by
+    # link, and it refuses the role — as does the one registered type.
+    with_scopeable_resources([ picky_type ]) do
+      get current_scope.new_scoped_role_assignment_path(
+        role_id: @member_role.id, resource_gid: folder.to_gid.to_s
+      ), headers: as(@owner)
+
+      assert_select "#cs_types_none_accept"
+      assert_select "input[name=linked_gid][value=?]", folder.to_gid.to_s
+    end
+  end
+
   # The Grant button posts what the operator can SEE selected. A resource_gid
   # survives every autosubmit, so an earlier pick must not ride along after the
   # role or the type moves on (#183 review).

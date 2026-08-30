@@ -52,13 +52,18 @@
 <% end %>
 
 <turbo-frame id="cascade">
+  <%# Every sentence below that names the role runs only when a role IS chosen —
+      each flag the controller sets is computed from one. Reading the name once,
+      nil-safe, keeps that coupling in view instead of in six dereferences
+      (#183 review). %>
+  <% role_name = @selected_role&.name %>
   <%# Two different empties (#183 review): nothing registered at all, and
       everything registered withheld because it does not accept the chosen role.
       Sending the second reader to "add include CurrentScope::Scopeable" is
       advice that cannot help them. %>
-  <% if @scopeable.empty? && @all_scopeable.any? %>
+  <% if @scopeable.empty? && @all_scopeable.any? && role_name %>
     <p class="cs-alert cs-picker-empty">
-      No resource type accepts <strong><%= @selected_role.name %></strong>.
+      No resource type accepts <strong><%= role_name %></strong>.
       Each registered type declares which roles may be granted on it, and none
       lists this one. Pick a different role.
     </p>
@@ -77,10 +82,10 @@
       end
     %>
     <% withheld = @all_scopeable.size - @scopeable.size %>
-    <% if withheld.positive? %>
+    <% if withheld.positive? && role_name %>
       <p class="cs-hint">
         <%= pluralize(withheld, "type") %> not listed: they declare which roles
-        may be granted on them, and <strong><%= @selected_role.name %></strong>
+        may be granted on them, and <strong><%= role_name %></strong>
         is not one. Pick a different role to see them.
       </p>
     <% end %>
@@ -92,10 +97,10 @@
             data: { current_scope_autosubmit: true } %>
     </p>
 
-    <% if @refused_resource %>
+    <% if @refused_resource && role_name %>
       <p class="cs-hint cs-picker-empty">
         The linked <strong><%= current_scope_label(@refused_resource) %></strong>
-        is not in the list: <strong><%= @selected_role.name %></strong> may not be
+        is not in the list: <strong><%= role_name %></strong> may not be
         granted on it. Pick a different role, or a different record.
       </p>
     <% end %>
@@ -105,7 +110,7 @@
           the scanned window: with an indexed scope a grantable record can sit
           past it, while the fallback scan would re-read the very rows the empty
           list came from (#183 review). %>
-      <% if @searchable && (@records.present? || @indexed_search) %>
+      <% if @searchable && (@records.present? || @indexed_search || params[:q].present?) %>
         <p>
           <%= label_tag :q, "Search records" %>
           <%= search_field_tag :q, params[:q], placeholder: "Filter by label",
@@ -117,13 +122,16 @@
           <%# Two different empties again: none exist, and none of the ones that
               exist accept this role (an STI table holds records of several
               classes, each with its own declaration). %>
-          <% if @records_withheld && @searchable && @indexed_search %>
+          <%# "looked at", never "none": the role filter runs over the SCANNED
+              rows, so a grantable record can sit past the window. %>
+          <% if @records_withheld && role_name && @searchable && @indexed_search %>
             None of the <%= @resource_type.model_name.human.pluralize.downcase %>
-            looked at accept <strong><%= @selected_role.name %></strong>. Search
+            looked at accept <strong><%= role_name %></strong>. Search
             for one, or pick a different role.
-          <% elsif @records_withheld %>
-            No <%= @resource_type.model_name.human.pluralize.downcase %> accept
-            <strong><%= @selected_role.name %></strong>. Pick a different role.
+          <% elsif @records_withheld && role_name %>
+            None of the <%= @resource_type.model_name.human.pluralize.downcase %>
+            looked at accept <strong><%= role_name %></strong>. Pick a different
+            role.
           <% else %>
             No <%= @resource_type.model_name.human.pluralize.downcase %> to pick from yet.
           <% end %>
@@ -149,11 +157,11 @@
                 query matched nothing, and must not fake a "matches shown". %>
             <% if @records.blank? %>
               <span class="cs-hint cs-picker-empty">
-                <% if @records_withheld %>
+                <% if @records_withheld && role_name %>
                   <%# The search DID match — a different search is the one thing
                       that cannot help. Say which pick to change. %>
                   No match for “<%= params[:q] %>” accepts
-                  <strong><%= @selected_role.name %></strong> — pick a different role.
+                  <strong><%= role_name %></strong> — pick a different role.
                 <% else %>
                   No records match “<%= params[:q] %>” — try a different search.
                 <% end %>

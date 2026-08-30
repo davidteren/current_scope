@@ -114,7 +114,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
           headers: as(@owner)
 
-      assert_match(/No documents accept/, response.body)
+      assert_match(/None of the documents\s+looked at accept/, response.body)
       assert_match(/Member/, response.body)
       assert_no_match(/to pick from yet/, response.body,
                       "there ARE documents — blaming an empty table sends the operator to create one")
@@ -148,7 +148,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_select "input[type=hidden][name=resource_gid]", count: 0,
                     message: "a Grant button under the hint saying no record accepts the role is the dead end"
-      assert_match(/No documents accept/, response.body)
+      assert_match(/None of the documents\s+looked at accept/, response.body)
     end
   end
 
@@ -273,7 +273,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
           headers: as(@owner)
 
       assert_select "input[name=q]", count: 0
-      assert_match(/No documents accept/, response.body)
+      assert_match(/None of the documents\s+looked at accept/, response.body)
       assert_no_match(/Search\s+for one/, response.body)
     end
   end
@@ -406,6 +406,9 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
     assert_match "No records match", response.body
     assert_no_match(/Showing up to \d+ matches/, response.body)
+    # The field that holds the query stays, or the advice to change it is
+    # unreachable.
+    assert_select "input[name=q]", count: 1
   end
 
   # The deep-linked record is prepended to the options so it stays selectable —

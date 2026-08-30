@@ -55,7 +55,12 @@ class RepairSchemaTaskTest < ActiveSupport::TestCase
       "the widening must be executed against the grant models' pool, which is the " \
       "database the boot refusal names"
   ensure
-    tasks&.singleton_class&.send(:remove_method, :migration_connection)
+    # Guarded: an ensure that raises would replace the assertion failure this
+    # test exists to report with a NoMethodError about the cleanup (#194 review).
+    if tasks&.singleton_class&.method_defined?(:migration_connection) ||
+       tasks&.singleton_class&.private_method_defined?(:migration_connection)
+      tasks.singleton_class.send(:remove_method, :migration_connection)
+    end
   end
 
   test "it leaves every grant id and type column in the shape #151 requires" do

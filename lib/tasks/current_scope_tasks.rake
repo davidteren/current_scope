@@ -32,7 +32,13 @@ namespace :current_scope do
     # database while the one the boot refusal named stayed unrepaired, and boot
     # kept failing — and the refusal now names that database, so the promise is
     # explicit.
-    CurrentScope::RoleAssignment.connection_pool.with_connection do |conn|
+    # The ENGINE's own base, not one concrete model: this migration alters both
+    # grant tables, and CurrentScope::RoleAssignment and ScopedRoleAssignment
+    # both inherit CurrentScope::ApplicationRecord, so its pool is the one that
+    # holds them. A host that repoints only one of the two concrete models is
+    # past what a single pass can repair, and the boot refusal names the
+    # database it judged so they can see which one is still wrong.
+    CurrentScope::ApplicationRecord.connection_pool.with_connection do |conn|
       migration.exec_migration(conn, :up)
     end
 

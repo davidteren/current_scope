@@ -256,10 +256,10 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       # run it, and a database built FROM schema.rb where db:migrate has nothing
       # pending. One assertion each, because a reader who finds only their own
       # case named will run the nearest command instead.
-      assert_match(/RAILS_ENV=development bin\/rails current_scope:install:migrations/,
+      assert_match(/current_scope:install:migrations && bin\/rails db:migrate` in your\s+development checkout/m,
                    error.message, "not installed yet: the path that also updates schema.rb")
-      assert_match(/RAILS_ENV=development bin\/rails db:migrate/, error.message,
-                   "and named, because a shell with RAILS_ENV exported would run it elsewhere")
+      assert_match(/No RAILS_ENV on that one/, error.message,
+                   "because that path is about the checkout, not about this database")
       assert_match(/RAILS_ENV=test bin\/rails db:migrate/, error.message,
                    "installed but not run here: plain db:migrate, against THIS database")
       assert_match(/RAILS_ENV=test bin\/rails current_scope:repair_schema/, error.message,

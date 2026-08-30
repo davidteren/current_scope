@@ -91,12 +91,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   now names the environment and the connection's database, and prefixes the
   command with `RAILS_ENV=` wherever that is not the default.
 
-  `current_scope:repair_schema` also repairs the database the refusal names.
-  It ran the widening through `Migration#migrate`, which goes to
+  `current_scope:repair_schema` also repairs the engine's own database. It ran
+  the widening through `Migration#migrate`, which goes to
   `ActiveRecord::Tasks::DatabaseTasks.migration_connection` — the DEFAULT
   database. A host with the engine's tables on a second connection watched the
   task report success against the wrong database while boot kept failing on the
-  right one. It executes against the grant models' pool now.
+  right one. It executes against `CurrentScope::ApplicationRecord`'s pool now,
+  the base both grant models inherit.
 
   The integer-column refusal now names three paths and says which is which,
   because it has three audiences. A host who has never installed the widening

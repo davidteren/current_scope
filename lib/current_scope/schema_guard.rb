@@ -117,10 +117,11 @@ module CurrentScope
             "UUID — two subjects collapse into one identity and one inherits the " \
             "other's roles (#151). Which command depends on where this database came " \
             "from. If the widening migration is not in db/migrate yet, run " \
-            "`RAILS_ENV=development bin/rails current_scope:install:migrations && " \
-            "RAILS_ENV=development bin/rails db:migrate`: that is the path that also " \
-            "updates schema.rb, so CI and your " \
-            "teammates get the same shape. If it is installed but has not run here, run " \
+            "`bin/rails current_scope:install:migrations && bin/rails db:migrate` in your " \
+            "development checkout, then commit the migration and deploy it: that path also " \
+            "updates schema.rb, so CI and your teammates and this server all get the same " \
+            "shape. No RAILS_ENV on that one, because it is about your checkout and not " \
+            "about this database. If it is installed but has not run here, run " \
             "`#{env_prefix}bin/rails db:migrate`. If this database was BUILT from " \
             "schema.rb, every version is stamped and db:migrate has nothing pending: run " \
             "`#{env_prefix}bin/rails current_scope:repair_schema`."
@@ -229,7 +230,19 @@ module CurrentScope
     # the engine's tables on a second connection would otherwise be judged by the
     # wrong server's collation rules.
     def self.mysql?
-      CurrentScope.mysql_adapter?(CurrentScope::RoleAssignment.connection_pool.db_config.adapter)
+      config = CurrentScope::RoleAssignment.connection_pool.db_config
+      # BOTH names, ORed, and that is fail-closed on purpose (#194 review).
+      # `CurrentScope.mysql?` elsewhere reads the adapter CLASS name, while a
+      # db_config knows the key from database.yml. They agree for every common
+      # adapter, and where they could not, the cost of disagreeing is a skipped
+      # collation check — silent, with the #151 case-folding escalation left
+      # live. So ask for both and treat either as yes.
+      class_name = begin
+        config.adapter_class.name
+      rescue StandardError
+        nil
+      end
+      CurrentScope.mysql_adapter?(config.adapter) || CurrentScope.mysql_adapter?(class_name)
     end
 
     # Rake tasks that may BOOT even against an unrepaired schema.

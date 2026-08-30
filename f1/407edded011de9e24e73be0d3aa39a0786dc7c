@@ -1,0 +1,36 @@
+app/controllers/current_scope/scoped_role_assignments_controller.rb
+  s_240773ee81a9c0::t_a48a6129481ef9 32-37,161
+  s_240773ee81a9c0::t_de0e5b5e5ec7dc 94
+  s_240773ee81a9c0::t_073df8e43d325d 160
+app/views/current_scope/scoped_role_assignments/new.html.erb
+  s_240773ee81a9c0::t_d6bf13a9bcf320 55-65
+test/grantable_roles_test.rb
+  s_240773ee81a9c0::t_89e77a3bb95445 104-125
+app/models/current_scope/scoped_role_assignment.rb
+  s_240773ee81a9c0::t_de0e5b5e5ec7dc 116-117,120-125
+test/integration/scoped_assignment_picker_test.rb
+  s_240773ee81a9c0::t_f93f0c1dda066b 28-39,44,80
+  s_240773ee81a9c0::t_d6bf13a9bcf320 57-67,69-78
+  s_240773ee81a9c0::t_aa600bf4cfd225 79
+lib/current_scope/grantable_roles.rb
+  s_240773ee81a9c0::t_de0e5b5e5ec7dc 32-36,48-62
+  s_240773ee81a9c0::t_596df81df2a728 63
+docs/guides/checking-permissions.md
+  s_240773ee81a9c0::t_ea5742af3a31fd 263-300
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "f1407edded011de9e24e73be0d3aa39a0786dc7c",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

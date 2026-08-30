@@ -9,6 +9,19 @@ require "test_helper"
 # SUPPORTED rather than refused. These tests assert that support, and pin the
 # column type so a narrowing migration could never pass quietly.
 class UuidKeyCollisionTest < ActiveSupport::TestCase
+  # #193 — every refusal prescribes a command, and a command with no environment
+  # runs against development. A host who migrated development and then met this
+  # on `bin/rails test` was told to run what they had just run. The message has
+  # to name the database it judged and the environment to name on the command
+  # line.
+  def assert_guard_names_the_database(message)
+    name = CurrentScope::RoleAssignment.connection.pool.db_config.database
+    assert_includes message, "on the #{Rails.env} database #{name.inspect}",
+      "the refusal must say WHICH database failed"
+    assert_includes message, "RAILS_ENV=#{Rails.env} bin/rails",
+      "and the command it prescribes must run against that same one"
+  end
+
   ALICE_ID = "7f00aaaa-1111-4111-8111-aaaaaaaaaaaa".freeze
   BOB_ID   = "7f00bbbb-2222-4222-8222-bbbbbbbbbbbb".freeze
 
@@ -232,7 +245,11 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
         CurrentScope::SchemaGuard.check!
       end
       assert_match(/still integer/, error.message)
-      assert_match(/db:migrate/, error.message, "the message must name the fix")
+      assert_guard_names_the_database(error.message)
+      assert_match(/repair_schema/, error.message,
+                   "NOT install:migrations && db:migrate (#193): a schema-loaded database " \
+                   "has every version stamped, so db:migrate finds nothing pending")
+      assert_no_match(/db:migrate` to widen/, error.message)
     ensure
       CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
     end
@@ -257,6 +274,7 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       assert_match(/subject_type/, error.message,
                    "the id columns are already correct — the TYPE column is what is still folding case")
       assert_match(/utf8mb4_0900_ai_ci/, error.message)
+      assert_guard_names_the_database(error.message)
     ensure
       CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
     end
@@ -274,7 +292,27 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       error = assert_raises(CurrentScope::ConfigurationError) do
         CurrentScope::SchemaGuard.check!
       end
-      assert_match(/collation could not be read/, error.message)
+      assert_match(/collation that could not be read/, error.message)
+      assert_guard_names_the_database(error.message)
+      assert_match(/repair_schema/, error.message, "the message must name the fix")
+    ensure
+      CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
+    end
+  end
+
+  # #193 — the fifth refusal, and the one with no test until now. A nullable id
+  # column means a grant that names no record, which the resolver cannot match
+  # and the operator cannot see.
+  test "the boot check refuses a nullable id column, and says which database" do
+    column = Struct.new(:type, :limit, :collation, :null)
+    nullable = { "subject_id" => column.new(:string, CurrentScope::KEY_LIMIT, nil, true) }
+    CurrentScope::RoleAssignment.define_singleton_method(:columns_hash) { nullable }
+    begin
+      error = assert_raises(CurrentScope::ConfigurationError) do
+        CurrentScope::SchemaGuard.check!
+      end
+      assert_match(/allows NULL/, error.message)
+      assert_guard_names_the_database(error.message)
       assert_match(/repair_schema/, error.message, "the message must name the fix")
     ensure
       CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
@@ -293,6 +331,7 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
         CurrentScope::SchemaGuard.check!
       end
       assert_match(/holds 32 characters/, error.message)
+      assert_guard_names_the_database(error.message)
       assert_match(/repair_schema/, error.message, "the message must name the fix")
     ensure
       CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)

@@ -71,29 +71,36 @@ module CurrentScope
         # is unbounded and therefore wide enough.
         if !info.limit.nil? && info.limit < CurrentScope::KEY_LIMIT
           raise ConfigurationError,
-                "#{model.table_name}.#{column} holds #{info.limit} characters; CurrentScope " \
+                "#{column_label(model, column)} holds #{info.limit} characters; CurrentScope " \
                 "needs #{CurrentScope::KEY_LIMIT}. A UUID is 36 and a narrower column would " \
                 "truncate it, so two keys sharing a prefix would name one record (#151). Run " \
-                "`bin/rails current_scope:repair_schema` to widen it."
+                "`#{env_prefix}bin/rails current_scope:repair_schema` to widen it."
         end
 
         if info.respond_to?(:null) && info.null
           raise ConfigurationError,
-                "#{model.table_name}.#{column} allows NULL, so a grant may fail to name " \
-                "one record. Run `bin/rails current_scope:repair_schema` to restore the " \
-                "required NOT NULL constraint (#151)."
+                "#{column_label(model, column)} allows NULL, so a grant may fail to name " \
+                "one record. Run `#{env_prefix}bin/rails current_scope:repair_schema` to " \
+                "restore the required NOT NULL constraint (#151)."
         end
 
         check_collation!(model, column) if mysql?
         return
       end
 
+      # NOT `install:migrations && db:migrate` (#193). That pair cannot repair a
+      # database built from schema.rb — every migration version is already
+      # stamped, so db:migrate finds nothing pending — and a schema-loaded test
+      # database is exactly where a host meets this message, one command after
+      # migrating development successfully. repair_schema re-applies the
+      # widening directly and is idempotent, so it is right in both cases.
       raise ConfigurationError,
-            "#{model.table_name}.#{column} is still #{info.type}. CurrentScope stores a " \
+            "#{column_label(model, column)} is still #{info.type}. CurrentScope stores a " \
             "record's primary key there, and an integer column silently truncates a " \
             "UUID — two subjects collapse into one identity and one inherits the " \
-            "other's roles (#151). Run `bin/rails current_scope:install:migrations && " \
-            "bin/rails db:migrate` to widen it."
+            "other's roles (#151). Run `#{env_prefix}bin/rails current_scope:repair_schema` " \
+            "to widen it (it works on a schema-loaded database, where db:migrate has " \
+            "nothing pending)."
     end
 
     # Collation matters as much as type on MySQL: its default is case AND accent
@@ -111,9 +118,9 @@ module CurrentScope
       # missing collation.
       if info.collation.nil?
         raise ConfigurationError,
-              "#{model.table_name}.#{column}'s MySQL collation could not be read, so " \
-              "CurrentScope cannot prove \"ABC\" and \"abc\" are different records (#151). " \
-              "Run `bin/rails current_scope:repair_schema`."
+              "#{column_label(model, column)} has a MySQL collation that could not be read, " \
+              "so CurrentScope cannot prove \"ABC\" and \"abc\" are different records " \
+              "(#151). Run `#{env_prefix}bin/rails current_scope:repair_schema`."
       end
 
       if info.collation.end_with?("_bin")
@@ -127,10 +134,11 @@ module CurrentScope
         # utf8mb4_bin — latin1_bin and friends fold trailing spaces too.
         unless info.collation.start_with?("utf8mb4_0900")
           Rails.logger&.warn(
-            "[CurrentScope] #{model.table_name}.#{column} uses #{info.collation}, which is " \
+            "[CurrentScope] #{column_label(model, column)} uses #{info.collation}, which is " \
             "case-sensitive but PAD SPACE — a key with a trailing space would still " \
             "match one without. On MySQL 8.0.17+ run " \
-            "`bin/rails current_scope:repair_schema` to move to utf8mb4_0900_bin (#151)."
+            "`#{env_prefix}bin/rails current_scope:repair_schema` to move to " \
+            "utf8mb4_0900_bin (#151)."
           )
         end
         return
@@ -142,12 +150,45 @@ module CurrentScope
       # MySQL collation, so that is the normal state of a new app and of CI.
       # Naming db:migrate here sent hosts to a command that could not work.
       raise ConfigurationError,
-            "#{model.table_name}.#{column} uses the #{info.collation} collation, which " \
+            "#{column_label(model, column)} uses the #{info.collation} collation, which " \
             "is case and accent insensitive — \"ABC\" and \"abc\" would be the same " \
             "record, so a grant on one reaches the other (#151). Run " \
-            "`bin/rails current_scope:repair_schema` to apply a binary collation " \
+            "`#{env_prefix}bin/rails current_scope:repair_schema` to apply a binary collation " \
             "(idempotent, and it works on a schema-loaded database where db:migrate " \
             "has nothing pending)."
+    end
+
+    # WHICH DATABASE THIS REFUSED, and how to name it on a command line (#193).
+    #
+    # Every refusal below prescribes a command, and a command with no
+    # environment runs against development. That built a loop the #116 bake
+    # walked straight into: a host migrates development, the next `bin/rails
+    # test` aborts because the TEST database still has the old shape, and the
+    # message tells them to run the command they have just run. Nothing on
+    # screen distinguished the database that failed from the one they repaired.
+    #
+    # The connection is the GRANT tables' one, for the same reason mysql? asks
+    # it of that connection: a host that puts the engine's tables on a second
+    # database must be told about THAT database, not about ActiveRecord::Base's.
+    def self.database_context
+      name = CurrentScope::RoleAssignment.connection.pool.db_config.database
+      "the #{Rails.env} database #{name.inspect}"
+    rescue StandardError
+      # The message is the whole product at this moment, so a database whose
+      # name cannot be read must still produce a refusal that names the
+      # environment. Never let the diagnostic take the guard down with it.
+      "the #{Rails.env} database"
+    end
+
+    # The prefix only where it changes something. Printing `RAILS_ENV=development`
+    # would teach the reader to type a word that does nothing, and the next time
+    # they see the prefix they would ignore it.
+    def self.env_prefix
+      Rails.env.development? ? "" : "RAILS_ENV=#{Rails.env} "
+    end
+
+    def self.column_label(model, column)
+      "#{model.table_name}.#{column} on #{database_context}"
     end
 
     # The GRANT tables' connection, not ActiveRecord::Base's. The columns being

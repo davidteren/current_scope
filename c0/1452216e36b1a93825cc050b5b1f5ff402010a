@@ -1,0 +1,40 @@
+lib/current_scope/definitions_document.rb
+  s_240773ee81a9c0::t_3d6cd9c7ed3bbe 298-309
+app/controllers/current_scope/role_assignments_controller.rb
+  s_240773ee81a9c0::t_3a5a251fa73c70 185,188
+app/controllers/current_scope/roles_controller.rb
+  s_240773ee81a9c0::t_3a5a251fa73c70 23,170
+app/models/concerns/current_scope/audited_writes.rb
+  s_240773ee81a9c0::t_7a6e9ef529d19b 32-39,46-51,57
+test/definitions_import_test.rb
+  s_240773ee81a9c0::t_1827e462f11fa6 67
+  s_240773ee81a9c0::t_3d6cd9c7ed3bbe 71-104
+app/models/current_scope/scoped_role_assignment.rb
+  s_240773ee81a9c0::t_3a5a251fa73c70 122-128,130-131
+test/integration/audit_events_test.rb
+  s_240773ee81a9c0::t_37b754958c4d2e 102-118
+  s_240773ee81a9c0::t_1827e462f11fa6 65,99,124,143-144,156
+  s_240773ee81a9c0::t_1955af47b4198c 100-101
+app/models/current_scope/role_assignment.rb
+  s_240773ee81a9c0::t_3a5a251fa73c70 73-74
+CHANGELOG.md
+  s_240773ee81a9c0::t_ed282c7ea9cfdb 85-92
+docs/guides/configuration-reference.md
+  s_240773ee81a9c0::t_ed282c7ea9cfdb 123,132-138,141-144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "c01452216e36b1a93825cc050b5b1f5ff402010a",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

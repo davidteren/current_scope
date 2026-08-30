@@ -246,10 +246,13 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       end
       assert_match(/still integer/, error.message)
       assert_guard_names_the_database(error.message)
-      assert_match(/repair_schema/, error.message,
-                   "NOT install:migrations && db:migrate (#193): a schema-loaded database " \
-                   "has every version stamped, so db:migrate finds nothing pending")
-      assert_no_match(/db:migrate` to widen/, error.message)
+      # BOTH paths, because the refusal has two audiences (#193 review). A host
+      # who never installed the migration needs the pair that also updates
+      # schema.rb; one whose database was built FROM schema.rb needs the repair,
+      # because db:migrate has nothing pending there.
+      assert_match(/current_scope:install:migrations && bin\/rails db:migrate/, error.message)
+      assert_match(/also updates schema.rb/, error.message)
+      assert_match(/RAILS_ENV=test bin\/rails current_scope:repair_schema/, error.message)
     ensure
       CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
     end

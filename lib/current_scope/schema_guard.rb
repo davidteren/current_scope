@@ -88,19 +88,31 @@ module CurrentScope
         return
       end
 
-      # NOT `install:migrations && db:migrate` (#193). That pair cannot repair a
-      # database built from schema.rb — every migration version is already
-      # stamped, so db:migrate finds nothing pending — and a schema-loaded test
-      # database is exactly where a host meets this message, one command after
-      # migrating development successfully. repair_schema re-applies the
-      # widening directly and is idempotent, so it is right in both cases.
+      # BOTH paths, because this refusal has two audiences and each needs the
+      # other's command to be wrong for them (#193 review).
+      #
+      # A host who has never installed the widening migration needs
+      # install:migrations && db:migrate: that is the path that copies the
+      # migration into db/migrate, stamps it, and dumps schema.rb, so CI and
+      # every teammate get the shape too. repair_schema alone would change the
+      # live columns and leave schema.rb declaring an integer, which rebuilds
+      # the pre-#151 shape on the next db:schema:load.
+      #
+      # A host whose database was BUILT from schema.rb — a test database, a
+      # fresh checkout, CI — has every version stamped already, so db:migrate
+      # finds nothing pending and prints nothing. repair_schema re-applies the
+      # widening directly and is idempotent. That is the case the bake hit, one
+      # command after migrating development successfully.
       raise ConfigurationError,
             "#{column_label(model, column)} is still #{info.type}. CurrentScope stores a " \
             "record's primary key there, and an integer column silently truncates a " \
             "UUID — two subjects collapse into one identity and one inherits the " \
-            "other's roles (#151). Run `#{env_prefix}bin/rails current_scope:repair_schema` " \
-            "to widen it (it works on a schema-loaded database, where db:migrate has " \
-            "nothing pending)."
+            "other's roles (#151). If the widening migration is not in db/migrate yet, run " \
+            "`bin/rails current_scope:install:migrations && bin/rails db:migrate` — that is " \
+            "the path that also updates schema.rb, so CI and your teammates get the same " \
+            "shape. If it is installed and this database was built from schema.rb, " \
+            "db:migrate has nothing pending: run " \
+            "`#{env_prefix}bin/rails current_scope:repair_schema` instead."
     end
 
     # Collation matters as much as type on MySQL: its default is case AND accent
@@ -167,11 +179,12 @@ module CurrentScope
     # message tells them to run the command they have just run. Nothing on
     # screen distinguished the database that failed from the one they repaired.
     #
-    # The connection is the GRANT tables' one, for the same reason mysql? asks
-    # it of that connection: a host that puts the engine's tables on a second
-    # database must be told about THAT database, not about ActiveRecord::Base's.
-    def self.database_context
-      name = CurrentScope::RoleAssignment.connection.pool.db_config.database
+    # The connection asked is the JUDGED MODEL'S, not ActiveRecord::Base's and
+    # not RoleAssignment's: the guard reads columns from more than one model, and
+    # a host that puts them on more than one database has to be told which of
+    # them failed (#193 review).
+    def self.database_context(model)
+      name = model.connection.pool.db_config.database
       "the #{Rails.env} database #{name.inspect}"
     rescue StandardError
       # The message is the whole product at this moment, so a database whose
@@ -188,7 +201,7 @@ module CurrentScope
     end
 
     def self.column_label(model, column)
-      "#{model.table_name}.#{column} on #{database_context}"
+      "#{model.table_name}.#{column} on #{database_context(model)}"
     end
 
     # The GRANT tables' connection, not ActiveRecord::Base's. The columns being

@@ -42,24 +42,18 @@ module CurrentScope
       @resource_type = resolve_type(params[:resource_type], within: @scopeable) ||
                        deep_linked_type(linked)
       @resource, @refused_resource = judge_deep_link(linked, @resource_type)
-      @searchable = searchable?(@resource_type)
-      # Only an INDEXED scope looks past the scanned window. Without one, a
-      # search re-reads the same rows the empty list came from, so telling the
-      # operator to search would be advice that cannot work (#183 review).
-      indexed_search = @resource_type.respond_to?(:current_scope_searchable_scope)
-      @records, @records_withheld, unread_records = candidate_records(@resource_type, params[:q], @selected_role)
-      # ONE answer to "is there a search box on screen?", so the field and the
-      # advice to use it cannot drift apart across the template (#183 review).
-      @offer_search = @searchable && (@records.present? || indexed_search || params[:q].present?)
-      # And whether searching is worth SUGGESTING: it can only turn up something
-      # new when an indexed scope reads past the window AND the scan stopped at
-      # its cap with records still unread. On a table read to the end, "search
-      # for one" is advice that provably cannot succeed (#183 review).
-      @advise_search = @records_withheld && @offer_search && indexed_search && unread_records
-      @records_state = records_state(withheld: @records_withheld, advise: @advise_search)
-      @search_state = search_state(records: @records, withheld: @records_withheld,
-                                   advise: @advise_search, kept: @resource)
-      @grantable_gid = offered_gid(@resource, @records)
+      records, withheld, unread = candidate_records(@resource_type, params[:q], @selected_role)
+      # One object owns every display decision for the record step, so the
+      # control and the sentence beside it cannot drift apart (#183 review).
+      @step = PickerRecordStep.new(
+        records: records, withheld: withheld, unread: unread,
+        # Only an INDEXED scope looks past the scanned window; without one a
+        # search re-reads the very rows an empty list came from.
+        indexed: @resource_type.respond_to?(:current_scope_searchable_scope),
+        searchable: searchable?(@resource_type), query: params[:q],
+        role: @selected_role, deep_linked: @resource
+      )
+      @grantable_gid = offered_gid(@resource, records)
     end
 
     def create
@@ -119,28 +113,6 @@ module CurrentScope
       return types if role.nil?
 
       types.select { |klass| grants_role?(klass, role) || sti_table?(klass) }
-    end
-
-    # The record step's empty state, NAMED — the class a test selects and the
-    # sentence an operator reads then come from one answer instead of two copies
-    # of the same three-way condition (#183 review).
-    def records_state(withheld:, advise:)
-      return :refused_searchable if advise && @selected_role
-      return :refused if withheld && @selected_role
-
-      :none
-    end
-
-    # The same for the search hint. nil ⇒ no hint at all (no search on screen).
-    # @resource excluded from the refusals: a surviving deep-linked record is
-    # selected and grantable, so "pick a different role" would contradict what
-    # the operator can see.
-    def search_state(records:, withheld:, advise:, kept:)
-      return nil unless @offer_search && params[:q].present?
-      return :shown if records.present?
-      return :none unless withheld && @selected_role && kept.nil?
-
-      advise ? :refused_searchable : :refused
     end
 
     # No role chosen yet ⇒ nothing to filter by. THE one meaning of a nil role

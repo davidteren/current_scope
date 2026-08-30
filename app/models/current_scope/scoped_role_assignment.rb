@@ -118,7 +118,13 @@ module CurrentScope
       # stores the base token — so asking it would make a declaration on an STI
       # subclass a silent no-op while the module, the guide and the reader all
       # promise it is inherited and overridable (#183 review).
-      klass = resource&.class || CurrentScope.polymorphic_class(resource_type, inert_on_error: true)
+      #
+      # Through the CHECKED reader, never the raw association: a non-canonical
+      # stored id casts into an unrelated live record, and the gate would then
+      # judge (and name) the wrong class — the one call site that read the plain
+      # association is this one (#183 review, #151).
+      klass = current_scope_resolved_record("resource")&.class ||
+              CurrentScope.polymorphic_class(resource_type, inert_on_error: true)
       return if klass.nil? || !klass.respond_to?(:current_scope_grants_role?)
       return if klass.current_scope_grants_role?(role)
 

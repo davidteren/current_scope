@@ -101,10 +101,11 @@
     <% end %>
 
     <% if @resource_type %>
-      <%# The search box stays even when the list came back empty: the role
-          filter runs over the SCANNED rows, so a grantable record can sit past
-          the window and search is the only way to reach it (#183 review). %>
-      <% if @searchable %>
+      <%# The search box stays on an empty list only where searching reads past
+          the scanned window: with an indexed scope a grantable record can sit
+          past it, while the fallback scan would re-read the very rows the empty
+          list came from (#183 review). %>
+      <% if @searchable && (@records.present? || @indexed_search) %>
         <p>
           <%= label_tag :q, "Search records" %>
           <%= search_field_tag :q, params[:q], placeholder: "Filter by label",
@@ -116,7 +117,7 @@
           <%# Two different empties again: none exist, and none of the ones that
               exist accept this role (an STI table holds records of several
               classes, each with its own declaration). %>
-          <% if @records_withheld && @searchable %>
+          <% if @records_withheld && @searchable && @indexed_search %>
             None of the <%= @resource_type.model_name.human.pluralize.downcase %>
             looked at accept <strong><%= @selected_role.name %></strong>. Search
             for one, or pick a different role.

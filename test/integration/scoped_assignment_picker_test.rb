@@ -242,12 +242,14 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
   end
 
-  # The role filter runs over the SCANNED rows, so a grantable record can sit
-  # past the window. Taking the search box away with the list would leave no way
-  # to reach it, and the empty state would be a claim the code cannot make.
-  test "an empty role-filtered list keeps the search box, and does not claim more than it looked at" do
+  # The role filter runs over the SCANNED rows, so with an indexed scope a
+  # grantable record can sit past the window. Taking the search box away with
+  # the list would leave no way to reach it, and the empty state would be a
+  # claim the code cannot make.
+  test "an empty role-filtered list keeps the search box where searching can reach further" do
     21.times { |i| Receipt.create!(title: "Doc #{i}") }
     Document.current_scope_grantable_roles = [ "Owner" ]
+    Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
 
     with_scopeable_resources([ Document ]) do
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
@@ -255,6 +257,24 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_select "input[name=q]"
       assert_match(/Search\s+for one, or pick a different role/, response.body)
+    end
+  ensure
+    Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
+  end
+
+  # And the other half: without an indexed scope a search re-reads the very rows
+  # the empty list came from, so offering it would be advice that cannot work.
+  test "an empty role-filtered list offers no search where searching cannot reach further" do
+    21.times { |i| Receipt.create!(title: "Doc #{i}") }
+    Document.current_scope_grantable_roles = [ "Owner" ]
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
+          headers: as(@owner)
+
+      assert_select "input[name=q]", count: 0
+      assert_match(/No documents accept/, response.body)
+      assert_no_match(/Search\s+for one/, response.body)
     end
   end
 

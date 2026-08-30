@@ -37,8 +37,12 @@ module CurrentScope
       # listed — the dead end this filter exists to prevent (#183 review).
       @resource_type = resolve_type(params[:resource_type], within: @scopeable) ||
                        deep_linked_type(linked)
-      @resource, @refused_resource = judge_deep_link(linked)
+      @resource, @refused_resource = judge_deep_link(linked, @resource_type)
       @searchable = searchable?(@resource_type)
+      # Only an INDEXED scope looks past the scanned window. Without one, a
+      # search re-reads the same rows the empty list came from, so telling the
+      # operator to search would be advice that cannot work (#183 review).
+      @indexed_search = @resource_type.respond_to?(:current_scope_searchable_scope)
       @records, @records_withheld = candidate_records(@resource_type, params[:q], @selected_role)
       @grantable_gid = offered_gid(@resource, @records)
     end
@@ -143,10 +147,10 @@ module CurrentScope
     # button that only the model can then say no to. A refusal is REFUSED rather
     # than dropped, because a record that vanishes from the picker with no word
     # is the invisible dead end #183 exists to remove (#183 review).
-    def judge_deep_link(linked)
+    def judge_deep_link(linked, type)
       return [ nil, nil ] if linked.nil?
       return [ nil, linked ] unless grants_role?(linked.class, @selected_role)
-      return [ nil, nil ] unless @resource_type && linked.is_a?(@resource_type)
+      return [ nil, nil ] unless type && linked.is_a?(type)
 
       [ linked, nil ]
     end

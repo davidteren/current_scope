@@ -1,0 +1,40 @@
+test/integration/report_only_test.rb
+  s_240773ee81a9c0::t_ba9ba89e8f035b 138-140
+  s_240773ee81a9c0::t_411da74ef174fc 128-137,141-142
+test/dummy/app/controllers/anonymous_model_controller.rb
+  s_240773ee81a9c0::t_411da74ef174fc 1-10,15-25
+  s_240773ee81a9c0::t_6e97b30a323512 11-14
+test/report_task_test.rb
+  s_240773ee81a9c0::t_941fc1eaf97145 400,414-415,418,425-442,492-496,514-541,544
+  s_240773ee81a9c0::t_f38cb1473e3225 419-420
+  s_240773ee81a9c0::t_14ebafc8b41ade 461,463-464
+lib/tasks/current_scope_tasks.rake
+  s_240773ee81a9c0::t_14ebafc8b41ade 616
+  s_240773ee81a9c0::t_dadc97de738019 187,205-209,228,437-441,461,466,476-481,501-503,560-561,585,593,600-603,609
+  s_240773ee81a9c0::t_c5c70c2623e5e4 310,318-319,331-344,350-356,455,489-494
+  s_240773ee81a9c0::t_b39b77e2789173 357,495
+lib/current_scope/guard.rb
+  s_240773ee81a9c0::t_ba9ba89e8f035b 480,494,496,523-532
+  s_240773ee81a9c0::t_019fdfe119c21f 475-479,481-493
+  s_240773ee81a9c0::t_e432ccabb11855 533-534
+test/dummy/config/routes.rb
+  s_240773ee81a9c0::t_411da74ef174fc 62
+CHANGELOG.md
+  s_240773ee81a9c0::t_69073b86172171 92-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "0b79411161f74b8e86766a4c5ac09acac52b2b11",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

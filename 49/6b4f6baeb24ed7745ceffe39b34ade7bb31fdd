@@ -1,0 +1,25 @@
+app/controllers/current_scope/scoped_role_assignments_controller.rb
+  s_240773ee81a9c0::t_fa00e509af8e7b 35-37,61,69
+app/views/current_scope/scoped_role_assignments/new.html.erb
+  s_240773ee81a9c0::t_fa00e509af8e7b 32,52,132,167,190,197,200,232,234
+test/integration/scoped_assignment_picker_test.rb
+  s_240773ee81a9c0::t_1ae2b402fd545f 531-542
+app/models/current_scope/scoped_role_assignment.rb
+  s_240773ee81a9c0::t_fa00e509af8e7b 139-141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "496b4f6baeb24ed7745ceffe39b34ade7bb31fdd",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

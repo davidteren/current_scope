@@ -52,6 +52,8 @@ module CurrentScope
       # its cap with records still unread. On a table read to the end, "search
       # for one" is advice that provably cannot succeed (#183 review).
       @advise_search = @records_withheld && @offer_search && indexed_search && unread_records
+      @records_state = records_state
+      @search_state = search_state
       @grantable_gid = offered_gid(@resource, @records)
     end
 
@@ -112,6 +114,28 @@ module CurrentScope
       return types if role.nil?
 
       types.select { |klass| grants_role?(klass, role) || sti_table?(klass) }
+    end
+
+    # The record step's empty state, NAMED — the class a test selects and the
+    # sentence an operator reads then come from one answer instead of two copies
+    # of the same three-way condition (#183 review).
+    def records_state
+      return :refused_searchable if @advise_search && @selected_role
+      return :refused if @records_withheld && @selected_role
+
+      :none
+    end
+
+    # The same for the search hint. nil ⇒ no hint at all (no search on screen).
+    # @resource excluded from the refusals: a surviving deep-linked record is
+    # selected and grantable, so "pick a different role" would contradict what
+    # the operator can see.
+    def search_state
+      return nil unless @searchable && params[:q].present?
+      return :shown if @records.present?
+      return :none unless @records_withheld && @selected_role && @resource.nil?
+
+      @advise_search ? :refused_searchable : :refused
     end
 
     # No role chosen yet ⇒ nothing to filter by. THE one meaning of a nil role

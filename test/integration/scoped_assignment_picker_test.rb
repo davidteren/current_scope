@@ -301,6 +301,32 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # The search hint carries the same distinction the empty list does: matches
+  # that all refuse, with the search itself stopped at its cap, leave somewhere
+  # left to look (#183 review).
+  test "a search that filled its cap with refused matches says to narrow it, not to give up on the role" do
+    now = Time.current
+    rows = Array.new(CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP) do |i|
+      { title: "RCT-#{i}", type: "Receipt", created_at: now, updated_at: now }
+    end
+    Document.insert_all(rows)
+    Document.current_scope_grantable_roles = [ "Owner" ]
+    Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(
+        role_id: @member_role.id, resource_type: "Document", q: "RCT"
+      ), headers: as(@owner)
+
+      assert_select ".cs-search-refused-searchable", /Member/
+      assert_select ".cs-search-refused", count: 0
+    end
+  ensure
+    if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
+      Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
+    end
+  end
+
   # And the third case: an indexed scope, but the scan already read the whole
   # table. There is nothing left for a search to find, so telling the operator
   # to search would be advice that provably cannot succeed (#183 review).

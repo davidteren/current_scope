@@ -49,7 +49,13 @@ module CurrentScope
             # Role RECORDS are accepted too: to_s on one yields an inspect
             # string that can never match, which would be a silent lockdown —
             # the failure this setter exists to prevent (#183 review).
-            Array(names).flatten.map { |name| name.respond_to?(:name) ? name.name : name.to_s }.freeze
+            # Blanks are dropped rather than stored: `%w[Lead] + [ENV["EXTRA"]]`
+            # with the variable unset would otherwise declare "", which matches
+            # no role and silently locks the type down — the same failure the
+            # setter exists to prevent (#183 review).
+            Array(names).flatten
+                        .map { |name| name.respond_to?(:name) ? name.name : name.to_s }
+                        .reject(&:blank?).freeze
           end
       end
 

@@ -165,6 +165,15 @@ class GrantableRolesTest < ActiveSupport::TestCase
     assert grant(@container, @project).valid?
   end
 
+  # `%w[Lead] + [ENV["EXTRA"]]` with the variable unset would otherwise store
+  # "", which matches no role and locks the type silently (#183 review).
+  test "a blank entry is dropped rather than stored as a role no one has" do
+    Project.current_scope_grantable_roles = [ "Project Lead", nil, "" ]
+
+    assert_equal [ "Project Lead" ], Project.current_scope_grantable_roles
+    assert grant(@container, @project).valid?
+  end
+
   test "a subclass inherits its parent's declaration until it states its own" do
     Project.current_scope_grantable_roles = [ "Project Lead" ]
     subclass = Class.new(Project) { def self.name = "SpecialProject" }

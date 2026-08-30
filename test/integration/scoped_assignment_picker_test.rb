@@ -242,6 +242,39 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
   end
 
+  # The role filter runs over the SCANNED rows, so a grantable record can sit
+  # past the window. Taking the search box away with the list would leave no way
+  # to reach it, and the empty state would be a claim the code cannot make.
+  test "an empty role-filtered list keeps the search box, and does not claim more than it looked at" do
+    21.times { |i| Receipt.create!(title: "Doc #{i}") }
+    Document.current_scope_grantable_roles = [ "Owner" ]
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
+          headers: as(@owner)
+
+      assert_select "input[name=q]"
+      assert_match(/Search\s+for one, or pick a different role/, response.body)
+    end
+  end
+
+  # The picker withholds the button; the model is the gate. Nothing was covering
+  # the path between them — a hand-built POST — and it depends on the refusal
+  # landing on :role, or grant_one would swallow it as "already granted".
+  test "a grant posted straight to create is refused when the type does not accept the role" do
+    folder = Folder.create!(name: "Q3 Ledger")
+    Folder.current_scope_grantable_roles = [ "Owner" ]
+
+    assert_no_difference -> { CurrentScope::ScopedRoleAssignment.count } do
+      post current_scope.scoped_role_assignments_url, headers: as(@owner), params: {
+        role_id: @member_role.id, subject_gid: @member.to_gid.to_s, resource_gid: folder.to_gid.to_s
+      }
+    end
+
+    assert_redirected_to current_scope.subjects_url
+    assert_match(/cannot be granted on Folder/, flash[:alert])
+  end
+
   # The Grant button posts what the operator can SEE selected. A resource_gid
   # survives every autosubmit, so an earlier pick must not ride along after the
   # role or the type moves on (#183 review).

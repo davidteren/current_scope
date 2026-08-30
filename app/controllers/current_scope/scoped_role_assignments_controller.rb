@@ -28,23 +28,19 @@ module CurrentScope
       @scopeable = grantable_types(@all_scopeable, @selected_role)
       @bulk_subjects = resolve_bulk_subjects # [] unless a multi-select bulk grant
 
-      @resource = deep_linked_resource
+      # The record a deep link asked for, before any gate has judged it.
+      linked = deep_linked_resource
       # Resolved against the FILTERED list: the cascade carries resource_type on
       # every autosubmit, so picking a role, then a type, then changing the role
       # would otherwise leave the withheld type selected, its records loaded and
       # a Grant button showing, directly under a hint saying that type was not
       # listed — the dead end this filter exists to prevent (#183 review).
       @resource_type = resolve_type(params[:resource_type], within: @scopeable) ||
-                       deep_linked_type
-      # A deep-linked record survives only when it belongs to the type on screen
-      # AND its own class accepts the chosen role. A refusal is said out loud:
-      # a record that vanishes from the picker with no word is the invisible
-      # dead end #183 exists to remove (#183 review).
-      @refused_resource = refused_deep_link
-      @resource = nil unless deep_link_survives?
+                       deep_linked_type(linked)
+      @resource, @refused_resource = judge_deep_link(linked)
       @searchable = searchable?(@resource_type)
       @records, @records_withheld = candidate_records(@resource_type, params[:q], @selected_role)
-      @grantable_gid = offered_gid
+      @grantable_gid = offered_gid(@resource, @records)
     end
 
     def create
@@ -136,21 +132,23 @@ module CurrentScope
 
     # The type for a deep link, only when the linked record's own class accepts
     # the chosen role.
-    def deep_linked_type
-      @resource&.class if @resource && grants_role?(@resource.class, @selected_role)
+    def deep_linked_type(linked)
+      linked.class if linked && grants_role?(linked.class, @selected_role)
     end
 
-    # The deep-linked record when the chosen role may not be granted on its own
-    # class — the view names it, so the operator learns which pick to change.
-    def refused_deep_link
-      @resource if @resource && !grants_role?(@resource.class, @selected_role)
-    end
+    # → [ kept, refused ]. A deep-linked record survives only when it belongs to
+    # the type on screen AND its own class accepts the chosen role. Without the
+    # type half, a carried-over gid rides into a DIFFERENT type's record list as
+    # the selected option; without the role half, a refused record keeps a Grant
+    # button that only the model can then say no to. A refusal is REFUSED rather
+    # than dropped, because a record that vanishes from the picker with no word
+    # is the invisible dead end #183 exists to remove (#183 review).
+    def judge_deep_link(linked)
+      return [ nil, nil ] if linked.nil?
+      return [ nil, linked ] unless grants_role?(linked.class, @selected_role)
+      return [ nil, nil ] unless @resource_type && linked.is_a?(@resource_type)
 
-    # Without the type half, a carried-over gid rides into a DIFFERENT type's
-    # record list as the selected option; without the role half, a refused
-    # record keeps a Grant button that only the model can then say no to.
-    def deep_link_survives?
-      @refused_resource.nil? && @resource_type.present? && @resource.is_a?(@resource_type)
+      [ linked, nil ]
     end
 
     # The Grant button must post only a record the operator can SEE selected.
@@ -159,12 +157,12 @@ module CurrentScope
     # nothing selected (it is not in the list) while the button would still post
     # it — a raw validation alert at best, and at worst a silent grant on a
     # record that is no longer on screen (#183 review).
-    def offered_gid
-      gid = params[:resource_gid].presence || @resource&.to_gid&.to_s
+    def offered_gid(resource, records)
+      gid = params[:resource_gid].presence || resource&.to_gid&.to_s
       return nil if gid.blank? || @resource_type.nil?
 
-      offered = Array(@records).map { |record| record.to_gid.to_s }
-      offered << @resource.to_gid.to_s if @resource # the view keeps it selectable
+      offered = Array(records).map { |record| record.to_gid.to_s }
+      offered << resource.to_gid.to_s if resource # the view keeps it selectable
       gid if offered.include?(gid)
     end
 

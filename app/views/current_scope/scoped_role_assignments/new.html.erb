@@ -101,12 +101,26 @@
     <% end %>
 
     <% if @resource_type %>
+      <%# The search box stays even when the list came back empty: the role
+          filter runs over the SCANNED rows, so a grantable record can sit past
+          the window and search is the only way to reach it (#183 review). %>
+      <% if @searchable %>
+        <p>
+          <%= label_tag :q, "Search records" %>
+          <%= search_field_tag :q, params[:q], placeholder: "Filter by label",
+                form: "cs-cascade", data: { current_scope_autosubmit: true } %>
+        </p>
+      <% end %>
       <% if @records.blank? && params[:q].blank? %>
         <p class="cs-hint cs-picker-empty">
           <%# Two different empties again: none exist, and none of the ones that
               exist accept this role (an STI table holds records of several
               classes, each with its own declaration). %>
-          <% if @records_withheld %>
+          <% if @records_withheld && @searchable %>
+            None of the <%= @resource_type.model_name.human.pluralize.downcase %>
+            looked at accept <strong><%= @selected_role.name %></strong>. Search
+            for one, or pick a different role.
+          <% elsif @records_withheld %>
             No <%= @resource_type.model_name.human.pluralize.downcase %> accept
             <strong><%= @selected_role.name %></strong>. Pick a different role.
           <% else %>
@@ -114,13 +128,6 @@
           <% end %>
         </p>
       <% else %>
-        <% if @searchable %>
-          <p>
-            <%= label_tag :q, "Search records" %>
-            <%= search_field_tag :q, params[:q], placeholder: "Filter by label",
-                  form: "cs-cascade", data: { current_scope_autosubmit: true } %>
-          </p>
-        <% end %>
         <p>
           <%= label_tag :resource_gid, "Record" %>
           <%

@@ -24,6 +24,10 @@ module CurrentScope
       # shortening a dropdown is its own kind of surprise. The model validation
       # is the actual gate; this only keeps the operator out of a dead end.
       @selected_role = Role.find_by(id: params[:role_id]) if params[:role_id].present?
+      # A deleted role in a stale bookmark reads as "no role chosen" everywhere
+      # downstream, which would show every type and every record with no hint
+      # and a Grant button that can only fail on POST (#183 review).
+      @missing_role = params[:role_id].present? && @selected_role.nil?
       @all_scopeable = CurrentScope.scopeable_resources
       @scopeable = grantable_types(@all_scopeable, @selected_role)
       @bulk_subjects = resolve_bulk_subjects # [] unless a multi-select bulk grant
@@ -52,8 +56,9 @@ module CurrentScope
       # its cap with records still unread. On a table read to the end, "search
       # for one" is advice that provably cannot succeed (#183 review).
       @advise_search = @records_withheld && @offer_search && indexed_search && unread_records
-      @records_state = records_state
-      @search_state = search_state
+      @records_state = records_state(withheld: @records_withheld, advise: @advise_search)
+      @search_state = search_state(records: @records, withheld: @records_withheld,
+                                   advise: @advise_search, kept: @resource)
       @grantable_gid = offered_gid(@resource, @records)
     end
 
@@ -119,9 +124,9 @@ module CurrentScope
     # The record step's empty state, NAMED — the class a test selects and the
     # sentence an operator reads then come from one answer instead of two copies
     # of the same three-way condition (#183 review).
-    def records_state
-      return :refused_searchable if @advise_search && @selected_role
-      return :refused if @records_withheld && @selected_role
+    def records_state(withheld:, advise:)
+      return :refused_searchable if advise && @selected_role
+      return :refused if withheld && @selected_role
 
       :none
     end
@@ -130,12 +135,12 @@ module CurrentScope
     # @resource excluded from the refusals: a surviving deep-linked record is
     # selected and grantable, so "pick a different role" would contradict what
     # the operator can see.
-    def search_state
-      return nil unless @searchable && params[:q].present?
-      return :shown if @records.present?
-      return :none unless @records_withheld && @selected_role && @resource.nil?
+    def search_state(records:, withheld:, advise:, kept:)
+      return nil unless @offer_search && params[:q].present?
+      return :shown if records.present?
+      return :none unless withheld && @selected_role && kept.nil?
 
-      @advise_search ? :refused_searchable : :refused
+      advise ? :refused_searchable : :refused
     end
 
     # No role chosen yet ⇒ nothing to filter by. THE one meaning of a nil role

@@ -128,7 +128,10 @@ module CurrentScope
       return if klass.nil? || !klass.respond_to?(:current_scope_grants_role?)
       return if klass.current_scope_grants_role?(role)
 
-      allowed = klass.current_scope_grantable_roles
+      # Read through respond_to? and Array(): the type joins this gate by
+      # answering current_scope_grants_role? alone, which a host may compute
+      # without holding a list at all (#183 review).
+      allowed = Array(klass.try(:current_scope_grantable_roles))
       accepts = if allowed.empty?
         "it accepts no scoped roles at all"
       else

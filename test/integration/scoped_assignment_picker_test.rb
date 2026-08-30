@@ -13,14 +13,6 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     CurrentScope::RoleAssignment.create!(subject: @member, role: @member_role)
   end
 
-  teardown do
-    [ Folder, Document, Invoice, Receipt, SpecialInvoice ].each do |klass|
-      next unless klass.instance_variable_defined?(:@current_scope_grantable_roles)
-
-      klass.send(:remove_instance_variable, :@current_scope_grantable_roles)
-    end
-  end
-
   def as(user) = { "X-User-Id" => user.id.to_s }
 
   # Swap CurrentScope.scopeable_resources for one test (Minitest 6 dropped
@@ -41,7 +33,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       include CurrentScope::GrantableRoles
       def self.name = "PickyThing"
       def self.model_name = ActiveModel::Name.new(self, nil, "PickyThing")
-      self.current_scope_grantable_roles = [ "Owner" ]
+      self.current_scope_grantable_roles = [ "Owner" ] # throwaway class: nothing to restore
     end
   end
 
@@ -57,7 +49,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_select "option[value=?]", "Folder"
       assert_select "option[value=?]", "PickyThing", count: 0
-      assert_select ".cs-types-withheld", /Member/,
+      assert_select "#cs_types_withheld", /Member/,
                     "and it names the role that was not accepted"
     end
   end
@@ -70,8 +62,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id), headers: as(@owner)
 
       assert_response :success
-      assert_select ".cs-types-none-accept", /Member/
-      assert_select ".cs-types-unregistered", count: 0
+      assert_select "#cs_types_none_accept", /Member/
+      assert_select "#cs_types_unregistered", count: 0
     end
   end
 
@@ -79,7 +71,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     with_scopeable_resources([]) do
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id), headers: as(@owner)
 
-      assert_select ".cs-types-unregistered"
+      assert_select "#cs_types_unregistered"
     end
   end
 
@@ -90,8 +82,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   test "an STI base stays on offer when only a subclass accepts the role" do
     invoice = Invoice.create!(title: "INV-1")
     receipt = Receipt.create!(title: "RCT-1")
-    Document.current_scope_grantable_roles = [ "Owner" ]
-    Invoice.current_scope_grantable_roles = [ "Member" ]
+    declare_grantable_roles(Document, [ "Owner" ])
+    declare_grantable_roles(Invoice, [ "Member" ])
 
     with_scopeable_resources([ Document ]) do
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
@@ -99,7 +91,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_select "option[value=?]", "Document"
-      assert_select ".cs-types-withheld", count: 0
+      assert_select "#cs_types_withheld", count: 0
       assert_select "select[name=resource_gid] option[value=?]", invoice.to_gid.to_s
       assert_select "select[name=resource_gid] option[value=?]", receipt.to_gid.to_s, count: 0
     end
@@ -107,13 +99,13 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   test "when no record of the type accepts the role, the empty list says why" do
     Receipt.create!(title: "RCT-1")
-    Document.current_scope_grantable_roles = [ "Owner" ]
+    declare_grantable_roles(Document, [ "Owner" ])
 
     with_scopeable_resources([ Document ]) do
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
           headers: as(@owner)
 
-      assert_select ".cs-records-refused", /Member/,
+      assert_select "#cs_records_refused", /Member/,
                     "there ARE documents — blaming an empty table sends the operator to create one"
     end
   end
@@ -124,7 +116,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   # chosen yet, nothing to filter by".
   test "a deep link with no role chosen still prefills a type that declares its roles" do
     folder = Folder.create!(name: "Q3 Ledger")
-    Folder.current_scope_grantable_roles = [ "Owner" ]
+    declare_grantable_roles(Folder, [ "Owner" ])
 
     get current_scope.new_scoped_role_assignment_path(resource_gid: folder.to_gid.to_s), headers: as(@owner)
 
@@ -135,7 +127,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   test "a deep-linked record whose own class refuses the role is not offered" do
     receipt = Receipt.create!(title: "RCT-1")
-    Document.current_scope_grantable_roles = [ "Owner" ]
+    declare_grantable_roles(Document, [ "Owner" ])
 
     with_scopeable_resources([ Document ]) do
       get current_scope.new_scoped_role_assignment_path(
@@ -145,7 +137,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_select "input[type=hidden][name=resource_gid]", count: 0,
                     message: "a Grant button under the hint saying no record accepts the role is the dead end"
-      assert_select ".cs-records-refused"
+      assert_select "#cs_records_refused"
     end
   end
 
@@ -154,8 +146,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   test "the indexed search finds a grantable record past the first page of refused ones" do
     50.times { |i| Receipt.create!(title: "Doc #{i}") }
     invoice = Invoice.create!(title: "Doc 50")
-    Document.current_scope_grantable_roles = [ "Owner" ]
-    Invoice.current_scope_grantable_roles = [ "Member" ]
+    declare_grantable_roles(Document, [ "Owner" ])
+    declare_grantable_roles(Invoice, [ "Member" ])
     Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
 
     with_scopeable_resources([ Document ]) do
@@ -180,14 +172,14 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   # whose records are grantable hides them with no way back (#183 review).
   test "a class over an STI table stays on offer, and its record list carries the refusal" do
     Receipt.create!(title: "RCT-1")
-    Receipt.current_scope_grantable_roles = [ "Owner" ]
+    declare_grantable_roles(Receipt, [ "Owner" ])
 
     with_scopeable_resources([ Receipt ]) do
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Receipt"),
           headers: as(@owner)
 
       assert_select "option[value=?]", "Receipt"
-      assert_select ".cs-records-refused"
+      assert_select "#cs_records_refused"
       assert_select "input[type=hidden][name=resource_gid]", count: 0
     end
   end
@@ -198,8 +190,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   test "a zero-match search does not tell the operator to change a role that already works" do
     21.times { |i| Receipt.create!(title: "RCT-#{i}") }
     invoice = Invoice.create!(title: "INV-1")
-    Document.current_scope_grantable_roles = [ "Owner" ]
-    Invoice.current_scope_grantable_roles = [ "Member" ]
+    declare_grantable_roles(Document, [ "Owner" ])
+    declare_grantable_roles(Invoice, [ "Member" ])
 
     with_scopeable_resources([ Document ]) do
       get current_scope.new_scoped_role_assignment_path(
@@ -208,7 +200,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       ), headers: as(@owner)
 
       assert_select "input[type=hidden][name=resource_gid][value=?]", invoice.to_gid.to_s
-      assert_select ".cs-search-refused", count: 0
+      assert_select "#cs_search_refused", count: 0
     end
   end
 
@@ -218,8 +210,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   test "a mid-level STI class is not treated as a leaf" do
     special = SpecialInvoice.create!(title: "SI-1")
     Invoice.create!(title: "INV-1")
-    Invoice.current_scope_grantable_roles = [ "Owner" ]
-    SpecialInvoice.current_scope_grantable_roles = [ "Member" ]
+    declare_grantable_roles(Invoice, [ "Owner" ])
+    declare_grantable_roles(SpecialInvoice, [ "Member" ])
 
     with_scopeable_resources([ Invoice ]) do
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Invoice"),
@@ -235,15 +227,15 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   test "a deep-linked record the role refuses is named, not silently dropped" do
     receipt = Receipt.create!(title: "RCT-1")
     invoice = Invoice.create!(title: "INV-1")
-    Document.current_scope_grantable_roles = [ "Owner" ]
-    Invoice.current_scope_grantable_roles = [ "Member" ]
+    declare_grantable_roles(Document, [ "Owner" ])
+    declare_grantable_roles(Invoice, [ "Member" ])
 
     with_scopeable_resources([ Document ]) do
       get current_scope.new_scoped_role_assignment_path(
         role_id: @member_role.id, resource_type: "Document", resource_gid: receipt.to_gid.to_s
       ), headers: as(@owner)
 
-      assert_select ".cs-resource-refused", /RCT-1/,
+      assert_select "#cs_resource_refused", /RCT-1/,
                     "and it names the record the operator linked from"
       assert_select "select[name=resource_gid] option[value=?]", invoice.to_gid.to_s,
                     count: 1 # the rest of the list still works
@@ -254,7 +246,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   test "a search whose every match is refused says to change the role, not the search" do
     # Past SEARCH_THRESHOLD, so the type really offers a search box.
     21.times { |i| Receipt.create!(title: "Quarter close #{i}") }
-    Document.current_scope_grantable_roles = [ "Owner" ]
+    declare_grantable_roles(Document, [ "Owner" ])
     Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
 
     with_scopeable_resources([ Document ]) do
@@ -262,8 +254,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
         role_id: @member_role.id, resource_type: "Document", q: "Quarter"
       ), headers: as(@owner)
 
-      assert_select ".cs-search-refused", /Member/
-      assert_select ".cs-search-none", count: 0
+      assert_select "#cs_search_refused", /Member/
+      assert_select "#cs_search_none", count: 0
     end
   ensure
     # Guarded: the hook is defined several statements in, and an unguarded
@@ -283,7 +275,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       { title: "RCT-#{i}", type: "Receipt", created_at: now, updated_at: now }
     end
     Document.insert_all(rows)
-    Document.current_scope_grantable_roles = [ "Owner" ]
+    declare_grantable_roles(Document, [ "Owner" ])
     Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
 
     with_scopeable_resources([ Document ]) do
@@ -291,7 +283,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
           headers: as(@owner)
 
       assert_select "input[name=q]"
-      assert_select ".cs-records-refused-searchable"
+      assert_select "#cs_records_refused_searchable"
     end
   ensure
     # Guarded: the hook is defined several statements in, and an unguarded
@@ -310,7 +302,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       { title: "RCT-#{i}", type: "Receipt", created_at: now, updated_at: now }
     end
     Document.insert_all(rows)
-    Document.current_scope_grantable_roles = [ "Owner" ]
+    declare_grantable_roles(Document, [ "Owner" ])
     Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
 
     with_scopeable_resources([ Document ]) do
@@ -318,8 +310,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
         role_id: @member_role.id, resource_type: "Document", q: "RCT"
       ), headers: as(@owner)
 
-      assert_select ".cs-search-refused-searchable", /Member/
-      assert_select ".cs-search-refused", count: 0
+      assert_select "#cs_search_refused_searchable", /Member/
+      assert_select "#cs_search_refused", count: 0
     end
   ensure
     if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
@@ -332,15 +324,15 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   # to search would be advice that provably cannot succeed (#183 review).
   test "a fully read table does not suggest searching, even with an indexed scope" do
     21.times { |i| Receipt.create!(title: "RCT-#{i}") }
-    Document.current_scope_grantable_roles = [ "Owner" ]
+    declare_grantable_roles(Document, [ "Owner" ])
     Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
 
     with_scopeable_resources([ Document ]) do
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
           headers: as(@owner)
 
-      assert_select ".cs-records-refused"
-      assert_select ".cs-records-refused-searchable", count: 0
+      assert_select "#cs_records_refused"
+      assert_select "#cs_records_refused_searchable", count: 0
     end
   ensure
     if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
@@ -352,15 +344,15 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   # the empty list came from, so offering it would be advice that cannot work.
   test "an empty role-filtered list offers no search where searching cannot reach further" do
     21.times { |i| Receipt.create!(title: "Doc #{i}") }
-    Document.current_scope_grantable_roles = [ "Owner" ]
+    declare_grantable_roles(Document, [ "Owner" ])
 
     with_scopeable_resources([ Document ]) do
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
           headers: as(@owner)
 
       assert_select "input[name=q]", count: 0
-      assert_select ".cs-records-refused"
-      assert_select ".cs-records-refused-searchable", count: 0
+      assert_select "#cs_records_refused"
+      assert_select "#cs_records_refused_searchable", count: 0
     end
   end
 
@@ -369,7 +361,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   # landing on :role, or grant_one would swallow it as "already granted".
   test "a grant posted straight to create is refused when the type does not accept the role" do
     folder = Folder.create!(name: "Q3 Ledger")
-    Folder.current_scope_grantable_roles = [ "Owner" ]
+    declare_grantable_roles(Folder, [ "Owner" ])
 
     assert_no_difference -> { CurrentScope::ScopedRoleAssignment.count } do
       post current_scope.scoped_role_assignments_url, headers: as(@owner), params: {
@@ -391,8 +383,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
     Document.insert_all(rows)
     invoice = Invoice.create!(title: "INV-1")
-    Document.current_scope_grantable_roles = [ "Owner" ]
-    Invoice.current_scope_grantable_roles = [ "Member" ]
+    declare_grantable_roles(Document, [ "Owner" ])
+    declare_grantable_roles(Invoice, [ "Member" ])
 
     with_scopeable_resources([ Document ]) do
       get current_scope.new_scoped_role_assignment_path(
@@ -411,7 +403,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   test "a deep link still works when every registered type withholds the role" do
     project = Project.create!(name: "Q3")
     report = Report.create!(title: "Q3 report", project: project, requested_by: @owner)
-    Folder.current_scope_grantable_roles = [ "Owner" ]
+    declare_grantable_roles(Folder, [ "Owner" ])
 
     with_scopeable_resources([ Folder ]) do
       get current_scope.new_scoped_role_assignment_path(
@@ -421,22 +413,41 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_select "option[selected][value=?]", "Report"
       assert_select "input[type=hidden][name=resource_gid][value=?]", report.to_gid.to_s
-      assert_select ".cs-types-none-accept", count: 0
+      assert_select "#cs_types_none_accept", count: 0
     end
   end
 
   test "a refused deep link is explained even when there is no type left to show" do
     folder = Folder.create!(name: "Q3 Ledger")
-    Folder.current_scope_grantable_roles = [ "Owner" ]
+    declare_grantable_roles(Folder, [ "Owner" ])
 
     with_scopeable_resources([ Folder ]) do
       get current_scope.new_scoped_role_assignment_path(
         role_id: @member_role.id, resource_gid: folder.to_gid.to_s
       ), headers: as(@owner)
 
-      assert_select ".cs-resource-refused", /Q3 Ledger/
-      assert_select ".cs-types-none-accept"
+      assert_select "#cs_resource_refused", /Q3 Ledger/
+      assert_select "#cs_types_none_accept"
     end
+  end
+
+  # A stale bookmark can name a role that no longer exists. Reading that as "no
+  # role chosen" would show every type and every record with no hint, and leave
+  # a Grant button that can only fail on POST (#183 review).
+  test "a role id that no longer resolves is said out loud, and grants nothing" do
+    folder = Folder.create!(name: "Q3 Ledger")
+    gone = CurrentScope::Role.create!(name: "Temp")
+    gone_id = gone.id
+    gone.destroy!
+
+    get current_scope.new_scoped_role_assignment_path(
+      role_id: gone_id, subject_gid: @member.to_gid.to_s,
+      resource_type: "Folder", resource_gid: folder.to_gid.to_s
+    ), headers: as(@owner)
+
+    assert_response :success
+    assert_select "#cs_role_missing"
+    assert_select "input[type=hidden][name=resource_gid]", count: 0
   end
 
   # The Grant button posts what the operator can SEE selected. A resource_gid
@@ -444,7 +455,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   # role or the type moves on (#183 review).
   test "a record picked under one role is not still posted after the role changes" do
     folder = Folder.create!(name: "Q3 Ledger")
-    Folder.current_scope_grantable_roles = [ "Owner" ]
+    declare_grantable_roles(Folder, [ "Owner" ])
     picks = { subject_gid: @member.to_gid.to_s, resource_type: "Folder", resource_gid: folder.to_gid.to_s }
 
     get current_scope.new_scoped_role_assignment_path(picks.merge(role_id: @owner_role.id)), headers: as(@owner)
@@ -478,7 +489,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       get current_scope.new_scoped_role_assignment_path(role_id: @owner_role.id), headers: as(@owner)
 
       assert_select "option[value=?]", "PickyThing"
-      assert_select ".cs-types-withheld", count: 0
+      assert_select "#cs_types_withheld", count: 0
     end
   end
 
@@ -548,8 +559,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     get current_scope.new_scoped_role_assignment_url(resource_type: "Folder", q: "zzz-no-such"), headers: as(@owner)
     assert_response :success
 
-    assert_select ".cs-search-none"
-    assert_select ".cs-search-shown", count: 0
+    assert_select "#cs_search_none"
+    assert_select "#cs_search_shown", count: 0
     # The field that holds the query stays, or the advice to change it is
     # unreachable.
     assert_select "input[name=q]", count: 1
@@ -568,8 +579,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_response :success
 
     assert_select "select[name=resource_gid] option[value=?]", pinned.to_gid.to_s # still selectable
-    assert_select ".cs-search-none"
-    assert_select ".cs-search-shown", count: 0
+    assert_select "#cs_search_none"
+    assert_select "#cs_search_shown", count: 0
   end
 
   test "record search honors the display limit" do

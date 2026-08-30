@@ -31,3 +31,37 @@ end
 class ActiveSupport::TestCase
   teardown { CurrentScope::Current.reset }
 end
+
+# #183: `current_scope_grantable_roles` is a class-level instance variable, so a
+# declaration made in a test outlives the transactional rollback and leaks into
+# every later test in the process. Tests declare through this helper, which
+# restores exactly what was there before — no file has to keep a hand-written
+# list of the classes it touched (#183 review).
+module CurrentScope
+  module GrantableRolesIsolation
+    IVAR = :@current_scope_grantable_roles
+
+    def declare_grantable_roles(klass, names)
+      @grantable_roles_snapshots ||= {}
+      @grantable_roles_snapshots[klass] ||=
+        [ klass.instance_variable_defined?(IVAR), klass.instance_variable_get(IVAR) ]
+      klass.current_scope_grantable_roles = names
+    end
+
+    def restore_grantable_roles!
+      (@grantable_roles_snapshots || {}).each do |klass, (declared, value)|
+        if declared
+          klass.instance_variable_set(IVAR, value)
+        elsif klass.instance_variable_defined?(IVAR)
+          klass.send(:remove_instance_variable, IVAR)
+        end
+      end
+      @grantable_roles_snapshots = nil
+    end
+  end
+end
+
+class ActiveSupport::TestCase
+  include CurrentScope::GrantableRolesIsolation
+  teardown { restore_grantable_roles! }
+end

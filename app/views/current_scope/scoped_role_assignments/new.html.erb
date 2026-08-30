@@ -57,11 +57,17 @@
       nil-safe, keeps that coupling in view instead of in six dereferences
       (#183 review). %>
   <% role_name = @selected_role&.name %>
+  <% if @missing_role %>
+    <p id="cs_role_missing" class="cs-alert cs-picker-empty">
+      That role is no longer available. Pick one from the list to go on.
+    </p>
+  <% end %>
+
   <%# A refused deep link is explained wherever it happens, INCLUDING the states
       below that render nothing else — the refusal is often why the picker has
       no type on screen at all (#183 review). %>
   <% if @refused_resource && role_name %>
-    <p class="cs-hint cs-picker-empty cs-resource-refused">
+    <p id="cs_resource_refused" class="cs-hint cs-picker-empty cs-resource-refused">
       The linked <strong><%= current_scope_label(@refused_resource) %></strong>
       is not in the list: <strong><%= role_name %></strong> may not be
       granted on it. Pick a different role, or a different record.
@@ -74,13 +80,13 @@
       link need not be registered, and throwing away a grantable target to say
       "no type accepts this role" would be both a dead end and untrue. %>
   <% if @resource_type.nil? && @scopeable.empty? && @all_scopeable.any? && role_name %>
-    <p class="cs-alert cs-picker-empty cs-types-none-accept">
+    <p id="cs_types_none_accept" class="cs-alert cs-picker-empty cs-types-none-accept">
       No resource type accepts <strong><%= role_name %></strong>.
       Each registered type declares which roles may be granted on it, and none
       lists this one. Pick a different role.
     </p>
   <% elsif @resource_type.nil? && @scopeable.empty? %>
-    <p class="cs-alert cs-picker-empty cs-types-unregistered">
+    <p id="cs_types_unregistered" class="cs-alert cs-picker-empty cs-types-unregistered">
       No pickable resource types yet. Add
       <code>include CurrentScope::Scopeable</code> to a host model to make its
       records selectable here.
@@ -95,7 +101,7 @@
     %>
     <% withheld = @all_scopeable.size - @scopeable.size %>
     <% if withheld.positive? && role_name %>
-      <p class="cs-hint cs-types-withheld">
+      <p id="cs_types_withheld" class="cs-hint cs-types-withheld">
         <%= pluralize(withheld, "type") %> not listed: they declare which roles
         may be granted on them, and <strong><%= role_name %></strong>
         is not one. Pick a different role to see them.
@@ -130,7 +136,7 @@
             cannot leave the suite green with the wrong text (#183 review).
             "looked at", never "none": the role filter runs over the scanned
             rows, so a grantable record can sit past the window. %>
-        <p class="cs-hint cs-picker-empty cs-records-<%= @records_state.to_s.dasherize %>">
+        <p id="cs_records_<%= @records_state %>" class="cs-hint cs-picker-empty cs-records-<%= @records_state.to_s.dasherize %>">
           <% case @records_state
              when :refused_searchable %>
             None of the <%= @resource_type.model_name.human.pluralize.downcase %>
@@ -164,7 +170,7 @@
                 deep-linked @resource is prepended to the options even when the
                 query matched nothing, and must not fake a "matches shown". %>
             <% if @search_state != :shown %>
-              <span class="cs-hint cs-picker-empty cs-search-<%= @search_state.to_s.dasherize %>">
+              <span id="cs_search_<%= @search_state %>" class="cs-hint cs-picker-empty cs-search-<%= @search_state.to_s.dasherize %>">
                 <% case @search_state
                    when :refused_searchable %>
                   <%# The matches READ all refuse, but the search stopped at its
@@ -182,7 +188,7 @@
                 <% end %>
               </span>
             <% else %>
-              <span class="cs-hint cs-search-shown">
+              <span id="cs_search_shown" class="cs-hint cs-search-shown">
                 Showing up to <%= CurrentScope::ScopedRoleAssignmentsController::DISPLAY_LIMIT %> matches — refine the search to narrow.
               </span>
             <% end %>
@@ -198,18 +204,20 @@
           autosubmits, but a resource_gid picked earlier survives a change of role
           or type, so the controller hands us the gid the operator can SEE
           selected (nil when the stale one is no longer listed). %>
-      <% ready = params[:role_id].present? && @grantable_gid.present? %>
+      <%# The RESOLVED role, not the param: a deleted id would otherwise post a
+          Grant that can only fail (#183 review). %>
+      <% ready = @selected_role.present? && @grantable_gid.present? %>
       <% if @bulk_subjects.any? %>
         <% if ready %>
           <%= button_to "Grant to #{@bulk_subjects.size} #{'subject'.pluralize(@bulk_subjects.size)}",
                 scoped_role_assignments_path, method: :post,
-                params: { role_id: params[:role_id], resource_gid: @grantable_gid,
+                params: { role_id: @selected_role.id, resource_gid: @grantable_gid,
                           subject_gids: @bulk_subjects.map { |s| s.to_gid.to_s } },
                 data: { turbo_frame: "_top" }, class: "cs-btn-primary" %>
         <% end %>
       <% elsif ready && params[:subject_gid].present? %>
         <%= button_to "Grant scoped role", scoped_role_assignments_path, method: :post,
-              params: { role_id: params[:role_id], subject_gid: params[:subject_gid],
+              params: { role_id: @selected_role.id, subject_gid: params[:subject_gid],
                         resource_gid: @grantable_gid },
               data: { turbo_frame: "_top" }, class: "cs-btn-primary" %>
       <% end %>

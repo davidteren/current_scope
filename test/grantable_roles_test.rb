@@ -17,14 +17,6 @@ class GrantableRolesTest < ActiveSupport::TestCase
     @container = role("Project Lead", "projects#show")
   end
 
-  teardown do
-    [ Project, Report, Document, Invoice ].each do |klass|
-      next unless klass.instance_variable_defined?(:@current_scope_grantable_roles)
-
-      klass.send(:remove_instance_variable, :@current_scope_grantable_roles)
-    end
-  end
-
   def role(name, *keys)
     r = CurrentScope::Role.create!(name: name)
     keys.each { |k| r.role_permissions.create!(permission_key: k) }
@@ -42,7 +34,7 @@ class GrantableRolesTest < ActiveSupport::TestCase
   end
 
   test "a declared type refuses a role it does not list" do
-    Project.current_scope_grantable_roles = [ "Project Lead" ]
+    declare_grantable_roles(Project, [ "Project Lead" ])
 
     assignment = grant(@per_record, @project)
 
@@ -53,20 +45,20 @@ class GrantableRolesTest < ActiveSupport::TestCase
   end
 
   test "a declared type accepts the roles it lists" do
-    Project.current_scope_grantable_roles = [ "Project Lead" ]
+    declare_grantable_roles(Project, [ "Project Lead" ])
 
     assert grant(@container, @project).valid?
   end
 
   test "the declaration on one type says nothing about another" do
-    Project.current_scope_grantable_roles = [ "Project Lead" ]
+    declare_grantable_roles(Project, [ "Project Lead" ])
 
     assert grant(@per_record, @report).valid?,
       "Report declared nothing, so it still accepts anything"
   end
 
   test "several roles can be listed" do
-    Project.current_scope_grantable_roles = [ "Project Lead", "Report Editor" ]
+    declare_grantable_roles(Project, [ "Project Lead", "Report Editor" ])
 
     assert grant(@per_record, @project).valid?
     assert grant(@container, @project).valid?
@@ -83,7 +75,7 @@ class GrantableRolesTest < ActiveSupport::TestCase
       "this is the widening: a Report surface, granted once on the Project"
 
     CurrentScope::ScopedRoleAssignment.delete_all
-    Project.current_scope_grantable_roles = [ "Project Lead" ]
+    declare_grantable_roles(Project, [ "Project Lead" ])
 
     refused = grant(@per_record, @project)
     assert_not refused.valid?, "the same pairing is now refused at the point it is written"
@@ -94,7 +86,7 @@ class GrantableRolesTest < ActiveSupport::TestCase
   # the same rule, or the gate would be one `update` wide (#183 review).
   test "changing an existing grant to a refused role is refused too" do
     assignment = CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: @container, resource: @project)
-    Project.current_scope_grantable_roles = [ "Project Lead" ]
+    declare_grantable_roles(Project, [ "Project Lead" ])
 
     assert_raises(ActiveRecord::RecordInvalid) { assignment.update!(role: @per_record) }
     assert_equal @container, assignment.reload.role
@@ -104,7 +96,7 @@ class GrantableRolesTest < ActiveSupport::TestCase
   # the model is where the rule has to live — the console's filtering is a
   # convenience on top of it.
   test "the rule holds for a write that never touches the console" do
-    Project.current_scope_grantable_roles = [ "Project Lead" ]
+    declare_grantable_roles(Project, [ "Project Lead" ])
 
     assert_raises(ActiveRecord::RecordInvalid) do
       CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: @per_record, resource: @project)
@@ -117,7 +109,7 @@ class GrantableRolesTest < ActiveSupport::TestCase
   # the guide and this file all promise it is inherited and overridable.
   test "a declaration on an STI subclass governs grants on its records" do
     invoice = Invoice.create!(title: "INV-1")
-    Invoice.current_scope_grantable_roles = [ "Project Lead" ]
+    declare_grantable_roles(Invoice, [ "Project Lead" ])
 
     assert_not grant(@per_record, invoice).valid?,
       "the subclass declared, and the write has to meet the subclass's rule"
@@ -126,7 +118,7 @@ class GrantableRolesTest < ActiveSupport::TestCase
 
   test "an STI subclass with no declaration of its own follows the base class" do
     invoice = Invoice.create!(title: "INV-1")
-    Document.current_scope_grantable_roles = [ "Project Lead" ]
+    declare_grantable_roles(Document, [ "Project Lead" ])
 
     assert_not grant(@per_record, invoice).valid?,
       "Invoice declared nothing, so Document's rule is the one that applies"
@@ -137,7 +129,7 @@ class GrantableRolesTest < ActiveSupport::TestCase
   # host computing the list from config and getting an empty array must not find
   # the type wide open.
   test "an empty declaration accepts no role at all" do
-    Project.current_scope_grantable_roles = []
+    declare_grantable_roles(Project, [])
 
     assignment = grant(@container, @project)
 
@@ -149,7 +141,7 @@ class GrantableRolesTest < ActiveSupport::TestCase
   # from config still gets the documented default when the key is missing
   # (#183 review). Same value in, same meaning out.
   test "assigning nil leaves the type undeclared rather than locking it down" do
-    Project.current_scope_grantable_roles = nil
+    declare_grantable_roles(Project, nil)
 
     assert_nil Project.current_scope_grantable_roles
     assert grant(@per_record, @project).valid?,
@@ -159,7 +151,7 @@ class GrantableRolesTest < ActiveSupport::TestCase
   # A Role RECORD is a natural thing to reach for, and to_s on one yields an
   # inspect string that matches nothing — a silent lockdown (#183 review).
   test "a Role record may be declared, not only its name" do
-    Project.current_scope_grantable_roles = [ @container ]
+    declare_grantable_roles(Project, [ @container ])
 
     assert_equal [ "Project Lead" ], Project.current_scope_grantable_roles
     assert grant(@container, @project).valid?
@@ -168,19 +160,19 @@ class GrantableRolesTest < ActiveSupport::TestCase
   # `%w[Lead] + [ENV["EXTRA"]]` with the variable unset would otherwise store
   # "", which matches no role and locks the type silently (#183 review).
   test "a blank entry is dropped rather than stored as a role no one has" do
-    Project.current_scope_grantable_roles = [ "Project Lead", nil, "" ]
+    declare_grantable_roles(Project, [ "Project Lead", nil, "" ])
 
     assert_equal [ "Project Lead" ], Project.current_scope_grantable_roles
     assert grant(@container, @project).valid?
   end
 
   test "a subclass inherits its parent's declaration until it states its own" do
-    Project.current_scope_grantable_roles = [ "Project Lead" ]
+    declare_grantable_roles(Project, [ "Project Lead" ])
     subclass = Class.new(Project) { def self.name = "SpecialProject" }
 
     assert_equal [ "Project Lead" ], subclass.current_scope_grantable_roles
 
-    subclass.current_scope_grantable_roles = [ "Special Lead" ]
+    declare_grantable_roles(subclass, [ "Special Lead" ])
     assert_equal [ "Special Lead" ], subclass.current_scope_grantable_roles
     assert_equal [ "Project Lead" ], Project.current_scope_grantable_roles,
       "and stating its own must not rewrite the parent's"

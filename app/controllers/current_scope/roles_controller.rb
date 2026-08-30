@@ -147,21 +147,7 @@ module CurrentScope
 
     private
 
-    # Polymorphic subject/resource may be deleted or unresolvable — never 500
-    # the cascade audit. Deleted records return nil without raising (especially
-    # after includes preload), so use || assignment, not rescue-only.
-    def cascade_subject(assignment)
-      assignment.current_scope_resolved_record("subject") || assignment
-    end
 
-    def cascade_resource_label(assignment)
-      resource = assignment.current_scope_resolved_record("resource")
-      return "#{assignment.resource_type}##{assignment.resource_id}" if resource.nil?
-
-      helpers.current_scope_label(resource)
-    rescue StandardError
-      "#{assignment.resource_type}##{assignment.resource_id}"
-    end
 
     # One event per save: role.renamed when the name changed (carries old/new
     # name AND the grid/full_access diff), else role.updated. Emits nothing on

@@ -35,6 +35,66 @@ class DefinitionsImportTest < ActiveSupport::TestCase
     File.join(@tmpdir, "roles.yml.pre.yml")
   end
 
+  # #182 review — the riskiest edit in that change, and the claim it exists for.
+  # An import that DROPS a role deletes it, which now records role.deleted and a
+  # revocation per grant from the model. Those callbacks read the ambient actor,
+  # and this path has none: without the swap the document's own
+  # definitions.applied row names the operator while every row it caused is
+  # self-attributed, and the ledger cannot say who deleted the role.
+  test "an import that drops a role attributes the deletion to the operator" do
+    # An UNHELD role: refuse_held_deletes! stops the document deleting one that
+    # still has holders, so the cascade half of this cannot be reached from here
+    # by design. The attribution half can, and is the part that was wrong.
+    CurrentScope::Role.create!(name: "Retired")
+    CurrentScope::Event.delete_all
+
+    # A document with Owner only: Editor is dropped, and its grant with it.
+    yaml = <<~YAML
+      apiVersion: current_scope/definitions-v1
+      roles:
+      - name: Owner
+        description: ""
+        full_access: true
+        permission_keys: []
+    YAML
+    CurrentScope.import_definitions(yaml, actor: @actor, confirm: true, snapshot_path: snapshot_path)
+
+    deleted = CurrentScope::Event.where(event: "role.deleted").to_a
+    assert_equal 2, deleted.size, "Retired and Editor are both dropped by this document"
+    deleted.each do |event|
+      assert_equal @actor.to_gid.to_s, event.actor,
+        "the operator identified themselves with ACTOR_ID; the row must name them"
+      assert_equal "actor", event.details["source"]
+    end
+  end
+
+  # And nothing about that swap outlives the call.
+  test "an import leaves the ambient identity as it found it" do
+    yaml = <<~YAML
+      apiVersion: current_scope/definitions-v1
+      roles:
+      - name: Owner
+        description: ""
+        full_access: true
+        permission_keys: []
+      - name: Editor
+        description: ""
+        full_access: false
+        permission_keys:
+        - reports#index
+        - reports#show
+    YAML
+
+    with_current_user(User.create!(name: "Ambient")) do
+      before = CurrentScope::Current.attributes.dup
+      CurrentScope.import_definitions(yaml, actor: @actor, confirm: true, snapshot_path: snapshot_path)
+
+      assert_equal before, CurrentScope::Current.attributes,
+        "the raw attributes must come back exactly, or a later Current.user change " \
+        "reads as impersonation and flips the mutation guard"
+    end
+  end
+
   test "adding a key with confirm is idempotent on the second apply" do
     incoming = with_key("Editor", [ "reports#approve" ])
     incoming.apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)

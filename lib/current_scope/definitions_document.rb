@@ -288,7 +288,15 @@ module CurrentScope
         # document's own definitions.applied row names the operator while the
         # deletions it caused are self-attributed, so the ledger cannot say who
         # deleted the role.
-        CurrentScope::Current.set(actor: actor || CurrentScope::Current.actor) do
+        #
+        # RAW attributes, not Current.set: the actor reader answers `super ||
+        # user`, and Object#with (which set uses) snapshots that FALLBACK and
+        # writes it back on exit, pinning whoever Current.user was as an
+        # explicit actor. Current itself names that hazard, and TestHelpers
+        # avoids it the same way this does.
+        previous_current = CurrentScope::Current.attributes.dup
+        CurrentScope::Current.actor = actor if actor
+        begin
           Role.transaction do
             planned_fa = @roles.select(&:full_access).map(&:name)
             FullAccessLock.lock_console_state!(planned_fa)
@@ -321,6 +329,10 @@ module CurrentScope
               )
             end
           end
+        ensure
+          # Restore the RAW snapshot, so nothing about the ambient identity
+          # outlives this call.
+          CurrentScope::Current.attributes = previous_current
         end
         committed = true
       ensure

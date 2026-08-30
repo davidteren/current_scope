@@ -30,10 +30,11 @@ module CurrentScope
     # self-attributed to the record it is about.
     #
     # `source` says which of those two it was, and NOTHING MORE. "actor" means
-    # something had set CurrentScope::Current.actor — a request, but also a job
-    # or with_current_user in a test — and "self" means nothing had. Calling the
-    # first one "request" would be a claim this code cannot make, and an auditor
-    # filtering on it would get a wrong set (#182 review).
+    # an ambient IDENTITY existed — Current.actor answers `super || user`, so a
+    # request, a job, with_current_user in a test, or simply an ambient user all
+    # produce it — and "self" means none did. Calling it "request" would be a
+    # claim this code cannot make, and an auditor filtering on it would get a
+    # wrong set (#182 review).
     def audit_write!(event, target:, details: {})
       actor = CurrentScope::Current.actor
 

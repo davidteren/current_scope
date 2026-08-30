@@ -63,8 +63,6 @@ module CurrentScope
         # assignment first inverted that order and could deadlock.
         lock_full_access_org_holders!
         assignment = RoleAssignment.lock.find(params[:id])
-        subject = resolve_subject(assignment)
-        role_name = assignment.role.name
 
         if last_full_access_org_assignment?(assignment)
           refused = true
@@ -178,9 +176,10 @@ module CurrentScope
 
       # Atomicity comes from create's outer bulk transaction (see clear_org_role).
       assignment.update!(role: new_role)
-      # source on both, so the field is on EVERY authorization event and an
-      # auditor filtering on it cannot silently lose a whole class of change
-      # (#182 review).
+      # source on both, so every event that CHANGES an authorization carries it
+      # and an auditor filtering on it cannot silently lose a whole class of
+      # change. The gate's own observation events are outside that family and
+      # deliberately carry none (#182 review).
       if prior_role.nil?
         Event.record!(event: "org_role.assigned", target: subject,
                       details: { role: new_role.name, source: "actor" })

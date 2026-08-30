@@ -116,8 +116,6 @@ module CurrentScope
       @pending_permission_keys = nil
       @scrub_permission_keys = false
     end
-    private
-
     def record_role_deleted
       audit_write!("role.deleted", target: self, details: { name: name })
     end

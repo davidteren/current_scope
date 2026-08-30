@@ -102,7 +102,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
   # #182 review — the field is only useful if it is on every event. An auditor
   # filtering for human-driven changes must not silently lose org-role
   # assignments and role edits because those emitters predate it.
-  test "every authorization event carries a source" do
+  test "every event that changes an authorization carries a source" do
     report = Report.create!(title: "Q3", requested_by: @owner)
     other = User.create!(name: "Other")
     only_from_here
@@ -113,11 +113,16 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
          params: { role: { name: "Fresh" }, permission_keys: [] }
     CurrentScope::ScopedRoleAssignment.create!(subject: @member, resource: report, role: @member_role)
 
-    events = CurrentScope::Event.all.to_a
-    assert_operator events.size, :>=, 3
-    events.each do |event|
+    # The FAMILY, named: a loop over Event.all would pass while an emitter
+    # outside this list stayed sourceless, and would fail the day an
+    # observation event (which deliberately carries none) landed in the same
+    # window.
+    changes = %w[org_role.assigned role.created scoped_role.granted]
+    changes.each do |name|
+      event = CurrentScope::Event.find_by(event: name)
+      assert event, "expected a #{name} row from this arrangement"
       assert event.details["source"].present?,
-        "#{event.event} carries no source, so a filter on it would lose this row"
+        "#{name} carries no source, so a filter on it would lose this row"
     end
   end
 
@@ -303,8 +308,8 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     other = User.create!(name: "Other")
     CurrentScope::RoleAssignment.create!(subject: other, role: @member_role)
 
+    only_from_here
     assert_no_difference -> { CurrentScope::Event.count } do
-      only_from_here
       post current_scope.role_assignments_url, headers: as(@owner),
            params: { subject_gid: other.to_gid.to_s, role_id: @member_role.id }
     end

@@ -55,12 +55,6 @@ module CurrentScope
 
     def destroy
       assignment = ScopedRoleAssignment.find(params[:id])
-      # Resolve the subject through the canonical guard, else fall back to the
-      # assignment itself as the audit target — never the unrelated live record a
-      # non-canonical stored id would cast into (#151). Mirrors cascade_subject.
-      subject = assignment.current_scope_resolved_record("subject") || assignment
-      role = assignment.role
-
       # The event comes from ScopedRoleAssignment's own callback (#182), so a
       # seed or a rake task that destroys a grant records the same row this
       # console action does. The transaction stays: config.audit = :strict rolls
@@ -73,17 +67,6 @@ module CurrentScope
 
     private
 
-    # The scoped record may be deleted (nil) or its class renamed (NameError) by
-    # the time we revoke — label from the record when it's still there, else from
-    # the stored type/id, so the audit event never 500s on a stale reference.
-    def assignment_resource_label(assignment)
-      resource = assignment.current_scope_resolved_record("resource")
-      resource ? helpers.current_scope_label(resource) : "#{assignment.resource_type} ##{assignment.resource_id}"
-    rescue StandardError
-      # A host current_scope_label that raises must not 500 the revoke audit —
-      # fall back to the stored type/id, matching cascade_resource_label.
-      "#{assignment.resource_type} ##{assignment.resource_id}"
-    end
 
     # Deep-link prefill: a record page links here with resource_gid. A stale
     # link (deleted record → RecordNotFound, renamed class → NameError) must

@@ -33,6 +33,83 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     CurrentScope::Event.first
   end
 
+  # #182 made every grant write audited, including the ones a test makes while
+  # ARRANGING. Clearing here narrows each assertion back to the action under
+  # test; that model-level writes are audited at all is asserted on its own
+  # below, where it is the point rather than noise.
+  def only_from_here
+    CurrentScope::Event.delete_all
+  end
+
+  # --- #182: every write path leaves the same trail ---
+  #
+  # The console recorded its own events, so a grant re-derived by the seed task
+  # left nothing behind. After a role delete cascaded revocations into the
+  # ledger, restoring every one of them added no rows, and an auditor reading
+  # later saw the revocations, found no restoration, and would reasonably
+  # conclude access was still gone when it was fully restored.
+
+  test "a grant created through the model API is audited, with no request behind it" do
+    report = Report.create!(title: "Q3", requested_by: @owner)
+    only_from_here
+
+    assert_difference -> { CurrentScope::Event.count }, 1 do
+      CurrentScope::ScopedRoleAssignment.create!(subject: @member, resource: report, role: @member_role)
+    end
+
+    event = only_event
+    assert_equal "scoped_role.granted", event.event
+    assert_equal @member.to_gid.to_s, event.target
+    assert_equal "Member", event.details["role"]
+    assert_equal "Q3", event.details["resource"]
+    assert_equal "model", event.details["source"],
+      "nothing ambient was set, so the row says where it came from"
+  end
+
+  test "a grant destroyed through the model API is audited too" do
+    report = Report.create!(title: "Q3", requested_by: @owner)
+    grant = CurrentScope::ScopedRoleAssignment.create!(subject: @member, resource: report, role: @member_role)
+    only_from_here
+
+    assert_difference -> { CurrentScope::Event.count }, 1 do
+      grant.destroy!
+    end
+
+    assert_equal "scoped_role.revoked", only_event.event
+  end
+
+  # The incident this issue was filed from, end to end: a role is deleted
+  # through the console, its grants cascade, and the seed task restores them.
+  # The ledger has to show both halves.
+  test "a restore after a cascading role delete is visible in the ledger" do
+    report = Report.create!(title: "Q3", requested_by: @owner)
+    doomed = CurrentScope::Role.create!(name: "Doomed")
+    CurrentScope::ScopedRoleAssignment.create!(subject: @member, resource: report, role: doomed)
+    only_from_here
+
+    delete current_scope.role_url(doomed), headers: as(@owner)
+    assert_equal 1, CurrentScope::Event.where(event: "scoped_role.revoked").count
+
+    # The restore, exactly as a seed does it: model API, no request.
+    restored = CurrentScope::Role.create!(name: "Doomed")
+    CurrentScope::ScopedRoleAssignment.find_or_create_by!(subject: @member, resource: report, role: restored)
+
+    granted = CurrentScope::Event.where(event: "scoped_role.granted").last
+    assert granted, "the restoration has to be in the ledger, or the revocations read as final"
+    assert_equal "model", granted.details["source"]
+  end
+
+  test "the console path says it was a request" do
+    report = Report.create!(title: "Q3", requested_by: @owner)
+    only_from_here
+
+    post current_scope.scoped_role_assignments_url, headers: as(@owner), params: {
+      subject_gid: @member.to_gid.to_s, resource_gid: report.to_gid.to_s, role_id: @member_role.id
+    }
+
+    assert_equal "request", only_event.details["source"]
+  end
+
   # Minitest 6 dropped minitest/mock, so swap record! for a raiser by hand and
   # restore the original Method object afterwards.
   def with_failing_event_record
@@ -116,6 +193,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     co = CurrentScope::Role.create!(name: "CoOwner", full_access: true)
     CurrentScope::RoleAssignment.create!(subject: other, role: co)
 
+    only_from_here
     patch current_scope.role_url(@owner_role), headers: as(@owner), params: {
       role: { name: "Owner", full_access: "0", permission_keys: [ "" ] }
     }
@@ -136,6 +214,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     CurrentScope::RoleAssignment.create!(subject: grantee, role: doomed)
     CurrentScope::ScopedRoleAssignment.create!(subject: @owner, resource: report, role: doomed)
 
+    only_from_here
     delete current_scope.role_url(doomed), headers: as(@owner)
     assert_redirected_to current_scope.roles_url
 
@@ -172,6 +251,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     other = User.create!(name: "Other")
     CurrentScope::RoleAssignment.create!(subject: other, role: @member_role)
 
+    only_from_here
     post current_scope.role_assignments_url, headers: as(@owner),
          params: { subject_gid: other.to_gid.to_s, role_id: @owner_role.id }
     event = only_event
@@ -186,6 +266,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     other = User.create!(name: "Other")
     CurrentScope::RoleAssignment.create!(subject: other, role: @member_role)
 
+    only_from_here
     post current_scope.role_assignments_url, headers: as(@owner),
          params: { subject_gid: other.to_gid.to_s, role_id: "" }
     event = only_event
@@ -200,6 +281,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     CurrentScope::RoleAssignment.create!(subject: other, role: @member_role)
 
     assert_no_difference -> { CurrentScope::Event.count } do
+      only_from_here
       post current_scope.role_assignments_url, headers: as(@owner),
            params: { subject_gid: other.to_gid.to_s, role_id: @member_role.id }
     end
@@ -234,6 +316,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     report = Report.create!(title: "Q3", requested_by: @owner)
     sra = CurrentScope::ScopedRoleAssignment.create!(subject: @member, resource: report, role: @member_role)
 
+    only_from_here
     delete current_scope.scoped_role_assignment_url(sra), headers: as(@owner)
     event = only_event
 
@@ -247,6 +330,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     report = Report.create!(title: "Q3", requested_by: @owner)
     CurrentScope::ScopedRoleAssignment.create!(subject: @member, resource: report, role: @member_role)
 
+    only_from_here
     assert_no_difference -> { CurrentScope::Event.count } do
       post current_scope.scoped_role_assignments_url, headers: as(@owner), params: {
         subject_gid: @member.to_gid.to_s, resource_gid: report.to_gid.to_s, role_id: @member_role.id

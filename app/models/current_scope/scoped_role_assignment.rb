@@ -19,6 +19,29 @@ module CurrentScope
     include CurrentScope::StorableKeys
     validates_storable_polymorphic_keys "subject", "resource"
 
+    # #182: every write path is audited, not only the console's. See
+    # CurrentScope::AuditedWrites for why these are in-transaction callbacks and
+    # how a write with no human behind it is attributed.
+    include CurrentScope::AuditedWrites
+    after_create :record_scoped_role_granted
+    after_destroy :record_scoped_role_revoked
+
+    # The audit TARGET is the subject, resolved through the canonical guard so a
+    # non-canonical stored id names the grant row itself rather than the
+    # unrelated live record that id would cast into (#151). The console used the
+    # same rule; it lives here now so every path gets it.
+    def audit_subject = current_scope_resolved_record("subject") || self
+
+    # Label from the record while it is still there, else from the stored
+    # type/id, so an audit row never 500s on a stale reference or on a host
+    # label method that raises.
+    def audit_resource_label
+      resource = current_scope_resolved_record("resource")
+      resource ? CurrentScope.label_for(resource) : "#{resource_type} ##{resource_id}"
+    rescue StandardError
+      "#{resource_type} ##{resource_id}"
+    end
+
     # Batch-load polymorphic resources for resolvable types only. A global
     # includes(:resource) NameErrors when any resource_type is stale; this
     # constantizes per type and skips unresolvable ones so they stay lazy
@@ -94,5 +117,16 @@ module CurrentScope
       end
     end
     private_class_method :mark_resources_loaded
+    private
+
+    def record_scoped_role_granted
+      audit_write!("scoped_role.granted", target: audit_subject,
+                                          details: { role: role.name, resource: audit_resource_label })
+    end
+
+    def record_scoped_role_revoked
+      audit_write!("scoped_role.revoked", target: audit_subject,
+                                          details: { role: role.name, resource: audit_resource_label })
+    end
   end
 end

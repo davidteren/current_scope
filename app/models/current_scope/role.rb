@@ -3,6 +3,12 @@ module CurrentScope
   # role means the same permission set whether held org-wide or scoped to a
   # single record; only the reach differs.
   class Role < ApplicationRecord
+    # #182: deleting a role is audited from here, so the console, a seed and a
+    # console one-liner all leave the same row. The cascade below records its own
+    # removals through each assignment's callback.
+    include CurrentScope::AuditedWrites
+    after_destroy :record_role_deleted
+
     has_many :role_permissions, dependent: :delete_all
     has_many :role_assignments, dependent: :destroy
     has_many :scoped_role_assignments, dependent: :destroy
@@ -101,6 +107,11 @@ module CurrentScope
       role_permissions.insert_all(staged.map { |k| { permission_key: k } }) if staged.any?
       @pending_permission_keys = nil
       @scrub_permission_keys = false
+    end
+    private
+
+    def record_role_deleted
+      audit_write!("role.deleted", target: self, details: { name: name })
     end
   end
 end

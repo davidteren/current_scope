@@ -69,8 +69,9 @@ module CurrentScope
         if last_full_access_org_assignment?(assignment)
           refused = true
         else
+          # org_role.removed comes from RoleAssignment's own callback (#182), so
+          # a seed or a rake task that destroys the row records it too.
           assignment.destroy!
-          Event.record!(event: "org_role.removed", target: subject || assignment, details: { role: role_name })
         end
       end
 
@@ -162,8 +163,8 @@ module CurrentScope
     def clear_org_role(subject, assignment, prior_role)
       return false unless assignment.persisted? # nothing to clear ⇒ no event
 
+      # The event is the model's (#182).
       assignment.destroy!
-      Event.record!(event: "org_role.removed", target: subject, details: { role: prior_role.name })
       true
     end
 

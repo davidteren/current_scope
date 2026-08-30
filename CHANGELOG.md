@@ -71,6 +71,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pilots.
 
 ### Fixed
+- **Every grant write is audited, not just the console's (#182).** Rows written
+  through the model API — a seed, a rake task, a console one-liner — emitted no
+  ledger events, while the same change made through the management UI did. That
+  turns a recovery into an audit lie: after a role delete cascaded 187
+  revocations into the ledger, restoring all 187 through the seed task added no
+  rows, so anyone auditing later read the revocations, found no restoration, and
+  would reasonably conclude access was still gone.
+
+  `scoped_role.granted`, `scoped_role.revoked`, `org_role.removed` and
+  `role.deleted` are emitted from model callbacks now rather than from the
+  controllers, so every write path records the same row. Each carries
+  `details.source`: `"request"` when something ambient was set, `"model"`
+  otherwise. A write with no human behind it is self-attributed, the same way
+  `CurrentScope.grant!`'s bootstrap events already were.
+
+  The callbacks run INSIDE the transaction, so `config.audit = :strict` still
+  rolls a mutation back when its audit row cannot be written. Creating an org
+  role directly, rather than through `CurrentScope.grant!`, is the one write
+  that still records nothing: that method knows the from/to a callback cannot
+  see, and emitting in both places would double every bootstrap.
 - **`current_scope:report` tells a moot denial from one it cannot re-check
   (#190).** Every failed lookup of a recorded denial's target landed in one
   "could not be re-checked" bucket and was counted as outstanding, so a denial

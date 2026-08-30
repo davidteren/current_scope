@@ -122,21 +122,17 @@ module CurrentScope
         if would_lock_console_by_removing_role?(role)
           refused = true
         else
-          # Snapshot WITHOUT polymorphic includes — includes(:subject)/:resource
-          # can raise NameError for stale types at preload (members page avoids
-          # this for the same reason). Resolve each row inside the helpers.
-          org_removed = role.role_assignments.to_a
-          scoped_revoked = role.scoped_role_assignments.to_a
-
+          # No snapshot and no emission here any more (#182). Every one of these
+          # three events now comes from the model that is being written:
+          # Role#after_destroy for role.deleted, and the dependent: :destroy
+          # cascade firing RoleAssignment's and ScopedRoleAssignment's own
+          # callbacks for each removal. A seed or a rake task that destroys the
+          # same rows therefore records the same trail this console action does,
+          # which it did not before.
+          #
+          # The order changes with it: the cascade rows are recorded before
+          # role.deleted, because Rails destroys dependents first.
           role.destroy!
-          Event.record!(event: "role.deleted", target: role, details: { name: role.name })
-          org_removed.each do |a|
-            Event.record!(event: "org_role.removed", target: cascade_subject(a), details: { role: role.name })
-          end
-          scoped_revoked.each do |a|
-            Event.record!(event: "scoped_role.revoked", target: cascade_subject(a),
-                          details: { role: role.name, resource: cascade_resource_label(a) })
-          end
         end
       end
 

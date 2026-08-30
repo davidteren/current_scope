@@ -3,6 +3,13 @@ module CurrentScope
   # role granted this?" ambiguity of multi-role systems is deliberately
   # avoided; per-record needs are covered by scoped roles instead.
   class RoleAssignment < ApplicationRecord
+    # #182: removing an org role is audited from here, so a cascade, a seed and
+    # a console one-liner all record it. CREATION is not: CurrentScope.grant! is
+    # the documented write path and records org_role.assigned / .changed itself,
+    # with the from/to detail a callback cannot see, so emitting here too would
+    # double every bootstrap.
+    include CurrentScope::AuditedWrites
+    after_destroy :record_org_role_removed
     belongs_to :role
     belongs_to :subject, polymorphic: true
 
@@ -60,5 +67,11 @@ module CurrentScope
     # cache (org_role caches the role object, whose grants? reads live).
     after_save    { CurrentScope::Current.reset_org_role_cache }
     after_destroy { CurrentScope::Current.reset_org_role_cache }
+    private
+
+    def record_org_role_removed
+      subject_record = current_scope_resolved_record("subject") || self
+      audit_write!("org_role.removed", target: subject_record, details: { role: role.name })
+    end
   end
 end

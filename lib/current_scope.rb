@@ -302,8 +302,12 @@ module  CurrentScope
     # Audit (#30): when the org role actually changes, records one
     # `org_role.assigned` / `org_role.changed` event, self-attributed to the
     # grantee with `details.source = "bootstrap"`. Same-role re-grants are a
-    # no-op event-wise. Direct model writes and TestHelpers do not go through
-    # this path and are not recorded (documented intentionally).
+    # no-op event-wise. A direct RoleAssignment write does not go through this
+    # path, so its CREATION is still not recorded here — but its removal is,
+    # from the model's own callback, and both scoped-grant directions are
+    # (#182). The asymmetry is deliberate: this method knows the from/to a
+    # callback cannot see, and emitting in both places would double every
+    # bootstrap.
     def grant!(subject, role: nil)
       role ||= begin
         seed_defaults!

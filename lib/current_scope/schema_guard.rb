@@ -88,21 +88,27 @@ module CurrentScope
         return
       end
 
-      # BOTH paths, because this refusal has two audiences and each needs the
-      # other's command to be wrong for them (#193 review).
+      # THREE paths, because this refusal has three audiences and each needs
+      # the others' command to be wrong for them (#193 review).
       #
-      # A host who has never installed the widening migration needs
-      # install:migrations && db:migrate: that is the path that copies the
-      # migration into db/migrate, stamps it, and dumps schema.rb, so CI and
-      # every teammate get the shape too. repair_schema alone would change the
-      # live columns and leave schema.rb declaring an integer, which rebuilds
-      # the pre-#151 shape on the next db:schema:load.
+      # NOT INSTALLED: the host has upgraded the gem and never run
+      # install:migrations. That pair copies the migration into db/migrate,
+      # stamps it, and dumps schema.rb, so CI and every teammate get the shape
+      # too. repair_schema alone would change the live columns and leave
+      # schema.rb declaring an integer, which rebuilds the pre-#151 shape on the
+      # next db:schema:load.
       #
-      # A host whose database was BUILT from schema.rb — a test database, a
-      # fresh checkout, CI — has every version stamped already, so db:migrate
-      # finds nothing pending and prints nothing. repair_schema re-applies the
-      # widening directly and is idempotent. That is the case the bake hit, one
-      # command after migrating development successfully.
+      # INSTALLED, NOT YET RUN HERE: a production or staging server that got the
+      # migration in a deploy and has not migrated. Plain db:migrate against
+      # THAT database, and nothing else: repair_schema would widen the columns
+      # while writing no schema_migrations row, so db:abort_if_pending_migrations
+      # then fails for a second, unrelated reason.
+      #
+      # BUILT FROM schema.rb: a test database, a fresh checkout, CI. Every
+      # version is stamped already, so db:migrate finds nothing pending and
+      # prints nothing. repair_schema re-applies the widening directly and is
+      # idempotent. That is the case the #116 bake hit, one command after
+      # migrating development successfully.
       raise ConfigurationError,
             "#{column_label(model, column)} is still #{info.type}. CurrentScope stores a " \
             "record's primary key there, and an integer column silently truncates a " \

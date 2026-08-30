@@ -251,10 +251,11 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       end
       assert_match(/still integer/, error.message)
       assert_guard_names_the_database(error.message)
-      # BOTH paths, because the refusal has two audiences (#193 review). A host
-      # who never installed the migration needs the pair that also updates
-      # schema.rb; one whose database was built FROM schema.rb needs the repair,
-      # because db:migrate has nothing pending there.
+      # THREE paths, because the refusal has three audiences (#193 review): a
+      # host who never installed the migration, a server that has it and has not
+      # run it, and a database built FROM schema.rb where db:migrate has nothing
+      # pending. One assertion each, because a reader who finds only their own
+      # case named will run the nearest command instead.
       assert_match(/current_scope:install:migrations && bin\/rails db:migrate` in\s+development/m,
                    error.message, "not installed yet: the path that also updates schema.rb")
       assert_match(/RAILS_ENV=test bin\/rails db:migrate/, error.message,

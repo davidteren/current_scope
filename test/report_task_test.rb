@@ -460,7 +460,7 @@ class ReportTaskTest < ActiveSupport::TestCase
       "and the report must say which rows it cannot vouch for")
     assert_match(/Do not grant on the strength of THIS line/, output,
       "because the obvious reading of the list is the dangerous one")
-    assert_match(/\* = includes denial\(s\) re-checked without the gate's model/, output,
+    assert_match(/\* = includes denial\(s\) re-checked WITHOUT the gate's model/, output,
       "and the legend belongs beside the list, under a header that says grant these")
   end
 

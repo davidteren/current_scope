@@ -208,10 +208,12 @@ namespace :current_scope do
     # so the report can say how much of its own list it cannot vouch for,
     # instead of letting an operator grant a whole controller to clear it.
     legacy_model = []
-    # #196 review: a record-less row whose recorded model name no longer loads
-    # is pushed to `unknown` BEFORE the resolver is asked, so no grant of any
-    # kind can move it off the list. It needs its own sentence, or the operator
-    # grants, sees no change, and loses faith in the count.
+    # #196 review: a record-less row whose recorded model name no longer loads.
+    # It is still ASKED, without a type, because every arm that can allow
+    # without one allows with one too; only a denial lands here, and only that
+    # denial is the answer the missing type could have changed. Tracked so the
+    # report can say which part of its cannot-tell pile this is, and what does
+    # and does not move it.
     dead_model = []
     # Keyed on the TARGET too, not just subject and permission: a denial the host
     # will clear with a scoped grant on one record is a different question from
@@ -492,8 +494,9 @@ namespace :current_scope do
       if dead_model.any?
         puts
         puts "  #{dead_model.sum(&:denials)} of those name a model class that no longer loads (renamed or removed)."
-        puts "  No grant can clear them, because the question cannot be asked. Exercise the"
-        puts "  action again in report mode and read the fresh row."
+        puts "  They were re-checked without a type, so an org-wide grant still clears them and"
+        puts "  a SCOPED grant cannot: the arm that reads the type is the one that cannot run."
+        puts "  Exercise the action again in report mode and read the fresh row."
       end
     end
     if moot.any?
@@ -606,23 +609,30 @@ namespace :current_scope do
                            hash.key?("model") ? hash["model"] : :absent ])
     end
 
-    legacy_keys = legacy_model.to_set { |denial| [ denial.subject_gid, denial.permission ] }
+    # One marker for both populations, because they are the same fact: this line
+    # holds a denial that was re-checked WITHOUT the model the gate uses. A
+    # count with no way to find the lines it refers to is the gap the legacy
+    # caveat was given a marker to close, and the dead-model caveat has it too
+    # (#196 review).
+    no_model_keys = (legacy_model + dead_model).to_set do |denial|
+      [ denial.subject_gid, denial.permission ]
+    end
 
     unless open_rows.empty?
       separate.call
       grouped = open_rows.group_by { |subject, _label, _details| subject }
 
       puts "Would-be denials still outstanding — grant these to stop them (most-denied first):"
-      if legacy_keys.any?
-        puts "  * = includes denial(s) re-checked without the gate's model. Do not grant on"
-        puts "      the strength of those; see the note above."
+      if no_model_keys.any?
+        puts "  * = includes denial(s) re-checked WITHOUT the gate's model, because the row"
+        puts "      predates it or names a type that no longer loads. See the notes above."
       end
       puts
 
       grouped.each do |subject_gid, subject_rows|
         label = subject_rows.first[1].presence || subject_gid
         puts "  #{label}#{org_role_suffix.call(subject_gid)}"
-        print_permission_counts.call(subject_rows, mark: [ subject_gid, legacy_keys ])
+        print_permission_counts.call(subject_rows, mark: [ subject_gid, no_model_keys ])
         puts
       end
 

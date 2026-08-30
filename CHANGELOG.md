@@ -100,7 +100,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   A recorded model name that no longer loads is re-checked anyway, without a
   type, because every arm that can allow without one allows with one too. Only
   a denial then counts as unknown, and the report says those name a class that
-  no longer loads and that no grant can clear them.
+  no longer loads: an org-wide grant still clears them, a scoped one cannot,
+  because the arm that reads the type is the one that cannot run.
 - **`current_scope:report` tells a moot denial from one it cannot re-check
   (#190).** Every failed lookup of a recorded denial's target landed in one
   "could not be re-checked" bucket and was counted as outstanding, so a denial

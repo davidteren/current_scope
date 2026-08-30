@@ -487,7 +487,8 @@ module CurrentScope
       # and again in PR #141. Omitting the key is the honest fallback: it puts
       # the row in the population that is warned about.
       begin
-        details[:model] = recordable_model_name(record, model) unless unnameable_model?(record, model)
+        kind, name = model_detail(record, model)
+        details[:model] = name unless kind == :unnameable
       rescue StandardError
         details.delete(:model)
       end
@@ -506,30 +507,30 @@ module CurrentScope
       nil
     end
 
-    # The model NAME the report may re-ask with, or nil (#196).
+    # What the ledger should say about the model the gate used (#196). Three
+    # answers, in ONE place, because two methods sharing two conditions is two
+    # methods that can disagree (#196 review).
     #
-    # nil in three cases, each of which must not become a false ALLOW when the
-    # report re-asks: the controller declared no record hook, so the gate never
-    # reached the record-less arm; it declared no model; or the hook returned
-    # something that is not a class, which the resolver denies on rather than
-    # trusting. A name is stored only when the gate itself could have used it.
-    def recordable_model_name(record, model)
-      return nil if record.equal?(NO_RECORD)
-      return nil unless model.is_a?(Class)
+    #   [ :name, "Report" ] the gate used this type and the report can re-ask
+    #                       with it.
+    #   [ :none, nil ]      the gate had no usable type: no record hook, so it
+    #                       never reached the record-less arm; or no model hook;
+    #                       or a hook that returned something the resolver
+    #                       refuses anyway. Re-asking without one reproduces the
+    #                       gate's answer, so nil is KNOWLEDGE and is recorded.
+    #   [ :unnameable, nil ] the gate used a real class the ledger cannot name.
+    #                       A class is anonymous until it is assigned to a
+    #                       constant. Recording nil here would read as "the gate
+    #                       had none" and the report would re-ask the stricter
+    #                       question with neither caveat nor marker, so the key
+    #                       is left OUT and the row joins the population the
+    #                       report warns about.
+    def model_detail(record, model)
+      return [ :none, nil ] if record.equal?(NO_RECORD)
+      return [ :none, nil ] unless model.is_a?(Class)
 
-      model.name
-    end
-
-    # The one case where the row must say NOTHING rather than nil: the gate
-    # decided with a real class the ledger cannot NAME. A class is anonymous
-    # until it is assigned to a constant, and Class#name is nil until then.
-    # Recording nil would read as "the gate had no model here" — knowledge, not
-    # absence — so the report would re-ask the stricter question and print a
-    # false denial carrying neither the caveat nor the marker. Leaving the key
-    # out puts the row in the legacy population instead, which is re-checked the
-    # same way AND warned about (#196 review).
-    def unnameable_model?(record, model)
-      !record.equal?(NO_RECORD) && model.is_a?(Class) && model.name.nil?
+      name = model.name
+      name.nil? ? [ :unnameable, nil ] : [ :name, name ]
     end
 
     # The failure this catches is PERSISTENT, not incidental: :report + audit

@@ -94,7 +94,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   The callbacks run INSIDE the transaction, so `config.audit = :strict` still
   rolls a mutation back when its audit row cannot be written.
 
-  Two CREATIONS remain unrecorded, both deliberately. A direct
+  What is recorded from the model is creation and destruction of scoped grants,
+  and destruction of org-role assignments and of roles. Four write paths stay
+  silent, and the configuration guide tables them: a direct
+  `RoleAssignment.create!` or `#update!`, a direct `Role.create!`, and a direct
+  `Role#update!`. So a privilege change made by `update!` in a console or a
+  seed still leaves no row; use the management UI, `CurrentScope.grant!` or the
+  definitions document when a change has to be auditable.
+
+  Two of those are creations, and both are deliberate. A direct
   `RoleAssignment.create!` records nothing, because `CurrentScope.grant!` is the
   documented path and knows the from/to a callback cannot see. And
   `role.created` stays in the controller, because it carries the role's initial

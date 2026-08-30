@@ -136,12 +136,19 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     # outside this list stayed sourceless, and would fail the day an
     # observation event (which deliberately carries none) landed in the same
     # window.
+    CurrentScope.grant!(User.create!(name: "Bootstrapped"), role: @member_role)
+
     changes = %w[org_role.assigned role.created scoped_role.granted]
     changes.each do |name|
-      event = CurrentScope::Event.find_by(event: name)
-      assert event, "expected a #{name} row from this arrangement"
-      assert event.details["attribution"].present?,
-        "#{name} carries no attribution, so a filter on it would lose this row"
+      rows = CurrentScope::Event.where(event: name).to_a
+      assert rows.any?, "expected a #{name} row from this arrangement"
+      # EVERY row of that name, not the first: org_role.assigned is written by
+      # the console AND by CurrentScope.grant!, and checking one would leave the
+      # other free to carry nothing.
+      rows.each do |event|
+        assert event.details["attribution"].present?,
+          "a #{name} row carries no attribution, so a filter on it would lose it"
+      end
     end
   end
 

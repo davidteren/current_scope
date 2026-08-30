@@ -323,7 +323,7 @@ module  CurrentScope
           Event.record!(
             event: "org_role.assigned",
             target: subject,
-            details: { role: role.name, source: "bootstrap" },
+            details: { role: role.name, source: "bootstrap", attribution: "self" },
             actor: subject,
             subject: subject
           )
@@ -331,7 +331,7 @@ module  CurrentScope
           Event.record!(
             event: "org_role.changed",
             target: subject,
-            details: { from: prior_role.name, to: role.name, source: "bootstrap" },
+            details: { from: prior_role.name, to: role.name, source: "bootstrap", attribution: "self" },
             actor: subject,
             subject: subject
           )

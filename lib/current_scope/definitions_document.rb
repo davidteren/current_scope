@@ -294,7 +294,11 @@ module CurrentScope
         # writes it back on exit, pinning whoever Current.user was as an
         # explicit actor. Current itself names that hazard, and TestHelpers
         # avoids it the same way this does.
-        previous_current = CurrentScope::Current.attributes.dup
+        # Only the two keys this touches are saved and put back. Restoring the
+        # whole hash would discard anything the import itself legitimately set
+        # along the way (#182 review).
+        previous_actor = CurrentScope::Current.attributes[:actor]
+        previous_user = CurrentScope::Current.attributes[:user]
         # BOTH, not just the actor. Event.record! falls back to
         # `subject ||= Current.user || actor`, and this ledger defines actor !=
         # subject as an impersonated row. Setting only the actor inside a request
@@ -341,9 +345,11 @@ module CurrentScope
             end
           end
         ensure
-          # Restore the RAW snapshot, so nothing about the ambient identity
-          # outlives this call.
-          CurrentScope::Current.attributes = previous_current
+          # The RAW values, not the readers: #actor answers `super || user`, so
+          # reading it to write it back would pin the fallback as an explicit
+          # actor. Current itself names that hazard.
+          CurrentScope::Current.actor = previous_actor
+          CurrentScope::Current.user = previous_user
         end
         committed = true
       ensure

@@ -114,7 +114,8 @@ gracefully (skip + warn once) if the events table isn't migrated; `:strict`
 **raises** on a missing events table so an audit-mandatory app never commits an
 unaudited change (the mutation rolls back).
 
-Since #182 the ledger no longer depends on which door a change came through.
+Since #182 the ledger no longer depends on which door a GRANT was created or
+destroyed through (updates are a separate matter — see the table below).
 `scoped_role.granted`, `scoped_role.revoked`, `org_role.removed` and
 `role.deleted` are emitted from model callbacks, so a seed, a rake task, a
 console one-liner and the `grant_scoped_role!` test helper all record what the
@@ -143,14 +144,23 @@ authorization changes and carry no `attribution` either — their actor is the
 one the document was applied with. Do not read an absent `attribution` as
 "not a human".
 
-Two CREATIONS are still not recorded, and both are deliberate. A direct
-`RoleAssignment.create!` records nothing, because `CurrentScope.grant!` is the
-documented path and carries the from/to a callback cannot see. And
-`role.created` is emitted by the controller rather than the model, because it
-carries the role's initial permission set, which is not yet persisted when an
-`after_create` callback runs; moving it to `after_commit` would forfeit the
-`:strict` rollback every other event keeps. A role created by a seed therefore
-leaves no `role.created` row, while its deletion does leave `role.deleted`.
+What is recorded from the model is **creation and destruction of scoped
+grants**, and **destruction** of org-role assignments and of roles. Four write
+paths are still silent, and it is worth knowing which before you rely on the
+ledger:
+
+| Write | Recorded? |
+|---|---|
+| `ScopedRoleAssignment` create / destroy | yes, from the model |
+| `RoleAssignment` destroy, `Role` destroy | yes, from the model |
+| `RoleAssignment.create!` direct | no — `CurrentScope.grant!` is the documented path and carries the from/to a callback cannot see |
+| `RoleAssignment#update!(role:)` direct | no — same reason; a console re-grant leaves no trail |
+| `Role.create!` direct | no — `role.created` carries the initial permission set, which is not persisted when an `after_create` runs, and moving it to `after_commit` would forfeit the `:strict` rollback |
+| `Role#update!` direct (`full_access`, `permission_keys`) | no — `role.updated` / `role.renamed` are emitted by the console |
+
+So a privilege change made by `update!` in a console or a seed still leaves no
+row. Use the management UI, `CurrentScope.grant!` or the definitions document
+for changes that must be auditable.
 
 UI events stamp `request_id` from `ActionDispatch::RequestId` via the Context
 hook.

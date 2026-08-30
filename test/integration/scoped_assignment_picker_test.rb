@@ -121,6 +121,70 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # The documented deep link carries no role_id (#183 review). Reading that nil
+  # role as "accepts nothing" dropped the record from the cascade and landed the
+  # operator on a blank picker — every other filter here treats it as "nothing
+  # chosen yet, nothing to filter by".
+  test "a deep link with no role chosen still prefills a type that declares its roles" do
+    folder = Folder.create!(name: "Q3 Ledger")
+    Folder.current_scope_grantable_roles = [ "Owner" ]
+
+    get current_scope.new_scoped_role_assignment_path(resource_gid: folder.to_gid.to_s), headers: as(@owner)
+
+    assert_response :success
+    assert_select "option[selected][value=?]", "Folder"
+    assert_select "select[name=resource_gid] option[selected][value=?]", folder.to_gid.to_s
+  end
+
+  test "a deep-linked record whose own class refuses the role is not offered" do
+    receipt = Receipt.create!(title: "RCT-1")
+    Document.current_scope_grantable_roles = [ "Owner" ]
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(
+        role_id: @member_role.id, subject_gid: @member.to_gid.to_s,
+        resource_type: "Document", resource_gid: receipt.to_gid.to_s
+      ), headers: as(@owner)
+
+      assert_select "input[type=hidden][name=resource_gid]", count: 0,
+                    message: "a Grant button under the hint saying no record accepts the role is the dead end"
+      assert_match(/No documents accept/, response.body)
+    end
+  end
+
+  # An STI table is the one place the role filter runs per record, so on the
+  # indexed-search path it has to run BEFORE the display cut (#183 review).
+  test "the indexed search finds a grantable record past the first page of refused ones" do
+    50.times { |i| Receipt.create!(title: "Doc #{i}") }
+    invoice = Invoice.create!(title: "Doc 50")
+    Document.current_scope_grantable_roles = [ "Owner" ]
+    Invoice.current_scope_grantable_roles = [ "Member" ]
+    Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(
+        role_id: @member_role.id, resource_type: "Document", q: "Doc"
+      ), headers: as(@owner)
+
+      # The one grantable match sat past the 50-row display cut.
+      assert_select "select[name=resource_gid] option[value=?]", invoice.to_gid.to_s, count: 1
+    end
+  ensure
+    Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
+  end
+
+  test "a registered STI subclass is withheld like any other type, because its records answer for themselves" do
+    Invoice.current_scope_grantable_roles = [ "Owner" ]
+
+    with_scopeable_resources([ Invoice ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id), headers: as(@owner)
+
+      assert_select "option[value=?]", "Invoice", count: 0
+      assert_match(/No resource type accepts/, response.body,
+                   "a leaf class answers for itself, so it is withheld outright rather than offered empty")
+    end
+  end
+
   # The Grant button posts what the operator can SEE selected. A resource_gid
   # survives every autosubmit, so an earlier pick must not ride along after the
   # role or the type moves on (#183 review).

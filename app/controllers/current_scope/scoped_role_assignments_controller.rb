@@ -36,9 +36,7 @@ module CurrentScope
       # listed — the dead end this filter exists to prevent (#183 review).
       @resource_type = resolve_type(params[:resource_type], within: @scopeable) ||
                        deep_linked_type
-      # A resource_gid carried over from an earlier pick must not be prepended
-      # into a DIFFERENT type's record list as the selected option.
-      @resource = nil unless @resource_type && @resource.is_a?(@resource_type)
+      @resource = nil unless keep_deep_linked_resource?
       @searchable = searchable?(@resource_type)
       @records = candidate_records(@resource_type, params[:q], @selected_role)
       @grantable_gid = offered_gid
@@ -103,14 +101,23 @@ module CurrentScope
       types.select { |klass| grants_role?(klass, role) || sti_base?(klass) }
     end
 
+    # No role chosen yet ⇒ nothing to filter by. THE one meaning of a nil role
+    # in this controller: a call site that read it as "accepts nothing" broke
+    # the documented deep link, which carries no role_id (#183 review).
     def grants_role?(klass, role)
+      return true if role.nil?
+
       !klass.respond_to?(:current_scope_grants_role?) || klass.current_scope_grants_role?(role)
     end
 
-    # True when a row of this table can load as a subclass — then the class the
-    # model gate will ask is not known until the row itself is loaded.
+    # True when a row of this table can load as a class OTHER than this one —
+    # then the class the model gate will ask is not known until the row itself
+    # is loaded. An STI leaf answers for itself, so it is filtered like any
+    # other type.
     def sti_base?(klass)
-      klass.respond_to?(:has_attribute?) && klass.has_attribute?(klass.inheritance_column)
+      return false unless klass.respond_to?(:base_class) && klass.respond_to?(:has_attribute?)
+
+      klass.base_class == klass && klass.has_attribute?(klass.inheritance_column)
     rescue StandardError
       false # tableless double, or no database to ask
     end
@@ -119,6 +126,19 @@ module CurrentScope
     # the chosen role.
     def deep_linked_type
       @resource&.class if @resource && grants_role?(@resource.class, @selected_role)
+    end
+
+    # A deep-linked record is kept only when it belongs to the type on screen
+    # AND its own class accepts the chosen role. Without the second half a
+    # carried-over gid rides into a DIFFERENT type's record list as the selected
+    # option, or an STI record the role gate rejects keeps a Grant button under
+    # the hint saying no record of that type accepts the role (#183 review).
+    def keep_deep_linked_resource?
+      return false unless @resource_type && @resource.is_a?(@resource_type)
+      return true if grants_role?(@resource.class, @selected_role)
+
+      @records_withheld = true # the view explains the empty list
+      false
     end
 
     # The Grant button must post only a record the operator can SEE selected.
@@ -212,7 +232,13 @@ module CurrentScope
       # A14: if the host model opts in with a class-level current_scope_searchable_scope,
       # search via that indexed relation — no SCAN_CAP, no in-Ruby label filter.
       if query.present? && klass.respond_to?(:current_scope_searchable_scope)
-        return grantable_records(klass.current_scope_searchable_scope(query).limit(DISPLAY_LIMIT).to_a, role)
+        # Only an STI table holds records with different answers, and there the
+        # role filter has to run BEFORE the display cut or a grantable match
+        # just past it disappears. Everywhere else one class decides for the
+        # whole type, so the indexed scope keeps its promise of no SCAN_CAP.
+        cap = sti_base?(klass) && role ? SCAN_CAP : DISPLAY_LIMIT
+        return grantable_records(klass.current_scope_searchable_scope(query).limit(cap).to_a, role)
+                 .first(DISPLAY_LIMIT)
       end
 
       # Fallback: current_scope_label is a Ruby method with no backing column, so

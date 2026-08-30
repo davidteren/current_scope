@@ -382,11 +382,12 @@ module  CurrentScope
     # soft-deprecates `model.connection` and refuses it outright where
     # permanent checkout is disallowed, and SchemaGuard asks this on every
     # boot — before it can raise anything a host would find useful. A pool's
-    # db_config knows the adapter, so ask that instead. One regex, four call
-    # sites: mysql? above, SchemaGuard.mysql? (twice, on both names), and the
-    # repair task. A FIFTH copy of the pattern lives in the widening migration
+    # db_config knows the adapter, so ask that instead. One regex, three call
+    # sites, all in this file: `mysql?` above and both names in `mysql_config?`
+    # below. Everything else — SchemaGuard, the repair task — goes through one
+    # of those two. A copy of the pattern also lives in the widening migration,
     # and is meant to: a migration has to run standalone, without reaching into
-    # CurrentScope. Any other copy is one too many.
+    # CurrentScope. Any copy beyond those is one too many.
     def mysql_adapter?(name)
       name.to_s.match?(/mysql|trilogy|maria/i)
     end

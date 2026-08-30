@@ -25,8 +25,12 @@
       data: { turbo_frame: "cascade" }, class: "cs-picker" do %>
   <p>
     <%= label_tag :role_id, "Role" %>
+    <%# include_blank, or the browser preselects the first role while the server
+        has applied none — the type list would then contradict the role showing
+        beside it until the first autosubmit (#183 review). %>
     <%= select_tag :role_id,
           options_from_collection_for_select(@roles, :id, :name, params[:role_id]),
+          include_blank: "— choose a role —",
           data: { current_scope_autosubmit: true } %>
   </p>
   <% if @bulk_subjects.any? %>
@@ -197,30 +201,34 @@
       <% end %>
     <% end %>
 
-    <p class="cs-picker-actions">
-      <%# No-JS / no-Turbo fallback: reload the cascade with the current picks. %>
-      <%= submit_tag "Show records", name: nil, form: "cs-cascade", class: "cs-picker-refresh" %>
-      <%# Grant only a selection that is actually on offer. Every cascade control
-          autosubmits, but a resource_gid picked earlier survives a change of role
-          or type, so the controller hands us the gid the operator can SEE
-          selected (nil when the stale one is no longer listed). %>
-      <%# The RESOLVED role, not the param: a deleted id would otherwise post a
-          Grant that can only fail (#183 review). %>
-      <% ready = @selected_role.present? && @grantable_gid.present? %>
-      <% if @bulk_subjects.any? %>
-        <% if ready %>
-          <%= button_to "Grant to #{@bulk_subjects.size} #{'subject'.pluralize(@bulk_subjects.size)}",
-                scoped_role_assignments_path, method: :post,
-                params: { role_id: @selected_role.id, resource_gid: @grantable_gid,
-                          subject_gids: @bulk_subjects.map { |s| s.to_gid.to_s } },
-                data: { turbo_frame: "_top" }, class: "cs-btn-primary" %>
-        <% end %>
-      <% elsif ready && params[:subject_gid].present? %>
-        <%= button_to "Grant scoped role", scoped_role_assignments_path, method: :post,
-              params: { role_id: @selected_role.id, subject_gid: params[:subject_gid],
-                        resource_gid: @grantable_gid },
+  <% end %>
+  <%# Outside the branches on purpose: without JavaScript this submit is the
+      only way to re-run the cascade, and the state where every type withheld
+      the role is recoverable by changing the role — but only if the operator
+      can still submit (#183 review). %>
+  <p class="cs-picker-actions">
+    <%# No-JS / no-Turbo fallback: reload the cascade with the current picks. %>
+    <%= submit_tag "Show records", name: nil, form: "cs-cascade", class: "cs-picker-refresh" %>
+    <%# Grant only a selection that is actually on offer. Every cascade control
+        autosubmits, but a resource_gid picked earlier survives a change of role
+        or type, so the controller hands us the gid the operator can SEE
+        selected (nil when the stale one is no longer listed). %>
+    <%# The RESOLVED role, not the param: a deleted id would otherwise post a
+        Grant that can only fail (#183 review). %>
+    <% ready = @selected_role.present? && @grantable_gid.present? %>
+    <% if @bulk_subjects.any? %>
+      <% if ready %>
+        <%= button_to "Grant to #{@bulk_subjects.size} #{'subject'.pluralize(@bulk_subjects.size)}",
+              scoped_role_assignments_path, method: :post,
+              params: { role_id: @selected_role.id, resource_gid: @grantable_gid,
+                        subject_gids: @bulk_subjects.map { |s| s.to_gid.to_s } },
               data: { turbo_frame: "_top" }, class: "cs-btn-primary" %>
       <% end %>
-    </p>
-  <% end %>
+    <% elsif ready && params[:subject_gid].present? %>
+      <%= button_to "Grant scoped role", scoped_role_assignments_path, method: :post,
+            params: { role_id: @selected_role.id, subject_gid: params[:subject_gid],
+                      resource_gid: @grantable_gid },
+            data: { turbo_frame: "_top" }, class: "cs-btn-primary" %>
+    <% end %>
+  </p>
 </turbo-frame>

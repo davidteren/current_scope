@@ -450,6 +450,27 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_select "input[type=hidden][name=resource_gid]", count: 0
   end
 
+  # Without JavaScript this submit is the only way to re-run the cascade, and a
+  # role every type withholds is recoverable — by changing the role, which needs
+  # a control to submit (#183 review).
+  test "the state where no type accepts the role keeps the no-JS submit" do
+    with_scopeable_resources([ picky_type ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id), headers: as(@owner)
+
+      assert_select "#cs_types_none_accept"
+      assert_select ".cs-picker-refresh"
+    end
+  end
+
+  # The browser preselects the first option, so without a blank the page would
+  # show a role the server has not applied, beside a type list that ignores it.
+  test "the first render selects no role, because the server has applied none" do
+    get current_scope.new_scoped_role_assignment_path, headers: as(@owner)
+
+    assert_select "select[name=role_id] option[selected]", count: 0
+    assert_select "select[name=role_id] option[value='']"
+  end
+
   # The Grant button posts what the operator can SEE selected. A resource_gid
   # survives every autosubmit, so an earlier pick must not ride along after the
   # role or the type moves on (#183 review).

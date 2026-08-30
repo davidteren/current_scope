@@ -123,16 +123,25 @@ module CurrentScope
       # stored id casts into an unrelated live record, and the gate would then
       # judge (and name) the wrong class — the one call site that read the plain
       # association is this one (#183 review, #151).
+      # Resolved WITHOUT inert_on_error: this is a write path, and the registry
+      # rule is that a grant must not be saved under a registry that cannot say
+      # which class a token names. The sibling key guard already refuses such a
+      # row; holding the property here too is what that rule asks of each write
+      # path (#183 review).
       klass = current_scope_resolved_record("resource")&.class ||
-              CurrentScope.polymorphic_class(resource_type, inert_on_error: true)
+              CurrentScope.polymorphic_class(resource_type)
       return if klass.nil? || !klass.respond_to?(:current_scope_grants_role?)
       return if klass.current_scope_grants_role?(role)
 
       # Read through respond_to? and Array(): the type joins this gate by
       # answering current_scope_grants_role? alone, which a host may compute
       # without holding a list at all (#183 review).
-      allowed = Array(klass.try(:current_scope_grantable_roles))
-      accepts = if allowed.empty?
+      allowed = klass.try(:current_scope_grantable_roles)
+      accepts = if allowed.nil?
+        # A type that computes the rule and holds no list: naming an empty list
+        # would tell the operator it accepts nothing, which may be false.
+        "it does not accept this one"
+      elsif allowed.empty?
         "it accepts no scoped roles at all"
       else
         "it accepts #{allowed.to_sentence(two_words_connector: ' or ', last_word_connector: ' or ')}"

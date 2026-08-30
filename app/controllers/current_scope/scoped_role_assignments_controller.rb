@@ -43,15 +43,15 @@ module CurrentScope
       # search re-reads the same rows the empty list came from, so telling the
       # operator to search would be advice that cannot work (#183 review).
       indexed_search = @resource_type.respond_to?(:current_scope_searchable_scope)
-      @records, @records_withheld = candidate_records(@resource_type, params[:q], @selected_role)
+      @records, @records_withheld, unread_records = candidate_records(@resource_type, params[:q], @selected_role)
       # ONE answer to "is there a search box on screen?", so the field and the
       # advice to use it cannot drift apart across the template (#183 review).
       @offer_search = @searchable && (@records.present? || indexed_search || params[:q].present?)
-      # And whether searching is worth SUGGESTING: only an indexed scope reads
-      # past the scanned window, so only then can a search reach a record the
-      # role filter left out. Derived here so the box and the advice to use it
-      # cannot drift apart across the template (#183 review).
-      @advise_search = @records_withheld && @offer_search && indexed_search
+      # And whether searching is worth SUGGESTING: it can only turn up something
+      # new when an indexed scope reads past the window AND the scan stopped at
+      # its cap with records still unread. On a table read to the end, "search
+      # for one" is advice that provably cannot succeed (#183 review).
+      @advise_search = @records_withheld && @offer_search && indexed_search && unread_records
       @grantable_gid = offered_gid(@resource, @records)
     end
 
@@ -128,7 +128,10 @@ module CurrentScope
     # row itself is loaded, and the RECORD list is what narrows.
     #
     # Every class over a table with an inheritance column answers yes, leaves
-    # included. Asking `subclasses` instead would be load-order dependent
+    # included — and so does a plain model that happens to use `type` for its
+    # own purposes, which is offered rather than withheld. Picking it says
+    # plainly that none of its records accept the role, where withholding it
+    # would say nothing at all. Asking `subclasses` instead would be load-order dependent
     # (Zeitwerk loads on reference, and the dummy app does not eager-load in
     # test either), and the two ways of being wrong are not equal: offering a
     # leaf whose records all refuse costs one dropdown entry and an honest
@@ -250,11 +253,13 @@ module CurrentScope
       klass.respond_to?(:count) && klass.count > SEARCH_THRESHOLD
     end
 
-    # Returns [ records, withheld ]. `withheld` says the ROLE filter removed
-    # rows, which is what lets the view explain an empty list instead of
-    # blaming an empty table.
+    # Returns [ records, withheld, unread ]. `withheld` says the ROLE filter
+    # removed rows, which is what lets the view explain an empty list instead of
+    # blaming an empty table. `unread` says the scan stopped at its cap, so
+    # records exist that nothing here has looked at — the only state where
+    # searching can turn up something new.
     def candidate_records(klass, query, role)
-      return [ nil, false ] unless klass.respond_to?(:limit) # tableless / nil type ⇒ nothing to pick
+      return [ nil, false, false ] unless klass.respond_to?(:limit) # tableless / nil type ⇒ nothing to pick
 
       # A14: if the host model opts in with a class-level current_scope_searchable_scope,
       # search via that indexed relation — no SCAN_CAP, no in-Ruby label filter.
@@ -263,26 +268,27 @@ module CurrentScope
         # role filter has to run BEFORE the display cut or a grantable match
         # just past it disappears. Everywhere else one class decides for the
         # whole type, so the indexed scope keeps its promise of no SCAN_CAP.
-        # The wider fetch buys nothing unless this hierarchy actually declares
-        # its grantable roles: without an opt-in, every record is grantable and
-        # the filter removes nothing. A host that adopted the indexed scope but
-        # not #183 keeps the promise of no SCAN_CAP (#183 review).
-        widen = role && sti_table?(klass) && klass.respond_to?(:current_scope_grants_role?)
-        cap = widen ? SCAN_CAP : DISPLAY_LIMIT
+        #
+        # Every STI type pays it, declaration or not: whether a SUBCLASS
+        # declares cannot be answered without asking `subclasses`, which sees
+        # only what is loaded, and an under-fetch there would silently drop
+        # grantable records rather than merely cost rows (#183 review).
+        cap = role && sti_table?(klass) ? SCAN_CAP : DISPLAY_LIMIT
         found = klass.current_scope_searchable_scope(query).limit(cap).to_a
         kept = grantable_records(found, role)
-        return [ kept.first(DISPLAY_LIMIT), kept.size < found.size ]
+        return [ kept.first(DISPLAY_LIMIT), kept.size < found.size, found.size == cap ]
       end
 
       # Fallback: current_scope_label is a Ruby method with no backing column, so
       # scan the first SCAN_CAP rows and filter the label in Ruby.
-      records = klass.limit(SCAN_CAP).to_a
+      scanned = klass.limit(SCAN_CAP).to_a
+      records = scanned
       if query.present?
         needle = query.downcase
         records = records.select { |record| helpers.current_scope_label(record).downcase.include?(needle) }
       end
       kept = grantable_records(records, role)
-      [ kept.first(DISPLAY_LIMIT), kept.size < records.size ]
+      [ kept.first(DISPLAY_LIMIT), kept.size < records.size, scanned.size == SCAN_CAP ]
     end
 
     # The model gate judges the record's OWN class, so an STI table can hold

@@ -278,7 +278,11 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   # the list would leave no way to reach it, and the empty state would be a
   # claim the code cannot make.
   test "an empty role-filtered list keeps the search box where searching can reach further" do
-    21.times { |i| Receipt.create!(title: "Doc #{i}") }
+    now = Time.current
+    rows = Array.new(CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP) do |i|
+      { title: "RCT-#{i}", type: "Receipt", created_at: now, updated_at: now }
+    end
+    Document.insert_all(rows)
     Document.current_scope_grantable_roles = [ "Owner" ]
     Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
 
@@ -292,6 +296,27 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   ensure
     # Guarded: the hook is defined several statements in, and an unguarded
     # remove_method would raise NameError over the real failure.
+    if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
+      Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
+    end
+  end
+
+  # And the third case: an indexed scope, but the scan already read the whole
+  # table. There is nothing left for a search to find, so telling the operator
+  # to search would be advice that provably cannot succeed (#183 review).
+  test "a fully read table does not suggest searching, even with an indexed scope" do
+    21.times { |i| Receipt.create!(title: "RCT-#{i}") }
+    Document.current_scope_grantable_roles = [ "Owner" ]
+    Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
+          headers: as(@owner)
+
+      assert_select ".cs-records-refused"
+      assert_select ".cs-records-refused-searchable", count: 0
+    end
+  ensure
     if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
       Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
     end

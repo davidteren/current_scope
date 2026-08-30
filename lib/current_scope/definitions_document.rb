@@ -299,17 +299,22 @@ module CurrentScope
         # along the way (#182 review).
         previous_actor = CurrentScope::Current.attributes[:actor]
         previous_user = CurrentScope::Current.attributes[:user]
-        # BOTH, not just the actor. Event.record! falls back to
-        # `subject ||= Current.user || actor`, and this ledger defines actor !=
-        # subject as an impersonated row. Setting only the actor inside a request
-        # where a different admin is signed in would stamp every row this import
-        # causes as impersonation, while the definitions.applied row written in
-        # the same transaction pins both and would not — one transaction
-        # disagreeing with itself (#182 review). The import acts AS the operator,
-        # so the ambient identity says so on both axes.
+        # The ACTOR axis only, and the effective subject only when there is
+        # none. Swapping Current.user outright would hide a genuine
+        # impersonation session in every row this import causes, and would
+        # change what a host's own destroy callbacks see as the effective
+        # subject — far more than an audit fix needs (#182 review).
+        #
+        # KNOWN WRINKLE, named rather than papered over: a caller who passes an
+        # explicit `actor:` from a session with a DIFFERENT ambient user gets
+        # cascade rows whose actor and subject differ, which this ledger reads as
+        # impersonation, while the definitions.applied row pins both and does
+        # not. Both rows name the same operator, which is what matters for "who
+        # deleted this role"; the two disagree only about whether that operator
+        # was standing in for someone.
         if actor
           CurrentScope::Current.actor = actor
-          CurrentScope::Current.user = actor
+          CurrentScope::Current.user = actor if CurrentScope::Current.attributes[:user].nil?
         end
         begin
           Role.transaction do

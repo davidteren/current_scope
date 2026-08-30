@@ -127,8 +127,9 @@ Every event that CHANGES an authorization carries `details.attribution` —
 `scoped_role.revoked`. It is `"actor"` when an ambient identity existed
 (`Current.actor` answers `super || user`, so a request, a job, an ambient user
 or `with_current_user` in a test all produce it), `"self"` when none did, in
-which case the row is self-attributed to the record it is about, and
-`"bootstrap"` from `CurrentScope.grant!`.
+which case the row is self-attributed to the record it is about.
+`CurrentScope.grant!`'s rows are self-attributed too, so they read `"self"`;
+what marks them as the bootstrap path is their separate `source: "bootstrap"`.
 
 It is `attribution` and not `source` because `details["source"]` was already
 taken, twice and for different things: `CurrentScope.grant!` writes

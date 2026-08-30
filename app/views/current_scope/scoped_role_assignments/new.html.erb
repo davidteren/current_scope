@@ -216,6 +216,11 @@
                       at its cap and cannot speak for the whole table. %>
                   No match for “<%= @query %>” among the records read accepts
                   <strong><%= role_name %></strong> — pick a different role.
+                <% when :refused_linked %>
+                  No match for “<%= @query %>” accepts
+                  <strong><%= role_name %></strong>. The linked
+                  <strong><%= current_scope_label(@step.deep_linked) %></strong>
+                  does, and is still selectable.
                 <% when :none_linked %>
                   No records match “<%= @query %>”. The linked
                   <strong><%= current_scope_label(@step.deep_linked) %></strong>

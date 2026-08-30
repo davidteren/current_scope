@@ -27,4 +27,56 @@ class ScopedPickerSystemTest < ApplicationSystemTestCase
     assert CurrentScope::ScopedRoleAssignment.exists?(subject: pat, resource: folder, role: role),
       "the cascade did not create the scoped assignment"
   end
+
+  # #183 in a real browser: the ROLE is picked first, so it is the type list that
+  # narrows. The states this feature added are conditional renders, which a
+  # layout-less request test can miss.
+  test "picking a role narrows the type list, and picking another brings it back" do
+    CurrentScope::Role.create!(name: "Folder Editor")
+    CurrentScope::Role.create!(name: "Vault Keeper")
+    Folder.create!(name: "Shared Space")
+    Folder.current_scope_grantable_roles = [ "Folder Editor" ]
+
+    visit "/current_scope/scoped_role_assignments/new"
+    # No role is applied yet, so nothing is filtered and nothing is claimed.
+    assert_no_selector "#cs_types_withheld"
+    assert_selector "#resource_type option[value='Folder']"
+
+    select "Vault Keeper", from: "role_id"
+    assert_selector "#cs_types_withheld"
+    # A type that does not accept the chosen role must not be offered.
+    assert_no_selector "#resource_type option[value='Folder']"
+
+    select "Folder Editor", from: "role_id"
+    assert_no_selector "#cs_types_withheld"
+    assert_selector "#resource_type option[value='Folder']"
+  ensure
+    if Folder.instance_variable_defined?(:@current_scope_grantable_roles)
+      Folder.send(:remove_instance_variable, :@current_scope_grantable_roles)
+    end
+  end
+
+  # The record step, in the browser: a type whose records refuse the role says so
+  # where the list would be, and offers no Grant button.
+  test "a record list emptied by the role filter explains itself" do
+    CurrentScope::Role.create!(name: "Vault Keeper")
+    User.create!(name: "Pat Picker")
+    Folder.create!(name: "Shared Space")
+    Folder.current_scope_grantable_roles = [ "Vault Keeper" ]
+
+    visit "/current_scope/scoped_role_assignments/new"
+    select "Vault Keeper", from: "role_id"
+    select "Pat Picker", from: "subject_gid"
+    select "Folder", from: "resource_type"
+    assert_selector "#resource_gid option[value*='Folder']"
+
+    # Now the same type under a role it does not accept: the Grant path closes.
+    select "Owner", from: "role_id"
+    assert_no_selector ".cs-btn-primary"
+    assert_selector "#cs_types_withheld"
+  ensure
+    if Folder.instance_variable_defined?(:@current_scope_grantable_roles)
+      Folder.send(:remove_instance_variable, :@current_scope_grantable_roles)
+    end
+  end
 end

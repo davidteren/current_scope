@@ -94,10 +94,10 @@ module CurrentScope
       return @withheld ? :shown_withheld : :shown if records.present?
       # A surviving deep-linked record is selected and grantable, so the plain
       # refusals cannot be said beside it: "pick a different role" contradicts
-      # the role that accepts this one. The zero-match case still has something
-      # true and useful to say — the query found nothing, and the record on
-      # screen is the linked one, not a match (#183 review).
-      return @withheld ? nil : :none_linked if deep_linked
+      # the role that accepts this one. Both cases still have something true to
+      # say — what the query found, and that the record on screen is the linked
+      # one rather than a match (#183 review).
+      return @withheld ? :refused_linked : :none_linked if deep_linked
       return :none unless @withheld && role
 
       advise_search? ? :refused_searchable : :refused

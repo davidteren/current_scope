@@ -617,6 +617,25 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # Every other zero-result path names its reason; this one used to be silent
+  # (#183 review).
+  test "a search whose matches all refuse the role says so beside the linked record" do
+    21.times { |i| Receipt.create!(title: "Q3 receipt #{i}") }
+    invoice = Invoice.create!(title: "INV-1")
+    declare_grantable_roles(Document, [ "Owner" ])
+    declare_grantable_roles(Invoice, [ "Member" ])
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(
+        role_id: @member_role.id, resource_type: "Document",
+        resource_gid: invoice.to_gid.to_s, q: "Q3"
+      ), headers: as(@owner)
+
+      assert_select "#cs_search_refused_linked", /INV-1/
+      assert_select "select[name=resource_gid] option[selected][value=?]", invoice.to_gid.to_s
+    end
+  end
+
   # The Grant button posts what the operator can SEE selected. A resource_gid
   # survives every autosubmit, so an earlier pick must not ride along after the
   # role or the type moves on (#183 review).

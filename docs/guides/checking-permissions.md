@@ -281,14 +281,20 @@ end
 - **Absent a declaration nothing changes**: every role stays grantable on every
   type. Opting in is per type.
 - The rule is enforced on the **model**, so a seed, a rake task and a console
-  one-liner meet it as well as the management UI. The picker narrows the type
-  dropdown to those that accept the chosen role, and says how many it withheld.
+  one-liner meet it as well as the management UI. It is a validation, so the
+  write paths that skip validations skip it too: `insert_all`, `upsert_all`,
+  `update_column` and `update_columns` write whatever they are given, and no
+  database constraint stands behind them. The picker narrows the type dropdown
+  to those that accept the chosen role, and says how many it withheld.
 - An **empty** declaration, `self.current_scope_grantable_roles = []`, means no
   role may be granted on that type. It is an assignment rather than a DSL call
   precisely so a computed empty list declares the lockdown instead of silently
   reading the current value. Assigning **`nil`** is the opposite: it means no
   declaration, so a list read from config with a missing key leaves the default
-  in place rather than locking the type.
+  in place rather than locking the type. Mind the difference when you compute
+  the list: `ENV.fetch("CS_ROLES", "").split(",")` is `[]` with the variable
+  unset, which is a lockdown, and that is the fail-closed answer. Assign `nil`
+  when you mean "no declaration".
 - A subclass inherits its parent's declaration until it states its own, and an
   **STI subclass** is governed by its own declaration even though the grant row
   stores the base class's token. One table therefore holds records with

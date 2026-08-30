@@ -44,6 +44,9 @@ module CurrentScope
       # operator to search would be advice that cannot work (#183 review).
       @indexed_search = @resource_type.respond_to?(:current_scope_searchable_scope)
       @records, @records_withheld = candidate_records(@resource_type, params[:q], @selected_role)
+      # ONE answer to "is there a search box on screen?", so the field and the
+      # advice to use it cannot drift apart across the template (#183 review).
+      @offer_search = @searchable && (@records.present? || @indexed_search || params[:q].present?)
       @grantable_gid = offered_gid(@resource, @records)
     end
 
@@ -162,7 +165,9 @@ module CurrentScope
     # it — a raw validation alert at best, and at worst a silent grant on a
     # record that is no longer on screen (#183 review).
     def offered_gid(resource, records)
-      gid = params[:resource_gid].presence || resource&.to_gid&.to_s
+      # The only source of a gid: a deep-linked resource is itself located from
+      # this param, so there is no second one to fall back to.
+      gid = params[:resource_gid].presence
       return nil if gid.blank? || @resource_type.nil?
 
       offered = Array(records).map { |record| record.to_gid.to_s }

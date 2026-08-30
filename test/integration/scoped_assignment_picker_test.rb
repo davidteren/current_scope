@@ -295,6 +295,30 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_match(/cannot be granted on Folder/, flash[:alert])
   end
 
+  # A deep-linked record can accept the role while every SCANNED row refuses it.
+  # Falling through to the empty state there would leave a Grant button posting
+  # a record the page never shows (#183 review).
+  test "a deep-linked record past the scan window is shown, not just granted" do
+    now = Time.current
+    rows = Array.new(CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP) do |i|
+      { title: "RCT-#{i}", type: "Receipt", created_at: now, updated_at: now }
+    end
+    Document.insert_all(rows)
+    invoice = Invoice.create!(title: "INV-1")
+    Document.current_scope_grantable_roles = [ "Owner" ]
+    Invoice.current_scope_grantable_roles = [ "Member" ]
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(
+        role_id: @member_role.id, subject_gid: @member.to_gid.to_s,
+        resource_type: "Document", resource_gid: invoice.to_gid.to_s
+      ), headers: as(@owner)
+
+      assert_select "select[name=resource_gid] option[selected][value=?]", invoice.to_gid.to_s
+      assert_select "input[type=hidden][name=resource_gid][value=?]", invoice.to_gid.to_s
+    end
+  end
+
   # The Grant button posts what the operator can SEE selected. A resource_gid
   # survives every autosubmit, so an earlier pick must not ride along after the
   # role or the type moves on (#183 review).

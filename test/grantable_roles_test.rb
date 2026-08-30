@@ -146,6 +146,15 @@ class GrantableRolesTest < ActiveSupport::TestCase
       "a missing config key must not lock the type down"
   end
 
+  # A Role RECORD is a natural thing to reach for, and to_s on one yields an
+  # inspect string that matches nothing — a silent lockdown (#183 review).
+  test "a Role record may be declared, not only its name" do
+    Project.current_scope_grantable_roles = [ @container ]
+
+    assert_equal [ "Project Lead" ], Project.current_scope_grantable_roles
+    assert grant(@container, @project).valid?
+  end
+
   test "a subclass inherits its parent's declaration until it states its own" do
     Project.current_scope_grantable_roles = [ "Project Lead" ]
     subclass = Class.new(Project) { def self.name = "SpecialProject" }

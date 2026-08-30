@@ -42,7 +42,15 @@ module CurrentScope
       # documented default when the key is missing — the two values read the
       # same way as they are written (#183 review).
       def current_scope_grantable_roles=(names)
-        @current_scope_grantable_roles = names.nil? ? nil : Array(names).flatten.map(&:to_s).freeze
+        @current_scope_grantable_roles =
+          if names.nil?
+            nil
+          else
+            # Role RECORDS are accepted too: to_s on one yields an inspect
+            # string that can never match, which would be a silent lockdown —
+            # the failure this setter exists to prevent (#183 review).
+            Array(names).flatten.map { |name| name.respond_to?(:name) ? name.name : name.to_s }.freeze
+          end
       end
 
       def current_scope_grantable_roles

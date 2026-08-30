@@ -110,21 +110,24 @@
           the scanned window: with an indexed scope a grantable record can sit
           past it, while the fallback scan would re-read the very rows the empty
           list came from (#183 review). %>
-      <% if @searchable && (@records.present? || @indexed_search || params[:q].present?) %>
+      <% if @offer_search %>
         <p>
           <%= label_tag :q, "Search records" %>
           <%= search_field_tag :q, params[:q], placeholder: "Filter by label",
                 form: "cs-cascade", data: { current_scope_autosubmit: true } %>
         </p>
       <% end %>
-      <% if @records.blank? && params[:q].blank? %>
+      <%# @resource excluded: a surviving deep-linked record is prepended to the
+          options in the else branch, and skipping to the empty state would leave
+          a Grant button posting a record the page never shows (#183 review). %>
+      <% if @records.blank? && @resource.nil? && params[:q].blank? %>
         <p class="cs-hint cs-picker-empty">
           <%# Two different empties again: none exist, and none of the ones that
               exist accept this role (an STI table holds records of several
               classes, each with its own declaration). %>
           <%# "looked at", never "none": the role filter runs over the SCANNED
               rows, so a grantable record can sit past the window. %>
-          <% if @records_withheld && role_name && @searchable && @indexed_search %>
+          <% if @records_withheld && role_name && @offer_search && @indexed_search %>
             None of the <%= @resource_type.model_name.human.pluralize.downcase %>
             looked at accept <strong><%= role_name %></strong>. Search
             for one, or pick a different role.

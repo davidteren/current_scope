@@ -331,6 +331,135 @@ class ReportTaskTest < ActiveSupport::TestCase
     resolver&.singleton_class&.remove_method(:allow?)
   end
 
+  # --- #196: the report must ask the question the GATE asks ---
+  #
+  # CurrentScope::Guard fills `model:` from the controller's current_scope_model
+  # hook on every real request, and the resolver's record-less arm needs it to
+  # see a scoped grant at all. Re-asking without it asks a stricter question and
+  # calls a subject denied whom the gate admits. On the bake host that was 406
+  # of 696 rows, and the fix it implied was to grant a whole controller to
+  # everyone.
+
+  def would_deny_with_model(subject, permission, model_name)
+    CurrentScope::Event.create!(
+      event: "access.would_deny", subject: subject.to_gid.to_s, actor: subject.to_gid.to_s,
+      target: subject.to_gid.to_s, target_label: subject.name,
+      details: { "permission" => permission, "reason" => "no_grant",
+                 "record_less" => true, "model" => model_name }
+    )
+  end
+
+  test "a denial recorded with a model leaves the list once the scoped grant admits the subject" do
+    alice = User.create!(name: "Alice")
+    report = Report.create!(title: "Q3", requested_by: alice)
+    scope_grant(alice, role_with("reports#index"), report)
+    would_deny_with_model(alice, "reports#index", "Report")
+
+    output = run_task
+
+    assert_match(/nothing to act on|Every would-be denial/, output,
+      "the gate admits her through current_scope_model, so the report must agree")
+    assert_no_match(/reports#index/, output,
+      "a denial the gate would allow must not be listed as still ungranted")
+  end
+
+  test "the model does not blanket-allow: no scoped grant is still outstanding" do
+    alice = User.create!(name: "Alice")
+    Report.create!(title: "Q3", requested_by: alice)
+    would_deny_with_model(alice, "reports#index", "Report")
+
+    output = run_task
+
+    assert_match(/would-be denials STILL ungranted/, output,
+      "the grant is what opens the arm, not the model")
+    assert_match(/reports#index/, output)
+  end
+
+  test "the recorded model is the one passed back to the resolver" do
+    alice = User.create!(name: "Alice")
+    would_deny_with_model(alice, "reports#index", "Report")
+
+    asked = []
+    resolver = CurrentScope.resolver
+    original = resolver.method(:allow?)
+    resolver.define_singleton_method(:allow?) do |**kwargs|
+      asked << kwargs
+      original.call(**kwargs)
+    end
+
+    run_task
+
+    assert_equal 1, asked.size
+    assert_equal Report, asked.first[:model],
+      "the gate asked with this type, so the re-check must too"
+    assert_nil asked.first[:record], "and still record-less"
+  ensure
+    resolver&.singleton_class&.remove_method(:allow?)
+  end
+
+  test "a recorded model that no longer resolves counts as unknown, never as allowed" do
+    alice = User.create!(name: "Alice")
+    would_deny_with_model(alice, "reports#index", "LongDeletedThing")
+
+    asked = []
+    resolver = CurrentScope.resolver
+    original = resolver.method(:allow?)
+    resolver.define_singleton_method(:allow?) do |**kwargs|
+      asked << kwargs
+      original.call(**kwargs)
+    end
+
+    output = run_task
+
+    assert_empty asked, "a type we cannot load is not a question worth asking"
+    assert_match(/could not be re-checked/, output)
+    assert_match(/would-be denials STILL ungranted/, output,
+      "cannot tell is not the same as ready")
+  ensure
+    resolver&.singleton_class&.remove_method(:allow?)
+  end
+
+  test "a legacy row with no model is re-checked without one, and the report says so" do
+    alice = User.create!(name: "Alice")
+    report = Report.create!(title: "Q3", requested_by: alice)
+    # The grant the gate WOULD have seen through current_scope_model.
+    scope_grant(alice, role_with("reports#index"), report)
+    # Written before the field existed: no "model" key at all.
+    CurrentScope::Event.create!(
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name,
+      details: { "permission" => "reports#index", "reason" => "no_grant", "record_less" => true }
+    )
+
+    output = run_task
+
+    assert_match(/would-be denials STILL ungranted/, output,
+      "without a recorded type the record-less arm cannot fire — today's behaviour, unchanged")
+    assert_match(/recorded BEFORE this task stored the/, output,
+      "and the report must say which rows it cannot vouch for")
+    assert_match(/Do NOT grant a permission to clear these/, output,
+      "because the obvious reading of the list is the dangerous one")
+  end
+
+  # A legacy row and a row that recorded no model are DIFFERENT: nil is
+  # knowledge, absent is not. Collapsing them would apply one row's caveat to
+  # the other, in the direction that hides it.
+  test "a row recording no model is not counted as a legacy row" do
+    alice = User.create!(name: "Alice")
+    CurrentScope::Event.create!(
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name,
+      details: { "permission" => "reports#index", "reason" => "no_grant",
+                 "record_less" => true, "model" => nil }
+    )
+
+    output = run_task
+
+    assert_match(/would-be denials STILL ungranted/, output)
+    assert_no_match(/recorded BEFORE this task stored the/, output,
+      "this row DID record the gate's answer: there was no model")
+  end
+
   # #116 — the survey cannot see a request that never resolved a subject, and that
   # is the class that 403s FIRST after the flip. An operator reading "0
   # outstanding" must not read it as "ready".

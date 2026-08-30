@@ -186,6 +186,12 @@ namespace :current_scope do
     # from `unknown`, which stays counted, and out of `signals`, because moot
     # needs no operator action.
     moot = []
+    # #196: rows written before the ledger recorded the gate's model. They are
+    # re-checked the old way, without one, which is the STRICTER question, so a
+    # subject a scoped grant already admits reads as outstanding. Counted here
+    # so the report can say how much of its own list it cannot vouch for,
+    # instead of letting an operator grant a whole controller to clear it.
+    legacy_model = []
     # Keyed on the TARGET too, not just subject and permission: a denial the host
     # will clear with a scoped grant on one record is a different question from
     # the same permission on another record, and collapsing them would re-ask
@@ -194,10 +200,16 @@ namespace :current_scope do
     # before the flag existed) and a new one can share a subject, permission and
     # target, and taking either row's value would apply it to the other. A group is
     # therefore uniform by construction, and the legacy rows fall back on their own.
+    # The recorded MODEL is part of the key too (#196), for the same reason
+    # record_less is: a legacy row that never stored one and a new row that
+    # stored nil are different questions, and a group has to be uniform or one
+    # member's answer gets applied to the other. `:absent` is the field missing,
+    # nil is the field present and empty.
     rows.group_by { |subject_gid, _label, details, target_gid|
       hash = details.is_a?(Hash) ? details : {}
-      [ subject_gid, hash["permission"], target_gid, hash["record_less"] ]
-    }.each do |(subject_gid, permission, target_gid, recorded_flag), group|
+      [ subject_gid, hash["permission"], target_gid, hash["record_less"],
+        hash.key?("model") ? hash["model"] : :absent ]
+    }.each do |(subject_gid, permission, target_gid, recorded_flag, recorded_model), group|
       pair = [ subject_gid, permission, target_gid, group.count, recorded_flag ]
       if permission.nil?
         unknown << pair
@@ -262,13 +274,41 @@ namespace :current_scope do
         record = located
       end
 
+      # #196: ask with the model the GATE used. CurrentScope::Guard fills
+      # `model:` from the controller's current_scope_model hook on every real
+      # request, and the resolver's record-less arm needs it to see a scoped
+      # grant at all. Re-asking without it asks a stricter question and calls a
+      # subject denied whom the gate admits — and the fix that reading implies
+      # is to grant the whole controller to everyone.
+      #
+      # A name that no longer resolves to a class is UNKNOWN, not allowed:
+      # failing closed, the same as every other cannot-tell in this task.
+      model = nil
+      if recorded_model.is_a?(String)
+        model = begin
+          recorded_model.constantize
+        rescue StandardError
+          nil
+        end
+        unless model.is_a?(Class)
+          unknown << pair
+          next
+        end
+      end
+
       still_denied = begin
-        !CurrentScope.resolver.allow?(subject: subject, permission: permission, record: record)
+        !CurrentScope.resolver.allow?(subject: subject, permission: permission,
+                                      record: record, model: model)
       rescue StandardError
         nil
       end
       case still_denied
-      when true then outstanding << pair
+      when true
+        outstanding << pair
+        # Only a record-less row can turn on the model, so only those are worth
+        # qualifying. A legacy row WITH a record is answered identically either
+        # way, and naming it would inflate the caveat.
+        legacy_model << pair if recorded_model == :absent && record_less
       when false then resolved << pair
       else unknown << pair
       end
@@ -393,6 +433,15 @@ namespace :current_scope do
       puts "  #{moot.sum { |pair| pair[3] }} recorded denial(s) name a record that no longer loads (deleted, or hidden"
       puts "  by a default scope). The gate can never be asked about that record again, so"
       puts "  they are NOT counted as outstanding."
+    end
+    if legacy_model.any?
+      puts
+      puts "  #{legacy_model.sum { |pair| pair[3] }} of the outstanding denial(s) were recorded BEFORE this task stored the"
+      puts "  model the gate used, so they were re-checked without one. That is the stricter"
+      puts "  question: a subject a scoped grant admits through current_scope_model reads as"
+      puts "  denied here. Do NOT grant a permission to clear these. Exercise the action again"
+      puts "  in report mode and read the fresh row, or check one by hand with"
+      puts "  CurrentScope.resolver.decide(subject:, permission:, record: nil, model: TheModel)."
     end
     puts
     # The SoD clause only when the host opted into SoD. A project that never set

@@ -73,6 +73,40 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
     assert_equal "no_grant", event.details["reason"]
   end
 
+  # #196 — the row has to carry the model the GATE decided with, or the #116
+  # report re-asks a stricter question: record-less with no type, which the
+  # resolver's record-less arm cannot answer, so every subject a scoped grant
+  # admits through current_scope_model reads as denied. On the bake host that
+  # was 406 of 696 rows, and the fix that reading implied was to grant a whole
+  # controller to everyone.
+  test "the would-be denial records the model the gate decided with (#196)" do
+    CurrentScope.config.enforcement = :report
+
+    get reports_url, headers: sign_in(@alice)
+
+    event = CurrentScope::Event.where(event: "access.would_deny").last
+    assert_equal "Report", event.details["model"],
+      "ReportsController declares current_scope_model = Report, and the gate used it"
+    assert_equal true, event.details["record_less"]
+  end
+
+  # The other half, and the one that would turn this fix into the same bug
+  # pointing the other way. With NO record hook the Guard passes NO_RECORD, the
+  # resolver's record-less arm never runs, and the declared type is inert. Store
+  # it anyway and the report would answer ALLOWED where the gate denies.
+  test "an inert model hook records no model, because the gate never used it (#196)" do
+    CurrentScope.config.enforcement = :report
+
+    get "/inert_model", headers: sign_in(@alice)
+
+    event = CurrentScope::Event.where(event: "access.would_deny").last
+    assert_equal "inert_model#index", event.details["permission"]
+    assert_nil event.details["model"],
+      "the model hook is inert without a record hook, so there is nothing to re-ask with"
+    assert event.details.key?("model"),
+      "and the key is still written: nil is knowledge, absent is a row from before this existed"
+  end
+
   test "a granted action in report mode is an ordinary allow — no report, no header" do
     CurrentScope.config.enforcement = :report
     assign(@alice, role("Member", "reports#index"))

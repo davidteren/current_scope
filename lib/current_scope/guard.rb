@@ -178,7 +178,7 @@ module CurrentScope
         nudge_on_inert_scoped_grant(permission, record, reason)
         nudge_on_undeclared_collection_model(permission, record, reason)
 
-        return report_would_deny(permission, record) if report_only_denial?(reason, permission, record)
+        return report_would_deny(permission, record, model) if report_only_denial?(reason, permission, record)
 
         # Report mode still 403s the SoD blind spot (correct, fail-closed) but
         # used to do so silently — no log, no ledger, invisible to
@@ -361,13 +361,13 @@ module CurrentScope
     end
 
     # Observe and proceed.
-    def report_would_deny(permission, record)
+    def report_would_deny(permission, record, model = nil)
       Rails.logger&.warn(
         "[CurrentScope] report-only: would DENY #{permission.inspect} " \
         "(reason: no_grant) — grant it before setting config.enforcement = :enforce"
       )
       response.set_header("X-Current-Scope-Reason", "would_deny")
-      record_would_deny_event(permission, record)
+      record_would_deny_event(permission, record, model)
     end
 
     # #73: report mode refuses to *downgrade* an SoD blind-spot denial (the
@@ -435,7 +435,7 @@ module CurrentScope
     # documented raise contract, so it is the one thing worth catching; a broad
     # rescue over the whole observation would also swallow a broken logger or
     # response, which are app-fatal anyway and shouldn't be hidden. (#59 review)
-    def record_would_deny_event(permission, record)
+    def record_would_deny_event(permission, record, model = nil)
       subject = CurrentScope::Current.user
       # No ambient subject ⇒ nothing to attribute the row to, and Event.record!
       # raises on a nil actor. Guard on the SUBJECT, not on `target` — a record
@@ -454,9 +454,25 @@ module CurrentScope
       # report re-asks the resolver and must ask with the same record the gate
       # did. Inferring it from equal GIDs would read a self-targeted denial as
       # record-less and re-check on the more permissive arm.
+      # #196: the model the GATE used, so the #116 report can re-ask the same
+      # question. Without it the report asks a stricter one — record-less with
+      # no type — and reports as denied every subject a scoped grant already
+      # admits through current_scope_model. On the bake host that was 406 of 696
+      # rows, and the fix it implied was to grant a whole controller to everyone.
+      #
+      # Recorded ONLY when the gate could use it. With NO_RECORD (the controller
+      # declares no record hook) the resolver's record-less arm never runs, so
+      # the model is inert; storing it anyway would make the report answer
+      # ALLOWED where the gate denies, which is the same bug pointing the other
+      # way. Same condition as Current.collection_model above.
+      #
+      # The key is always written, with nil for "no model here". A row from
+      # before this field existed has NO key, and the report tells the two apart:
+      # nil is knowledge, absent is not.
       CurrentScope::Event.record!(
         event: "access.would_deny", target: target || subject,
-        details: { permission: permission, reason: "no_grant", record_less: target.nil? }
+        details: { permission: permission, reason: "no_grant", record_less: target.nil?,
+                   model: recordable_model_name(record, model) }
       )
     rescue StandardError => e
       # ponytail: swallow and warn ONCE. An unrecordable observation is a lost
@@ -467,6 +483,20 @@ module CurrentScope
         request_outcome: "The request WAS allowed through — only the access.would_deny row is missing."
       )
       nil
+    end
+
+    # The model NAME the report may re-ask with, or nil (#196).
+    #
+    # nil in three cases, each of which must not become a false ALLOW when the
+    # report re-asks: the controller declared no record hook, so the gate never
+    # reached the record-less arm; it declared no model; or the hook returned
+    # something that is not a class, which the resolver denies on rather than
+    # trusting. A name is stored only when the gate itself could have used it.
+    def recordable_model_name(record, model)
+      return nil if record.equal?(NO_RECORD)
+      return nil unless model.is_a?(Class)
+
+      model.name
     end
 
     # The failure this catches is PERSISTENT, not incidental: :report + audit

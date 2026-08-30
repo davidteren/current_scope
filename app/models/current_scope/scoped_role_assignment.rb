@@ -136,8 +136,9 @@ module CurrentScope
       # Read through respond_to? and Array(): the type joins this gate by
       # answering current_scope_grants_role? alone, which a host may compute
       # without holding a list at all (#183 review).
-      allowed = klass.try(:current_scope_grantable_roles)
-      accepts = if allowed.nil?
+      declared = klass.try(:current_scope_grantable_roles)
+      allowed = Array(declared)
+      accepts = if declared.nil?
         # A type that computes the rule and holds no list: naming an empty list
         # would tell the operator it accepts nothing, which may be false.
         "it does not accept this one"

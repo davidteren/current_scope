@@ -32,6 +32,9 @@ module CurrentScope
       # downstream, which would show every type and every record with no hint
       # and a Grant button that can only fail on POST (#183 review).
       @missing_role = params[:role_id].present? && @selected_role.nil?
+      # Read once, through the same guard as every other param the picker takes.
+      @query = scalar_param(:q)
+      @subject_gid = scalar_param(:subject_gid)
       @all_scopeable = CurrentScope.scopeable_resources
       @scopeable = grantable_types(@all_scopeable, @selected_role)
       @bulk_subjects = resolve_bulk_subjects # [] unless a multi-select bulk grant
@@ -55,7 +58,7 @@ module CurrentScope
       @type_anchor_gid = anchor&.to_gid&.to_s unless @scopeable.include?(@resource_type)
       @types = PickerTypeStep.new(all_types: @all_scopeable, offered: @scopeable,
                                   resolved: @resource_type, role: @selected_role)
-      records, withheld, unread = candidate_records(@resource_type, params[:q], @selected_role)
+      records, withheld, unread = candidate_records(@resource_type, @query, @selected_role)
       # One object owns every display decision for the record step, so the
       # control and the sentence beside it cannot drift apart (#183 review).
       @step = PickerRecordStep.new(
@@ -63,7 +66,7 @@ module CurrentScope
         # Only an INDEXED scope looks past the scanned window; without one a
         # search re-reads the very rows an empty list came from.
         indexed: @resource_type.respond_to?(:current_scope_searchable_scope),
-        searchable: searchable?(@resource_type), query: params[:q],
+        searchable: searchable?(@resource_type), query: @query,
         role: @selected_role, deep_linked: @resource
       )
       # The step owns the list of records on offer, so the button and the select

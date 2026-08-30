@@ -29,7 +29,7 @@
         has applied none — the type list would then contradict the role showing
         beside it until the first autosubmit (#183 review). %>
     <%= select_tag :role_id,
-          options_from_collection_for_select(@roles, :id, :name, params[:role_id]),
+          options_from_collection_for_select(@roles, :id, :name, @selected_role&.id),
           include_blank: "— choose a role —",
           data: { current_scope_autosubmit: true } %>
   </p>
@@ -49,7 +49,7 @@
       <%= label_tag :subject_gid, "Subject" %>
       <%= select_tag :subject_gid,
             options_for_select(@subjects.map { |s| [ current_scope_subject_label(s), s.to_gid.to_s ] },
-                               params[:subject_gid]),
+                               @subject_gid),
             data: { current_scope_autosubmit: true } %>
     </p>
   <% end %>
@@ -129,7 +129,7 @@
       <% if @step.offer_search? %>
         <p>
           <%= label_tag :q, "Search records" %>
-          <%= search_field_tag :q, params[:q], placeholder: "Filter by label",
+          <%= search_field_tag :q, @query, placeholder: "Filter by label",
                 form: "cs-cascade", data: { current_scope_autosubmit: true } %>
         </p>
       <% end %>
@@ -164,7 +164,7 @@
               (#183 review). %>
           <% record_options = @step.offered_records.map { |record| [ current_scope_label(record), record.to_gid.to_s ] } %>
           <%= select_tag :resource_gid,
-                options_for_select(record_options, params[:resource_gid] || @resource&.to_gid&.to_s),
+                options_for_select(record_options, @grantable_gid || @resource&.to_gid&.to_s),
                 include_blank: "— choose a record —", form: "cs-cascade",
                 data: { current_scope_autosubmit: true } %>
           <% if @step.search_state %>
@@ -187,17 +187,17 @@
                    when :refused_searchable %>
                   <%# The matches READ all refuse, but the search stopped at its
                       cap, so a narrower search can still turn one up. %>
-                  No match for “<%= params[:q] %>” read so far accepts
+                  No match for “<%= @query %>” read so far accepts
                   <strong><%= role_name %></strong> — narrow the search, or pick
                   a different role.
                 <% when :refused %>
                   <%# The search DID match — a different search is the one thing
                       that cannot help. "read", because the fallback scan stops
                       at its cap and cannot speak for the whole table. %>
-                  No match for “<%= params[:q] %>” among the records read accepts
+                  No match for “<%= @query %>” among the records read accepts
                   <strong><%= role_name %></strong> — pick a different role.
                 <% else %>
-                  No records match “<%= params[:q] %>” — try a different search.
+                  No records match “<%= @query %>” — try a different search.
                 <% end %>
               </span>
             <% end %>
@@ -229,9 +229,9 @@
                         subject_gids: @bulk_subjects.map { |s| s.to_gid.to_s } },
               data: { turbo_frame: "_top" }, class: "cs-btn-primary" %>
       <% end %>
-    <% elsif ready && params[:subject_gid].present? %>
+    <% elsif ready && @subject_gid.present? %>
       <%= button_to "Grant scoped role", scoped_role_assignments_path, method: :post,
-            params: { role_id: @selected_role.id, subject_gid: params[:subject_gid],
+            params: { role_id: @selected_role.id, subject_gid: @subject_gid,
                       resource_gid: @grantable_gid },
             data: { turbo_frame: "_top" }, class: "cs-btn-primary" %>
     <% end %>

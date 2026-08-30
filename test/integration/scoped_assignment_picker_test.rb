@@ -528,6 +528,18 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   # A nested param is not an id. It reads as absent, and the page has a state
   # for that (#183 review).
+  # An array q reached the label filter and raised NoMethodError on downcase,
+  # which is a 500 for a query string anyone can type (#183 review).
+  test "an array search term is read as no search at all" do
+    Folder.create!(name: "Q3 Ledger")
+
+    get current_scope.new_scoped_role_assignment_path(resource_type: "Folder", q: [ "x" ]),
+        headers: as(@owner)
+
+    assert_response :success
+    assert_select "select[name=resource_gid] option", text: "Q3 Ledger"
+  end
+
   test "a nested role_id param renders the missing-role state" do
     get current_scope.new_scoped_role_assignment_path(role_id: { x: "1" }), headers: as(@owner)
 

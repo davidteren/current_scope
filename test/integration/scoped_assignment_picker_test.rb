@@ -13,6 +13,14 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     CurrentScope::RoleAssignment.create!(subject: @member, role: @member_role)
   end
 
+  teardown do
+    [ Folder, Document, Invoice ].each do |klass|
+      next unless klass.instance_variable_defined?(:@current_scope_grantable_roles)
+
+      klass.send(:remove_instance_variable, :@current_scope_grantable_roles)
+    end
+  end
+
   def as(user) = { "X-User-Id" => user.id.to_s }
 
   # Swap CurrentScope.scopeable_resources for one test (Minitest 6 dropped
@@ -74,6 +82,75 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_match(/No pickable resource types yet/, response.body)
     end
+  end
+
+  # #183 review — an STI table holds records of several classes, each with its
+  # own declaration, and the model gate judges the RECORD's class. A type-level
+  # "no" here would make every Invoice unreachable in the console because
+  # Document said no, so the base stays on offer and the RECORD list narrows.
+  test "an STI base stays on offer when only a subclass accepts the role" do
+    invoice = Invoice.create!(title: "INV-1")
+    receipt = Receipt.create!(title: "RCT-1")
+    Document.current_scope_grantable_roles = [ "Owner" ]
+    Invoice.current_scope_grantable_roles = [ "Member" ]
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
+          headers: as(@owner)
+
+      assert_response :success
+      assert_select "option[value=?]", "Document"
+      assert_no_match(/type not listed/, response.body)
+      assert_select "select[name=resource_gid] option[value=?]", invoice.to_gid.to_s
+      assert_select "select[name=resource_gid] option[value=?]", receipt.to_gid.to_s, count: 0
+    end
+  end
+
+  test "when no record of the type accepts the role, the empty list says why" do
+    Receipt.create!(title: "RCT-1")
+    Document.current_scope_grantable_roles = [ "Owner" ]
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
+          headers: as(@owner)
+
+      assert_match(/No documents accept/, response.body)
+      assert_match(/Member/, response.body)
+      assert_no_match(/to pick from yet/, response.body,
+                      "there ARE documents — blaming an empty table sends the operator to create one")
+    end
+  end
+
+  # The Grant button posts what the operator can SEE selected. A resource_gid
+  # survives every autosubmit, so an earlier pick must not ride along after the
+  # role or the type moves on (#183 review).
+  test "a record picked under one role is not still posted after the role changes" do
+    folder = Folder.create!(name: "Q3 Ledger")
+    Folder.current_scope_grantable_roles = [ "Owner" ]
+    picks = { subject_gid: @member.to_gid.to_s, resource_type: "Folder", resource_gid: folder.to_gid.to_s }
+
+    get current_scope.new_scoped_role_assignment_path(picks.merge(role_id: @owner_role.id)), headers: as(@owner)
+    assert_select "input[type=hidden][name=resource_gid][value=?]", folder.to_gid.to_s
+
+    get current_scope.new_scoped_role_assignment_path(picks.merge(role_id: @member_role.id)), headers: as(@owner)
+    assert_select "input[type=hidden][name=resource_gid]", count: 0,
+                  message: "the type is withheld now, so there is nothing to grant on"
+    assert_select "option[value=?]", "Folder", count: 0,
+                  message: "and the withheld type is gone from the dropdown with it"
+  end
+
+  test "a record picked under one type is not still posted after the type changes" do
+    Gadget # autoload ⇒ self-registers, so the type step really moves to Gadget
+    folder = Folder.create!(name: "Q3 Ledger")
+
+    get current_scope.new_scoped_role_assignment_path(
+      role_id: @member_role.id, subject_gid: @member.to_gid.to_s,
+      resource_type: "Gadget", resource_gid: folder.to_gid.to_s
+    ), headers: as(@owner)
+
+    assert_response :success
+    assert_select "input[type=hidden][name=resource_gid]", count: 0,
+                  message: "granting a Folder from the Gadget step would be a grant the operator never saw"
   end
 
   test "a type that accepts the chosen role is offered" do

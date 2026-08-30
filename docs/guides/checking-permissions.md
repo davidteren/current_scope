@@ -286,10 +286,14 @@ end
 - An **empty** declaration, `self.current_scope_grantable_roles = []`, means no
   role may be granted on that type. It is an assignment rather than a DSL call
   precisely so a computed empty list declares the lockdown instead of silently
-  reading the current value.
+  reading the current value. Assigning **`nil`** is the opposite: it means no
+  declaration, so a list read from config with a missing key leaves the default
+  in place rather than locking the type.
 - A subclass inherits its parent's declaration until it states its own, and an
   **STI subclass** is governed by its own declaration even though the grant row
-  stores the base class's token.
+  stores the base class's token. One table therefore holds records with
+  different answers, so the picker keeps an STI base in the type dropdown and
+  narrows the **record** list instead.
 - `CurrentScope::GrantableRoles` can be included on its own if you want the rule
   without the picker registration.
 

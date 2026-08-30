@@ -36,13 +36,18 @@ module CurrentScope
       # unambiguous, matches `self.table_name =`, and makes an empty list a real
       # declaration.
       #
-      # An empty list is a LOCKDOWN: no role may be granted on this type.
+      # An empty list is a LOCKDOWN: no role may be granted on this type. `nil`
+      # is the opposite and means NO declaration (inherit, else accept
+      # everything), so a host reading its list from config still gets the
+      # documented default when the key is missing — the two values read the
+      # same way as they are written (#183 review).
       def current_scope_grantable_roles=(names)
-        @current_scope_grantable_roles = Array(names).flatten.map(&:to_s).freeze
+        @current_scope_grantable_roles = names.nil? ? nil : Array(names).flatten.map(&:to_s).freeze
       end
 
       def current_scope_grantable_roles
-        return @current_scope_grantable_roles if defined?(@current_scope_grantable_roles)
+        declared = @current_scope_grantable_roles if defined?(@current_scope_grantable_roles)
+        return declared unless declared.nil?
 
         # A subclass inherits the parent's declaration until it states its own:
         # a grant on Report and on UrgentReport answer the same question about

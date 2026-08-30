@@ -95,7 +95,15 @@
     <% if @resource_type %>
       <% if @records.blank? && params[:q].blank? %>
         <p class="cs-hint cs-picker-empty">
-          No <%= @resource_type.model_name.human.pluralize.downcase %> to pick from yet.
+          <%# Two different empties again: none exist, and none of the ones that
+              exist accept this role (an STI table holds records of several
+              classes, each with its own declaration). %>
+          <% if @records_withheld %>
+            No <%= @resource_type.model_name.human.pluralize.downcase %> accept
+            <strong><%= @selected_role.name %></strong>. Pick a different role.
+          <% else %>
+            No <%= @resource_type.model_name.human.pluralize.downcase %> to pick from yet.
+          <% end %>
         </p>
       <% else %>
         <% if @searchable %>
@@ -140,21 +148,23 @@
     <p class="cs-picker-actions">
       <%# No-JS / no-Turbo fallback: reload the cascade with the current picks. %>
       <%= submit_tag "Show records", name: nil, form: "cs-cascade", class: "cs-picker-refresh" %>
-      <%# Grant only a complete selection. Every cascade control autosubmits, so
-          params mirror the live picks — the button never posts a stale value. %>
-      <% ready = params[:role_id].present? && params[:resource_gid].present? %>
+      <%# Grant only a selection that is actually on offer. Every cascade control
+          autosubmits, but a resource_gid picked earlier survives a change of role
+          or type, so the controller hands us the gid the operator can SEE
+          selected (nil when the stale one is no longer listed). %>
+      <% ready = params[:role_id].present? && @grantable_gid.present? %>
       <% if @bulk_subjects.any? %>
         <% if ready %>
           <%= button_to "Grant to #{@bulk_subjects.size} #{'subject'.pluralize(@bulk_subjects.size)}",
                 scoped_role_assignments_path, method: :post,
-                params: { role_id: params[:role_id], resource_gid: params[:resource_gid],
+                params: { role_id: params[:role_id], resource_gid: @grantable_gid,
                           subject_gids: @bulk_subjects.map { |s| s.to_gid.to_s } },
                 data: { turbo_frame: "_top" }, class: "cs-btn-primary" %>
         <% end %>
       <% elsif ready && params[:subject_gid].present? %>
         <%= button_to "Grant scoped role", scoped_role_assignments_path, method: :post,
               params: { role_id: params[:role_id], subject_gid: params[:subject_gid],
-                        resource_gid: params[:resource_gid] },
+                        resource_gid: @grantable_gid },
               data: { turbo_frame: "_top" }, class: "cs-btn-primary" %>
       <% end %>
     </p>

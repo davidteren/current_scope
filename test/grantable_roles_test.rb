@@ -101,9 +101,6 @@ class GrantableRolesTest < ActiveSupport::TestCase
     end
   end
 
-  # An empty declaration is a LOCKDOWN, not "no restriction" (#183 review). A
-  # host computing the list from config and getting an empty array must not find
-  # the type wide open.
   # #183 review — an STI subclass. CurrentScope.polymorphic_class answers with
   # the BASE class and an STI grant stores the base token, so a gate that asked
   # the token would make a subclass declaration a silent no-op while the reader,
@@ -126,6 +123,9 @@ class GrantableRolesTest < ActiveSupport::TestCase
     assert grant(@container, invoice).valid?
   end
 
+  # An empty declaration is a LOCKDOWN, not "no restriction" (#183 review). A
+  # host computing the list from config and getting an empty array must not find
+  # the type wide open.
   test "an empty declaration accepts no role at all" do
     Project.current_scope_grantable_roles = []
 
@@ -135,14 +135,15 @@ class GrantableRolesTest < ActiveSupport::TestCase
     assert_includes assignment.errors[:role].first, "accepts no scoped roles at all"
   end
 
-  # And the caveat that goes with it: a splatted empty array cannot be told
-  # apart from the reader, so the documented form is to pass the array.
-  test "the declaration must be passed as an array, not splatted, when it is computed" do
-    computed = []
-    Project.current_scope_grantable_roles = computed
+  # And its opposite number: nil is NO declaration, so a host reading its list
+  # from config still gets the documented default when the key is missing
+  # (#183 review). Same value in, same meaning out.
+  test "assigning nil leaves the type undeclared rather than locking it down" do
+    Project.current_scope_grantable_roles = nil
 
-    assert_equal [], Project.current_scope_grantable_roles,
-      "passing the array declares the lockdown"
+    assert_nil Project.current_scope_grantable_roles
+    assert grant(@per_record, @project).valid?,
+      "a missing config key must not lock the type down"
   end
 
   test "a subclass inherits its parent's declaration until it states its own" do

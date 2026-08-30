@@ -35,9 +35,13 @@ module CurrentScope
       # a Grant button showing, directly under a hint saying that type was not
       # listed — the dead end this filter exists to prevent (#183 review).
       @resource_type = resolve_type(params[:resource_type], within: @scopeable) ||
-                       grantable_types([ @resource&.class ].compact, @selected_role).first
+                       deep_linked_type
+      # A resource_gid carried over from an earlier pick must not be prepended
+      # into a DIFFERENT type's record list as the selected option.
+      @resource = nil unless @resource_type && @resource.is_a?(@resource_type)
       @searchable = searchable?(@resource_type)
-      @records = candidate_records(@resource_type, params[:q])
+      @records = candidate_records(@resource_type, params[:q], @selected_role)
+      @grantable_gid = offered_gid
     end
 
     def create
@@ -88,12 +92,48 @@ module CurrentScope
 
     # A type with no declaration accepts everything, which is every host that
     # has not opted in.
+    #
+    # An STI base is always offered (#183 review): its table holds records of
+    # several classes, the model gate judges the RECORD's own class, and a
+    # type-level "no" here would make every Invoice unreachable in the console
+    # because Document said no. The record list is what narrows instead.
     def grantable_types(types, role)
       return types if role.nil?
 
-      types.select do |klass|
-        !klass.respond_to?(:current_scope_grants_role?) || klass.current_scope_grants_role?(role)
-      end
+      types.select { |klass| grants_role?(klass, role) || sti_base?(klass) }
+    end
+
+    def grants_role?(klass, role)
+      !klass.respond_to?(:current_scope_grants_role?) || klass.current_scope_grants_role?(role)
+    end
+
+    # True when a row of this table can load as a subclass — then the class the
+    # model gate will ask is not known until the row itself is loaded.
+    def sti_base?(klass)
+      klass.respond_to?(:has_attribute?) && klass.has_attribute?(klass.inheritance_column)
+    rescue StandardError
+      false # tableless double, or no database to ask
+    end
+
+    # The type for a deep link, only when the linked record's own class accepts
+    # the chosen role.
+    def deep_linked_type
+      @resource&.class if @resource && grants_role?(@resource.class, @selected_role)
+    end
+
+    # The Grant button must post only a record the operator can SEE selected.
+    # params[:resource_gid] survives every autosubmit, so changing the role or
+    # the type can leave a gid from an earlier pick: the record select shows
+    # nothing selected (it is not in the list) while the button would still post
+    # it — a raw validation alert at best, and at worst a silent grant on a
+    # record that is no longer on screen (#183 review).
+    def offered_gid
+      gid = params[:resource_gid].presence || @resource&.to_gid&.to_s
+      return nil if gid.blank? || @resource_type.nil?
+
+      offered = Array(@records).map { |record| record.to_gid.to_s }
+      offered << @resource.to_gid.to_s if @resource # the view keeps it selectable
+      gid if offered.include?(gid)
     end
 
     # The scoped record may be deleted (nil) or its class renamed (NameError) by
@@ -166,13 +206,13 @@ module CurrentScope
       klass.respond_to?(:count) && klass.count > SEARCH_THRESHOLD
     end
 
-    def candidate_records(klass, query)
+    def candidate_records(klass, query, role)
       return unless klass.respond_to?(:limit) # tableless / nil type ⇒ nothing to pick
 
       # A14: if the host model opts in with a class-level current_scope_searchable_scope,
       # search via that indexed relation — no SCAN_CAP, no in-Ruby label filter.
       if query.present? && klass.respond_to?(:current_scope_searchable_scope)
-        return klass.current_scope_searchable_scope(query).limit(DISPLAY_LIMIT).to_a
+        return grantable_records(klass.current_scope_searchable_scope(query).limit(DISPLAY_LIMIT).to_a, role)
       end
 
       # Fallback: current_scope_label is a Ruby method with no backing column, so
@@ -182,7 +222,18 @@ module CurrentScope
         needle = query.downcase
         records = records.select { |record| helpers.current_scope_label(record).downcase.include?(needle) }
       end
-      records.first(DISPLAY_LIMIT)
+      grantable_records(records, role).first(DISPLAY_LIMIT)
+    end
+
+    # The model gate judges the record's OWN class, so an STI table can hold
+    # records that accept the role beside records that do not. @records_withheld
+    # lets the view say WHY the list came back empty.
+    def grantable_records(records, role)
+      return records if role.nil?
+
+      kept = records.select { |record| grants_role?(record.class, role) }
+      @records_withheld ||= kept.size < records.size
+      kept
     end
   end
 end

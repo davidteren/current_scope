@@ -184,8 +184,14 @@ namespace :current_scope do
     # Enumerable#count on a Struct. Held in a LOCAL, not a constant: this file
     # is loaded into a host application, and a gem's rake task has no business
     # defining a name as generic as Denial at the top level.
-    denial_row = Struct.new(:subject_gid, :permission, :target_gid, :denials, :record_less, :model,
-                            keyword_init: true)
+    # `record_less` is the RAW recorded flag, which the detail-list key must
+    # match against the ledger row; `asked_record_less` is the value the
+    # re-check actually used, which for a row written before the flag existed
+    # falls back to comparing the GIDs. Two fields because the two jobs are
+    # different, and using the raw one for the second silently excluded the
+    # oldest rows from being answered at all (#196 review).
+    denial_row = Struct.new(:subject_gid, :permission, :target_gid, :denials, :record_less,
+                            :asked_record_less, :model, keyword_init: true)
 
     outstanding = []
     resolved = []
@@ -226,7 +232,8 @@ namespace :current_scope do
         hash.key?("model") ? hash["model"] : :absent ]
     }.each do |(subject_gid, permission, target_gid, recorded_flag, recorded_model), group|
       pair = denial_row.new(subject_gid: subject_gid, permission: permission, target_gid: target_gid,
-                            denials: group.count, record_less: recorded_flag, model: recorded_model)
+                            denials: group.count, record_less: recorded_flag,
+                            asked_record_less: nil, model: recorded_model)
       if permission.nil?
         unknown << pair
         next
@@ -274,6 +281,7 @@ namespace :current_scope do
       # permissive arm.
       record_less = recorded_flag.nil? ? (target_gid.blank? || target_gid == subject_gid)
                                        : recorded_flag
+      pair.asked_record_less = record_less
       # A recorded target that no longer resolves is NOT the same as no target:
       # re-asking without it would answer a question the ledger never asked.
       record = nil
@@ -347,11 +355,19 @@ namespace :current_scope do
       end
     end
 
+    # Keyed on the question that was ASKED, record-lessness included: a
+    # self-targeted denial and a record-less one share a target GID, and they
+    # are answered by different arms of the resolver. Matching on the three-part
+    # key would let a record-bound answer drop a record-less row off the list,
+    # which fails open (#196 review).
     answered_with_model = resolved.select { |denial| denial.model.is_a?(String) }
-                                  .to_set { |denial| [ denial.subject_gid, denial.permission, denial.target_gid ] }
+                                  .to_set do |denial|
+      [ denial.subject_gid, denial.permission, denial.target_gid, denial.asked_record_less ]
+    end
     superseded, outstanding = outstanding.partition do |denial|
-      denial.model == :absent && denial.record_less &&
-        answered_with_model.include?([ denial.subject_gid, denial.permission, denial.target_gid ])
+      denial.model == :absent && denial.asked_record_less &&
+        answered_with_model.include?([ denial.subject_gid, denial.permission, denial.target_gid,
+                                       denial.asked_record_less ])
     end
     legacy_model -= superseded
 

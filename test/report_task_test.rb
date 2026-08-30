@@ -517,6 +517,35 @@ class ReportTaskTest < ActiveSupport::TestCase
     assert_match(/ASKED AGAIN/, output)
   end
 
+  # The OLDEST shape: a row with neither a model key nor a record_less flag.
+  # Its record-lessness is inferred from the GIDs, and using the raw flag to
+  # decide supersession would leave exactly these rows carrying the caveat with
+  # no way to act on it (#196 review).
+  test "a row predating the record_less flag is superseded too" do
+    alice = User.create!(name: "Alice")
+    report = Report.create!(title: "Q3", requested_by: alice)
+    scope_grant(alice, role_with("reports#index"), report)
+    base = {
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name
+    }
+    # No record_less key AND no model key: the shape this file's own would_deny
+    # helper writes, and the oldest thing a ledger can hold.
+    CurrentScope::Event.create!(**base, details: {
+      "permission" => "reports#index", "reason" => "no_grant"
+    })
+    CurrentScope::Event.create!(**base, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true,
+      "model" => "Report"
+    })
+
+    output = run_task
+
+    assert_no_match(/would-be denials STILL ungranted/, output,
+      "the same question was asked again with the type and came back granted")
+    assert_match(/ASKED AGAIN/, output)
+  end
+
   # And when the fresher row is still DENIED there is nothing to supersede, so
   # both rows stand. This is the case that pins the headline and the detail list
   # on the same key: the grouping has five parts and the list must too.

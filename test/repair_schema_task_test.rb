@@ -28,6 +28,35 @@ class RepairSchemaTaskTest < ActiveSupport::TestCase
 
   def connection = ActiveRecord::Base.connection
 
+  # #193 review — the task must repair the database the boot refusal NAMES. A
+  # migration run through `migrate` goes to
+  # ActiveRecord::Tasks::DatabaseTasks.migration_connection, which is the
+  # DEFAULT database, so a host with the engine's tables on a second connection
+  # would have watched this report success against the wrong one while boot kept
+  # failing on the right one.
+  # Asserted on the DEFAULT path, not on the grant pool: in this app both models
+  # share one database, so comparing pools proves nothing. What separates the
+  # two implementations is that `Migration#migrate` reaches for
+  # ActiveRecord::Tasks::DatabaseTasks.migration_connection and
+  # `exec_migration` does not.
+  test "it runs against the grant models' connection, not the default one" do
+    reached_for_default = false
+    tasks = ActiveRecord::Tasks::DatabaseTasks
+    original = tasks.method(:migration_connection)
+    tasks.define_singleton_method(:migration_connection) do
+      reached_for_default = true
+      original.call
+    end
+
+    run_repair
+
+    assert_not reached_for_default,
+      "the widening must be executed against the grant models' pool, which is the " \
+      "database the boot refusal names"
+  ensure
+    tasks&.singleton_class&.send(:remove_method, :migration_connection)
+  end
+
   test "it leaves every grant id and type column in the shape #151 requires" do
     run_repair
 

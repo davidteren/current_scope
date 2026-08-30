@@ -382,7 +382,9 @@ module  CurrentScope
     # soft-deprecates `model.connection` and refuses it outright where
     # permanent checkout is disallowed, and SchemaGuard asks this on every
     # boot — before it can raise anything a host would find useful. A pool's
-    # db_config knows the adapter, so ask that instead. One regex, two callers.
+    # db_config knows the adapter, so ask that instead. One regex, three callers:
+    # mysql? above, SchemaGuard.mysql?, and the repair task. The count is the
+    # thing to check when a fourth copy appears.
     def mysql_adapter?(name)
       name.to_s.match?(/mysql|trilogy|maria/i)
     end

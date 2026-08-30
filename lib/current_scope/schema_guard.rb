@@ -115,8 +115,9 @@ module CurrentScope
             "UUID — two subjects collapse into one identity and one inherits the " \
             "other's roles (#151). Which command depends on where this database came " \
             "from. If the widening migration is not in db/migrate yet, run " \
-            "`bin/rails current_scope:install:migrations && bin/rails db:migrate` in " \
-            "development: that is the path that also updates schema.rb, so CI and your " \
+            "`RAILS_ENV=development bin/rails current_scope:install:migrations && " \
+            "RAILS_ENV=development bin/rails db:migrate`: that is the path that also " \
+            "updates schema.rb, so CI and your " \
             "teammates get the same shape. If it is installed but has not run here, run " \
             "`#{env_prefix}bin/rails db:migrate`. If this database was BUILT from " \
             "schema.rb, every version is stamped and db:migrate has nothing pending: run " \

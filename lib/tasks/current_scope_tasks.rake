@@ -22,7 +22,17 @@ namespace :current_scope do
     load path
     migration = WidenCurrentScopePolymorphicIds.new
     migration.verbose = false
-    migration.migrate(:up)
+    # exec_migration against the GRANT MODELS' pool, not `migrate` (#193
+    # review). `Migration#migrate` runs on
+    # ActiveRecord::Tasks::DatabaseTasks.migration_connection, which is the
+    # DEFAULT database. A host that puts the engine's tables on a second
+    # connection would have watched this task report success against the wrong
+    # database while the one the boot refusal named stayed unrepaired, and boot
+    # kept failing — and the refusal now names that database, so the promise is
+    # explicit.
+    CurrentScope::RoleAssignment.connection_pool.with_connection do |conn|
+      migration.exec_migration(conn, :up)
+    end
 
     # Say what this adapter actually did. The binary collation is a MySQL-only
     # step — PostgreSQL and SQLite already compare these columns byte for byte —

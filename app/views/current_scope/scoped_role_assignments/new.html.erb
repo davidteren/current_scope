@@ -57,17 +57,29 @@
       nil-safe, keeps that coupling in view instead of in six dereferences
       (#183 review). %>
   <% role_name = @selected_role&.name %>
+  <%# A refused deep link is explained wherever it happens, INCLUDING the states
+      below that render nothing else — the refusal is often why the picker has
+      no type on screen at all (#183 review). %>
+  <% if @refused_resource && role_name %>
+    <p class="cs-hint cs-picker-empty">
+      The linked <strong><%= current_scope_label(@refused_resource) %></strong>
+      is not in the list: <strong><%= role_name %></strong> may not be
+      granted on it. Pick a different role, or a different record.
+    </p>
+  <% end %>
+
   <%# Two different empties (#183 review): nothing registered at all, and
       everything registered withheld because it does not accept the chosen role.
-      Sending the second reader to "add include CurrentScope::Scopeable" is
-      advice that cannot help them. %>
-  <% if @scopeable.empty? && @all_scopeable.any? && role_name %>
+      Both give way to a deep link that DID resolve a type: a type reached by
+      link need not be registered, and throwing away a grantable target to say
+      "no type accepts this role" would be both a dead end and untrue. %>
+  <% if @resource_type.nil? && @scopeable.empty? && @all_scopeable.any? && role_name %>
     <p class="cs-alert cs-picker-empty">
       No resource type accepts <strong><%= role_name %></strong>.
       Each registered type declares which roles may be granted on it, and none
       lists this one. Pick a different role.
     </p>
-  <% elsif @scopeable.empty? %>
+  <% elsif @resource_type.nil? && @scopeable.empty? %>
     <p class="cs-alert cs-picker-empty">
       No pickable resource types yet. Add
       <code>include CurrentScope::Scopeable</code> to a host model to make its
@@ -97,14 +109,6 @@
             data: { current_scope_autosubmit: true } %>
     </p>
 
-    <% if @refused_resource && role_name %>
-      <p class="cs-hint cs-picker-empty">
-        The linked <strong><%= current_scope_label(@refused_resource) %></strong>
-        is not in the list: <strong><%= role_name %></strong> may not be
-        granted on it. Pick a different role, or a different record.
-      </p>
-    <% end %>
-
     <% if @resource_type %>
       <%# The search box stays on an empty list only where searching reads past
           the scanned window: with an indexed scope a grantable record can sit
@@ -127,7 +131,7 @@
               classes, each with its own declaration). %>
           <%# "looked at", never "none": the role filter runs over the SCANNED
               rows, so a grantable record can sit past the window. %>
-          <% if @records_withheld && role_name && @offer_search && @indexed_search %>
+          <% if @advise_search && role_name %>
             None of the <%= @resource_type.model_name.human.pluralize.downcase %>
             looked at accept <strong><%= role_name %></strong>. Search
             for one, or pick a different role.

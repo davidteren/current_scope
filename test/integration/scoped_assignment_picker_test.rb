@@ -319,6 +319,41 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # A type reached by deep link need not be registered as Scopeable, so the
+  # "no type accepts this role" state must give way to one that did resolve —
+  # otherwise a grantable target is thrown away to print something untrue.
+  test "a deep link still works when every registered type withholds the role" do
+    project = Project.create!(name: "Q3")
+    report = Report.create!(title: "Q3 report", project: project, requested_by: @owner)
+    Folder.current_scope_grantable_roles = [ "Owner" ]
+
+    with_scopeable_resources([ Folder ]) do
+      get current_scope.new_scoped_role_assignment_path(
+        role_id: @member_role.id, subject_gid: @member.to_gid.to_s, resource_gid: report.to_gid.to_s
+      ), headers: as(@owner)
+
+      assert_response :success
+      assert_select "option[selected][value=?]", "Report"
+      assert_select "input[type=hidden][name=resource_gid][value=?]", report.to_gid.to_s
+      assert_no_match(/No resource type accepts/, response.body)
+    end
+  end
+
+  test "a refused deep link is explained even when there is no type left to show" do
+    folder = Folder.create!(name: "Q3 Ledger")
+    Folder.current_scope_grantable_roles = [ "Owner" ]
+
+    with_scopeable_resources([ Folder ]) do
+      get current_scope.new_scoped_role_assignment_path(
+        role_id: @member_role.id, resource_gid: folder.to_gid.to_s
+      ), headers: as(@owner)
+
+      assert_match(/The linked/, response.body)
+      assert_match(/Q3 Ledger/, response.body)
+      assert_match(/No resource type accepts/, response.body)
+    end
+  end
+
   # The Grant button posts what the operator can SEE selected. A resource_gid
   # survives every autosubmit, so an earlier pick must not ride along after the
   # role or the type moves on (#183 review).

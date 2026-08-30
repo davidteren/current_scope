@@ -47,6 +47,11 @@ module CurrentScope
       # ONE answer to "is there a search box on screen?", so the field and the
       # advice to use it cannot drift apart across the template (#183 review).
       @offer_search = @searchable && (@records.present? || @indexed_search || params[:q].present?)
+      # And whether searching is worth SUGGESTING: only an indexed scope reads
+      # past the scanned window, so only then can a search reach a record the
+      # role filter left out. Derived here so the box and the advice to use it
+      # cannot drift apart across the template (#183 review).
+      @advise_search = @records_withheld && @offer_search && @indexed_search
       @grantable_gid = offered_gid(@resource, @records)
     end
 
@@ -237,8 +242,8 @@ module CurrentScope
 
     # Only registered Scopeable types are resolvable from params — never
     # constantize arbitrary visitor input.
-    def resolve_type(name, within: nil)
-      (within || CurrentScope.scopeable_resources).find { |model| model.name == name } if name.present?
+    def resolve_type(name, within:)
+      within.find { |model| model.name == name } if name.present?
     end
 
     def searchable?(klass)

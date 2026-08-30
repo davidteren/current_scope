@@ -83,7 +83,14 @@ module CurrentScope
       # every write rather than on create alone, so a pre-existing row that the
       # declaration refuses fails the next time host code saves it — an update
       # must meet the same rule as the create did.
+      # A nil role answers FALSE here: nothing can be granted for a role that is
+      # not there. A caller that means "no role chosen yet, so do not filter"
+      # (the console's picker) has to say that itself — asking this method would
+      # read the absence as a refusal, which is the reading that broke the
+      # documented deep link during this feature's own review (#183).
       def current_scope_grants_role?(role)
+        return false if role.nil?
+
         allowed = current_scope_grantable_roles
         return true if allowed.nil?
 

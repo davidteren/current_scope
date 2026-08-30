@@ -42,6 +42,8 @@ module CurrentScope
       @resource_type = resolve_type(params[:resource_type], within: @scopeable) ||
                        deep_linked_type(linked)
       @resource, @refused_resource = judge_deep_link(linked, @resource_type)
+      @types = PickerTypeStep.new(all_types: @all_scopeable, offered: @scopeable,
+                                  resolved: @resource_type, role: @selected_role)
       records, withheld, unread = candidate_records(@resource_type, params[:q], @selected_role)
       # One object owns every display decision for the record step, so the
       # control and the sentence beside it cannot drift apart (#183 review).

@@ -201,6 +201,9 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_select "input[type=hidden][name=resource_gid][value=?]", invoice.to_gid.to_s
       assert_select "#cs_search_refused", count: 0
+      # And no "no records match" either: records DID match, and the role filter
+      # is what removed them (#183 review).
+      assert_select "#cs_search_none", count: 0
     end
   end
 

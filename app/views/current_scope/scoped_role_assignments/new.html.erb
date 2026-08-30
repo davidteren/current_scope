@@ -83,30 +83,23 @@
       Both give way to a deep link that DID resolve a type: a type reached by
       link need not be registered, and throwing away a grantable target to say
       "no type accepts this role" would be both a dead end and untrue. %>
-  <% if @resource_type.nil? && @scopeable.empty? && @all_scopeable.any? && role_name %>
+  <% case @types.state
+     when :none_accept %>
     <p id="cs_types_none_accept" class="cs-alert cs-picker-empty cs-types-none-accept">
       No resource type accepts <strong><%= role_name %></strong>.
       Each registered type declares which roles may be granted on it, and none
       lists this one. Pick a different role.
     </p>
-  <% elsif @resource_type.nil? && @scopeable.empty? %>
+  <% when :unregistered %>
     <p id="cs_types_unregistered" class="cs-alert cs-picker-empty cs-types-unregistered">
       No pickable resource types yet. Add
       <code>include CurrentScope::Scopeable</code> to a host model to make its
       records selectable here.
     </p>
   <% else %>
-    <%
-      type_options = @scopeable.map { |model| [ model.model_name.human, model.name ] }
-      # A deep-linked type may not itself be Scopeable — keep it selectable.
-      if @resource_type && type_options.none? { |(_, name)| name == @resource_type.name }
-        type_options.unshift([ @resource_type.model_name.human, @resource_type.name ])
-      end
-    %>
-    <% withheld = @all_scopeable.size - @scopeable.size %>
-    <% if withheld.positive? && role_name %>
+    <% if @types.withheld? %>
       <p id="cs_types_withheld" class="cs-hint cs-types-withheld">
-        <%= pluralize(withheld, "type") %> not listed: they declare which roles
+        <%= pluralize(@types.withheld_count, "type") %> not listed: they declare which roles
         may be granted on them, and <strong><%= role_name %></strong>
         is not one. Pick a different role to see them.
       </p>
@@ -114,7 +107,7 @@
     <p>
       <%= label_tag :resource_type, "Resource type" %>
       <%= select_tag :resource_type,
-            options_for_select(type_options, @resource_type&.name),
+            options_for_select(@types.options, @resource_type&.name),
             include_blank: "— choose a type —", form: "cs-cascade",
             data: { current_scope_autosubmit: true } %>
     </p>

@@ -61,7 +61,12 @@ module CurrentScope
     def search_state
       return nil unless offer_search? && query.present?
       return :shown if records.present?
-      return :none unless @withheld && role && deep_linked.nil?
+      # Records DID match and the role filter removed them, so "no records
+      # match" would be untrue — and the linked record beside the hint is
+      # selected and grantable, so "pick a different role" would contradict it.
+      # Say nothing rather than either (#183 review).
+      return nil if @withheld && deep_linked
+      return :none unless @withheld && role
 
       advise_search? ? :refused_searchable : :refused
     end

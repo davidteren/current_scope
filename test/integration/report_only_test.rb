@@ -107,6 +107,24 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
       "and the key is still written: nil is knowledge, absent is a row from before this existed"
   end
 
+  # The third branch of recordable_model_name, and the one that costs the whole
+  # row if it is wrong: a controller that mis-declares current_scope_model as a
+  # String. `"Report".name` raises NoMethodError inside the rescued recorder,
+  # and the rescue would swallow the access.would_deny row with it (#196
+  # review).
+  test "a mis-declared model records no model and still records the row (#196)" do
+    CurrentScope.config.enforcement = :report
+
+    assert_difference -> { CurrentScope::Event.where(event: "access.would_deny").count }, 1 do
+      get "/invalid_model", headers: sign_in(@alice)
+    end
+
+    event = CurrentScope::Event.where(event: "access.would_deny").last
+    assert_equal "invalid_model#index", event.details["permission"]
+    assert_nil event.details["model"],
+      "a String is not a type the resolver would accept, so there is nothing to re-ask with"
+  end
+
   test "a granted action in report mode is an ordinary allow — no report, no header" do
     CurrentScope.config.enforcement = :report
     assign(@alice, role("Member", "reports#index"))

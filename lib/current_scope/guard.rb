@@ -361,7 +361,13 @@ module CurrentScope
     end
 
     # Observe and proceed.
-    def report_would_deny(permission, record, model = nil)
+    # `model` is REQUIRED on both recorders (#196 review). A default would let a
+    # future call site write model: nil, which the report reads as knowledge
+    # rather than absence: re-checked on the stricter question AND not eligible
+    # for the legacy caveat that would tell the operator not to grant for it.
+    # That is the #196 false denial again, in the one shape the report cannot
+    # flag. Fail at the call site instead.
+    def report_would_deny(permission, record, model)
       Rails.logger&.warn(
         "[CurrentScope] report-only: would DENY #{permission.inspect} " \
         "(reason: no_grant) — grant it before setting config.enforcement = :enforce"
@@ -435,7 +441,7 @@ module CurrentScope
     # documented raise contract, so it is the one thing worth catching; a broad
     # rescue over the whole observation would also swallow a broken logger or
     # response, which are app-fatal anyway and shouldn't be hidden. (#59 review)
-    def record_would_deny_event(permission, record, model = nil)
+    def record_would_deny_event(permission, record, model)
       subject = CurrentScope::Current.user
       # No ambient subject ⇒ nothing to attribute the row to, and Event.record!
       # raises on a nil actor. Guard on the SUBJECT, not on `target` — a record

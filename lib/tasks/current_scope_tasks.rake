@@ -515,8 +515,7 @@ namespace :current_scope do
     # caveat that gives a number and no way to tell which lines it covers leaves
     # the reader to guess, on a list where the wrong guess is a grant (#196
     # review).
-    print_permission_counts = lambda do |event_rows, mark_keys = nil|
-      subject_gid = event_rows.first&.first
+    print_permission_counts = lambda do |event_rows, subject_gid = nil, mark_keys = nil|
       event_rows
         .group_by { |_s, _l, details| details.is_a?(Hash) ? details["permission"] : nil }
         .transform_values(&:count)
@@ -560,7 +559,7 @@ namespace :current_scope do
       grouped.each do |subject_gid, subject_rows|
         label = subject_rows.first[1].presence || subject_gid
         puts "  #{label}#{org_role_suffix.call(subject_gid)}"
-        print_permission_counts.call(subject_rows, legacy_keys)
+        print_permission_counts.call(subject_rows, subject_gid, legacy_keys)
         puts
       end
 

@@ -130,7 +130,7 @@ namespace :current_scope do
 
     begin
       rows = CurrentScope::Event.where(event: "access.would_deny")
-                                .pluck(:subject, :target_label, :details, :target, :created_at)
+                                .pluck(:subject, :target_label, :details, :target, :created_at, :id)
       # #73: SoD blind-spot 403s are NOT would_deny (granting won't fix them).
       # Surface them as a separate section so the survey is complete.
       blind_rows = CurrentScope::Event.where(event: "access.sod_blind_spot")
@@ -236,7 +236,7 @@ namespace :current_scope do
       pair = denial_row.new(subject_gid: subject_gid, permission: permission, target_gid: target_gid,
                             denials: group.count, record_less: recorded_flag,
                             asked_record_less: nil, model: recorded_model,
-                            last_seen: group.filter_map { |row| row[4] }.max)
+                            last_seen: group.filter_map { |row| [ row[4], row[5] ] if row[4] }.max)
       if permission.nil?
         unknown << pair
         next
@@ -377,9 +377,12 @@ namespace :current_scope do
     #
     # Newer, because during a rolling deploy an older new-format row would
     # otherwise hide a later old-format denial, and the sentence this prints
-    # says "since". Not-still-denied, because `current_scope_model` may return
+    # says "since". Newer is [created_at, id], not created_at alone: two rows
+    # written in the same request share a timestamp, and a strict comparison on
+    # that alone would refuse the answer and leave a stale denial standing
+    # (#196 review). Not-still-denied, because `current_scope_model` may return
     # different types for the same permission, and a granted answer for one of
-    # them is no answer for the other (#196 review).
+    # them is no answer for the other.
     answered_with_model = resolved.select { |denial| denial.model.is_a?(String) }
                                   .group_by(&replay_key)
                                   .transform_values { |denials| denials.filter_map(&:last_seen).max }
@@ -390,8 +393,9 @@ namespace :current_scope do
 
       key = replay_key.call(denial)
       answer = answered_with_model[key]
+      # <=>, not >: last_seen is a [created_at, id] pair and Array has no >.
       answer && !still_denied_with_model.include?(key) &&
-        (denial.last_seen.nil? || answer > denial.last_seen)
+        (denial.last_seen.nil? || (answer <=> denial.last_seen) == 1)
     end
     legacy_model -= superseded
 

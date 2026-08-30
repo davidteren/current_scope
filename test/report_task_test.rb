@@ -572,6 +572,33 @@ class ReportTaskTest < ActiveSupport::TestCase
     assert_no_match(/ASKED AGAIN/, output)
   end
 
+  # Two rows written in the same request share a created_at, so "newer" is
+  # (created_at, id): a strict comparison on the timestamp alone would refuse
+  # the answer and leave a stale denial standing (#196 review).
+  test "an answer recorded in the same instant still answers the legacy row" do
+    alice = User.create!(name: "Alice")
+    report = Report.create!(title: "Q3", requested_by: alice)
+    scope_grant(alice, role_with("reports#index"), report)
+    stamp = 1.day.ago
+    base = {
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name, created_at: stamp
+    }
+    CurrentScope::Event.create!(**base, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true
+    })
+    CurrentScope::Event.create!(**base, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true,
+      "model" => "Report"
+    })
+
+    output = run_task
+
+    assert_no_match(/would-be denials STILL ungranted/, output,
+      "the answer was written after the legacy row, to the row id if not the clock")
+    assert_match(/ASKED AGAIN/, output)
+  end
+
   # current_scope_model can return different types for the same permission, and
   # record-less rows all carry the subject as their target, so a granted answer
   # for one type is no answer for another. If any model-bearing sibling is still

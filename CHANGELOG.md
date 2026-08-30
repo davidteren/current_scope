@@ -106,11 +106,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   org-wide grant still clears them, a scoped one cannot, because the arm that
   reads the type is the one that cannot run.
 
-  One private method changed shape: `CurrentScope::Guard#report_would_deny`
-  takes the model as a required third argument. It is private and undocumented,
-  and the argument is required on purpose, because a default would let a call
-  site record "the gate had no model" when it simply forgot to say. A host or
-  test double that overrode the two-argument form has to add the parameter.
+  Two private methods changed shape: `CurrentScope::Guard#report_would_deny`
+  and `#record_would_deny_event` each take the model as a required third
+  argument. Both are private and undocumented, and the argument is required on
+  purpose, because a default would let a call site record "the gate had no
+  model" when it simply forgot to say. A host or test double that overrode
+  either two-argument form has to add the parameter.
 - **`current_scope:report` tells a moot denial from one it cannot re-check
   (#190).** Every failed lookup of a recorded denial's target landed in one
   "could not be re-checked" bucket and was counted as outstanding, so a denial

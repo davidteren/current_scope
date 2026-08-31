@@ -63,6 +63,16 @@ module CurrentScope
       @refused_link.class.try(:current_scope_locked_down_everywhere?) || false
     end
 
+    # The id of the hint this step actually rendered, so the type select can point
+    # at it. Naming a state the template did not render leaves a dangling IDREF,
+    # which reads as no description at all (#183).
+    def hint_id
+      return "cs_types_locked" if all_withheld_locked?
+      return "cs_types_withheld" if withheld?
+
+      nil
+    end
+
     def withheld_types
       @all_types - @offered
     end

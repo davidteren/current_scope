@@ -1,5 +1,16 @@
 module CurrentScope
   class RolesController < ApplicationController
+    # #183: model declarations name roles BY NAME, so a rename moves them. The
+    # warning only makes sense where a declaration exists — it is opt-in, and
+    # for a host that has declared nothing the sentence would be false and the
+    # task it points at would find nothing. (A type that includes GrantableRoles
+    # WITHOUT Scopeable is not in this list; that is the one case it misses, and
+    # it errs toward saying nothing.)
+    #
+    # On update too, or a rename that fails validation re-renders the form
+    # without the warning — on the retry screen, which is the worst place to
+    # lose it.
+    before_action :assign_grantable_roles_declared, only: %i[edit update]
     def index
       # Includes for delete-confirm holder counts (cascade warning).
       @roles = Role.order(:name).includes(:role_assignments, :scoped_role_assignments)
@@ -32,14 +43,6 @@ module CurrentScope
 
     def edit
       @role = Role.find(params[:id])
-      # #183: model declarations name roles BY NAME, so a rename moves them. The
-      # hint only makes sense where a declaration exists, and it is opt-in — for
-      # a host that has declared nothing the sentence would be false and the
-      # task it points at would find nothing. (A type that includes
-      # GrantableRoles WITHOUT Scopeable is not in this list; it is the only
-      # case this misses, and it errs toward saying nothing.)
-      @grantable_roles_declared =
-        CurrentScope.scopeable_resources.any? { |klass| klass.try(:current_scope_declares_roles_anywhere?) }
     end
 
     # Who holds this role — the role-side complement to the subjects page. Org-wide
@@ -157,6 +160,11 @@ module CurrentScope
     end
 
     private
+
+    def assign_grantable_roles_declared
+      @grantable_roles_declared =
+        CurrentScope.scopeable_resources.any? { |klass| klass.try(:current_scope_declares_roles_anywhere?) }
+    end
 
     # Polymorphic subject/resource may be deleted or unresolvable — never 500
     # the cascade audit. Deleted records return nil without raising (especially

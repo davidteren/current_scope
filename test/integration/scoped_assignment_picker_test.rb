@@ -914,11 +914,20 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   end
 
   # A frame swap is not a navigation, so without a live region every message
-  # this picker adds is silent for a screen reader (#183).
-  test "the cascade frame is a polite live region" do
-    get current_scope.new_scoped_role_assignment_path, headers: as(@owner)
+  # this picker adds is silent for a screen reader. Per message, not one region
+  # around the frame: that would hold the controls too (#183).
+  test "each explanation announces itself" do
+    with_scopeable_resources([ picky_type ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id), headers: as(@owner)
 
-    assert_select "turbo-frame#cascade[role=status][aria-live=polite]"
+      assert_select "#cs_types_none_accept[role=status]"
+    end
+
+    get current_scope.new_scoped_role_assignment_path(resource_type: "Folder"), headers: as(@owner)
+
+    assert_select "#cs_records_none[role=status]"
+    # One region around the frame would re-read every control on every pick.
+    assert_select "turbo-frame#cascade[role=status]", count: 0
   end
 
   # A hint an operator can see but a screen reader never ties to the control it

@@ -27,10 +27,6 @@ module CurrentScope
   module GrantableRoles
     extend ActiveSupport::Concern
 
-    # How many distinct row kinds a lockdown answer will look at. A table with
-    # more than this is not judged on a page render (#183).
-    TYPE_SCAN_CAP = 25
-
     class_methods do
       # A SETTER, not an overloaded reader (#183). A combined
       # `current_scope_grantable_roles(*names)` cannot tell
@@ -110,13 +106,7 @@ module CurrentScope
         return false unless current_scope_locked_down?
         return true unless current_scope_inheritable_table?
 
-        classes = current_scope_classes_in_table
-        # Too many kinds of row to judge on a page render: say nothing rather
-        # than scan the table for a message. The rest of the picker bounds its
-        # reads the same way.
-        return false if classes.size > TYPE_SCAN_CAP
-
-        classes.all? { |klass| klass && klass.try(:current_scope_grantable_roles).blank? }
+        !current_scope_rows_outside?(current_scope_locked_class_names)
       rescue ActiveRecord::ActiveRecordError
         false # no database to ask; do not claim a lockdown we cannot check
       end
@@ -174,30 +164,30 @@ module CurrentScope
 
       private
 
-      # The classes the ROWS name, not the ones this process happens to have
-      # loaded. `descendants` sees only loaded classes, so a subclass nothing
-      # has referenced yet would read as "no subclass declares" and the console
-      # would state a lockdown that is false — hiding the search that reaches
-      # those very records.
-      #
-      # Through Rails' OWN sti_class_for, never safe_constantize: a stored type
-      # is not always a constant name. `store_full_sti_class = false` shortens
-      # it, `sti_name` can be overridden, and a bare "Invoice" under
-      # Billing::Document must not resolve to an unrelated top-level ::Invoice —
-      # the same hazard PolymorphicRegistry documents for its own tokens. An
-      # unresolvable one answers nil, which fails toward NOT claiming.
-      def current_scope_classes_in_table
-        where.not(inheritance_column => nil)
-             .distinct
-             .limit(TYPE_SCAN_CAP + 1)
-             .pluck(inheritance_column)
-             .map { |stored| current_scope_sti_class(stored) }
+      # The stored names of every LOADED class here that accepts no role. Each
+      # through Rails' own sti_name, never the constant name: a stored type is
+      # not always one — `store_full_sti_class = false` shortens it and
+      # `sti_name` can be overridden — which is the hazard PolymorphicRegistry
+      # documents for its own tokens.
+      def current_scope_locked_class_names
+        ([ self ] + descendants)
+          .select { |klass| klass.try(:current_scope_grantable_roles).blank? }
+          .map { |klass| klass.try(:sti_name) }
+          .compact
       end
 
-      def current_scope_sti_class(stored)
-        sti_class_for(stored.to_s)
-      rescue ActiveRecord::SubclassNotFound, NameError
-        nil
+      # Is there a row here whose class is NOT one of those? An EXISTS, so it
+      # stops at the first one rather than aggregating the table: a DISTINCT
+      # would consume every matching row before any LIMIT applied, on a column
+      # Rails does not index, once per render of a locked type.
+      #
+      # A row naming a class this process has not loaded is not in the list, so
+      # it answers "yes, something else is here" and the lockdown is not
+      # claimed. That is the safe direction: `descendants` alone would read an
+      # unloaded declaring subclass as "nothing declares" and state a lockdown
+      # that is false.
+      def current_scope_rows_outside?(names)
+        where.not(inheritance_column => names + [ nil ]).exists?
       end
     end
   end

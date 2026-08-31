@@ -24,6 +24,17 @@ class RoleGridTest < ActionDispatch::IntegrationTest
     assert_select "#cs_role_rename_hint"
   end
 
+  # A rename that fails validation re-renders this form, which is the worst
+  # place to lose the warning about what renaming does (#183).
+  test "the rename warning survives a failed rename" do
+    declare_grantable_roles(Folder, [ "Editor" ])
+
+    patch current_scope.role_url(@role), params: { role: { name: "" } }, headers: as(@owner)
+
+    assert_response :unprocessable_entity
+    assert_select "#cs_role_rename_hint"
+  end
+
   test "the rename warning stays off where nothing declares its grantable roles" do
     get current_scope.edit_role_url(@role), headers: as(@owner)
 

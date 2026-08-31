@@ -208,26 +208,24 @@ class GrantableRolesTest < ActiveSupport::TestCase
       "a row whose class cannot be resolved is not evidence of a lockdown"
   end
 
-  # A lockdown answer must not cost a table scan on a page render: it reads one
-  # row past its cap, and a table with more kinds than that is not judged.
-  test "the lockdown answer reads a bounded number of row kinds" do
+  # A lockdown answer must not aggregate the table to choose a sentence: it asks
+  # whether ANY row names a class outside the locked set, which stops at the
+  # first one (#183).
+  test "the lockdown answer stops at the first row that disproves it" do
     declare_grantable_roles(Document, [])
     now = Time.current
-    cap = CurrentScope::GrantableRoles::TYPE_SCAN_CAP
-    rows = Array.new(cap + 1) { |i| { title: "R-#{i}", type: "Kind#{i}", created_at: now, updated_at: now } }
-    Document.insert_all(rows)
+    Document.insert_all(Array.new(50) { |i| { title: "R-#{i}", type: "Receipt", created_at: now, updated_at: now } })
+    Invoice.create!(title: "INV-1")
+    declare_grantable_roles(Invoice, [ "Project Lead" ])
 
-    limits = []
-    watcher = lambda do |*, payload|
-      next unless payload[:sql].to_s.include?("documents") && payload[:sql].to_s.include?("LIMIT")
-
-      limits.concat(Array(payload[:binds]).map(&:value))
-    end
+    sql = []
+    watcher = ->(*, payload) { sql << payload[:sql] if payload[:sql].to_s.include?("documents") }
     ActiveSupport::Notifications.subscribed(watcher, "sql.active_record") do
       assert_not Document.current_scope_locked_down_everywhere?
     end
 
-    assert_includes limits, cap + 1, "one past the cap, so the answer knows it stopped short"
+    assert sql.any? { |q| q.include?("LIMIT") && !q.include?("DISTINCT") },
+      "an EXISTS, not an aggregate over every row: #{sql.inspect}"
   end
 
   # A seed, a rake task and a console one-liner all write through the model, so

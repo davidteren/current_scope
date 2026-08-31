@@ -61,17 +61,18 @@
   <% end %>
 <% end %>
 
-<%# A frame swap is not a navigation, so nothing is announced: without this,
-    every explanation this picker adds is silent for a screen reader. Polite,
-    so it waits for a pause rather than interrupting. %>
-<turbo-frame id="cascade" role="status" aria-live="polite">
+<%# Each message below carries role="status": a Turbo frame swap is not a
+    navigation, so nothing is announced otherwise, and one region around the
+    frame would hold the controls too and re-read the whole picker on every
+    pick. Per-message regions announce only the sentence that appeared. %>
+<turbo-frame id="cascade">
   <%# Every sentence below that names the role runs only when a role IS chosen —
       each flag the controller sets is computed from one. Reading the name once,
       nil-safe, keeps that coupling in view instead of in six dereferences
       (#183). %>
   <% role_name = @selected_role&.name %>
   <% if @missing_role %>
-    <p id="cs_role_missing" class="cs-alert cs-picker-empty">
+    <p id="cs_role_missing" role="status" class="cs-alert cs-picker-empty">
       <%# "not found", not "deleted": an id that never named a role reaches
           here too, and the page cannot know which happened. %>
       That role could not be found. Pick one from the list to go on.
@@ -82,7 +83,7 @@
       below that render nothing else — the refusal is often why the picker has
       no type on screen at all (#183). %>
   <% if @types.refused_link && role_name %>
-    <p id="cs_resource_refused" class="cs-alert cs-picker-empty cs-resource-refused">
+    <p id="cs_resource_refused" role="status" class="cs-alert cs-picker-empty cs-resource-refused">
       <%# Not "the linked …": the same params arrive when the record was picked
           from the dropdown one step earlier (#183). %>
       <%# The role half is dropped where no role can help: this paragraph
@@ -110,19 +111,19 @@
       "no type accepts this role" would be both a dead end and untrue. %>
   <% case @types.state
      when :none_accept %>
-    <p id="cs_types_none_accept" class="cs-alert cs-picker-empty cs-types-none-accept">
+    <p id="cs_types_none_accept" role="status" class="cs-alert cs-picker-empty cs-types-none-accept">
       No resource type accepts <strong><%= role_name %></strong>. Each type here
       takes only certain roles, and none of them takes this one. Pick a
       different role.
     </p>
   <% when :none_accept_locked %>
-    <p id="cs_types_none_accept_locked" class="cs-alert cs-picker-empty cs-types-none-accept">
+    <p id="cs_types_none_accept_locked" role="status" class="cs-alert cs-picker-empty cs-types-none-accept">
       No resource type accepts any role. Every type here has been set to accept
       none, so nothing can be granted until one of them is given the roles it
       should take.
     </p>
   <% when :unregistered %>
-    <p id="cs_types_unregistered" class="cs-alert cs-picker-empty cs-types-unregistered">
+    <p id="cs_types_unregistered" role="status" class="cs-alert cs-picker-empty cs-types-unregistered">
       No pickable resource types yet. Add
       <code>include CurrentScope::Scopeable</code> to a host model to make its
       records selectable here.
@@ -132,13 +133,13 @@
       <%# Every withheld type is a LOCKDOWN — an empty declaration. Telling the
           operator to pick a different role would be a promise no role can
           keep (#183). %>
-      <p id="cs_types_locked" class="cs-hint cs-types-withheld">
+      <p id="cs_types_locked" role="status" class="cs-hint cs-types-withheld">
         <%= pluralize(@types.withheld_count, "type") %> not listed. Each is set
         to accept no roles at all, so no role will show
         <%= @types.withheld_count == 1 ? "it" : "them" %>.
       </p>
     <% elsif @types.withheld? %>
-      <p id="cs_types_withheld" class="cs-hint cs-types-withheld">
+      <p id="cs_types_withheld" role="status" class="cs-hint cs-types-withheld">
         <%= pluralize(@types.withheld_count, "type") %> not listed. Each takes
         only certain roles, and <strong><%= role_name %></strong> is not one of
         them. Pick a different role to see
@@ -155,7 +156,7 @@
       <%= select_tag :resource_type,
             options_for_select(@types.options, @resource_type&.name),
             include_blank: "— choose a type —", form: "cs-cascade",
-            "aria-describedby": @types.withheld? ? "cs_types_withheld" : nil,
+            "aria-describedby": @types.hint_id,
             data: { current_scope_autosubmit: true } %>
     </p>
 
@@ -180,7 +181,7 @@
             cannot leave the suite green with the wrong text (#183).
             "looked at", never "none": the role filter runs over the scanned
             rows, so a grantable record can sit past the window. %>
-        <p id="cs_<%= @step.records_state %>" class="cs-hint cs-picker-empty cs-<%= @step.records_state.to_s.dasherize %>">
+        <p id="cs_<%= @step.records_state %>" role="status" class="cs-hint cs-picker-empty cs-<%= @step.records_state.to_s.dasherize %>">
           <% case @step.records_state
              when :records_locked %>
             <%# The TYPE's own rule, which holds whether the table is full or
@@ -224,7 +225,7 @@
                 "aria-describedby": @step.hint_id,
                 data: { current_scope_autosubmit: true } %>
           <% if @step.shortened? %>
-            <span id="cs_records_shortened" class="cs-hint">
+            <span id="cs_records_shortened" role="status" class="cs-hint">
               Records that do not accept <strong><%= role_name %></strong> are
               not listed.
             </span>
@@ -234,7 +235,7 @@
                 deep-linked record is prepended to the options even when the
                 query matched nothing, and must not fake a "matches shown". %>
             <% if @step.matches_shown? %>
-              <span id="cs_<%= @step.search_state %>" class="cs-hint cs-search-shown">
+              <span id="cs_<%= @step.search_state %>" role="status" class="cs-hint cs-search-shown">
                 Showing up to <%= CurrentScope::ScopedRoleAssignmentsController::DISPLAY_LIMIT %> matches — refine the search to narrow.
                 <% if @step.search_state == :search_shown_withheld && role_name %>
                   <%# No other hint on the page covers RECORDS the role filter
@@ -246,7 +247,7 @@
             <% else %>
               <%# cs-picker-empty only where the picker IS empty: two of these
                   states have a record selected and a Grant button beside them. %>
-              <span id="cs_<%= @step.search_state %>"
+              <span id="cs_<%= @step.search_state %>" role="status"
                     class="cs-hint cs-<%= @step.search_state.to_s.dasherize %><%= " cs-picker-empty" unless @step.selected %>">
                 <% case @step.search_state
                    when :search_locked %>
@@ -316,9 +317,9 @@
       <%# The picker explains a dozen narrowings; staying silent about the one
           pick that is actually missing is the loudest omission of the lot —
           and the blank subject option makes this a normal first visit. %>
-      <span id="cs_needs_subject" class="cs-hint">Choose a subject above to grant this.</span>
+      <span id="cs_needs_subject" role="status" class="cs-hint">Choose a subject above to grant this.</span>
     <% elsif @step.grantable_gid.present? && @selected_role.nil? %>
-      <span id="cs_needs_role" class="cs-hint">Choose a role above to grant this.</span>
+      <span id="cs_needs_role" role="status" class="cs-hint">Choose a role above to grant this.</span>
     <% elsif ready && @subject_gid.present? %>
       <%= button_to "Grant scoped role", scoped_role_assignments_path, method: :post,
             params: { role_id: @selected_role.id, subject_gid: @subject_gid,

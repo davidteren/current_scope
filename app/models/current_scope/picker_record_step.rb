@@ -8,7 +8,10 @@ module CurrentScope
   # without moving the sentence beside it, which is the drift that produced
   # most of this feature's review findings.
   class PickerRecordStep
-    attr_reader :records, :query, :role, :selected
+    # offered_records is the ONE list the template renders. `records` (the
+    # unprepended, role-filtered scan) and `role` stay private, or the view has
+    # two plausible lists to reach for — the drift this object removes.
+    attr_reader :query, :selected
 
     # records     rows on offer, already role-filtered (nil ⇒ no type chosen)
     # withheld    the role filter removed rows from what was read
@@ -33,7 +36,7 @@ module CurrentScope
     # The empty state is skipped when a deep-linked record survived: it is
     # prepended to the options, and skipping past them would leave a Grant
     # button posting a record the page never shows.
-    def empty?
+    def show_empty_state?
       offered_records.empty? && query.blank?
     end
 
@@ -147,6 +150,8 @@ module CurrentScope
     end
 
     private
+
+    attr_reader :records, :role
 
     def same?(one, other)
       one.to_gid.to_s == other.to_gid.to_s

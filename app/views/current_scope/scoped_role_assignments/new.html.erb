@@ -161,7 +161,7 @@
       <%# The deep-linked record is excluded: it is prepended to the
           options in the else branch, and skipping to the empty state would leave
           a Grant button posting a record the page never shows (#183 review). %>
-      <% if @step.empty? %>
+      <% if @step.show_empty_state? %>
         <%# The controller NAMES this state; the class a test selects and the
             sentence an operator reads come from the same answer, so a copy edit
             cannot leave the suite green with the wrong text (#183 review).

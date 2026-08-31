@@ -170,7 +170,7 @@ module CurrentScope
       linked.class if linked && filter_allows?(linked.class, role)
     end
 
-    # → [ kept, refused ]. A deep-linked record survives only when it belongs to
+    # The record the form may act on. It survives only when it belongs to
     # the type on screen AND its own class accepts the chosen role. Without the
     # type half, a carried-over gid rides into a DIFFERENT type's record list as
     # the selected option; without the role half, a refused record keeps a Grant

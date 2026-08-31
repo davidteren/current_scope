@@ -161,12 +161,6 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       # The one grantable match sat past the 50-row display cut.
       assert_select "select[name=resource_gid] option[value=?]", invoice.to_gid.to_s, count: 1
     end
-  ensure
-    # Guarded: the hook is defined several statements in, and an unguarded
-    # remove_method would raise NameError over the real failure.
-    if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
-      Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
-    end
   end
 
   # Even a leaf: the picker cannot ask a TABLE which classes its rows will load
@@ -262,12 +256,6 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       assert_select "#cs_search_refused", /Member/
       assert_select "#cs_search_none", count: 0
     end
-  ensure
-    # Guarded: the hook is defined several statements in, and an unguarded
-    # remove_method would raise NameError over the real failure.
-    if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
-      Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
-    end
   end
 
   # The role filter runs over the SCANNED rows, so with an indexed scope a
@@ -290,12 +278,6 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_select "input[name=q]"
       assert_select "#cs_records_refused_searchable"
-    end
-  ensure
-    # Guarded: the hook is defined several statements in, and an unguarded
-    # remove_method would raise NameError over the real failure.
-    if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
-      Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
     end
   end
 

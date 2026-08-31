@@ -1,0 +1,34 @@
+test/grantable_roles_test.rb
+  s_240773ee81a9c0::t_a8a62f8260ebc9 211-214,217-219,221-222,227-228
+app/controllers/current_scope/roles_controller.rb
+  s_240773ee81a9c0::t_2cf1ab8cca0c5a 3-13,164-167
+  s_240773ee81a9c0::t_98e56fa8213760 168
+lib/current_scope/grantable_roles.rb
+  s_240773ee81a9c0::t_d206047a580af5 109,167-176,179-190
+test/integration/role_grid_test.rb
+  s_240773ee81a9c0::t_85c766bc430a3c 27-37
+app/views/current_scope/scoped_role_assignments/new.html.erb
+  s_240773ee81a9c0::t_1cea416ff373eb 64-67,75,86,114,120,126,136,142,184,228,238,250,320,322
+  s_240773ee81a9c0::t_494d2a9e0ce8b8 68,159
+app/models/current_scope/picker_type_step.rb
+  s_240773ee81a9c0::t_494d2a9e0ce8b8 66-75
+test/integration/scoped_assignment_picker_test.rb
+  s_240773ee81a9c0::t_e96dd95f3e5093 929-930
+  s_240773ee81a9c0::t_1cea416ff373eb 917-926,928
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "773803fdf1bebc1b7b1569562013b549c6c72765",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

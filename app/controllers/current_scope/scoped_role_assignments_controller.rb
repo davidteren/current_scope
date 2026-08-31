@@ -56,7 +56,7 @@ module CurrentScope
         # search re-reads the very rows an empty list came from.
         indexed: @resource_type.respond_to?(:current_scope_searchable_scope),
         searchable: searchable?(@resource_type), query: @query,
-        role: @selected_role, selected: link.record,
+        selected: link.record,
         # An empty declaration on the chosen type is a LOCKDOWN: no role will
         # ever list a record that inherits it, so "pick a different role" is a
         # promise none can keep. The type step says this for a type it withheld;

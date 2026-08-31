@@ -740,6 +740,23 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # With no role picked the list is unfiltered and the lockdown sentence is not
+  # on screen, so taking the search box away would shorten the dropdown with no
+  # word about why (#183 review).
+  test "a locked type keeps its search box while the lockdown is not on screen" do
+    (CurrentScope::ScopedRoleAssignmentsController::SEARCH_THRESHOLD + 1).times do |i|
+      Receipt.create!(title: "RCT-#{i}")
+    end
+    declare_grantable_roles(Document, [])
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(resource_type: "Document"), headers: as(@owner)
+
+      assert_select "input[name=q]"
+      assert_select "#cs_records_locked", count: 0 # the list is not empty, so it does not render
+    end
+  end
+
   # A locked base can still hold subclass records that declare their own roles,
   # and past the scanned window a search can find them — "none ever will" is
   # untrue there, so the advice to search wins (#183 review).

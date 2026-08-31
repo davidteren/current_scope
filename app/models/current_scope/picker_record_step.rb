@@ -9,8 +9,8 @@ module CurrentScope
   # most of this feature's review findings.
   class PickerRecordStep
     # offered_records is the ONE list the template renders. `records` (the
-    # unprepended, role-filtered scan) and `role` stay private, or the view has
-    # two plausible lists to reach for — the drift this object removes.
+    # unprepended, role-filtered scan) stays private, or the view has two
+    # plausible lists to reach for — the drift this object removes.
     attr_reader :query, :selected
 
     # records     rows on offer, already role-filtered (nil ⇒ no type chosen)
@@ -20,7 +20,7 @@ module CurrentScope
     # searchable  the type holds more rows than the search threshold
     # selected    the record on the form — picked from the dropdown or reached
     #             by deep link — that survived the type and role gates
-    def initialize(records:, withheld:, unread:, indexed:, searchable:, query:, role:, selected:,
+    def initialize(records:, withheld:, unread:, indexed:, searchable:, query:, selected:,
                    locked: false)
       @records = records
       @withheld = withheld
@@ -28,7 +28,6 @@ module CurrentScope
       @indexed = indexed
       @searchable = searchable
       @query = query
-      @role = role
       @selected = selected
       @locked = locked
     end
@@ -83,9 +82,12 @@ module CurrentScope
     def offer_search?
       return true if query.present?
       # Nothing over a locked type can take a role, so a search here reaches
-      # nothing — and the box would sit directly above the sentence saying so
+      # nothing — and the box would sit directly above the sentence saying so.
+      # Only where that sentence actually renders, though: with no role picked
+      # the list is unfiltered and the lockdown is not on screen, and hiding the
+      # box there would shorten the dropdown with no word about why
       # (#183 review).
-      return false if @locked
+      return false if @locked && show_empty_state?
       return false unless @searchable
 
       # An empty list only earns a search box where searching can reach past
@@ -168,7 +170,7 @@ module CurrentScope
 
     private
 
-    attr_reader :records, :role
+    attr_reader :records
 
     def same?(one, other)
       one.to_gid.to_s == other.to_gid.to_s

@@ -274,16 +274,15 @@ namespace :current_scope do
       end
     end
 
-    # A grant the row's own type would refuse if it were written today. Through
-    # the CHECKED reader, so a non-canonical stored id never judges an unrelated
-    # live record (#151), and inert on a stale token: a type that no longer
-    # loads is #90's inert grant, not a #183 finding.
+    # A grant the row's own type would refuse if it were written today.
     unjudgeable_grants = 0
     grant_refused_by_declaration = lambda do |grant|
       next false if grant.role.nil?
 
-      klass = grant.current_scope_resolved_record("resource")&.class ||
-              CurrentScope.polymorphic_class(grant.resource_type, inert_on_error: true)
+      # The model's own answer, so the scan and the gate cannot disagree about
+      # which class governs a grant. inert on a stale token: a type that no
+      # longer loads is #90's inert grant, not a #183 finding.
+      klass = grant.current_scope_governing_class(inert_on_error: true)
       next false if klass.nil? || !klass.respond_to?(:current_scope_grants_role?)
 
       !klass.current_scope_grants_role?(grant.role)

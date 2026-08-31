@@ -121,7 +121,10 @@ module CurrentScope
       # table refuses nothing, and a lockdown is knowable on the first visit,
       # where "no records to pick from yet" would send the operator off to
       # create one.
-      return :records_locked if @locked && role
+      # No role needed: the sentence names the TYPE, and the lockdown is
+      # knowable before a role is picked — which is a real first visit now that
+      # the role select starts blank.
+      return :records_locked if @locked
       # No `&& role` on the withheld branches: the role filter cannot remove a
       # record without a role, so @withheld carries one. @locked does not, which
       # is why that guard is the one that stays (#183 review).
@@ -147,6 +150,11 @@ module CurrentScope
       # Matches ARE shown, but the role filter took some of them out of the
       # list, and no other hint on the page covers records (#183 review).
       return @withheld ? :search_shown_withheld : :search_shown if records.present?
+      # The query path reaches here with the empty state suppressed, so the
+      # lockdown has to be said again: every refusal sentence below would tell
+      # the operator to pick a different role, and on a lockdown none helps
+      # (#183 review).
+      return :search_locked if @locked
       # A surviving record is selected and grantable, so the plain
       # refusals cannot be said beside it: "pick a different role" contradicts
       # the role that accepts this one. Both cases still have something true to

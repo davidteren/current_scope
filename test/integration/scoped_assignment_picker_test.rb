@@ -708,6 +708,38 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # The query path suppresses the empty state, so the lockdown has to be said
+  # there too — every refusal sentence tells the operator to pick a different
+  # role, and on a lockdown none helps (#183 review).
+  test "a locked type with a search in effect still says no role can help" do
+    Receipt.create!(title: "Q3 receipt")
+    declare_grantable_roles(Document, [])
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(
+        role_id: @member_role.id, resource_type: "Document", q: "Q3"
+      ), headers: as(@owner)
+
+      assert_select "#cs_search_locked", /Document/
+      assert_select "#cs_search_refused", count: 0
+      assert_select "#cs_search_none", count: 0
+    end
+  end
+
+  # And before any role is picked: the role select starts blank now, so a type
+  # can be chosen first, and an empty table would otherwise say "none yet" about
+  # a type that refuses every role (#183 review).
+  test "a locked type says so before a role is chosen" do
+    declare_grantable_roles(Document, [])
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(resource_type: "Document"), headers: as(@owner)
+
+      assert_select "#cs_records_locked", /Document/
+      assert_select "#cs_records_none", count: 0
+    end
+  end
+
   # A locked base can still hold subclass records that declare their own roles,
   # and past the scanned window a search can find them — "none ever will" is
   # untrue there, so the advice to search wins (#183 review).

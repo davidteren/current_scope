@@ -101,6 +101,31 @@ module CurrentScope
     end
     private_class_method :mark_resources_loaded
 
+    # WHICH class governs this grant — the one the declaration is read from, for
+    # the write gate below and for the report task that names rows a type would
+    # refuse today. One copy, because the two must agree (#183 review).
+    #
+    # The record's OWN class when it is there, and only then the token's:
+    # CurrentScope.polymorphic_class always answers with the BASE class (the
+    # registry claims each token with klass.base_class, and an STI grant stores
+    # the base token), so asking it first would make a declaration on an STI
+    # subclass a silent no-op while the module, the guide and the reader all
+    # promise it is inherited and overridable.
+    #
+    # Through the CHECKED reader, never the raw association: a non-canonical
+    # stored id casts into an unrelated live record, and the gate would then
+    # judge (and name) the wrong class (#151).
+    #
+    # The token fallback names the base class, so an orphaned STI grant is
+    # judged by the base's declaration rather than the subclass's — there is
+    # nothing left to ask. `inert_on_error:` is the CALLER's to choose: a write
+    # path must not save under a registry that cannot say which class a token
+    # names, while a read-only scan degrades to inert.
+    def current_scope_governing_class(inert_on_error: false)
+      current_scope_resolved_record("resource")&.class ||
+        CurrentScope.polymorphic_class(resource_type, inert_on_error: inert_on_error)
+    end
+
     private
 
     # Silent unless the type opted in (#183): with no declaration every role
@@ -112,28 +137,7 @@ module CurrentScope
     def role_grantable_on_resource_type
       return if role.nil? || resource_type.blank?
 
-      # The record's OWN class when it is loaded, and only then the token's.
-      # CurrentScope.polymorphic_class always answers with the BASE class — the
-      # registry claims each token with klass.base_class, and an STI grant
-      # stores the base token — so asking it would make a declaration on an STI
-      # subclass a silent no-op while the module, the guide and the reader all
-      # promise it is inherited and overridable (#183 review).
-      #
-      # Through the CHECKED reader, never the raw association: a non-canonical
-      # stored id casts into an unrelated live record, and the gate would then
-      # judge (and name) the wrong class — the one call site that read the plain
-      # association is this one (#183 review, #151).
-      # Resolved WITHOUT inert_on_error: this is a write path, and the registry
-      # rule is that a grant must not be saved under a registry that cannot say
-      # which class a token names. The sibling key guard already refuses such a
-      # row; holding the property here too is what that rule asks of each write
-      # path (#183 review).
-      # Falls back to the TOKEN, which names the base class, when the record is
-      # gone or its stored id is not canonical: an orphaned STI grant is then
-      # judged by the base class's declaration rather than the subclass's. The
-      # guide says so; there is nothing left to ask (#183 review).
-      klass = current_scope_resolved_record("resource")&.class ||
-              CurrentScope.polymorphic_class(resource_type)
+      klass = current_scope_governing_class
       return if klass.nil? || !klass.respond_to?(:current_scope_grants_role?)
       return if klass.current_scope_grants_role?(role)
 

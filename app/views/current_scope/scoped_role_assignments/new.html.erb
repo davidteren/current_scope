@@ -234,7 +234,11 @@
             <% else %>
               <span id="cs_<%= @step.search_state %>" class="cs-hint cs-picker-empty cs-<%= @step.search_state.to_s.dasherize %>">
                 <% case @step.search_state
-                   when :search_refused_searchable %>
+                   when :search_locked %>
+                  <strong><%= @resource_type.model_name.human %></strong> accepts
+                  no scoped roles at all, so no record that inherits that
+                  declaration can be granted here — whatever the search finds.
+                <% when :search_refused_searchable %>
                   <%# The matches READ all refuse, but the search stopped at its
                       cap, so a narrower search can still turn one up. %>
                   No match for “<%= @query %>” read so far accepts

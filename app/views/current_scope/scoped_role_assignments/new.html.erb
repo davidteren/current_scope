@@ -162,13 +162,13 @@
             cannot leave the suite green with the wrong text (#183 review).
             "looked at", never "none": the role filter runs over the scanned
             rows, so a grantable record can sit past the window. %>
-        <p id="cs_records_<%= @step.records_state %>" class="cs-hint cs-picker-empty cs-records-<%= @step.records_state.to_s.dasherize %>">
+        <p id="cs_<%= @step.records_state %>" class="cs-hint cs-picker-empty cs-<%= @step.records_state.to_s.dasherize %>">
           <% case @step.records_state
-             when :refused_searchable %>
+             when :records_refused_searchable %>
             None of the <%= @resource_type.model_name.human.pluralize.downcase %>
             looked at accept <strong><%= role_name %></strong>. Search
             for one, or pick a different role.
-          <% when :refused %>
+          <% when :records_refused %>
             None of the <%= @resource_type.model_name.human.pluralize.downcase %>
             looked at accept <strong><%= role_name %></strong>. Pick a different
             role.
@@ -184,7 +184,7 @@
               (#183 review). %>
           <% record_options = @step.offered_records.map { |record| [ current_scope_label(record), record.to_gid.to_s ] } %>
           <%= select_tag :resource_gid,
-                options_for_select(record_options, @grantable_gid || @resource&.to_gid&.to_s),
+                options_for_select(record_options, @grantable_gid),
                 include_blank: "— choose a record —", form: "cs-cascade",
                 data: { current_scope_autosubmit: true } %>
           <% if @step.shortened? %>
@@ -198,9 +198,9 @@
                 deep-linked @resource is prepended to the options even when the
                 query matched nothing, and must not fake a "matches shown". %>
             <% if @step.matches_shown? %>
-              <span id="cs_search_<%= @step.search_state %>" class="cs-hint cs-search-shown">
+              <span id="cs_<%= @step.search_state %>" class="cs-hint cs-search-shown">
                 Showing up to <%= CurrentScope::ScopedRoleAssignmentsController::DISPLAY_LIMIT %> matches — refine the search to narrow.
-                <% if @step.search_state == :shown_withheld && role_name %>
+                <% if @step.search_state == :search_shown_withheld && role_name %>
                   <%# No other hint on the page covers RECORDS the role filter
                       took out of a list that still has matches (#183 review). %>
                   Matches that do not accept <strong><%= role_name %></strong> are
@@ -208,26 +208,26 @@
                 <% end %>
               </span>
             <% else %>
-              <span id="cs_search_<%= @step.search_state %>" class="cs-hint cs-picker-empty cs-search-<%= @step.search_state.to_s.dasherize %>">
+              <span id="cs_<%= @step.search_state %>" class="cs-hint cs-picker-empty cs-<%= @step.search_state.to_s.dasherize %>">
                 <% case @step.search_state
-                   when :refused_searchable %>
+                   when :search_refused_searchable %>
                   <%# The matches READ all refuse, but the search stopped at its
                       cap, so a narrower search can still turn one up. %>
                   No match for “<%= @query %>” read so far accepts
                   <strong><%= role_name %></strong> — narrow the search, or pick
                   a different role.
-                <% when :refused %>
+                <% when :search_refused %>
                   <%# The search DID match — a different search is the one thing
                       that cannot help. "read", because the fallback scan stops
                       at its cap and cannot speak for the whole table. %>
                   No match for “<%= @query %>” among the records read accepts
                   <strong><%= role_name %></strong> — pick a different role.
-                <% when :refused_linked %>
+                <% when :search_refused_linked %>
                   No match for “<%= @query %>” accepts
                   <strong><%= role_name %></strong>. The linked
                   <strong><%= current_scope_label(@step.deep_linked) %></strong>
                   does, and is still selectable.
-                <% when :none_linked %>
+                <% when :search_none_linked %>
                   No records match “<%= @query %>”. The linked
                   <strong><%= current_scope_label(@step.deep_linked) %></strong>
                   is still selectable.

@@ -128,6 +128,10 @@ module CurrentScope
       # which class a token names. The sibling key guard already refuses such a
       # row; holding the property here too is what that rule asks of each write
       # path (#183 review).
+      # Falls back to the TOKEN, which names the base class, when the record is
+      # gone or its stored id is not canonical: an orphaned STI grant is then
+      # judged by the base class's declaration rather than the subclass's. The
+      # guide says so; there is nothing left to ask (#183 review).
       klass = current_scope_resolved_record("resource")&.class ||
               CurrentScope.polymorphic_class(resource_type)
       return if klass.nil? || !klass.respond_to?(:current_scope_grants_role?)

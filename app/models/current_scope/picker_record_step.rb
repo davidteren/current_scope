@@ -55,11 +55,7 @@ module CurrentScope
     # Both :shown states mean the list HAS matches — the difference is only
     # whether the role filter took some out of it.
     def matches_shown?
-      [ :shown, :shown_withheld ].include?(search_state)
-    end
-
-    def offers?(gid)
-      gid.present? && offered_records.any? { |record| record.to_gid.to_s == gid }
+      [ :search_shown, :search_shown_withheld ].include?(search_state)
     end
 
     # A query that is IN EFFECT always brings its field, whether or not the type
@@ -82,14 +78,20 @@ module CurrentScope
       @withheld && offer_search? && @indexed && @unread
     end
 
-    # :refused_searchable — everything read refuses the role, more rows unread
-    # :refused            — everything read refuses the role, nothing left to read
-    # :none               — the type simply has no records
+    # ONE state machine, split by WHERE it renders: records_state answers for
+    # the block that replaces the record select, search_state for the hint under
+    # it, and the two are mutually exclusive (this one is read only when the
+    # list is empty with no query, that one only with a query). Every name is
+    # defined once, so no name can carry two sentences (#183 review).
+    #
+    # :records_refused_searchable — all read refuse the role, more rows unread
+    # :records_refused            — all read refuse it, nothing left to read
+    # :records_none               — the type simply has no records
     def records_state
-      return :refused_searchable if advise_search? && role
-      return :refused if @withheld && role
+      return :records_refused_searchable if advise_search? && role
+      return :records_refused if @withheld && role
 
-      :none
+      :records_none
     end
 
     # The search hint. nil ⇒ no hint at all, because no search is on screen.
@@ -99,16 +101,16 @@ module CurrentScope
       return nil unless offer_search? && query.present?
       # Matches ARE shown, but the role filter took some of them out of the
       # list, and no other hint on the page covers records (#183 review).
-      return @withheld ? :shown_withheld : :shown if records.present?
+      return @withheld ? :search_shown_withheld : :search_shown if records.present?
       # A surviving deep-linked record is selected and grantable, so the plain
       # refusals cannot be said beside it: "pick a different role" contradicts
       # the role that accepts this one. Both cases still have something true to
       # say — what the query found, and that the record on screen is the linked
       # one rather than a match (#183 review).
-      return @withheld ? :refused_linked : :none_linked if deep_linked
-      return :none unless @withheld && role
+      return @withheld ? :search_refused_linked : :search_none_linked if deep_linked
+      return :search_none unless @withheld && role
 
-      advise_search? ? :refused_searchable : :refused
+      advise_search? ? :search_refused_searchable : :search_refused
     end
 
     private

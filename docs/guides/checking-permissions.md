@@ -297,7 +297,9 @@ end
   when you mean "no declaration".
 - A subclass inherits its parent's declaration until it states its own, and an
   **STI subclass** is governed by its own declaration even though the grant row
-  stores the base class's token. One table therefore holds records with
+  stores the base class's token. That needs the record: when the row it names is
+  gone, or its stored id is not a canonical key for the model, the check has
+  only the stored token to go on and judges the grant by the **base class**. One table therefore holds records with
   different answers, so the picker keeps every class over an STI table in the
   type dropdown and narrows the **record** list instead.
 - `CurrentScope::GrantableRoles` can be included on its own if you want the rule

@@ -69,14 +69,17 @@ module CurrentScope
         searchable: searchable?(@resource_type), query: @query,
         role: @selected_role, deep_linked: @resource
       )
-      # The step owns the list of records on offer, so the button and the select
-      # cannot disagree about what is on it. The RECORD's own GlobalID, not the
-      # param: a hand-written link can name an STI record by its base token
-      # (gid://app/Document/5 for a SpecialInvoice), which locates the right row
-      # and then matched nothing by string, leaving the record listed and
-      # selected with no Grant button and no reason (#183 review).
-      linked_gid = @resource&.to_gid&.to_s
-      @grantable_gid = linked_gid if @step.offers?(linked_gid)
+      # The record's OWN GlobalID, and only when it survived judge_deep_link —
+      # which is the gate: a stale gid, a record of another type or one whose
+      # class refuses the role leaves @resource nil, and no button. The step
+      # always offers this record, so re-asking it would be a check that cannot
+      # fail, reading like protection while judge_deep_link does the work.
+      #
+      # The record's gid rather than the param, because a hand-written link can
+      # name an STI record by its base token (gid://app/Document/5 for a
+      # SpecialInvoice): it locates the right row, and a string compare then
+      # matched nothing (#183 review).
+      @grantable_gid = @resource&.to_gid&.to_s
     end
 
     def create

@@ -62,7 +62,7 @@ module CurrentScope
         # promise none can keep. The type step says this for a type it withheld;
         # an STI base is kept ON OFFER, so the record step has to say it too
         # (#183 review).
-        locked: @resource_type.try(:current_scope_locked_down?) || false
+        locked: locked_type?(@resource_type)
       )
     end
 
@@ -136,6 +136,21 @@ module CurrentScope
       return true if role.nil?
 
       !klass.respond_to?(:current_scope_grants_role?) || klass.current_scope_grants_role?(role)
+    end
+
+    # Locked FOR THE PICKER: nothing over this table can take a role. The type
+    # declares an empty list, and no subclass states one of its own — a locked
+    # base binds only the records that INHERIT it, so over a declaring
+    # subclass's rows "no role will help" is false, and the operator would be
+    # told to give up on records another role does list (#183 review).
+    #
+    # Same descendants ceiling as current_scope_declares_roles?: under lazy
+    # loading an unseen subclass reads as none, which loses the message rather
+    # than stating a falsehood.
+    def locked_type?(klass)
+      return false unless klass.try(:current_scope_locked_down?)
+
+      Array(klass.try(:descendants)).none? { |sub| sub.try(:current_scope_grantable_roles).present? }
     end
 
     # A TABLE-shape question rather than a declaration one, which is why it

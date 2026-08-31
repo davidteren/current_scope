@@ -76,14 +76,36 @@ module CurrentScope
 
     def remove_searchable_scope_stubs!
       Array(@searchable_scope_stubs).each do |klass|
-        klass.singleton_class.send(:remove_method, HOOK) if klass.singleton_class.method_defined?(HOOK)
+        # instance_methods(false): method_defined? answers true for a hook
+        # INHERITED from a base class's singleton, and remove_method then raises
+        # NameError in teardown, over the real failure (#183 review).
+        next unless klass.singleton_class.instance_methods(false).include?(HOOK)
+
+        klass.singleton_class.send(:remove_method, HOOK)
       end
       @searchable_scope_stubs = nil
     end
   end
 end
 
+# Shared, because the system tests drive the same picker the integration tests
+# do and need the same registry swap (#183 review).
+module CurrentScope
+  module ScopeableResourcesSwap
+    # Swap CurrentScope.scopeable_resources for one test (Minitest 6 dropped
+    # minitest/mock), matching the house style in audit_events_test.
+    def with_scopeable_resources(list)
+      original = CurrentScope.method(:scopeable_resources)
+      CurrentScope.define_singleton_method(:scopeable_resources) { list }
+      yield
+    ensure
+      CurrentScope.define_singleton_method(:scopeable_resources, original)
+    end
+  end
+end
+
 class ActiveSupport::TestCase
+  include CurrentScope::ScopeableResourcesSwap
   include CurrentScope::GrantableRolesIsolation
   include CurrentScope::SearchableScopeStub
   teardown do

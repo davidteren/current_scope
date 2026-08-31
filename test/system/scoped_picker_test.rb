@@ -8,6 +8,7 @@ class ScopedPickerSystemTest < ApplicationSystemTestCase
     @owner = User.create!(name: "Owner")
     CurrentScope::RoleAssignment.create!(
       subject: @owner, role: CurrentScope::Role.create!(name: "Owner", full_access: true))
+    CurrentScope::Role.create!(name: "Member")
     sign_in(@owner)
   end
 
@@ -55,24 +56,32 @@ class ScopedPickerSystemTest < ApplicationSystemTestCase
     assert_selector "#resource_type option[value='Folder']"
   end
 
-  # The record step, in the browser: a type whose records refuse the role says so
-  # where the list would be, and offers no Grant button.
+  # The record step, in the browser: a type whose RECORDS refuse the role says
+  # so where the list would be, and the Grant path closes. Driven through the
+  # cascade, because these are conditional renders a request test cannot see
+  # laid out.
   test "a record list emptied by the role filter explains itself" do
-    Gadget # autoload ⇒ a second registered type (see above)
     CurrentScope::Role.create!(name: "Vault Keeper")
     User.create!(name: "Pat Picker")
-    Folder.create!(name: "Shared Space")
-    declare_grantable_roles(Folder, [ "Vault Keeper" ])
+    Receipt.create!(title: "Q3 receipt")
+    invoice = Invoice.create!(title: "INV-1")
+    declare_grantable_roles(Receipt, [ "Vault Keeper" ])
+    declare_grantable_roles(Invoice, [ "Owner" ])
 
-    visit "/current_scope/scoped_role_assignments/new"
-    select "Vault Keeper", from: "role_id"
-    select "Pat Picker", from: "subject_gid"
-    select "Folder", from: "resource_type"
-    assert_selector "#resource_gid option[value*='Folder']"
+    with_scopeable_resources([ Document ]) do
+      visit "/current_scope/scoped_role_assignments/new"
+      select "Vault Keeper", from: "role_id"
+      select "Pat Picker", from: "subject_gid"
+      select "Document", from: "resource_type"
 
-    # Now the same type under a role it does not accept: the Grant path closes.
-    select "Owner", from: "role_id"
-    assert_no_selector ".cs-btn-primary"
-    assert_selector "#cs_types_withheld"
+      # The Receipt accepts this role; the Invoice does not, and the list says so.
+      assert_selector "#cs_records_shortened"
+      assert_no_selector "#resource_gid option[value='#{invoice.to_gid}']"
+
+      # Under a role NO record here accepts, the list empties and explains itself.
+      select "Member", from: "role_id"
+      assert_selector "#cs_records_refused"
+      assert_no_selector "#cs_grant_scoped_role"
+    end
   end
 end

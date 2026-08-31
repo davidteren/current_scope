@@ -77,9 +77,11 @@
     <p id="cs_resource_refused" class="cs-hint cs-picker-empty cs-resource-refused">
       <%# Not "the linked …": the same params arrive when the record was picked
           from the dropdown one step earlier (#183 review). %>
+      <%# The role half is dropped where no role can help: this paragraph
+          renders above the type state, and one of the two would be wrong. %>
       <strong><%= current_scope_label(@types.refused_link) %></strong> is not in
       the list: <strong><%= role_name %></strong> may not be granted on it. Pick
-      a different role, or a different record.
+      <%= @types.no_role_will_help? ? "a different record" : "a different role, or a different record" %>.
     </p>
   <% end %>
 
@@ -276,13 +278,15 @@
               scoped_role_assignments_path, method: :post,
               params: { role_id: @selected_role.id, resource_gid: @step.grantable_gid,
                         subject_gids: @bulk_subjects.map { |s| s.to_gid.to_s } },
-              data: { turbo_frame: "_top" }, class: "cs-btn-primary" %>
+              data: { turbo_frame: "_top" }, class: "cs-btn-primary",
+              id: "cs_grant_scoped_role" %>
       <% end %>
     <% elsif ready && @subject_gid.present? %>
       <%= button_to "Grant scoped role", scoped_role_assignments_path, method: :post,
             params: { role_id: @selected_role.id, subject_gid: @subject_gid,
                       resource_gid: @step.grantable_gid },
-            data: { turbo_frame: "_top" }, class: "cs-btn-primary" %>
+            data: { turbo_frame: "_top" }, class: "cs-btn-primary",
+            id: "cs_grant_scoped_role" %>
     <% end %>
   </p>
 </turbo-frame>

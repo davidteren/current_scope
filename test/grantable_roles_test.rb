@@ -127,6 +127,41 @@ class GrantableRolesTest < ActiveSupport::TestCase
     assert SpecialInvoice.current_scope_declares_roles?
   end
 
+  # The trade the whole design rests on: declarations name roles, and role ids
+  # cannot be written in a model file. So a rename stops the declaration
+  # matching, and a new role reusing the name inherits its acceptance. The guide
+  # says so; nothing pinned it (#183 review).
+  test "a declaration follows the NAME, so a rename stops matching and a reuse inherits" do
+    declare_grantable_roles(Project, [ "Project Lead" ])
+    assert grant(@container, @project).valid?
+
+    @container.update!(name: "Project Owner")
+    assert_not grant(@container, @project).valid?, "the renamed role is no longer the one named"
+
+    reused = CurrentScope::Role.create!(name: "Project Lead")
+    assert grant(reused, @project).valid?, "and a new role reusing the name inherits the acceptance"
+  end
+
+  # A subclass assigning nil has NO declaration of its own, so it inherits the
+  # parent's — a lockdown included (docs/guides/checking-permissions.md).
+  test "nil on a subclass under a locked-down base inherits the lockdown" do
+    invoice = Invoice.create!(title: "INV-1")
+    declare_grantable_roles(Document, [])
+    declare_grantable_roles(Invoice, nil)
+
+    assignment = grant(@container, invoice)
+
+    assert_not assignment.valid?
+    assert_includes assignment.errors[:role].first, "accepts no scoped roles at all"
+  end
+
+  # The module exists apart from Scopeable so a type can state its rule without
+  # becoming browsable in the console — the guide's stated reason for the split.
+  test "including the module alone does not register the type in the picker" do
+    assert_includes Project.included_modules, CurrentScope::GrantableRoles
+    assert_not_includes CurrentScope.scopeable_resources, Project
+  end
+
   # A seed, a rake task and a console one-liner all write through the model, so
   # the model is where the rule has to live — the console's filtering is a
   # convenience on top of it.

@@ -49,6 +49,12 @@ module CurrentScope
       :none_accept
     end
 
+    # No role will ever list anything here, so advice to change the role is a
+    # promise the page cannot keep (#183 review).
+    def no_role_will_help?
+      state == :none_accept_locked
+    end
+
     def withheld_types
       @all_types - @offered
     end

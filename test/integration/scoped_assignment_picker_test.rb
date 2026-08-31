@@ -15,16 +15,6 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   def as(user) = { "X-User-Id" => user.id.to_s }
 
-  # Swap CurrentScope.scopeable_resources for one test (Minitest 6 dropped
-  # minitest/mock), matching the house style in audit_events_test.
-  def with_scopeable_resources(list)
-    original = CurrentScope.method(:scopeable_resources)
-    CurrentScope.define_singleton_method(:scopeable_resources) { list }
-    yield
-  ensure
-    CurrentScope.define_singleton_method(:scopeable_resources, original)
-  end
-
   # The real module, not a hand-rolled double: the picker and the model gate
   # share one predicate, and a double that answers only half of it would let this
   # test pass while the shipped code disagreed with itself (#183 review).
@@ -648,6 +638,30 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_not_includes limits, CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP + 1
   end
 
+  # A locked BASE binds only the records that INHERIT its declaration. Saying
+  # "no role will help" over a subclass that states its own list is false: that
+  # subclass's records ARE listed, under the role it names (#183 review).
+  test "a locked base with a declaring subclass is not called a lockdown" do
+    invoice = Invoice.create!(title: "INV-1")
+    declare_grantable_roles(Document, [])
+    declare_grantable_roles(Invoice, [ "Member" ])
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @owner_role.id, resource_type: "Document"),
+          headers: as(@owner)
+
+      assert_select "#cs_records_locked", count: 0,
+                    message: "another role does list a record here, so nothing is locked"
+      assert_select "#cs_records_refused"
+
+      # And that other role really does list it.
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
+          headers: as(@owner)
+
+      assert_select "select[name=resource_gid] option[value=?]", invoice.to_gid.to_s
+    end
+  end
+
   # A locked base can still hold subclass records that declare their own roles,
   # and past the scanned window a search can find them — "none ever will" is
   # untrue there, so the advice to search wins (#183 review).
@@ -868,6 +882,16 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
     assert_select "#cs_search_none"
     assert_select "#cs_search_shown", count: 0
+  end
+
+  # And its opposite: matches ARE shown, and the hint says so (#183 review).
+  test "a search with matches says how many are shown" do
+    25.times { |i| Folder.create!(name: "Ledger #{i}") }
+
+    get current_scope.new_scoped_role_assignment_url(resource_type: "Folder", q: "Ledger"), headers: as(@owner)
+
+    assert_select "#cs_search_shown"
+    assert_select "#cs_search_none", count: 0
     # The field that holds the query stays, or the advice to change it is
     # unreachable.
     assert_select "input[name=q]", count: 1
@@ -917,7 +941,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     get current_scope.new_scoped_role_assignment_url(resource_type: "Folder"), headers: as(@owner)
     assert_response :success
     assert_select "select[name=resource_gid]", count: 0
-    assert_match(/no folders/i, response.body)
+    assert_select "#cs_records_none"
   end
 
   # --- deep-link two-door --------------------------------------------------

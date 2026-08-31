@@ -55,6 +55,10 @@ module CurrentScope
     # this sentence is about one record (#183).
     def refused_link_hopeless?
       return false if @refused_link.nil?
+      # Or the page as a whole has nothing to offer: telling the operator to try
+      # another role above a line saying no role will ever work is the same
+      # contradiction, arrived at from the other side (#183).
+      return true if state == :none_accept_locked
 
       @refused_link.class.try(:current_scope_locked_down_everywhere?) || false
     end

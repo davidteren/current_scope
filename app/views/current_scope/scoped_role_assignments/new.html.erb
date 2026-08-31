@@ -39,7 +39,7 @@
   <% if @bulk_subjects.any? %>
     <p>
       <span class="cs-label" id="cs_bulk_subjects_label">Subjects</span>
-      <span class="cs-hint" aria-labelledby="cs_bulk_subjects_label">
+      <span class="cs-hint" role="group" aria-labelledby="cs_bulk_subjects_label">
         Granting to <strong><%= @bulk_subjects.size %></strong>:
         <%= @bulk_subjects.map { |s| current_scope_subject_label(s) }.to_sentence %>
       </span>
@@ -80,7 +80,7 @@
       below that render nothing else — the refusal is often why the picker has
       no type on screen at all (#183). %>
   <% if @types.refused_link && role_name %>
-    <p id="cs_resource_refused" class="cs-hint cs-picker-empty cs-resource-refused">
+    <p id="cs_resource_refused" class="cs-alert cs-picker-empty cs-resource-refused">
       <%# Not "the linked …": the same params arrive when the record was picked
           from the dropdown one step earlier (#183). %>
       <%# The role half is dropped where no role can help: this paragraph
@@ -109,9 +109,9 @@
   <% case @types.state
      when :none_accept %>
     <p id="cs_types_none_accept" class="cs-alert cs-picker-empty cs-types-none-accept">
-      No resource type accepts <strong><%= role_name %></strong>.
-      Each registered type declares which roles may be granted on it, and none
-      lists this one. Pick a different role.
+      No resource type accepts <strong><%= role_name %></strong>. Each type here
+      takes only certain roles, and none of them takes this one. Pick a
+      different role.
     </p>
   <% when :none_accept_locked %>
     <p id="cs_types_none_accept_locked" class="cs-alert cs-picker-empty cs-types-none-accept">
@@ -137,9 +137,9 @@
       </p>
     <% elsif @types.withheld? %>
       <p id="cs_types_withheld" class="cs-hint cs-types-withheld">
-        <%= pluralize(@types.withheld_count, "type") %> not listed. Each declares
-        which roles may be granted on it, and <strong><%= role_name %></strong>
-        is not one. Pick a different role to see
+        <%= pluralize(@types.withheld_count, "type") %> not listed. Each takes
+        only certain roles, and <strong><%= role_name %></strong> is not one of
+        them. Pick a different role to see
         <%= @types.withheld_count == 1 ? "it" : "them" %>.
         <% if @types.locked_count.positive? %>
           Of those, <%= @types.locked_count %>
@@ -285,7 +285,7 @@
       only way to re-run the cascade, and the state where every type withheld
       the role is recoverable by changing the role — but only if the operator
       can still submit (#183). %>
-  <p class="cs-picker-actions">
+  <div class="cs-picker-actions">
     <%# No-JS / no-Turbo fallback: reload the cascade with the current picks. %>
     <%# "Show records" only where a record list is what comes next; elsewhere it
         re-runs the cascade with the picks as they stand. %>
@@ -321,5 +321,5 @@
             data: { turbo_frame: "_top" }, class: "cs-btn-primary",
             id: "cs_grant_scoped_role" %>
     <% end %>
-  </p>
+  </div>
 </turbo-frame>

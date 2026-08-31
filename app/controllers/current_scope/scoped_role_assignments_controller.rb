@@ -167,6 +167,23 @@ module CurrentScope
       false # tableless double, or no database to ask
     end
 
+    # True when this class or a LOADED descendant declares its grantable roles,
+    # which is the only case where the role filter can drop a record.
+    #
+    # ponytail: descendants sees what is loaded, so under lazy loading a
+    # declaring subclass can be missed and the fetch stays narrow; Rails
+    # eager-loads in production, and the cost of being wrong here is a search
+    # that reads 50 rows instead of 500, not a wrong answer.
+    def declares_grantable_roles?(klass)
+      return false unless klass.respond_to?(:current_scope_grantable_roles)
+      return true unless klass.current_scope_grantable_roles.nil?
+      return false unless klass.respond_to?(:descendants)
+
+      klass.descendants.any? { |sub| !sub.try(:current_scope_grantable_roles).nil? }
+    rescue StandardError
+      false
+    end
+
     # The type for a deep link, only when the linked record's own class accepts
     # the chosen role.
     def deep_linked_type(linked, role)
@@ -282,11 +299,11 @@ module CurrentScope
         # just past it disappears. Everywhere else one class decides for the
         # whole type, so the indexed scope keeps its promise of no SCAN_CAP.
         #
-        # Every STI type pays it, declaration or not: whether a SUBCLASS
-        # declares cannot be answered without asking `subclasses`, which sees
-        # only what is loaded, and an under-fetch there would silently drop
-        # grantable records rather than merely cost rows (#183 review).
-        cap = role && sti_table?(klass) ? SCAN_CAP : DISPLAY_LIMIT
+        # And only where a declaration can actually remove rows. Without one
+        # the filter keeps everything, so widening would instantiate 450 extra
+        # records per keystroke for a host that never opted into #183 — the very
+        # cost the indexed scope exists to avoid (#183 review).
+        cap = role && sti_table?(klass) && declares_grantable_roles?(klass) ? SCAN_CAP : DISPLAY_LIMIT
         # One row PAST the cap, and dropped again: a table holding exactly `cap`
         # rows was read to the end, and calling that "more to find" would offer
         # a search that cannot reach anything (#183 review).

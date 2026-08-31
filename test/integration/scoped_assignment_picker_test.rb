@@ -644,6 +644,36 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # The indexed scope's promise is "no SCAN_CAP". The role filter only earns the
+  # wider fetch where a declaration can actually remove rows (#183 review).
+  test "an undeclared STI type keeps the narrow indexed fetch" do
+    Receipt.create!(title: "Doc 1")
+    Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
+    # SQLite binds the LIMIT, so read the bound values rather than the SQL text.
+    limits = []
+    watcher = lambda do |*, payload|
+      next unless payload[:sql].to_s.include?("documents") && payload[:sql].to_s.include?("LIMIT")
+
+      limits.concat(Array(payload[:binds]).map(&:value))
+    end
+
+    with_scopeable_resources([ Document ]) do
+      ActiveSupport::Notifications.subscribed(watcher, "sql.active_record") do
+        get current_scope.new_scoped_role_assignment_path(
+          role_id: @member_role.id, resource_type: "Document", q: "Doc"
+        ), headers: as(@owner)
+      end
+    end
+
+    assert_includes limits, CurrentScope::ScopedRoleAssignmentsController::DISPLAY_LIMIT + 1,
+                    "no class here declares its roles, so the filter can drop nothing"
+    assert_not_includes limits, CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP + 1
+  ensure
+    if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
+      Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
+    end
+  end
+
   # A locked base can still hold subclass records that declare their own roles,
   # and past the scanned window a search can find them — "none ever will" is
   # untrue there, so the advice to search wins (#183 review).

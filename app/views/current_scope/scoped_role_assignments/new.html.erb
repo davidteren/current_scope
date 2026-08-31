@@ -169,14 +169,17 @@
           <% case @step.records_state
              when :records_locked %>
             <%# The TYPE's own rule, which holds whether the table is full or
-                empty and needs no claim about rows the scan may not have read. %>
+                empty and needs no claim about rows the scan may not have read.
+                No subclass route promised: a locked LEAF has no subclasses. %>
             <strong><%= @resource_type.model_name.human %></strong> accepts no
-            scoped roles at all, so only records of a subclass that declares its
-            own roles can be listed here.
+            scoped roles at all, so no record that inherits that declaration can
+            be granted here.
           <% when :records_refused_searchable %>
             None of the <%= @resource_type.model_name.human.pluralize.downcase %>
-            looked at accept <strong><%= role_name %></strong>. Search
-            for one, or pick a different role.
+            looked at accept <strong><%= role_name %></strong>. Search for one<%
+              %><% if @step.locked? %>: <strong><%= @resource_type.model_name.human %></strong>
+            accepts no scoped roles itself, so a different role will not help<%
+              %><% else %>, or pick a different role<% end %>.
           <% when :records_refused %>
             None of the <%= @resource_type.model_name.human.pluralize.downcase %>
             looked at accept <strong><%= role_name %></strong>. Pick a different

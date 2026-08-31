@@ -100,7 +100,9 @@ class GrantableRolesTest < ActiveSupport::TestCase
 
     assert Project.current_scope_grants_role?("Project Lead")
     assert_not Project.current_scope_grants_role?("Report Editor")
-    assert_not Project.current_scope_grants_role?(nil), "a nil role is not a role"
+    assert_raises(ArgumentError, "a nil role is a caller error, not a refusal") do
+      Project.current_scope_grants_role?(nil)
+    end
   end
 
   # A host may answer the predicate itself and hold no list — the message must
@@ -120,11 +122,11 @@ class GrantableRolesTest < ActiveSupport::TestCase
   # The wider indexed fetch asks this, and so may a host: does a declaration
   # anywhere in this hierarchy exist to filter by?
   test "declares_roles? sees a declaration on the class or on a loaded subclass" do
-    assert_not Document.current_scope_declares_roles?
+    assert_not Document.current_scope_declares_roles_anywhere?
 
     declare_grantable_roles(SpecialInvoice, [ "Project Lead" ])
-    assert Document.current_scope_declares_roles?, "a loaded subclass declared"
-    assert SpecialInvoice.current_scope_declares_roles?
+    assert Document.current_scope_declares_roles_anywhere?, "a loaded subclass declared"
+    assert SpecialInvoice.current_scope_declares_roles_anywhere?
   end
 
   # The trade the whole design rests on: declarations name roles, and role ids

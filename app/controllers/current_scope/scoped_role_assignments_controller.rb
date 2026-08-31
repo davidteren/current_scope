@@ -314,7 +314,7 @@ module CurrentScope
         # the filter keeps everything, so widening would instantiate 450 extra
         # records per keystroke for a host that never opted into #183 — the very
         # cost the indexed scope exists to avoid (#183).
-        cap = role && sti_table?(klass) && klass.try(:current_scope_declares_roles?) ? SCAN_CAP : DISPLAY_LIMIT
+        cap = role && sti_table?(klass) && klass.try(:current_scope_declares_roles_anywhere?) ? SCAN_CAP : DISPLAY_LIMIT
         # One row PAST the cap, and dropped again: a table holding exactly `cap`
         # rows was read to the end, and calling that "more to find" would offer
         # a search that cannot reach anything (#183).

@@ -764,6 +764,9 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_select "#cs_resource_refused", /Q3 Ledger/
     assert_select "#cs_resource_refused", { text: /different role/, count: 0 },
                   "no role will ever list a record of a locked type"
+    # And not "a different record" either: no record of that class takes a role,
+    # so the only way out is another type.
+    assert_select "#cs_resource_refused", /different resource type/
   end
 
   # A locked base can still hold subclass records that declare their own roles,

@@ -76,6 +76,10 @@ module CurrentScope
         nil
       end
 
+      # True when this class OR one of its loaded descendants declares — the
+      # `_anywhere?` says so, matching current_scope_locked_down_everywhere?,
+      # because a receiver-only reading of the bare name would be wrong.
+      #
       # True when this class or a LOADED descendant declares its grantable roles,
       # which is the only case where filtering by role can drop a record. Here
       # rather than in the console, so a caller asking "can a declaration govern
@@ -84,7 +88,7 @@ module CurrentScope
       # ponytail: descendants sees what is LOADED. Rails eager-loads in
       # production; under lazy loading a declaring subclass can be missed, and
       # the caller that reads this decides how wide to look.
-      def current_scope_declares_roles?
+      def current_scope_declares_roles_anywhere?
         return true unless current_scope_grantable_roles.nil?
         return false unless respond_to?(:descendants)
 
@@ -164,17 +168,17 @@ module CurrentScope
       # declaration refuses fails the next time host code saves it — an update
       # must meet the same rule as the create did.
       #
-      # A nil role answers FALSE here: nothing can be granted for a role that is
-      # not there, and for a predicate that guards a write the missing-value
-      # answer has to be the closed one. A caller that means "no role chosen
-      # yet, so do not filter" (the console's picker) has to say that itself —
-      # asking this method would read the absence as a refusal, which is the
-      # reading that broke the documented deep link during this feature's own
-      # review (#183). Every caller in this engine guards for that reason:
-      # the picker in `filter_allows?`, the model gate and the report task each
-      # return early on a nil role before they ask.
+      # A nil role RAISES rather than answering. Answering false would be the
+      # fail-closed reading, but on the same object `current_scope_grantable_
+      # roles` returning nil means "accepts every role", so one value would mean
+      # opposite things three lines apart — and a host writing the obvious
+      # `next unless klass.current_scope_grants_role?(role)` over a role nobody
+      # has chosen yet would silently refuse every type. That misreading already
+      # broke the documented deep link once inside this feature. A caller that
+      # means "nothing chosen yet, do not filter" says so itself; every caller
+      # in this engine returns early on a nil role before it asks.
       def current_scope_grants_role?(role)
-        return false if role.nil?
+        raise ArgumentError, "current_scope_grants_role? needs a role; nil is not one" if role.nil?
 
         allowed = current_scope_grantable_roles
         return true if allowed.nil?

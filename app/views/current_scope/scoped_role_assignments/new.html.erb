@@ -81,7 +81,9 @@
           renders above the type state, and one of the two would be wrong. %>
       <strong><%= current_scope_label(@types.refused_link) %></strong> is not in
       the list: <strong><%= role_name %></strong> may not be granted on it. Pick
-      <%= @types.refused_link_hopeless? ? "a different record" : "a different role, or a different record" %>.
+      <%# Not "a different record": no record of that class takes any role, so
+          the only way out is another resource type. %>
+      <%= @types.refused_link_hopeless? ? "a different resource type" : "a different role, or a different record" %>.
     </p>
   <% end %>
 

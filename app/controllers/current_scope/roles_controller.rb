@@ -39,7 +39,7 @@ module CurrentScope
       # GrantableRoles WITHOUT Scopeable is not in this list; it is the only
       # case this misses, and it errs toward saying nothing.)
       @grantable_roles_declared =
-        CurrentScope.scopeable_resources.any? { |klass| klass.try(:current_scope_declares_roles?) }
+        CurrentScope.scopeable_resources.any? { |klass| klass.try(:current_scope_declares_roles_anywhere?) }
     end
 
     # Who holds this role — the role-side complement to the subjects page. Org-wide

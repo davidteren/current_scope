@@ -70,9 +70,6 @@ module CurrentScope
       [ :search_shown, :search_shown_withheld ].include?(search_state)
     end
 
-    # A query that is IN EFFECT always brings its field, whether or not the type
-    # is big enough to offer one: the rows on screen were filtered by that term,
-    # and hiding the box would leave no way to clear it (#183 review).
     # The chosen type declares an empty list: no role will list a record that
     # inherits that declaration, which is what makes "pick a different role"
     # the wrong advice beside it.
@@ -80,6 +77,9 @@ module CurrentScope
       @locked
     end
 
+    # A query that is IN EFFECT always brings its field, whether or not the type
+    # is big enough to offer one: the rows on screen were filtered by that term,
+    # and hiding the box would leave no way to clear it (#183 review).
     def offer_search?
       return true if query.present?
       return false unless @searchable

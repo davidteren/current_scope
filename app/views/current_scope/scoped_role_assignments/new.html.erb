@@ -168,11 +168,14 @@
         <p id="cs_<%= @step.records_state %>" class="cs-hint cs-picker-empty cs-<%= @step.records_state.to_s.dasherize %>">
           <% case @step.records_state
              when :records_locked %>
-            No <%= @resource_type.model_name.human.pluralize.downcase %> accept
-            <strong><%= role_name %></strong>, and none ever will:
-            <strong><%= @resource_type.model_name.human %></strong> accepts no
-            scoped roles at all. Only records of a subclass that declares its
-            own roles can be listed here.
+            <%# "looked at", like its siblings: the scan stops at its cap, and a
+                record past the window may belong to a subclass that declares
+                roles of its own. %>
+            None of the <%= @resource_type.model_name.human.pluralize.downcase %>
+            looked at accept <strong><%= role_name %></strong>.
+            <strong><%= @resource_type.model_name.human %></strong> itself accepts
+            no scoped roles at all, so only records of a subclass that declares
+            its own can be listed here.
           <% when :records_refused_searchable %>
             None of the <%= @resource_type.model_name.human.pluralize.downcase %>
             looked at accept <strong><%= role_name %></strong>. Search

@@ -63,7 +63,10 @@ module CurrentScope
       end
 
       def current_scope_grantable_roles
-        declared = @current_scope_grantable_roles if defined?(@current_scope_grantable_roles)
+        # No `defined?` guard: never declared and explicitly nil are the SAME
+        # state by design (the guide documents nil as "no declaration"), and a
+        # guard here would imply a distinction this predicate does not make.
+        declared = @current_scope_grantable_roles
         return declared unless declared.nil?
 
         # A subclass inherits the parent's declaration until it states its own:

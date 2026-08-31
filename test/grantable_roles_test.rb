@@ -194,6 +194,40 @@ class GrantableRolesTest < ActiveSupport::TestCase
       "a row of a declaring class is in the table, whatever the class registry has seen"
   end
 
+  # A stored type is not always a constant name — store_full_sti_class = false
+  # shortens it, sti_name can be overridden — so the answer goes through Rails'
+  # own resolution rather than constantizing the string (#183).
+  test "the lockdown answer resolves a stored type the way Rails does" do
+    declare_grantable_roles(Document, [])
+    Document.insert_all([ { title: "X", type: "NoSuchClass", created_at: Time.current,
+                            updated_at: Time.current } ])
+
+    assert_not Document.current_scope_locked_down_everywhere?,
+      "a row whose class cannot be resolved is not evidence of a lockdown"
+  end
+
+  # A lockdown answer must not cost a table scan on a page render: it reads one
+  # row past its cap, and a table with more kinds than that is not judged.
+  test "the lockdown answer reads a bounded number of row kinds" do
+    declare_grantable_roles(Document, [])
+    now = Time.current
+    cap = CurrentScope::GrantableRoles::TYPE_SCAN_CAP
+    rows = Array.new(cap + 1) { |i| { title: "R-#{i}", type: "Kind#{i}", created_at: now, updated_at: now } }
+    Document.insert_all(rows)
+
+    limits = []
+    watcher = lambda do |*, payload|
+      next unless payload[:sql].to_s.include?("documents") && payload[:sql].to_s.include?("LIMIT")
+
+      limits.concat(Array(payload[:binds]).map(&:value))
+    end
+    ActiveSupport::Notifications.subscribed(watcher, "sql.active_record") do
+      assert_not Document.current_scope_locked_down_everywhere?
+    end
+
+    assert_includes limits, cap + 1, "one past the cap, so the answer knows it stopped short"
+  end
+
   # A seed, a rake task and a console one-liner all write through the model, so
   # the model is where the rule has to live — the console's filtering is a
   # convenience on top of it.

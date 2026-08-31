@@ -107,7 +107,10 @@ module CurrentScope
     # defined once, so no name can carry two sentences (#183 review).
     #
     # :records_locked             — the type itself accepts no role at all
-    # :records_refused_searchable — all read refuse the role, more rows unread
+    # :records_refused_searchable — all read refuse the role, more rows unread,
+    #                               and a search can reach them
+    # :records_refused_unread     — all read refuse it, more rows unread, and
+    #                               no search here can reach them
     # :records_refused            — all read refuse it, nothing left to read
     # :records_none               — the type simply has no records
     def records_state
@@ -122,6 +125,11 @@ module CurrentScope
       # knowable on the first visit. "No records to pick from yet" would send
       # the operator off to create one, only to be told then (#183 review).
       return :records_locked if @locked && role
+      # The scan stopped at its cap and no indexed scope can read past it, so a
+      # grantable record may exist that this page cannot reach. Saying only
+      # "pick a different role" would send the operator away from records that
+      # do accept the role they picked (#183 review).
+      return :records_refused_unread if @withheld && @unread
       return :records_refused if @withheld
 
       :records_none

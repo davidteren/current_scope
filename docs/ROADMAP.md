@@ -193,7 +193,12 @@ model in the app. Two options to decide between:
 
 **Open sub-questions:** how records are listed for large tables (search /
 pagination, not "load all"); how records are labelled; explicit-config vs opt-in
-mixin; whether to restrict *which roles* are grantable on *which types*.
+mixin.
+
+**Answered:** which roles are grantable on which types — a type declares it with
+`self.current_scope_grantable_roles`, `ScopedRoleAssignment` refuses a pairing it
+does not list, and the picker narrows the type and record lists to match (#183;
+see docs/guides/checking-permissions.md).
 
 ---
 

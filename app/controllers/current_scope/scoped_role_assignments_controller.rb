@@ -138,19 +138,11 @@ module CurrentScope
       !klass.respond_to?(:current_scope_grants_role?) || klass.current_scope_grants_role?(role)
     end
 
-    # Locked FOR THE PICKER: nothing over this table can take a role. The type
-    # declares an empty list, and no subclass states one of its own — a locked
-    # base binds only the records that INHERIT it, so over a declaring
-    # subclass's rows "no role will help" is false, and the operator would be
-    # told to give up on records another role does list (#183 review).
-    #
-    # Same descendants ceiling as current_scope_declares_roles?: under lazy
-    # loading an unseen subclass reads as none, which loses the message rather
-    # than stating a falsehood.
+    # Asked of the module, not walked here: how a declaration inherits is the
+    # module's rule, and a second copy of that walk would drift from it
+    # (#183 review).
     def locked_type?(klass)
-      return false unless klass.try(:current_scope_locked_down?)
-
-      Array(klass.try(:descendants)).none? { |sub| sub.try(:current_scope_grantable_roles).present? }
+      klass.try(:current_scope_locked_down_everywhere?) || false
     end
 
     # A TABLE-shape question rather than a declaration one, which is why it

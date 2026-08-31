@@ -314,6 +314,29 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # A big table with no indexed scope: the scan stops at its cap, no search can
+  # read past it, and a grantable record may sit beyond. "Pick a different role"
+  # alone would send the operator away from records that accept the one they
+  # picked (#183 review).
+  test "an unread tail says so, rather than blaming the role alone" do
+    now = Time.current
+    rows = Array.new(CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP + 1) do |i|
+      { title: "RCT-#{i}", type: "Receipt", created_at: now, updated_at: now }
+    end
+    Document.insert_all(rows)
+    declare_grantable_roles(Receipt, [ "Owner" ])
+    declare_grantable_roles(SpecialInvoice, [ "Member" ])
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
+          headers: as(@owner)
+
+      assert_select "#cs_records_refused_unread"
+      assert_select "#cs_records_refused", count: 0
+      assert_select "input[name=q]", count: 0 # a search here re-reads the same rows
+    end
+  end
+
   # And the third case: an indexed scope, but the scan already read the whole
   # table. There is nothing left for a search to find, so telling the operator
   # to search would be advice that provably cannot succeed (#183 review).

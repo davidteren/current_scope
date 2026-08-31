@@ -92,6 +92,21 @@ module CurrentScope
         descendants.any? { |sub| !sub.try(:current_scope_grantable_roles).nil? }
       end
 
+      # Locked all the way DOWN: this type declares an empty list and no
+      # subclass states one of its own. A locked base binds only the records
+      # that inherit it, so over a declaring subclass's rows "no role will help"
+      # is false — the console asks this before it says so (#183 review).
+      #
+      # Same loaded-descendants ceiling as current_scope_declares_roles?: an
+      # unseen subclass reads as none, which loses a message rather than
+      # stating a falsehood.
+      def current_scope_locked_down_everywhere?
+        return false unless current_scope_locked_down?
+        return true unless respond_to?(:descendants)
+
+        descendants.none? { |sub| sub.try(:current_scope_grantable_roles).present? }
+      end
+
       # An empty declaration is a LOCKDOWN: no role may be granted on this type.
       # Written here rather than spelled out at each call site, so what "empty
       # declaration" means stays where the other two predicates live (#183
@@ -114,10 +129,14 @@ module CurrentScope
       # must meet the same rule as the create did.
       #
       # A nil role answers FALSE here: nothing can be granted for a role that is
-      # not there. A caller that means "no role chosen yet, so do not filter"
-      # (the console's picker) has to say that itself — asking this method would
-      # read the absence as a refusal, which is the reading that broke the
-      # documented deep link during this feature's own review (#183).
+      # not there, and for a predicate that guards a write the missing-value
+      # answer has to be the closed one. A caller that means "no role chosen
+      # yet, so do not filter" (the console's picker) has to say that itself —
+      # asking this method would read the absence as a refusal, which is the
+      # reading that broke the documented deep link during this feature's own
+      # review (#183). Every caller in this engine guards for that reason:
+      # the picker in `filter_allows?`, the model gate and the report task each
+      # return early on a nil role before they ask.
       def current_scope_grants_role?(role)
         return false if role.nil?
 

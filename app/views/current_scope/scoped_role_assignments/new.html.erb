@@ -184,6 +184,11 @@
               %><% if @step.locked? %>: <strong><%= @resource_type.model_name.human %></strong>
             accepts no scoped roles itself, so a different role will not help<%
               %><% else %>, or pick a different role<% end %>.
+          <% when :records_refused_unread %>
+            None of the <%= @resource_type.model_name.human.pluralize.downcase %>
+            read accept <strong><%= role_name %></strong>, and there are more
+            than this page reads. Pick a different role, or open the record you
+            want from its own page and grant it there.
           <% when :records_refused %>
             None of the <%= @resource_type.model_name.human.pluralize.downcase %>
             looked at accept <strong><%= role_name %></strong>. Pick a different

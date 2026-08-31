@@ -39,26 +39,14 @@ module CurrentScope
       scopeable = grantable_types(all_scopeable, @selected_role)
       @bulk_subjects = resolve_bulk_subjects # [] unless a multi-select bulk grant
 
-      # The record a deep link asked for, before any gate has judged it.
-      linked = deep_linked_resource(scalar_param(:resource_gid))
-      # Blanking the Record select would otherwise drop an unregistered
-      # deep-linked type out of the picker: the type step carries its anchor.
-      anchor = linked || deep_linked_resource(scalar_param(:linked_gid))
-      # Resolved against the FILTERED list: the cascade carries resource_type on
-      # every autosubmit, so picking a role, then a type, then changing the role
-      # would otherwise leave the withheld type selected, its records loaded and
-      # a Grant button showing, directly under a hint saying that type was not
-      # listed — the dead end this filter exists to prevent (#183 review).
-      chosen_type = resolve_type(scalar_param(:resource_type), within: scopeable)
-      @resource_type = chosen_type || deep_linked_type(anchor, @selected_role)
-      resource = kept_deep_link(linked, @resource_type, @selected_role, chosen_type)
-      # From the ANCHOR, not the selected record: on the submits where the record
-      # select is not on screen only linked_gid comes back, and the explanation
-      # would vanish exactly where the operator is stuck (#183 review).
-      refused = refused_deep_link(anchor, @selected_role, chosen_type)
+      # One answer to "what did the link and the type dropdown resolve to?",
+      # judged once, so the four values that must agree cannot be threaded
+      # through this action in the wrong order (#183 review).
+      link = resolve_deep_link(scopeable)
+      @resource_type = link.type
       @types = PickerTypeStep.new(all_types: all_scopeable, offered: scopeable,
-                                  resolved: @resource_type, role: @selected_role,
-                                  anchor: anchor, refused_link: refused)
+                                  resolved: link.type, role: @selected_role,
+                                  anchor: link.anchor, refused_link: link.refused)
       records, withheld, unread = candidate_records(@resource_type, @query, @selected_role)
       # One object owns every display decision for the record step, so the
       # control and the sentence beside it cannot drift apart (#183 review).
@@ -68,7 +56,7 @@ module CurrentScope
         # search re-reads the very rows an empty list came from.
         indexed: @resource_type.respond_to?(:current_scope_searchable_scope),
         searchable: searchable?(@resource_type), query: @query,
-        role: @selected_role, deep_linked: resource,
+        role: @selected_role, deep_linked: link.record,
         # An empty declaration on the chosen type is a LOCKDOWN: no role will
         # ever list a record that inherits it, so "pick a different role" is a
         # promise none can keep. The type step says this for a type it withheld;
@@ -290,6 +278,36 @@ module CurrentScope
       return "Scoped role granted." if granted == 1 && attempted == 1
 
       "Scoped role granted to #{granted} #{'subject'.pluralize(granted)}."
+    end
+
+    # What the deep link and the type dropdown resolve to: the type on screen,
+    # the record the Grant button may post, the refusal to explain, and the
+    # anchor the cascade carries so an unregistered linked type survives the
+    # record being cleared.
+    DeepLink = Struct.new(:type, :record, :refused, :anchor)
+    private_constant :DeepLink
+
+    def resolve_deep_link(scopeable)
+      # The record a deep link asked for, before any gate has judged it, and the
+      # anchor that outlives it: blanking the Record select would otherwise drop
+      # an unregistered deep-linked type out of the picker.
+      linked = deep_linked_resource(scalar_param(:resource_gid))
+      anchor = linked || deep_linked_resource(scalar_param(:linked_gid))
+      # Resolved against the FILTERED list: the cascade carries resource_type on
+      # every autosubmit, so picking a role, then a type, then changing the role
+      # would otherwise leave the withheld type selected, its records loaded and
+      # a Grant button showing, directly under a hint saying that type was not
+      # listed — the dead end this filter exists to prevent (#183 review).
+      chosen = resolve_type(scalar_param(:resource_type), within: scopeable)
+      type = chosen || deep_linked_type(anchor, @selected_role)
+      DeepLink.new(type,
+                   kept_deep_link(linked, type, @selected_role, chosen),
+                   # From the ANCHOR, not the selected record: on the submits
+                   # where the record select is not on screen only linked_gid
+                   # comes back, and the explanation would vanish exactly where
+                   # the operator is stuck (#183 review).
+                   refused_deep_link(anchor, @selected_role, chosen),
+                   anchor)
     end
 
     # Only registered Scopeable types are resolvable from params — never

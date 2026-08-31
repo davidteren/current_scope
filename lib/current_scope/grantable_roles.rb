@@ -77,6 +77,14 @@ module CurrentScope
         nil
       end
 
+      # An empty declaration is a LOCKDOWN: no role may be granted on this type.
+      # Written here rather than spelled out at each call site, so what "empty
+      # declaration" means stays where the other two predicates live (#183
+      # review).
+      def current_scope_locked_down?
+        current_scope_grantable_roles&.empty? || false
+      end
+
       # THE rule, in one place, so the gate and the console cannot drift. nil
       # means the type never declared anything and accepts everything; an empty
       # declaration accepts nothing.
@@ -89,19 +97,12 @@ module CurrentScope
       # every write rather than on create alone, so a pre-existing row that the
       # declaration refuses fails the next time host code saves it — an update
       # must meet the same rule as the create did.
+      #
       # A nil role answers FALSE here: nothing can be granted for a role that is
       # not there. A caller that means "no role chosen yet, so do not filter"
       # (the console's picker) has to say that itself — asking this method would
       # read the absence as a refusal, which is the reading that broke the
       # documented deep link during this feature's own review (#183).
-      # An empty declaration is a LOCKDOWN: no role may be granted on this type.
-      # Written here rather than spelled out at each call site, so what "empty
-      # declaration" means stays where the other two predicates live (#183
-      # review).
-      def current_scope_locked_down?
-        current_scope_grantable_roles&.empty? || false
-      end
-
       def current_scope_grants_role?(role)
         return false if role.nil?
 

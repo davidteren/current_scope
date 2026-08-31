@@ -51,7 +51,11 @@ module CurrentScope
       # listed — the dead end this filter exists to prevent (#183 review).
       chosen_type = resolve_type(scalar_param(:resource_type), within: @scopeable)
       @resource_type = chosen_type || deep_linked_type(anchor, @selected_role)
-      @resource, refused = judge_deep_link(linked, @resource_type, @selected_role, chosen_type)
+      @resource = kept_deep_link(linked, @resource_type, @selected_role, chosen_type)
+      # From the ANCHOR, not the selected record: on the submits where the record
+      # select is not on screen only linked_gid comes back, and the explanation
+      # would vanish exactly where the operator is stuck (#183 review).
+      refused = refused_deep_link(anchor, @selected_role, chosen_type)
       @types = PickerTypeStep.new(all_types: @all_scopeable, offered: @scopeable,
                                   resolved: @resource_type, role: @selected_role,
                                   anchor: anchor, refused_link: refused)
@@ -201,16 +205,25 @@ module CurrentScope
     # button that only the model can then say no to. A refusal is REFUSED rather
     # than dropped, because a record that vanishes from the picker with no word
     # is the invisible dead end #183 exists to remove (#183 review).
-    def judge_deep_link(linked, type, role, chosen_type)
-      return [ nil, nil ] if linked.nil?
+    def kept_deep_link(linked, type, role, chosen_type)
+      return nil if linked.nil?
       # The operator moved to another type: the carried gid is not a link they
-      # followed, and naming it would explain a record they are not looking at
-      # (#183 review). Silent, whatever the role says about it.
-      return [ nil, nil ] if chosen_type && !linked.is_a?(chosen_type)
-      return [ nil, linked ] unless filter_allows?(linked.class, role)
-      return [ nil, nil ] unless type && linked.is_a?(type)
+      # followed (#183 review).
+      return nil if chosen_type && !linked.is_a?(chosen_type)
+      return nil unless filter_allows?(linked.class, role)
+      return nil unless type && linked.is_a?(type)
 
-      [ linked, nil ]
+      linked
+    end
+
+    # The linked record the chosen role may not be granted on. Silent once the
+    # operator has moved to another type, for the same reason: it is then not a
+    # link they followed.
+    def refused_deep_link(anchor, role, chosen_type)
+      return nil if anchor.nil?
+      return nil if chosen_type && !anchor.is_a?(chosen_type)
+
+      anchor unless filter_allows?(anchor.class, role)
     end
 
     # Every param this picker reads is a string: an id, a GlobalID, a type name,

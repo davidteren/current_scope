@@ -8,7 +8,7 @@ module CurrentScope
   # without moving the sentence beside it, which is the drift that produced
   # most of this feature's review findings.
   class PickerRecordStep
-    attr_reader :records, :query, :role, :deep_linked, :refused
+    attr_reader :records, :query, :role, :deep_linked
 
     # records     rows on offer, already role-filtered (nil ⇒ no type chosen)
     # withheld    the role filter removed rows from what was read
@@ -17,7 +17,7 @@ module CurrentScope
     # searchable  the type holds more rows than the search threshold
     # deep_linked a linked record that survived the type and role gates
     def initialize(records:, withheld:, unread:, indexed:, searchable:, query:, role:, deep_linked:,
-                   refused: nil, locked: false)
+                   locked: false)
       @records = records
       @withheld = withheld
       @unread = unread
@@ -26,7 +26,6 @@ module CurrentScope
       @query = query
       @role = role
       @deep_linked = deep_linked
-      @refused = refused
       @locked = locked
     end
 
@@ -61,7 +60,7 @@ module CurrentScope
     # deep-linked one left, the list is at its most shortened and was the one
     # case that said nothing (#183 review).
     def shortened?
-      @withheld && role.present? && offered_records.present? && query.blank?
+      @withheld && offered_records.present? && query.blank?
     end
 
     # Both :shown states mean the list HAS matches — the difference is only
@@ -111,12 +110,15 @@ module CurrentScope
       # advise_search? FIRST: a locked base can still hold subclass records that
       # declare their own roles, and when a search reads past the scanned window
       # it can find them — "none ever will" would be untrue there (#183 review).
-      return :records_refused_searchable if advise_search? && role
+      # No `&& role` on the withheld branches: the role filter cannot remove a
+      # record without a role, so @withheld carries one. @locked does not, which
+      # is why that guard is the one that stays (#183 review).
+      return :records_refused_searchable if advise_search?
       # No @withheld here: an empty table refuses nothing, and a lockdown is
       # knowable on the first visit. "No records to pick from yet" would send
       # the operator off to create one, only to be told then (#183 review).
       return :records_locked if @locked && role
-      return :records_refused if @withheld && role
+      return :records_refused if @withheld
 
       :records_none
     end

@@ -464,6 +464,15 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_select "#cs_resource_refused", /Q3 Ledger/
       assert_select "#cs_types_none_accept"
+
+      # The next submit from that page carries only the anchor: the record
+      # select was never rendered, so there is no resource_gid to send back.
+      # The explanation has to survive it (#183 review).
+      get current_scope.new_scoped_role_assignment_path(
+        role_id: @member_role.id, linked_gid: folder.to_gid.to_s
+      ), headers: as(@owner)
+
+      assert_select "#cs_resource_refused", /Q3 Ledger/
     end
   end
 

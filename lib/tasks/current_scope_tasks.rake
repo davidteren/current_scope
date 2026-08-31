@@ -286,7 +286,12 @@ namespace :current_scope do
       next false if klass.nil? || !klass.respond_to?(:current_scope_grants_role?)
 
       !klass.current_scope_grants_role?(grant.role)
-    rescue StandardError
+    rescue StandardError => e
+      # SAY it. This section is the only tool a host has for finding rows
+      # written before a declaration landed, so a swallowed error hides exactly
+      # what it exists to surface (#183 review).
+      warn "[CurrentScope] could not judge grant ##{grant.id} against " \
+           "#{grant.resource_type} (#{e.class}: #{e.message})"
       false
     end
 

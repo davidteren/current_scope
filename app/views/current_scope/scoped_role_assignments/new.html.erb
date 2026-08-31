@@ -193,7 +193,10 @@
             None of the <%= @resource_type.model_name.human.pluralize.downcase %>
             looked at accept <strong><%= role_name %></strong>. Pick a different
             role.
-          <% else %>
+          <%# EXPLICIT, not else: a state added without its sentence must render
+              nothing visible rather than borrowing this one under its own id,
+              where an id-only assertion would stay green (#183 review). %>
+          <% when :records_none %>
             No <%= @resource_type.model_name.human.pluralize.downcase %> to pick from yet.
           <% end %>
         </p>
@@ -252,7 +255,8 @@
                   No records match “<%= @query %>”.
                   <strong><%= current_scope_label(@step.selected) %></strong>
                   is still selected.
-                <% else %>
+                <%# EXPLICIT, for the same reason as the record states above. %>
+                <% when :search_none %>
                   No records match “<%= @query %>” — try a different search.
                 <% end %>
               </span>

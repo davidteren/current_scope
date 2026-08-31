@@ -309,7 +309,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
           headers: as(@owner)
 
-      assert_select "#cs_records_refused"
+      assert_select "#cs_records_refused", /Member/
       assert_select "#cs_records_refused_searchable", count: 0
     end
   end
@@ -331,7 +331,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
           headers: as(@owner)
 
-      assert_select "#cs_records_refused_unread"
+      assert_select "#cs_records_refused_unread", /Member/
       assert_select "#cs_records_refused", count: 0
       assert_select "input[name=q]", count: 0 # a search here re-reads the same rows
     end
@@ -630,7 +630,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
           headers: as(@owner)
 
-      assert_select "#cs_records_locked"
+      assert_select "#cs_records_locked", /Document/
       assert_select "#cs_records_none", count: 0
     end
   end
@@ -702,7 +702,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
           headers: as(@owner)
 
-      assert_select "#cs_records_refused_searchable"
+      assert_select "#cs_records_refused_searchable", /Member/
       assert_select "#cs_records_locked", count: 0
     end
   end
@@ -717,7 +717,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
           headers: as(@owner)
 
-      assert_select "#cs_records_locked"
+      assert_select "#cs_records_locked", /Document/
       assert_select "#cs_records_refused", count: 0
     end
   end
@@ -919,7 +919,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     get current_scope.new_scoped_role_assignment_url(resource_type: "Folder", q: "zzz-no-such"), headers: as(@owner)
     assert_response :success
 
-    assert_select "#cs_search_none"
+    assert_select "#cs_search_none", /zzz-no-such/
     assert_select "#cs_search_shown", count: 0
   end
 
@@ -929,7 +929,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
     get current_scope.new_scoped_role_assignment_url(resource_type: "Folder", q: "Ledger"), headers: as(@owner)
 
-    assert_select "#cs_search_shown"
+    assert_select "#cs_search_shown", /matches/
     assert_select "#cs_search_none", count: 0
     # The field that holds the query stays, or the advice to change it is
     # unreachable.
@@ -951,7 +951,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_select "select[name=resource_gid] option[value=?]", pinned.to_gid.to_s # still selectable
     # Its own state (#183 review): "no records match" beside a visible selected
     # option reads as a contradiction, so the hint names the linked record.
-    assert_select "#cs_search_none_selected"
+    assert_select "#cs_search_none_selected", /Pinned Vault/
     assert_select "#cs_search_none", count: 0
     assert_select "#cs_search_shown", count: 0
   end

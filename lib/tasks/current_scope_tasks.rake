@@ -278,6 +278,7 @@ namespace :current_scope do
     # the CHECKED reader, so a non-canonical stored id never judges an unrelated
     # live record (#151), and inert on a stale token: a type that no longer
     # loads is #90's inert grant, not a #183 finding.
+    unjudgeable_grants = 0
     grant_refused_by_declaration = lambda do |grant|
       next false if grant.role.nil?
 
@@ -287,11 +288,17 @@ namespace :current_scope do
 
       !klass.current_scope_grants_role?(grant.role)
     rescue StandardError => e
-      # SAY it. This section is the only tool a host has for finding rows
+      # SAY it, ONCE. This section is the only tool a host has for finding rows
       # written before a declaration landed, so a swallowed error hides exactly
-      # what it exists to surface (#183 review).
-      warn "[CurrentScope] could not judge grant ##{grant.id} against " \
-           "#{grant.resource_type} (#{e.class}: #{e.message})"
+      # what it exists to surface — but a systemic cause (a host predicate that
+      # raises) would otherwise print a line per row and bury the report the
+      # operator ran the task for. The rest are counted (#183 review).
+      unjudgeable_grants += 1
+      if unjudgeable_grants == 1
+        warn "[CurrentScope] could not judge grant ##{grant.id} against " \
+             "#{grant.resource_type} (#{e.class}: #{e.message}); " \
+             "it is reported as conforming"
+      end
       false
     end
 
@@ -526,6 +533,11 @@ namespace :current_scope do
         puts
       end
       puts "Total: #{dead_grants.count} grant(s) that cannot match any gated action."
+    end
+
+    if unjudgeable_grants > 1
+      warn "[CurrentScope] #{unjudgeable_grants - 1} more grant(s) could not be judged " \
+           "against their type's declaration; all are reported as conforming."
     end
 
     unless nonconforming_grants.empty?

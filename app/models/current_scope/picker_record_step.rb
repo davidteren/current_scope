@@ -82,6 +82,10 @@ module CurrentScope
     # and hiding the box would leave no way to clear it (#183 review).
     def offer_search?
       return true if query.present?
+      # Nothing over a locked type can take a role, so a search here reaches
+      # nothing — and the box would sit directly above the sentence saying so
+      # (#183 review).
+      return false if @locked
       return false unless @searchable
 
       # An empty list only earns a search box where searching can reach past
@@ -111,14 +115,12 @@ module CurrentScope
     # :records_refused            — all read refuse it, nothing left to read
     # :records_none               — the type simply has no records
     def records_state
-      # LOCKED first. @locked now means locked all the way down — the type
-      # declares an empty list and no subclass states one of its own — so no
-      # search can reach a record that accepts anything, and offering one would
-      # be the advice this state exists to replace. (It was ordered the other
-      # way while @locked meant the base alone; the predicate moved, so the
-      # order follows it.) No @withheld either: an empty table refuses nothing,
-      # and a lockdown is knowable on the first visit, where "no records to pick
-      # from yet" would send the operator off to create one (#183 review).
+      # LOCKED first: @locked means locked all the way down — the type declares
+      # an empty list and no subclass states one of its own — so no search can
+      # reach a record that accepts anything. No @withheld either: an empty
+      # table refuses nothing, and a lockdown is knowable on the first visit,
+      # where "no records to pick from yet" would send the operator off to
+      # create one.
       return :records_locked if @locked && role
       # No `&& role` on the withheld branches: the role filter cannot remove a
       # record without a role, so @withheld carries one. @locked does not, which

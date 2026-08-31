@@ -703,6 +703,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_select "#cs_records_locked", /Document/
       assert_select "#cs_records_refused_searchable", count: 0
+      assert_select "input[name=q]", count: 0,
+                    message: "a search box above the sentence saying nothing here accepts a role"
     end
   end
 

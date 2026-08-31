@@ -103,7 +103,7 @@ module CurrentScope
 
     # WHICH class governs this grant — the one the declaration is read from, for
     # the write gate below and for the report task that names rows a type would
-    # refuse today. One copy, because the two must agree (#183 review).
+    # refuse today. One copy, because the two must agree (#183).
     #
     # The record's OWN class when it is there, and only then the token's:
     # CurrentScope.polymorphic_class always answers with the BASE class (the
@@ -144,7 +144,7 @@ module CurrentScope
       # a process flag — can be wrong in the OPEN direction under lazy loading:
       # a subclass that declares and has not been referenced reads as "no rule",
       # and the write sails through. A gate may cost a query; it may not guess
-      # (#183 review).
+      # (#183).
 
       klass = current_scope_governing_class
       return if klass.nil? || !klass.respond_to?(:current_scope_grants_role?)
@@ -152,7 +152,7 @@ module CurrentScope
 
       # Read through respond_to? and Array(): the type joins this gate by
       # answering current_scope_grants_role? alone, which a host may compute
-      # without holding a list at all (#183 review).
+      # without holding a list at all (#183).
       declared = klass.try(:current_scope_grantable_roles)
       allowed = Array(declared)
       accepts = if declared.nil?

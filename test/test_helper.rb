@@ -36,7 +36,7 @@ end
 # declaration made in a test outlives the transactional rollback and leaks into
 # every later test in the process. Tests declare through this helper, which
 # restores exactly what was there before — no file has to keep a hand-written
-# list of the classes it touched (#183 review).
+# list of the classes it touched (#183).
 module CurrentScope
   module GrantableRolesIsolation
     IVAR = :@current_scope_grantable_roles
@@ -64,7 +64,7 @@ end
 # A14 + #183: several picker tests give a model the opt-in indexed search hook.
 # Leaving it defined makes every LATER test take the indexed branch, which
 # changes what the picker offers and advises, so the same teardown was
-# hand-copied into eight tests. One helper removes it once (#183 review).
+# hand-copied into eight tests. One helper removes it once (#183).
 module CurrentScope
   module SearchableScopeStub
     HOOK = :current_scope_searchable_scope
@@ -78,7 +78,7 @@ module CurrentScope
       Array(@searchable_scope_stubs).each do |klass|
         # instance_methods(false): method_defined? answers true for a hook
         # INHERITED from a base class's singleton, and remove_method then raises
-        # NameError in teardown, over the real failure (#183 review).
+        # NameError in teardown, over the real failure (#183).
         next unless klass.singleton_class.instance_methods(false).include?(HOOK)
 
         klass.singleton_class.send(:remove_method, HOOK)
@@ -89,7 +89,7 @@ module CurrentScope
 end
 
 # Shared, because the system tests drive the same picker the integration tests
-# do and need the same registry swap (#183 review).
+# do and need the same registry swap (#183).
 module CurrentScope
   module ScopeableResourcesSwap
     # Swap CurrentScope.scopeable_resources for one test (Minitest 6 dropped

@@ -17,7 +17,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   # The real module, not a hand-rolled double: the picker and the model gate
   # share one predicate, and a double that answers only half of it would let this
-  # test pass while the shipped code disagreed with itself (#183 review).
+  # test pass while the shipped code disagreed with itself (#183).
   def picky_type
     Class.new do
       include CurrentScope::GrantableRoles
@@ -44,7 +44,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  # The two empties are different (#183 review). Sending an operator whose role
+  # The two empties are different (#183). Sending an operator whose role
   # matched nothing to "add include CurrentScope::Scopeable" is advice that
   # cannot help them: the types ARE registered.
   test "when every type withholds the role, the page says so rather than blaming setup" do
@@ -65,7 +65,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  # #183 review — an STI table holds records of several classes, each with its
+  # #183 — an STI table holds records of several classes, each with its
   # own declaration, and the model gate judges the RECORD's class. A type-level
   # "no" here would make every Invoice unreachable in the console because
   # Document said no, so the base stays on offer and the RECORD list narrows.
@@ -85,7 +85,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       assert_select "select[name=resource_gid] option[value=?]", invoice.to_gid.to_s
       assert_select "select[name=resource_gid] option[value=?]", receipt.to_gid.to_s, count: 0
       # And the list says it was shortened: dropping records without a word is
-      # the same surprise the type hint exists to prevent (#183 review).
+      # the same surprise the type hint exists to prevent (#183).
       assert_select "#cs_records_shortened", /Member/
     end
   end
@@ -103,7 +103,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  # The documented deep link carries no role_id (#183 review). Reading that nil
+  # The documented deep link carries no role_id (#183). Reading that nil
   # role as "accepts nothing" dropped the record from the cascade and landed the
   # operator on a blank picker — every other filter here treats it as "nothing
   # chosen yet, nothing to filter by".
@@ -135,7 +135,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   end
 
   # An STI table is the one place the role filter runs per record, so on the
-  # indexed-search path it has to run BEFORE the display cut (#183 review).
+  # indexed-search path it has to run BEFORE the display cut (#183).
   test "the indexed search finds a grantable record past the first page of refused ones" do
     50.times { |i| Receipt.create!(title: "Doc #{i}") }
     invoice = Invoice.create!(title: "Doc 50")
@@ -156,7 +156,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   # Even a leaf: the picker cannot ask a TABLE which classes its rows will load
   # as without depending on what happens to be autoloaded, and offering a type
   # whose records all refuse costs one dropdown entry, while withholding one
-  # whose records are grantable hides them with no way back (#183 review).
+  # whose records are grantable hides them with no way back (#183).
   test "a class over an STI table stays on offer, and its record list carries the refusal" do
     Receipt.create!(title: "RCT-1")
     declare_grantable_roles(Receipt, [ "Owner" ])
@@ -173,7 +173,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   # A surviving deep-linked record is selected and grantable, so telling the
   # operator that nothing matching accepts the role would contradict the Grant
-  # button right above it (#183 review).
+  # button right above it (#183).
   test "a zero-match search does not tell the operator to change a role that already works" do
     21.times { |i| Receipt.create!(title: "RCT-#{i}") }
     invoice = Invoice.create!(title: "INV-1")
@@ -189,14 +189,14 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       assert_select "input[type=hidden][name=resource_gid][value=?]", invoice.to_gid.to_s
       assert_select "#cs_search_refused", count: 0
       # And no "no records match" either: records DID match, and the role filter
-      # is what removed them (#183 review).
+      # is what removed them (#183).
       assert_select "#cs_search_none", count: 0
     end
   end
 
   # A mid-level STI class is neither root nor leaf: rows queried through Invoice
   # can still load as SpecialInvoice, with SpecialInvoice's own declaration
-  # (#183 review).
+  # (#183).
   test "a mid-level STI class is not treated as a leaf" do
     special = SpecialInvoice.create!(title: "SI-1")
     Invoice.create!(title: "INV-1")
@@ -212,7 +212,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  # The record does not simply disappear (#183 review): with other grantable
+  # The record does not simply disappear (#183): with other grantable
   # records in the list there is nothing on screen to hint at what happened.
   test "a deep-linked record the role refuses is named, not silently dropped" do
     receipt = Receipt.create!(title: "RCT-1")
@@ -273,7 +273,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   # The search hint carries the same distinction the empty list does: matches
   # that all refuse, with the search itself stopped at its cap, leave somewhere
-  # left to look (#183 review).
+  # left to look (#183).
   test "a search that filled its cap with refused matches says to narrow it, not to give up on the role" do
     now = Time.current
     # One PAST the cap, so rows really are left unread.
@@ -295,7 +295,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   end
 
   # Exactly at the cap: the table WAS read to the end, so there is nothing left
-  # for a search to find and the page must not offer one (#183 review).
+  # for a search to find and the page must not offer one (#183).
   test "a table holding exactly the scan cap is not called partly unread" do
     now = Time.current
     rows = Array.new(CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP) do |i|
@@ -317,7 +317,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   # A big table with no indexed scope: the scan stops at its cap, no search can
   # read past it, and a grantable record may sit beyond. "Pick a different role"
   # alone would send the operator away from records that accept the one they
-  # picked (#183 review).
+  # picked (#183).
   test "an unread tail says so, rather than blaming the role alone" do
     now = Time.current
     rows = Array.new(CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP + 1) do |i|
@@ -339,7 +339,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   # And the third case: an indexed scope, but the scan already read the whole
   # table. There is nothing left for a search to find, so telling the operator
-  # to search would be advice that provably cannot succeed (#183 review).
+  # to search would be advice that provably cannot succeed (#183).
   test "a fully read table does not suggest searching, even with an indexed scope" do
     21.times { |i| Receipt.create!(title: "RCT-#{i}") }
     declare_grantable_roles(Document, [ "Owner" ])
@@ -391,7 +391,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   # A deep-linked record can accept the role while every SCANNED row refuses it.
   # Falling through to the empty state there would leave a Grant button posting
-  # a record the page never shows (#183 review).
+  # a record the page never shows (#183).
   test "a deep-linked record past the scan window is shown, not just granted" do
     now = Time.current
     rows = Array.new(CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP) do |i|
@@ -410,7 +410,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_select "select[name=resource_gid] option[selected][value=?]", invoice.to_gid.to_s
       assert_select "input[type=hidden][name=resource_gid][value=?]", invoice.to_gid.to_s
-      # One option left, and the reason the other 500 are gone (#183 review).
+      # One option left, and the reason the other 500 are gone (#183).
       assert_select "#cs_records_shortened", /Member/
     end
   end
@@ -449,7 +449,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       # The next submit from that page carries only the anchor: the record
       # select was never rendered, so there is no resource_gid to send back.
-      # The explanation has to survive it (#183 review).
+      # The explanation has to survive it (#183).
       get current_scope.new_scoped_role_assignment_path(
         role_id: @member_role.id, linked_gid: folder.to_gid.to_s
       ), headers: as(@owner)
@@ -460,7 +460,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   # A stale bookmark can name a role that no longer exists. Reading that as "no
   # role chosen" would show every type and every record with no hint, and leave
-  # a Grant button that can only fail on POST (#183 review).
+  # a Grant button that can only fail on POST (#183).
   test "a role id that no longer resolves is said out loud, and grants nothing" do
     folder = Folder.create!(name: "Q3 Ledger")
     gone = CurrentScope::Role.create!(name: "Temp")
@@ -479,7 +479,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   # Without JavaScript this submit is the only way to re-run the cascade, and a
   # role every type withholds is recoverable — by changing the role, which needs
-  # a control to submit (#183 review).
+  # a control to submit (#183).
   test "the state where no type accepts the role keeps the no-JS submit" do
     with_scopeable_resources([ picky_type ]) do
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id), headers: as(@owner)
@@ -500,7 +500,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   # A query that is in effect brings its field, whatever the type's size: the
   # rows on screen were filtered by that term, so hiding the box would leave no
-  # way to clear it (#183 review).
+  # way to clear it (#183).
   test "a search term carried onto a small type keeps the field that can clear it" do
     Folder.create!(name: "Q3 Ledger")
 
@@ -513,7 +513,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   # A type reached by deep link is not registered, so it cannot be resolved from
   # its name. Blanking the Record select would drop it out of the picker with no
-  # way back but the browser's Back button (#183 review).
+  # way back but the browser's Back button (#183).
   test "an unregistered deep-linked type survives the record being cleared" do
     project = Project.create!(name: "Q3")
     report = Report.create!(title: "Q3 report", project: project, requested_by: @owner)
@@ -531,7 +531,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   end
 
   # The states that render nothing else are the ones an operator most needs to
-  # get back out of, so the anchor outlives them too (#183 review).
+  # get back out of, so the anchor outlives them too (#183).
   test "the linked type is still anchored when no type accepts the chosen role" do
     folder = Folder.create!(name: "Q3 Ledger")
     declare_grantable_roles(Folder, [ "Owner" ])
@@ -549,9 +549,9 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   end
 
   # A nested param is not an id. It reads as absent, and the page has a state
-  # for that (#183 review).
+  # for that (#183).
   # An array q reached the label filter and raised NoMethodError on downcase,
-  # which is a 500 for a query string anyone can type (#183 review).
+  # which is a 500 for a query string anyone can type (#183).
   test "an array search term is read as no search at all" do
     Folder.create!(name: "Q3 Ledger")
 
@@ -570,7 +570,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   end
 
   # Matches ARE shown, but the role filter took some out of the list, and no
-  # other hint on the page covers records (#183 review).
+  # other hint on the page covers records (#183).
   test "a search whose matches were partly withheld says so beside the list" do
     21.times { |i| Receipt.create!(title: "Doc #{i}") }
     invoice = Invoice.create!(title: "Doc 99")
@@ -588,7 +588,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   end
 
   # An empty declaration is a lockdown: withheld for EVERY role, so telling the
-  # operator to pick a different one is a promise no role can keep (#183 review).
+  # operator to pick a different one is a promise no role can keep (#183).
   test "a locked-down type is not blamed on the chosen role" do
     locked = Class.new do
       include CurrentScope::GrantableRoles
@@ -607,7 +607,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   # A locked STI base is kept on offer, because its subclasses may declare their
   # own roles. Counting it as withheld would describe a type that IS on the list
-  # and hide the one that is not (#183 review).
+  # and hide the one that is not (#183).
   test "a locked type still on offer is not counted among the withheld ones" do
     declare_grantable_roles(Document, [])
     declare_grantable_roles(Folder, [ "Owner" ])
@@ -622,7 +622,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   end
 
   # The lockdown is knowable before any record exists: "no records yet" would
-  # send the operator to create one and be told then (#183 review).
+  # send the operator to create one and be told then (#183).
   test "a locked type with an empty table says so on the first visit" do
     declare_grantable_roles(Document, [])
 
@@ -632,11 +632,17 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_select "#cs_records_locked", /Document/
       assert_select "#cs_records_none", count: 0
+
+      # And before a role is picked at all: the role select starts blank, so a
+      # type can be chosen first, and the lockdown is knowable then.
+      get current_scope.new_scoped_role_assignment_path(resource_type: "Document"), headers: as(@owner)
+
+      assert_select "#cs_records_locked", /Document/
     end
   end
 
   # The indexed scope's promise is "no SCAN_CAP". The role filter only earns the
-  # wider fetch where a declaration can actually remove rows (#183 review).
+  # wider fetch where a declaration can actually remove rows (#183).
   test "an undeclared STI type keeps the narrow indexed fetch" do
     Receipt.create!(title: "Doc 1")
     stub_searchable_scope(Document)
@@ -663,7 +669,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   # A locked BASE binds only the records that INHERIT its declaration. Saying
   # "no role will help" over a subclass that states its own list is false: that
-  # subclass's records ARE listed, under the role it names (#183 review).
+  # subclass's records ARE listed, under the role it names (#183).
   test "a locked base with a declaring subclass is not called a lockdown" do
     invoice = Invoice.create!(title: "INV-1")
     declare_grantable_roles(Document, [])
@@ -687,7 +693,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   # Locked all the way down, with an indexed scope and rows past the window: a
   # search cannot reach a record that accepts anything, so the lockdown wins
-  # over the advice to search (#183 review).
+  # over the advice to search (#183).
   test "a locked hierarchy says so rather than offering a search that cannot help" do
     now = Time.current
     rows = Array.new(CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP + 1) do |i|
@@ -710,7 +716,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   # The query path suppresses the empty state, so the lockdown has to be said
   # there too — every refusal sentence tells the operator to pick a different
-  # role, and on a lockdown none helps (#183 review).
+  # role, and on a lockdown none helps (#183).
   test "a locked type with a search in effect still says no role can help" do
     Receipt.create!(title: "Q3 receipt")
     declare_grantable_roles(Document, [])
@@ -726,23 +732,9 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  # And before any role is picked: the role select starts blank now, so a type
-  # can be chosen first, and an empty table would otherwise say "none yet" about
-  # a type that refuses every role (#183 review).
-  test "a locked type says so before a role is chosen" do
-    declare_grantable_roles(Document, [])
-
-    with_scopeable_resources([ Document ]) do
-      get current_scope.new_scoped_role_assignment_path(resource_type: "Document"), headers: as(@owner)
-
-      assert_select "#cs_records_locked", /Document/
-      assert_select "#cs_records_none", count: 0
-    end
-  end
-
   # With no role picked the list is unfiltered and the lockdown sentence is not
   # on screen, so taking the search box away would shorten the dropdown with no
-  # word about why (#183 review).
+  # word about why (#183).
   test "a locked type keeps its search box while the lockdown is not on screen" do
     (CurrentScope::ScopedRoleAssignmentsController::SEARCH_THRESHOLD + 1).times do |i|
       Receipt.create!(title: "RCT-#{i}")
@@ -759,7 +751,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   # The refused-record sentence is about THAT record's type, not the registry: a
   # locked type beside a type that does accept the role still cannot be reached
-  # by changing roles (#183 review).
+  # by changing roles (#183).
   test "a refused link on a locked type is not told to try another role" do
     Gadget # autoload ⇒ a second type that accepts everything
     folder = Folder.create!(name: "Q3 Ledger")
@@ -776,7 +768,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   # A locked base can still hold subclass records that declare their own roles,
   # and past the scanned window a search can find them — "none ever will" is
-  # untrue there, so the advice to search wins (#183 review).
+  # untrue there, so the advice to search wins (#183).
   test "a locked base with unread rows offers the search instead of calling it hopeless" do
     now = Time.current
     rows = Array.new(CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP) do |i|
@@ -801,7 +793,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   end
 
   # And when that locked type IS picked, the record step has to say what the
-  # type step could not: no role will ever list these (#183 review).
+  # type step could not: no role will ever list these (#183).
   test "a locked type says so where its records would be, not to pick another role" do
     Receipt.create!(title: "RCT-1")
     declare_grantable_roles(Document, [])
@@ -834,7 +826,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   end
 
   # Every other zero-result path names its reason; this one used to be silent
-  # (#183 review).
+  # (#183).
   test "a search whose matches all refuse the role says so beside the linked record" do
     21.times { |i| Receipt.create!(title: "Q3 receipt #{i}") }
     invoice = Invoice.create!(title: "INV-1")
@@ -873,7 +865,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   # makes that type selectable and lists its records, whether or not the host
   # ever registered it. Deliberate (a record page links here without opting into
   # the dropdown) and bounded by full access, but unasserted until now, so a
-  # change in either direction goes unnoticed (#183 review).
+  # change in either direction goes unnoticed (#183).
   test "a deep link lists records of a type the host never registered" do
     other = User.create!(name: "Someone Else")
 
@@ -887,7 +879,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   # The Grant button posts what the operator can SEE selected. A resource_gid
   # survives every autosubmit, so an earlier pick must not ride along after the
-  # role or the type moves on (#183 review).
+  # role or the type moves on (#183).
   test "a record picked under one role is not still posted after the role changes" do
     folder = Folder.create!(name: "Q3 Ledger")
     declare_grantable_roles(Folder, [ "Owner" ])
@@ -919,7 +911,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
   # The same move, with a record the chosen role also refuses: the refusal
   # message would name a record the operator is no longer looking at, on the
-  # type they just switched away from (#183 review).
+  # type they just switched away from (#183).
   test "switching type says nothing about the record left behind, refused or not" do
     Gadget # autoload ⇒ self-registers, so the type step really moves to Gadget
     folder = Folder.create!(name: "Q3 Ledger")
@@ -1016,7 +1008,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_select "#cs_search_shown", count: 0
   end
 
-  # And its opposite: matches ARE shown, and the hint says so (#183 review).
+  # And its opposite: matches ARE shown, and the hint says so (#183).
   test "a search with matches says how many are shown" do
     25.times { |i| Folder.create!(name: "Ledger #{i}") }
 
@@ -1042,7 +1034,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_response :success
 
     assert_select "select[name=resource_gid] option[value=?]", pinned.to_gid.to_s # still selectable
-    # Its own state (#183 review): "no records match" beside a visible selected
+    # Its own state (#183): "no records match" beside a visible selected
     # option reads as a contradiction, so the hint names the linked record.
     assert_select "#cs_search_none_selected", /Pinned Vault/
     assert_select "#cs_search_none", count: 0

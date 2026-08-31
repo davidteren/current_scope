@@ -28,7 +28,7 @@ module CurrentScope
     extend ActiveSupport::Concern
 
     class_methods do
-      # A SETTER, not an overloaded reader (#183 review). A combined
+      # A SETTER, not an overloaded reader (#183). A combined
       # `current_scope_grantable_roles(*names)` cannot tell
       # `current_scope_grantable_roles(*computed)` with an empty `computed` from
       # a read, so a host computing the list would have silently declared
@@ -40,22 +40,17 @@ module CurrentScope
       # is the opposite and means NO declaration (inherit, else accept
       # everything), so a host reading its list from config still gets the
       # documented default when the key is missing — the two values read the
-      # same way as they are written (#183 review).
+      # same way as they are written (#183).
       def current_scope_grantable_roles=(names)
         @current_scope_grantable_roles =
           if names.nil?
             nil
           else
-            # Role RECORDS are accepted too: to_s on one yields an inspect
-            # string that can never match, which would be a silent lockdown —
-            # the failure this setter exists to prevent (#183 review).
-            # Blanks are dropped rather than stored: `%w[Lead] + [ENV["EXTRA"]]`
-            # with the variable unset would otherwise declare "", a name no role
-            # has, and quietly narrow the list to nothing (#183 review).
-            #
-            # A list that is ALL blanks lands on [], which is the lockdown, and
-            # that is the fail-closed answer rather than a bug: a host that
-            # means "no declaration" assigns nil. The guide says so.
+            # Role RECORDS and blanks both: to_s on a Role yields an inspect
+            # string that matches nothing, and `%w[Lead] + [ENV["EXTRA"]]` with
+            # the variable unset would declare "" — each a silent narrowing. A
+            # list that is ALL blanks lands on [], the lockdown, which is the
+            # fail-closed answer; a host that means "no declaration" assigns nil.
             Array(names).flatten
                         .map { |name| name.respond_to?(:name) ? name.name : name.to_s }
                         .reject(&:blank?).freeze
@@ -80,7 +75,7 @@ module CurrentScope
       # True when this class or a LOADED descendant declares its grantable roles,
       # which is the only case where filtering by role can drop a record. Here
       # rather than in the console, so a caller asking "can a declaration govern
-      # this type?" finds it beside the other predicates (#183 review).
+      # this type?" finds it beside the other predicates (#183).
       #
       # ponytail: descendants sees what is LOADED. Rails eager-loads in
       # production; under lazy loading a declaring subclass can be missed, and
@@ -92,14 +87,10 @@ module CurrentScope
         descendants.any? { |sub| !sub.try(:current_scope_grantable_roles).nil? }
       end
 
-      # Locked all the way DOWN: this type declares an empty list and no
-      # subclass states one of its own. A locked base binds only the records
-      # that inherit it, so over a declaring subclass's rows "no role will help"
-      # is false — the console asks this before it says so (#183 review).
-      #
-      # Same loaded-descendants ceiling as current_scope_declares_roles?: an
-      # unseen subclass reads as none, which loses a message rather than
-      # stating a falsehood.
+      # Locked all the way DOWN: this type declares an empty list and nothing
+      # over its table states one of its own. A locked base binds only the
+      # records that INHERIT it, so over a declaring subclass's rows "no role
+      # will help" is false — the console asks this before it says so (#183).
       def current_scope_locked_down_everywhere?
         return false unless current_scope_locked_down?
         return true unless current_scope_inheritable_table?
@@ -117,7 +108,7 @@ module CurrentScope
       # would state a lockdown that is false — hiding the search that reaches
       # those very records. Resolving a stored type string is what Rails itself
       # does to instantiate those rows, and an unresolvable one answers nil,
-      # which fails toward NOT claiming (#183 review).
+      # which fails toward NOT claiming (#183).
       def current_scope_classes_in_table
         where.not(inheritance_column => nil)
              .distinct
@@ -170,7 +161,7 @@ module CurrentScope
 
         # A NAME is as good as a Role here, the way the setter takes either:
         # the guide writes declarations as strings, so a host asking about one
-        # by name is the first thing to try (#183 review).
+        # by name is the first thing to try (#183).
         name = role.respond_to?(:name) ? role.name : role.to_s
         name.present? && allowed.include?(name)
       end

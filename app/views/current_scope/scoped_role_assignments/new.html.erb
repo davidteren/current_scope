@@ -27,7 +27,7 @@
     <%= label_tag :role_id, "Role" %>
     <%# include_blank, or the browser preselects the first role while the server
         has applied none — the type list would then contradict the role showing
-        beside it until the first autosubmit (#183 review). %>
+        beside it until the first autosubmit (#183). %>
     <%= select_tag :role_id,
           options_from_collection_for_select(@roles, :id, :name, @selected_role&.id),
           include_blank: "— choose a role —",
@@ -62,7 +62,7 @@
   <%# Every sentence below that names the role runs only when a role IS chosen —
       each flag the controller sets is computed from one. Reading the name once,
       nil-safe, keeps that coupling in view instead of in six dereferences
-      (#183 review). %>
+      (#183). %>
   <% role_name = @selected_role&.name %>
   <% if @missing_role %>
     <p id="cs_role_missing" class="cs-alert cs-picker-empty">
@@ -72,11 +72,11 @@
 
   <%# A refused deep link is explained wherever it happens, INCLUDING the states
       below that render nothing else — the refusal is often why the picker has
-      no type on screen at all (#183 review). %>
+      no type on screen at all (#183). %>
   <% if @types.refused_link && role_name %>
     <p id="cs_resource_refused" class="cs-hint cs-picker-empty cs-resource-refused">
       <%# Not "the linked …": the same params arrive when the record was picked
-          from the dropdown one step earlier (#183 review). %>
+          from the dropdown one step earlier (#183). %>
       <%# The role half is dropped where no role can help: this paragraph
           renders above the type state, and one of the two would be wrong. %>
       <strong><%= current_scope_label(@types.refused_link) %></strong> is not in
@@ -88,12 +88,12 @@
   <%# Anchors an unregistered deep-linked type across a change of record: the
       type cannot be resolved from its name, only from a record. Outside the
       case for the same reason the submit is: the states that render nothing
-      else are the ones an operator most needs to get back out of (#183 review). %>
+      else are the ones an operator most needs to get back out of (#183). %>
   <% if @types.anchor_gid %>
     <%= hidden_field_tag :linked_gid, @types.anchor_gid, form: "cs-cascade" %>
   <% end %>
 
-  <%# Two different empties (#183 review): nothing registered at all, and
+  <%# Two different empties (#183): nothing registered at all, and
       everything registered withheld because it does not accept the chosen role.
       Both give way to a deep link that DID resolve a type: a type reached by
       link need not be registered, and throwing away a grantable target to say
@@ -121,7 +121,7 @@
     <% if @types.all_withheld_locked? %>
       <%# Every withheld type is a LOCKDOWN — an empty declaration. Telling the
           operator to pick a different role would be a promise no role can
-          keep (#183 review). %>
+          keep (#183). %>
       <p id="cs_types_locked" class="cs-hint cs-types-withheld">
         <%= pluralize(@types.withheld_count, "type") %> not listed. Each accepts
         no scoped roles at all, so no role will list
@@ -152,7 +152,7 @@
       <%# The search box stays on an empty list only where searching reads past
           the scanned window: with an indexed scope a grantable record can sit
           past it, while the fallback scan would re-read the very rows the empty
-          list came from (#183 review). %>
+          list came from (#183). %>
       <% if @step.offer_search? %>
         <p>
           <%= label_tag :q, "Search records" %>
@@ -162,11 +162,11 @@
       <% end %>
       <%# The deep-linked record is excluded: it is prepended to the
           options in the else branch, and skipping to the empty state would leave
-          a Grant button posting a record the page never shows (#183 review). %>
+          a Grant button posting a record the page never shows (#183). %>
       <% if @step.show_empty_state? %>
         <%# The controller NAMES this state; the class a test selects and the
             sentence an operator reads come from the same answer, so a copy edit
-            cannot leave the suite green with the wrong text (#183 review).
+            cannot leave the suite green with the wrong text (#183).
             "looked at", never "none": the role filter runs over the scanned
             rows, so a grantable record can sit past the window. %>
         <p id="cs_<%= @step.records_state %>" class="cs-hint cs-picker-empty cs-<%= @step.records_state.to_s.dasherize %>">
@@ -195,7 +195,7 @@
             role.
           <%# EXPLICIT, not else: a state added without its sentence must render
               nothing visible rather than borrowing this one under its own id,
-              where an id-only assertion would stay green (#183 review). %>
+              where an id-only assertion would stay green (#183). %>
           <% when :records_none %>
             No <%= @resource_type.model_name.human.pluralize.downcase %> to pick from yet.
           <% end %>
@@ -205,7 +205,7 @@
           <%= label_tag :resource_gid, "Record" %>
           <%# The step owns the LIST, and the Grant button is checked against
               the same one, so it cannot post a record this select never showed
-              (#183 review). %>
+              (#183). %>
           <% record_options = @step.offered_records.map { |record| [ current_scope_label(record), record.to_gid.to_s ] } %>
           <%= select_tag :resource_gid,
                 options_for_select(record_options, @step.grantable_gid),
@@ -226,7 +226,7 @@
                 Showing up to <%= CurrentScope::ScopedRoleAssignmentsController::DISPLAY_LIMIT %> matches — refine the search to narrow.
                 <% if @step.search_state == :search_shown_withheld && role_name %>
                   <%# No other hint on the page covers RECORDS the role filter
-                      took out of a list that still has matches (#183 review). %>
+                      took out of a list that still has matches (#183). %>
                   Matches that do not accept <strong><%= role_name %></strong> are
                   not listed.
                 <% end %>
@@ -274,7 +274,7 @@
   <%# Outside the branches on purpose: without JavaScript this submit is the
       only way to re-run the cascade, and the state where every type withheld
       the role is recoverable by changing the role — but only if the operator
-      can still submit (#183 review). %>
+      can still submit (#183). %>
   <p class="cs-picker-actions">
     <%# No-JS / no-Turbo fallback: reload the cascade with the current picks. %>
     <%= submit_tag "Show records", name: nil, form: "cs-cascade", class: "cs-picker-refresh" %>
@@ -283,7 +283,7 @@
         or type, so the controller hands us the gid the operator can SEE
         selected (nil when the stale one is no longer listed). %>
     <%# The RESOLVED role, not the param: a deleted id would otherwise post a
-        Grant that can only fail (#183 review). %>
+        Grant that can only fail (#183). %>
     <% ready = @selected_role.present? && @step.grantable_gid.present? %>
     <% if @bulk_subjects.any? %>
       <% if ready %>

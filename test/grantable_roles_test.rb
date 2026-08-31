@@ -83,7 +83,7 @@ class GrantableRolesTest < ActiveSupport::TestCase
   end
 
   # The check runs on every write, not on create alone: an update has to meet
-  # the same rule, or the gate would be one `update` wide (#183 review).
+  # the same rule, or the gate would be one `update` wide (#183).
   test "changing an existing grant to a refused role is refused too" do
     assignment = CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: @container, resource: @project)
     declare_grantable_roles(Project, [ "Project Lead" ])
@@ -94,7 +94,7 @@ class GrantableRolesTest < ActiveSupport::TestCase
 
   # The setter takes a name or a Role, so the predicate does too — asking about
   # a role by the name you declared it with is the first thing to try, and it
-  # raised NoMethodError (#183 review).
+  # raised NoMethodError (#183).
   test "the predicate answers about a role NAME, not only a Role record" do
     declare_grantable_roles(Project, [ "Project Lead" ])
 
@@ -104,7 +104,7 @@ class GrantableRolesTest < ActiveSupport::TestCase
   end
 
   # A host may answer the predicate itself and hold no list — the message must
-  # then say the type refused THIS role, not that it accepts none (#183 review).
+  # then say the type refused THIS role, not that it accepts none (#183).
   test "a type that computes its own answer is refused without being called empty" do
     Project.define_singleton_method(:current_scope_grants_role?) { |_role| false }
 
@@ -130,7 +130,7 @@ class GrantableRolesTest < ActiveSupport::TestCase
   # The trade the whole design rests on: declarations name roles, and role ids
   # cannot be written in a model file. So a rename stops the declaration
   # matching, and a new role reusing the name inherits its acceptance. The guide
-  # says so; nothing pinned it (#183 review).
+  # says so; nothing pinned it (#183).
   test "a declaration follows the NAME, so a rename stops matching and a reuse inherits" do
     declare_grantable_roles(Project, [ "Project Lead" ])
     assert grant(@container, @project).valid?
@@ -179,7 +179,7 @@ class GrantableRolesTest < ActiveSupport::TestCase
   # The lockdown answer must not depend on what this process happens to have
   # loaded: a declaring subclass nothing has referenced would otherwise read as
   # "no subclass declares", and the console would state a lockdown that is false
-  # while hiding the search that reaches those records (#183 review).
+  # while hiding the search that reaches those records (#183).
   test "the lockdown answer comes from the rows, not from the loaded classes" do
     declare_grantable_roles(Document, [])
     assert Document.current_scope_locked_down_everywhere?, "an empty table cannot hold a grantable record"
@@ -205,7 +205,7 @@ class GrantableRolesTest < ActiveSupport::TestCase
     end
   end
 
-  # #183 review — an STI subclass. CurrentScope.polymorphic_class answers with
+  # #183 — an STI subclass. CurrentScope.polymorphic_class answers with
   # the BASE class and an STI grant stores the base token, so a gate that asked
   # the token would make a subclass declaration a silent no-op while the reader,
   # the guide and this file all promise it is inherited and overridable.
@@ -227,14 +227,14 @@ class GrantableRolesTest < ActiveSupport::TestCase
     assert grant(@container, invoice).valid?
   end
 
-  # An empty declaration is a LOCKDOWN, not "no restriction" (#183 review). A
+  # An empty declaration is a LOCKDOWN, not "no restriction" (#183). A
   # host computing the list from config and getting an empty array must not find
   # the type wide open.
   # The record answers for itself while it is there. Once it is gone, the stored
   # token is all that is left, and that token names the BASE class — so an
   # orphaned STI grant meets the base's declaration, not the subclass's. The
   # guide says so; this pins it, because a resolver that answered nil here
-  # instead would skip the gate and open every orphaned grant (#183 review).
+  # instead would skip the gate and open every orphaned grant (#183).
   test "an orphaned STI grant is judged by the base class" do
     special = SpecialInvoice.create!(title: "SI-1")
     assignment = CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: @container, resource: special)
@@ -261,7 +261,7 @@ class GrantableRolesTest < ActiveSupport::TestCase
 
   # And its opposite number: nil is NO declaration, so a host reading its list
   # from config still gets the documented default when the key is missing
-  # (#183 review). Same value in, same meaning out.
+  # (#183). Same value in, same meaning out.
   test "assigning nil leaves the type undeclared rather than locking it down" do
     declare_grantable_roles(Project, nil)
 
@@ -271,7 +271,7 @@ class GrantableRolesTest < ActiveSupport::TestCase
   end
 
   # A Role RECORD is a natural thing to reach for, and to_s on one yields an
-  # inspect string that matches nothing — a silent lockdown (#183 review).
+  # inspect string that matches nothing — a silent lockdown (#183).
   test "a Role record may be declared, not only its name" do
     declare_grantable_roles(Project, [ @container ])
 
@@ -280,7 +280,7 @@ class GrantableRolesTest < ActiveSupport::TestCase
   end
 
   # `%w[Lead] + [ENV["EXTRA"]]` with the variable unset would otherwise store
-  # "", which matches no role and locks the type silently (#183 review).
+  # "", which matches no role and locks the type silently (#183).
   test "a blank entry is dropped rather than stored as a role no one has" do
     declare_grantable_roles(Project, [ "Project Lead", nil, "" ])
 

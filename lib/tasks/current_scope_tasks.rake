@@ -291,7 +291,7 @@ namespace :current_scope do
       # written before a declaration landed, so a swallowed error hides exactly
       # what it exists to surface — but a systemic cause (a host predicate that
       # raises) would otherwise print a line per row and bury the report the
-      # operator ran the task for. The rest are counted (#183 review).
+      # operator ran the task for. The rest are counted (#183).
       unjudgeable_grants += 1
       if unjudgeable_grants == 1
         warn "[CurrentScope] could not judge grant ##{grant.id} against " \
@@ -337,7 +337,7 @@ namespace :current_scope do
       untargeted_grants = []
       nonconforming_grants = []
       # And the count that speaks for that scan: the loop was abandoned, so a
-      # partial tally would describe a pass that did not finish (#183 review).
+      # partial tally would describe a pass that did not finish (#183).
       unjudgeable_grants = 0
     end
 

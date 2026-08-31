@@ -1,6 +1,6 @@
 module CurrentScope
   # The scoped-role picker's TYPE step, in one object — the sibling of
-  # PickerRecordStep, and for the same reason (#183 review): the count in the
+  # PickerRecordStep, and for the same reason (#183): the count in the
   # hint, the state the page renders and the options in the dropdown are all
   # derived from one set of inputs, so a change to which types are offered
   # cannot leave the sentence beside the dropdown saying something else.
@@ -25,7 +25,7 @@ module CurrentScope
 
     # A type reached by deep link need not be registered, so it cannot be
     # resolved from its NAME on the next request — only from a record. The
-    # cascade carries the gid that anchors it (#183 review).
+    # cascade carries the gid that anchors it (#183).
     def anchor_gid
       @anchor&.to_gid&.to_s unless @offered.include?(@resolved)
     end
@@ -52,7 +52,7 @@ module CurrentScope
     # About the REFUSED RECORD's own class, not the registry as a whole: "pick a
     # different role" is wrong when that record's type accepts none, whatever
     # the other types do. The global question (`state`) answers for the page;
-    # this sentence is about one record (#183 review).
+    # this sentence is about one record (#183).
     def refused_link_hopeless?
       return false if @refused_link.nil?
 
@@ -69,7 +69,7 @@ module CurrentScope
 
     # A type that declares an EMPTY list is a lockdown: withheld for every role,
     # so "pick a different role to see it" is a promise no role can keep
-    # (#183 review).
+    # (#183).
     #
     # Counted among the WITHHELD types, not all of them: a locked STI base is
     # kept on offer anyway (its subclasses may declare their own roles), and

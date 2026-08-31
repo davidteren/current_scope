@@ -21,11 +21,11 @@ module CurrentScope
       # scalar_param: a nested query string (?role_id[x]=1) is not an id, and
       # every reader below expects a string. Rails answers nil for it today
       # rather than raising, so this states the expectation rather than fixing a
-      # live break (#183 review).
+      # live break (#183).
       @selected_role = Role.find_by(id: scalar_param(:role_id)) if params[:role_id].present?
       # A deleted role in a stale bookmark reads as "no role chosen" everywhere
       # downstream, which would show every type and every record with no hint
-      # and a Grant button that can only fail on POST (#183 review).
+      # and a Grant button that can only fail on POST (#183).
       @missing_role = params[:role_id].present? && @selected_role.nil?
       # Read once, through the same guard as every other param the picker takes.
       @query = scalar_param(:q)
@@ -41,7 +41,7 @@ module CurrentScope
 
       # One answer to "what did the link and the type dropdown resolve to?",
       # judged once, so the four values that must agree cannot be threaded
-      # through this action in the wrong order (#183 review).
+      # through this action in the wrong order (#183).
       link = resolve_deep_link(scopeable)
       @resource_type = link.type
       @types = PickerTypeStep.new(all_types: all_scopeable, offered: scopeable,
@@ -49,7 +49,7 @@ module CurrentScope
                                   anchor: link.anchor, refused_link: link.refused)
       records, withheld, unread = candidate_records(@resource_type, @query, @selected_role)
       # One object owns every display decision for the record step, so the
-      # control and the sentence beside it cannot drift apart (#183 review).
+      # control and the sentence beside it cannot drift apart (#183).
       @step = PickerRecordStep.new(
         records: records, withheld: withheld, unread: unread,
         # Only an INDEXED scope looks past the scanned window; without one a
@@ -61,8 +61,8 @@ module CurrentScope
         # ever list a record that inherits it, so "pick a different role" is a
         # promise none can keep. The type step says this for a type it withheld;
         # an STI base is kept ON OFFER, so the record step has to say it too
-        # (#183 review).
-        locked: locked_type?(@resource_type)
+        # (#183).
+        locked: @resource_type.try(:current_scope_locked_down_everywhere?) || false
       )
     end
 
@@ -115,7 +115,7 @@ module CurrentScope
     # A type with no declaration accepts everything, which is every host that
     # has not opted in.
     #
-    # An STI base is always offered (#183 review): its table holds records of
+    # An STI base is always offered (#183): its table holds records of
     # several classes, the model gate judges the RECORD's own class, and a
     # type-level "no" here would make every Invoice unreachable in the console
     # because Document said no. The record list is what narrows instead.
@@ -131,44 +131,25 @@ module CurrentScope
     # filter's question is "does this survive the role the operator picked?",
     # which nothing narrows when no role is picked. Two near-identical names
     # with opposite nil answers is how the documented deep link broke once
-    # already in this branch (#183 review).
+    # already in this branch (#183).
     def filter_allows?(klass, role)
       return true if role.nil?
 
       !klass.respond_to?(:current_scope_grants_role?) || klass.current_scope_grants_role?(role)
     end
 
-    # Asked of the module, not walked here: how a declaration inherits is the
-    # module's rule, and a second copy of that walk would drift from it
-    # (#183 review).
-    def locked_type?(klass)
-      klass.try(:current_scope_locked_down_everywhere?) || false
-    end
-
-    # A TABLE-shape question rather than a declaration one, which is why it
-    # stays here: whether rows queried through this class can load as another
-    # class is Rails STI, and the module answers about declarations.
-    #
     # True when a row queried through this class can load as a class OTHER than
     # this one — then the class the model gate will ask is not known until the
-    # row itself is loaded, and the RECORD list is what narrows.
+    # row is loaded, and the RECORD list is what narrows. Every class over a
+    # table with an inheritance column answers yes, leaves included, and so does
+    # a plain model that happens to use `type` for its own purposes: offering it
+    # costs one dropdown entry and an honest empty message, while withholding a
+    # class whose subclass rows ARE grantable would hide them with no way back.
     #
-    # Every class over a table with an inheritance column answers yes, leaves
-    # included — and so does a plain model that happens to use `type` for its
-    # own purposes, which is offered rather than withheld. Picking it says
-    # plainly that none of its records accept the role, where withholding it
-    # would say nothing at all. Asking `subclasses` instead would be load-order dependent
-    # (Zeitwerk loads on reference, and the dummy app does not eager-load in
-    # test either), and the two ways of being wrong are not equal: offering a
-    # leaf whose records all refuse costs one dropdown entry and an honest
-    # empty message, while withholding a class whose subclass rows ARE
-    # grantable hides those records with no way to reach them (#183 review).
+    # The `try` covers a deep-linked class that includes neither the module nor
+    # ActiveRecord.
     def sti_table?(klass)
-      return false unless klass.respond_to?(:has_attribute?) && klass.respond_to?(:inheritance_column)
-
-      klass.has_attribute?(klass.inheritance_column)
-    rescue ActiveRecord::ActiveRecordError
-      false # no database to ask; a NoMethodError here would be a bug in this gem
+      klass.try(:current_scope_inheritable_table?) || false
     end
 
     # The type for a deep link, only when the linked record's own class accepts
@@ -183,11 +164,11 @@ module CurrentScope
     # the selected option; without the role half, a refused record keeps a Grant
     # button that only the model can then say no to. A refusal is REFUSED rather
     # than dropped, because a record that vanishes from the picker with no word
-    # is the invisible dead end #183 exists to remove (#183 review).
+    # is the invisible dead end #183 exists to remove (#183).
     def kept_deep_link(linked, type, role, chosen_type)
       return nil if linked.nil?
       # The operator moved to another type: the carried gid is not a link they
-      # followed (#183 review).
+      # followed (#183).
       return nil if chosen_type && !linked.is_a?(chosen_type)
       return nil unless filter_allows?(linked.class, role)
       return nil unless type && linked.is_a?(type)
@@ -207,7 +188,7 @@ module CurrentScope
 
     # Every param this picker reads is a string: an id, a GlobalID, a type name,
     # a search term. A nested or array param is none of those, so it is read as
-    # absent and the page renders the state it has for "not found" (#183 review).
+    # absent and the page renders the state it has for "not found" (#183).
     def scalar_param(name)
       value = params[name]
       value if value.is_a?(String)
@@ -290,7 +271,7 @@ module CurrentScope
       # every autosubmit, so picking a role, then a type, then changing the role
       # would otherwise leave the withheld type selected, its records loaded and
       # a Grant button showing, directly under a hint saying that type was not
-      # listed — the dead end this filter exists to prevent (#183 review).
+      # listed — the dead end this filter exists to prevent (#183).
       chosen = resolve_type(scalar_param(:resource_type), within: scopeable)
       type = chosen || deep_linked_type(anchor, @selected_role)
       DeepLink.new(type,
@@ -298,7 +279,7 @@ module CurrentScope
                    # From the ANCHOR, not the selected record: on the submits
                    # where the record select is not on screen only linked_gid
                    # comes back, and the explanation would vanish exactly where
-                   # the operator is stuck (#183 review).
+                   # the operator is stuck (#183).
                    refused_deep_link(anchor, @selected_role, chosen),
                    anchor)
     end
@@ -332,11 +313,11 @@ module CurrentScope
         # And only where a declaration can actually remove rows. Without one
         # the filter keeps everything, so widening would instantiate 450 extra
         # records per keystroke for a host that never opted into #183 — the very
-        # cost the indexed scope exists to avoid (#183 review).
+        # cost the indexed scope exists to avoid (#183).
         cap = role && sti_table?(klass) && klass.try(:current_scope_declares_roles?) ? SCAN_CAP : DISPLAY_LIMIT
         # One row PAST the cap, and dropped again: a table holding exactly `cap`
         # rows was read to the end, and calling that "more to find" would offer
-        # a search that cannot reach anything (#183 review).
+        # a search that cannot reach anything (#183).
         fetched = klass.current_scope_searchable_scope(query).limit(cap + 1).to_a
         found = fetched.first(cap)
         kept = grantable_records(found, role)

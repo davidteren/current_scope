@@ -1,5 +1,5 @@
 module CurrentScope
-  # The scoped-role picker's RECORD step, in one object (#183 review).
+  # The scoped-role picker's RECORD step, in one object (#183).
   #
   # The controller builds it; the template reads it. Every display decision —
   # whether a search box is on screen, whether suggesting a search can help,
@@ -39,9 +39,6 @@ module CurrentScope
       offered_records.empty? && query.blank?
     end
 
-    # The records on offer, the deep-linked one first — the ONE list the select
-    # renders and the Grant button is checked against, so the button can never
-    # post a record the select did not show (#183 review).
     # What the Grant button posts: the record that survived both gates, by its
     # OWN GlobalID. Nil is the button's absence. It is always on the list below,
     # because that list prepends it.
@@ -51,7 +48,7 @@ module CurrentScope
 
     # The records on offer, the selected one first — the ONE list the select
     # renders, so the button can never post a record the select did not show
-    # (#183 review).
+    # (#183).
     def offered_records
       list = Array(records)
       return list if selected.nil? || list.any? { |record| same?(record, selected) }
@@ -60,12 +57,11 @@ module CurrentScope
     end
 
     # Records dropped from a list that still HAS records, with no search in
-    # effect — the search hint covers the same thing when a query is typed, and
+    # effect: the search hint covers the same thing when a query is typed, and
     # without one nothing else on the page mentions them. Silently shortening a
-    # list is the surprise this feature exists to remove (#183 review).
-    # offered_records, not records: with every scanned row refused and only the
-    # deep-linked one left, the list is at its most shortened and was the one
-    # case that said nothing (#183 review).
+    # list is the surprise this feature exists to remove. offered_records rather
+    # than records, or the most shortened list of all — every scanned row
+    # refused, one linked record left — would say nothing.
     def shortened?
       @withheld && offered_records.present? && query.blank?
     end
@@ -78,7 +74,7 @@ module CurrentScope
 
     # A query that is IN EFFECT always brings its field, whether or not the type
     # is big enough to offer one: the rows on screen were filtered by that term,
-    # and hiding the box would leave no way to clear it (#183 review).
+    # and hiding the box would leave no way to clear it (#183).
     def offer_search?
       return true if query.present?
       # Nothing over a locked type can take a role, so a search here reaches
@@ -86,13 +82,13 @@ module CurrentScope
       # Only where that sentence actually renders, though: with no role picked
       # the list is unfiltered and the lockdown is not on screen, and hiding the
       # box there would shorten the dropdown with no word about why
-      # (#183 review).
+      # (#183).
       return false if @locked && show_empty_state?
       return false unless @searchable
 
       # An empty list only earns a search box where searching can reach past
       # what was read. On a table read to the end there is nothing left to
-      # find, and the box would sit beside a message saying so (#183 review).
+      # find, and the box would sit beside a message saying so (#183).
       records.present? || (@indexed && @unread)
     end
 
@@ -107,7 +103,7 @@ module CurrentScope
     # the block that replaces the record select, search_state for the hint under
     # it, and the two are mutually exclusive (this one is read only when the
     # list is empty with no query, that one only with a query). Every name is
-    # defined once, so no name can carry two sentences (#183 review).
+    # defined once, so no name can carry two sentences (#183).
     #
     # :records_locked             — the type itself accepts no role at all
     # :records_refused_searchable — all read refuse the role, more rows unread,
@@ -117,24 +113,17 @@ module CurrentScope
     # :records_refused            — all read refuse it, nothing left to read
     # :records_none               — the type simply has no records
     def records_state
-      # LOCKED first: @locked means locked all the way down — the type declares
-      # an empty list and no subclass states one of its own — so no search can
-      # reach a record that accepts anything. No @withheld either: an empty
-      # table refuses nothing, and a lockdown is knowable on the first visit,
-      # where "no records to pick from yet" would send the operator off to
-      # create one.
-      # No role needed: the sentence names the TYPE, and the lockdown is
-      # knowable before a role is picked — which is a real first visit now that
-      # the role select starts blank.
+      # LOCKED first, and on @locked alone: the type declares an empty list and
+      # no subclass states one of its own, so no search reaches a record that
+      # accepts anything, and neither a role nor a refused row is needed to know
+      # it. An empty table refuses nothing, and "no records to pick from yet"
+      # would send the operator off to create one on a type that takes no role.
       return :records_locked if @locked
-      # No `&& role` on the withheld branches: the role filter cannot remove a
-      # record without a role, so @withheld carries one. @locked does not, which
-      # is why that guard is the one that stays (#183 review).
       return :records_refused_searchable if advise_search?
       # The scan stopped at its cap and no indexed scope can read past it, so a
       # grantable record may exist that this page cannot reach. Saying only
       # "pick a different role" would send the operator away from records that
-      # do accept the role they picked (#183 review).
+      # do accept the role they picked (#183).
       return :records_refused_unread if @withheld && @unread
       return :records_refused if @withheld
 
@@ -145,23 +134,18 @@ module CurrentScope
     # A surviving record silences the refusals: it is selected and
     # grantable, so "pick a different role" would contradict what is on screen.
     def search_state
-      # query.present? alone: offer_search? answers true for any query, so
-      # asking it here would be a condition that cannot decide anything. It
-      # decides in advise_search?, where the box's absence matters.
       return nil if query.blank?
       # Matches ARE shown, but the role filter took some of them out of the
-      # list, and no other hint on the page covers records (#183 review).
+      # list, and no other hint on the page covers records (#183).
       return @withheld ? :search_shown_withheld : :search_shown if records.present?
       # The query path reaches here with the empty state suppressed, so the
       # lockdown has to be said again: every refusal sentence below would tell
       # the operator to pick a different role, and on a lockdown none helps
-      # (#183 review).
+      # (#183).
       return :search_locked if @locked
-      # A surviving record is selected and grantable, so the plain
-      # refusals cannot be said beside it: "pick a different role" contradicts
-      # the role that accepts this one. Both cases still have something true to
-      # say — what the query found, and that the record on screen is the linked
-      # one rather than a match (#183 review).
+      # A surviving record is selected and grantable, so the plain refusals
+      # cannot be said beside it: "pick a different role" contradicts the role
+      # that accepts this one. Both cases still say what the query found.
       return @withheld ? :search_refused_selected : :search_none_selected if selected
       return :search_none unless @withheld
 

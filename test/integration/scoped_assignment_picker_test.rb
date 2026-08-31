@@ -753,6 +753,22 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # The boundary of the deep-link path, pinned as it IS: a gid naming any model
+  # makes that type selectable and lists its records, whether or not the host
+  # ever registered it. Deliberate (a record page links here without opting into
+  # the dropdown) and bounded by full access, but unasserted until now, so a
+  # change in either direction goes unnoticed (#183 review).
+  test "a deep link lists records of a type the host never registered" do
+    other = User.create!(name: "Someone Else")
+
+    get current_scope.new_scoped_role_assignment_path(resource_gid: @member.to_gid.to_s), headers: as(@owner)
+
+    assert_response :success
+    assert_select "option[selected][value=?]", "User"
+    assert_select "select[name=resource_gid] option[value=?]", other.to_gid.to_s,
+                  count: 1 # a SIBLING row, not just the linked one
+  end
+
   # The Grant button posts what the operator can SEE selected. A resource_gid
   # survives every autosubmit, so an earlier pick must not ride along after the
   # role or the type moves on (#183 review).

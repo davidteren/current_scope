@@ -27,6 +27,15 @@ module CurrentScope
   module GrantableRoles
     extend ActiveSupport::Concern
 
+    # Self-registers by NAME, the way Scopeable does and for the same reason: a
+    # host that takes this module WITHOUT the picker still needs the console to
+    # know a declaration exists somewhere — the role edit screen warns that a
+    # rename moves declarations, and a container model that is deliberately not
+    # browsable is the shape #183 was opened for.
+    included do
+      CurrentScope.register_grantable_roles(name) if name
+    end
+
     class_methods do
       # A SETTER, not an overloaded reader (#183). A combined
       # `current_scope_grantable_roles(*names)` cannot tell

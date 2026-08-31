@@ -4,8 +4,9 @@ module CurrentScope
     # warning only makes sense where a declaration exists — it is opt-in, and
     # for a host that has declared nothing the sentence would be false and the
     # task it points at would find nothing. (A type that includes GrantableRoles
-    # WITHOUT Scopeable is not in this list; that is the one case it misses, and
-    # it errs toward saying nothing.)
+    # The module's own registry, not the picker's: a type can take the rule
+    # without becoming browsable, and that container shape is the one #183 was
+    # opened for.)
     #
     # On update too, or a rename that fails validation re-renders the form
     # without the warning — on the retry screen, which is the worst place to
@@ -163,7 +164,7 @@ module CurrentScope
 
     def assign_grantable_roles_declared
       @grantable_roles_declared =
-        CurrentScope.scopeable_resources.any? { |klass| klass.try(:current_scope_declares_roles_anywhere?) }
+        CurrentScope.grantable_roles_resources.any? { |klass| klass.try(:current_scope_declares_roles_anywhere?) }
     end
 
     # Polymorphic subject/resource may be deleted or unresolvable — never 500

@@ -178,6 +178,32 @@ module  CurrentScope
       @scopeable_registry = Set.new
     end
 
+    # Types that took the role-compatibility rule (#183), which is a SUPERSET of
+    # the picker's: CurrentScope::GrantableRoles can be included on its own, and
+    # a container model that should never be browsable is exactly the shape the
+    # feature exists for.
+    #
+    # Stored by name and resolved lazily, like the picker registry — but NOT
+    # reset on to_prepare. This registry only answers "does a declaration exist
+    # anywhere?", for a warning on the role screen, and an include hook fires
+    # once per class load: resetting it would empty it for every class already
+    # loaded and it would never refill. A name that no longer resolves, or a
+    # class that no longer takes the module, simply drops out on read.
+    def grantable_roles_registry
+      @grantable_roles_registry ||= Set.new
+    end
+
+    def register_grantable_roles(model_name)
+      grantable_roles_registry << model_name.to_s
+    end
+
+    def grantable_roles_resources
+      grantable_roles_registry
+        .filter_map { |name| name.safe_constantize }
+        .select { |klass| klass.respond_to?(:current_scope_declares_roles_anywhere?) }
+        .sort_by(&:name)
+    end
+
     # The single entry point behind every allowed_to? call.
     # `action` is either a full permission key ("admin/reports#approve") or a
     # bare action name resolved against `record`'s route key, falling back to

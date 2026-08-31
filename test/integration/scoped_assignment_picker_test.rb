@@ -967,6 +967,9 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_select "#cs_records_shortened"
       assert_select "select[name=resource_gid][aria-describedby=cs_records_shortened]"
+      # ...and NOT also a live region: focus returns to that select after the
+      # swap, so it would be read twice.
+      assert_select "#cs_records_shortened[role=status]", count: 0
     end
   end
 

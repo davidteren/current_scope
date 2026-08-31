@@ -61,10 +61,12 @@
   <% end %>
 <% end %>
 
-<%# Each message below carries role="status": a Turbo frame swap is not a
+<%# Most messages below carry role="status": a Turbo frame swap is not a
     navigation, so nothing is announced otherwise, and one region around the
     frame would hold the controls too and re-read the whole picker on every
-    pick. Per-message regions announce only the sentence that appeared. %>
+    pick. NOT the ones a select points at with aria-describedby — focus returns
+    to that select after the swap, so a live region there would be read once as
+    an insertion and again as the control's description. %>
 <turbo-frame id="cascade">
   <%# Every sentence below that names the role runs only when a role IS chosen —
       each flag the controller sets is computed from one. Reading the name once,
@@ -137,13 +139,13 @@
       <%# Every withheld type is a LOCKDOWN — an empty declaration. Telling the
           operator to pick a different role would be a promise no role can
           keep (#183). %>
-      <p id="cs_types_locked" role="status" class="cs-hint cs-types-withheld">
+      <p id="cs_types_locked" class="cs-hint cs-types-withheld">
         <%= pluralize(@types.withheld_count, "type") %> not listed. Each is set
         to accept no roles at all, so no role will show
         <%= @types.withheld_count == 1 ? "it" : "them" %>.
       </p>
     <% elsif @types.withheld? %>
-      <p id="cs_types_withheld" role="status" class="cs-hint cs-types-withheld">
+      <p id="cs_types_withheld" class="cs-hint cs-types-withheld">
         <%= pluralize(@types.withheld_count, "type") %> not listed. Each takes
         only certain roles, and <strong><%= role_name %></strong> is not one of
         them. Pick a different role to see
@@ -229,7 +231,7 @@
                 "aria-describedby": @step.hint_id,
                 data: { current_scope_autosubmit: true } %>
           <% if @step.shortened? %>
-            <span id="cs_records_shortened" role="status" class="cs-hint">
+            <span id="cs_records_shortened" class="cs-hint">
               Records that do not accept <strong><%= role_name %></strong> are
               not listed.
             </span>
@@ -239,7 +241,7 @@
                 deep-linked record is prepended to the options even when the
                 query matched nothing, and must not fake a "matches shown". %>
             <% if @step.matches_shown? %>
-              <span id="cs_<%= @step.search_state %>" role="status" class="cs-hint cs-search-shown">
+              <span id="cs_<%= @step.search_state %>" class="cs-hint cs-search-shown">
                 Showing up to <%= CurrentScope::ScopedRoleAssignmentsController::DISPLAY_LIMIT %> matches — refine the search to narrow.
                 <% if @step.search_state == :search_shown_withheld && role_name %>
                   <%# No other hint on the page covers RECORDS the role filter
@@ -251,7 +253,7 @@
             <% else %>
               <%# cs-picker-empty only where the picker IS empty: two of these
                   states have a record selected and a Grant button beside them. %>
-              <span id="cs_<%= @step.search_state %>" role="status"
+              <span id="cs_<%= @step.search_state %>"
                     class="cs-hint cs-<%= @step.search_state.to_s.dasherize %><%= " cs-picker-empty" unless @step.selected %>">
                 <% case @step.search_state
                    when :search_locked %>

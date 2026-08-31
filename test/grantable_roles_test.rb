@@ -228,6 +228,14 @@ class GrantableRolesTest < ActiveSupport::TestCase
       "an EXISTS, not an aggregate over every row: #{sql.inspect}"
   end
 
+  # The module registers its own includers, which is a SUPERSET of the picker's
+  # list: a container model can take the rule without becoming browsable, and
+  # that is the shape #183 was opened for (#183).
+  test "a type that takes the rule without the picker is still known to declare" do
+    assert_includes CurrentScope.grantable_roles_resources, Project
+    assert_not_includes CurrentScope.scopeable_resources, Project
+  end
+
   # A seed, a rake task and a console one-liner all write through the model, so
   # the model is where the rule has to live — the console's filtering is a
   # convenience on top of it.

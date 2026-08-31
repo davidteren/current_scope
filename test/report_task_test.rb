@@ -540,6 +540,19 @@ class ReportTaskTest < ActiveSupport::TestCase
            "the row is reported, not touched — revoking is the operator's call"
   end
 
+  # An orphaned grant resolves to nothing, so it is not one of the rows this
+  # section is about — and the heading tells the operator these still resolve
+  # (#183).
+  test "a grant whose record is gone is not named among the non-conforming" do
+    project = Project.create!(name: "Q3")
+    role = role_with("projects#show")
+    scope_grant(@alice, role, project)
+    declare_grantable_roles(Project, [ "Someone Else" ])
+    project.delete
+
+    refute_match(/no longer accepts/, run_task)
+  end
+
   test "a grant its type still accepts is not named" do
     project = Project.create!(name: "Q3")
     role = role_with("projects#show")

@@ -72,25 +72,20 @@ module CurrentScope
         nil
       end
 
-      # True when this class OR one of its loaded descendants declares — the
-      # `_anywhere?` says so, matching current_scope_locked_down_everywhere?,
-      # because a receiver-only reading of the bare name would be wrong.
+      # True when this class OR one of its loaded descendants declares its
+      # grantable roles, which is the only case where filtering by role can drop
+      # a record. The `_anywhere?` says so, matching
+      # current_scope_locked_down_everywhere?: a receiver-only reading of the
+      # bare name would be wrong. It lives here rather than in the console so a
+      # caller asking "can a declaration govern this type?" finds it beside the
+      # other predicates (#183).
       #
       # LOADED descendants on purpose, where its sibling asks the rows instead.
       # The two are wrong in different currencies: this one only widens or
       # narrows a fetch, so missing an unloaded subclass costs a search that
-      # reads 50 rows instead of 500; the lockdown answer would state something
-      # false to the operator, which is worth a query. The guide names the
-      # development-console gap this leaves.
-      #
-      # True when this class or a LOADED descendant declares its grantable roles,
-      # which is the only case where filtering by role can drop a record. Here
-      # rather than in the console, so a caller asking "can a declaration govern
-      # this type?" finds it beside the other predicates (#183).
-      #
-      # ponytail: descendants sees what is LOADED. Rails eager-loads in
-      # production; under lazy loading a declaring subclass can be missed, and
-      # the caller that reads this decides how wide to look.
+      # reads 50 rows instead of 500, while the lockdown answer would state
+      # something false to the operator, which is worth a query. The guide names
+      # the development-console gap this leaves.
       def current_scope_declares_roles_anywhere?
         return true unless current_scope_grantable_roles.nil?
         return false unless respond_to?(:descendants)
@@ -171,7 +166,12 @@ module CurrentScope
       # documents for its own tokens.
       def current_scope_locked_class_names
         ([ self ] + descendants)
-          .select { |klass| klass.try(:current_scope_grantable_roles).blank? }
+          # empty?, not blank?: nil is "no declaration, accepts everything" and
+          # [] is "accepts nothing" — the opposite ends of this module's
+          # contract. The reader walks to the superclass, so a descendant of a
+          # locked class reads [] rather than nil today; saying empty? here
+          # keeps that a fact about the data rather than a coincidence.
+          .select { |klass| klass.try(:current_scope_grantable_roles)&.empty? }
           .map { |klass| klass.try(:sti_name) }
           .compact
       end

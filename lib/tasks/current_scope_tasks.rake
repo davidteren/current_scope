@@ -278,6 +278,11 @@ namespace :current_scope do
     unjudgeable_grants = 0
     grant_refused_by_declaration = lambda do |grant|
       next false if grant.role.nil?
+      # An orphaned grant resolves to nothing (#90), so it is not one of the
+      # rows this section is about — and every other section here excludes it
+      # for the same reason. Counting it would inflate the total with grants
+      # that open nothing and tell the operator they "still resolve".
+      next false if grant.respond_to?(:orphaned_resource?) && grant.orphaned_resource?
 
       # The model's own answer, so the scan and the gate cannot disagree about
       # which class governs a grant. inert on a stale token: a type that no

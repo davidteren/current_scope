@@ -1,0 +1,30 @@
+app/views/current_scope/scoped_role_assignments/new.html.erb
+  s_240773ee81a9c0::t_5bae6315b9685d 84-86
+test/grantable_roles_test.rb
+  s_240773ee81a9c0::t_19979f375f7588 103-105
+  s_240773ee81a9c0::t_5bae6315b9685d 125,128-129
+app/controllers/current_scope/scoped_role_assignments_controller.rb
+  s_240773ee81a9c0::t_5bae6315b9685d 317
+app/controllers/current_scope/roles_controller.rb
+  s_240773ee81a9c0::t_5bae6315b9685d 42
+lib/current_scope/grantable_roles.rb
+  s_240773ee81a9c0::t_5bae6315b9685d 79-82,91,171-179,181
+test/integration/scoped_assignment_picker_test.rb
+  s_240773ee81a9c0::t_68bb1ed69fb3df 767-769
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "d37c651a2c085ad6ae9f9762a56b8cb447af06e6",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

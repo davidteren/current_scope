@@ -1,0 +1,19 @@
+app/controllers/current_scope/roles_controller.rb
+  s_240773ee81a9c0::t_9192e9a1a6d32d 6,8-14,16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "20be0f78da099b965ac8303481b78212c8ca6d7f",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "unknown"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

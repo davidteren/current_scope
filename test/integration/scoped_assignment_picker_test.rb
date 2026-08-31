@@ -562,11 +562,24 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_select "select[name=resource_gid] option", text: "Q3 Ledger"
   end
 
-  test "a nested role_id param renders the missing-role state" do
+  test "a nested role_id param reads as no role at all" do
     get current_scope.new_scoped_role_assignment_path(role_id: { x: "1" }), headers: as(@owner)
 
     assert_response :success
-    assert_select "#cs_role_missing"
+    # It must NOT claim a role was not found: nothing here ever named one.
+    assert_select "#cs_role_missing", count: 0
+    assert_select "select[name=role_id] option[selected]", count: 0
+  end
+
+  # An id that could have been a role and is not: that page says so.
+  test "a role id that does not resolve says the role could not be found" do
+    gone = CurrentScope::Role.create!(name: "Temp")
+    id = gone.id
+    gone.destroy!
+
+    get current_scope.new_scoped_role_assignment_path(role_id: id), headers: as(@owner)
+
+    assert_select "#cs_role_missing", /could not be found/
   end
 
   # Matches ARE shown, but the role filter took some out of the list, and no

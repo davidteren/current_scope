@@ -306,11 +306,13 @@ end
   gone, or its stored id is not a canonical key for the model, the check has
   only the stored token to go on and judges the grant by the **base class**. One table therefore holds records with
   different answers, so the picker keeps every class over an STI table in the
-  type dropdown and narrows the **record** list instead. The picker asks
-  `descendants` to decide how far to read, and that sees only LOADED classes: in
-  an environment that does not eager-load, a declaring subclass nothing has
+  type dropdown and narrows the **record** list instead. How far the picker READS
+  is decided from `descendants`, which sees only loaded classes: in an
+  environment that does not eager-load, a declaring subclass nothing has
   referenced yet can leave a grantable record past the display cut until the
-  next request. Production eager-loading closes it.
+  next request, and production eager-loading closes it. What the picker SAYS is
+  decided from the rows instead, because a message that is wrong is worse than a
+  fetch that is narrow.
 - `CurrentScope::GrantableRoles` can be included on its own if you want the rule
   without the picker registration.
 

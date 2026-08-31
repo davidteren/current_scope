@@ -80,6 +80,13 @@ module CurrentScope
       # `_anywhere?` says so, matching current_scope_locked_down_everywhere?,
       # because a receiver-only reading of the bare name would be wrong.
       #
+      # LOADED descendants on purpose, where its sibling asks the rows instead.
+      # The two are wrong in different currencies: this one only widens or
+      # narrows a fetch, so missing an unloaded subclass costs a search that
+      # reads 50 rows instead of 500; the lockdown answer would state something
+      # false to the operator, which is worth a query. The guide names the
+      # development-console gap this leaves.
+      #
       # True when this class or a LOADED descendant declares its grantable roles,
       # which is the only case where filtering by role can drop a record. Here
       # rather than in the console, so a caller asking "can a declaration govern
@@ -114,31 +121,6 @@ module CurrentScope
         false # no database to ask; do not claim a lockdown we cannot check
       end
 
-      # The classes the ROWS name, not the ones this process happens to have
-      # loaded. `descendants` sees only loaded classes, so a subclass nothing
-      # has referenced yet would read as "no subclass declares" and the console
-      # would state a lockdown that is false — hiding the search that reaches
-      # those very records.
-      #
-      # Through Rails' OWN sti_class_for, never safe_constantize: a stored type
-      # is not always a constant name. `store_full_sti_class = false` shortens
-      # it, `sti_name` can be overridden, and a bare "Invoice" under
-      # Billing::Document must not resolve to an unrelated top-level ::Invoice —
-      # the same hazard PolymorphicRegistry documents for its own tokens. An
-      # unresolvable one answers nil, which fails toward NOT claiming.
-      def current_scope_classes_in_table
-        where.not(inheritance_column => nil)
-             .distinct
-             .limit(TYPE_SCAN_CAP + 1)
-             .pluck(inheritance_column)
-             .map { |stored| current_scope_sti_class(stored) }
-      end
-
-      def current_scope_sti_class(stored)
-        sti_class_for(stored.to_s)
-      rescue ActiveRecord::SubclassNotFound, NameError
-        nil
-      end
 
       # True when rows of this table can load as some other class.
       def current_scope_inheritable_table?
@@ -188,6 +170,34 @@ module CurrentScope
         # by name is the first thing to try (#183).
         name = role.respond_to?(:name) ? role.name : role.to_s
         name.present? && allowed.include?(name)
+      end
+
+      private
+
+      # The classes the ROWS name, not the ones this process happens to have
+      # loaded. `descendants` sees only loaded classes, so a subclass nothing
+      # has referenced yet would read as "no subclass declares" and the console
+      # would state a lockdown that is false — hiding the search that reaches
+      # those very records.
+      #
+      # Through Rails' OWN sti_class_for, never safe_constantize: a stored type
+      # is not always a constant name. `store_full_sti_class = false` shortens
+      # it, `sti_name` can be overridden, and a bare "Invoice" under
+      # Billing::Document must not resolve to an unrelated top-level ::Invoice —
+      # the same hazard PolymorphicRegistry documents for its own tokens. An
+      # unresolvable one answers nil, which fails toward NOT claiming.
+      def current_scope_classes_in_table
+        where.not(inheritance_column => nil)
+             .distinct
+             .limit(TYPE_SCAN_CAP + 1)
+             .pluck(inheritance_column)
+             .map { |stored| current_scope_sti_class(stored) }
+      end
+
+      def current_scope_sti_class(stored)
+        sti_class_for(stored.to_s)
+      rescue ActiveRecord::SubclassNotFound, NameError
+        nil
       end
     end
   end

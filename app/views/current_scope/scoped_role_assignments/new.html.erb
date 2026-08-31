@@ -72,7 +72,9 @@
   <% role_name = @selected_role&.name %>
   <% if @missing_role %>
     <p id="cs_role_missing" class="cs-alert cs-picker-empty">
-      That role is no longer available. Pick one from the list to go on.
+      <%# "not found", not "deleted": an id that never named a role reaches
+          here too, and the page cannot know which happened. %>
+      That role could not be found. Pick one from the list to go on.
     </p>
   <% end %>
 
@@ -242,7 +244,10 @@
                 <% end %>
               </span>
             <% else %>
-              <span id="cs_<%= @step.search_state %>" class="cs-hint cs-picker-empty cs-<%= @step.search_state.to_s.dasherize %>">
+              <%# cs-picker-empty only where the picker IS empty: two of these
+                  states have a record selected and a Grant button beside them. %>
+              <span id="cs_<%= @step.search_state %>"
+                    class="cs-hint cs-<%= @step.search_state.to_s.dasherize %><%= " cs-picker-empty" unless @step.selected %>">
                 <% case @step.search_state
                    when :search_locked %>
                   <strong><%= @resource_type.model_name.human %></strong> accepts

@@ -26,7 +26,7 @@ module CurrentScope
       # A deleted role in a stale bookmark reads as "no role chosen" everywhere
       # downstream, which would show every type and every record with no hint
       # and a Grant button that can only fail on POST (#183).
-      @missing_role = params[:role_id].present? && @selected_role.nil?
+      @missing_role = scalar_param(:role_id).present? && @selected_role.nil?
       # Read once, through the same guard as every other param the picker takes.
       @query = scalar_param(:q)
       @subject_gid = scalar_param(:subject_gid)

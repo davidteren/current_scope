@@ -21,8 +21,11 @@
     HTML `form:` attribute, which also lets the GET stay idempotent so the
     picker still works while impersonating (read-only), where a POST would 403.
 %>
+<%# turbo_action: advance — each step writes its picks into the URL, so Back
+    steps back through the cascade instead of leaving the picker and losing all
+    four picks, and a half-made selection can be bookmarked or shared. %>
 <%= form_with url: new_scoped_role_assignment_path, method: :get, id: "cs-cascade",
-      data: { turbo_frame: "cascade" }, class: "cs-picker" do %>
+      data: { turbo_frame: "cascade", turbo_action: "advance" }, class: "cs-picker" do %>
   <p>
     <%= label_tag :role_id, "Role" %>
     <%# include_blank, or the browser preselects the first role while the server
@@ -216,6 +219,7 @@
           <%= select_tag :resource_gid,
                 options_for_select(record_options, @step.grantable_gid),
                 include_blank: "— choose a record —", form: "cs-cascade",
+                "aria-describedby": @step.hint_id,
                 data: { current_scope_autosubmit: true } %>
           <% if @step.shortened? %>
             <span id="cs_records_shortened" class="cs-hint">

@@ -66,6 +66,16 @@ module CurrentScope
       @withheld && offered_records.present? && query.blank?
     end
 
+    # The id of the hint that renders BESIDE the record select, so the select can
+    # point at it: a message an operator can see but a screen reader never ties
+    # to the control it explains is half a message (#183).
+    def hint_id
+      return "cs_records_shortened" if shortened?
+      return "cs_#{search_state}" if search_state
+
+      nil
+    end
+
     # Both :shown states mean the list HAS matches — the difference is only
     # whether the role filter took some out of it.
     def matches_shown?

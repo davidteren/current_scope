@@ -908,6 +908,31 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_select "turbo-frame#cascade[role=status][aria-live=polite]"
   end
 
+  # A hint an operator can see but a screen reader never ties to the control it
+  # explains is half a message (#183).
+  test "the record select points at the hint that explains its list" do
+    21.times { |i| Receipt.create!(title: "Q3 receipt #{i}") }
+    Invoice.create!(title: "INV-1")
+    declare_grantable_roles(Receipt, [ "Owner" ])
+    declare_grantable_roles(Invoice, [ "Member" ])
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
+          headers: as(@owner)
+
+      assert_select "#cs_records_shortened"
+      assert_select "select[name=resource_gid][aria-describedby=cs_records_shortened]"
+    end
+  end
+
+  # Each step writes its picks into the URL, so Back steps through the cascade
+  # instead of leaving the picker and losing all four (#183).
+  test "the cascade advances history" do
+    get current_scope.new_scoped_role_assignment_path, headers: as(@owner)
+
+    assert_select "form#cs-cascade[data-turbo-action=advance]"
+  end
+
   # The Grant button posts what the operator can SEE selected. A resource_gid
   # survives every autosubmit, so an earlier pick must not ride along after the
   # role or the type moves on (#183).

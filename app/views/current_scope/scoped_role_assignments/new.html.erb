@@ -180,10 +180,10 @@
             be granted here.
           <% when :records_refused_searchable %>
             None of the <%= @resource_type.model_name.human.pluralize.downcase %>
-            looked at accept <strong><%= role_name %></strong>. Search for one<%
-              %><% if @step.locked? %>: <strong><%= @resource_type.model_name.human %></strong>
-            accepts no scoped roles itself, so a different role will not help<%
-              %><% else %>, or pick a different role<% end %>.
+            <%# A locked type never reaches this state: it renders
+                :records_locked, where no search can help at all. %>
+            looked at accept <strong><%= role_name %></strong>. Search for one,
+            or pick a different role.
           <% when :records_refused_unread %>
             None of the <%= @resource_type.model_name.human.pluralize.downcase %>
             read accept <strong><%= role_name %></strong>, and there are more

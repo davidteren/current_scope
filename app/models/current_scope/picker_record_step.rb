@@ -44,11 +44,15 @@ module CurrentScope
     # renders and the Grant button is checked against, so the button can never
     # post a record the select did not show (#183 review).
     # What the Grant button posts: the record that survived both gates, by its
-    # OWN GlobalID. Nil is the button's absence.
+    # OWN GlobalID. Nil is the button's absence. It is always on the list below,
+    # because that list prepends it.
     def grantable_gid
       selected&.to_gid&.to_s
     end
 
+    # The records on offer, the selected one first — the ONE list the select
+    # renders, so the button can never post a record the select did not show
+    # (#183 review).
     def offered_records
       list = Array(records)
       return list if selected.nil? || list.any? { |record| same?(record, selected) }
@@ -71,13 +75,6 @@ module CurrentScope
     # whether the role filter took some out of it.
     def matches_shown?
       [ :search_shown, :search_shown_withheld ].include?(search_state)
-    end
-
-    # The chosen type declares an empty list: no role will list a record that
-    # inherits that declaration, which is what makes "pick a different role"
-    # the wrong advice beside it.
-    def locked?
-      @locked
     end
 
     # A query that is IN EFFECT always brings its field, whether or not the type
@@ -114,17 +111,19 @@ module CurrentScope
     # :records_refused            — all read refuse it, nothing left to read
     # :records_none               — the type simply has no records
     def records_state
-      # advise_search? FIRST: a locked base can still hold subclass records that
-      # declare their own roles, and when a search reads past the scanned window
-      # it can find them — "none ever will" would be untrue there (#183 review).
+      # LOCKED first. @locked now means locked all the way down — the type
+      # declares an empty list and no subclass states one of its own — so no
+      # search can reach a record that accepts anything, and offering one would
+      # be the advice this state exists to replace. (It was ordered the other
+      # way while @locked meant the base alone; the predicate moved, so the
+      # order follows it.) No @withheld either: an empty table refuses nothing,
+      # and a lockdown is knowable on the first visit, where "no records to pick
+      # from yet" would send the operator off to create one (#183 review).
+      return :records_locked if @locked && role
       # No `&& role` on the withheld branches: the role filter cannot remove a
       # record without a role, so @withheld carries one. @locked does not, which
       # is why that guard is the one that stays (#183 review).
       return :records_refused_searchable if advise_search?
-      # No @withheld here: an empty table refuses nothing, and a lockdown is
-      # knowable on the first visit. "No records to pick from yet" would send
-      # the operator off to create one, only to be told then (#183 review).
-      return :records_locked if @locked && role
       # The scan stopped at its cap and no indexed scope can read past it, so a
       # grantable record may exist that this page cannot reach. Saying only
       # "pick a different role" would send the operator away from records that

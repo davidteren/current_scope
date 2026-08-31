@@ -685,6 +685,27 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # Locked all the way down, with an indexed scope and rows past the window: a
+  # search cannot reach a record that accepts anything, so the lockdown wins
+  # over the advice to search (#183 review).
+  test "a locked hierarchy says so rather than offering a search that cannot help" do
+    now = Time.current
+    rows = Array.new(CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP + 1) do |i|
+      { title: "RCT-#{i}", type: "Receipt", created_at: now, updated_at: now }
+    end
+    Document.insert_all(rows)
+    declare_grantable_roles(Document, [])
+    stub_searchable_scope(Document)
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
+          headers: as(@owner)
+
+      assert_select "#cs_records_locked", /Document/
+      assert_select "#cs_records_refused_searchable", count: 0
+    end
+  end
+
   # A locked base can still hold subclass records that declare their own roles,
   # and past the scanned window a search can find them — "none ever will" is
   # untrue there, so the advice to search wins (#183 review).

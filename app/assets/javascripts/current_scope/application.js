@@ -17,12 +17,13 @@ document.addEventListener("change", function (event) {
   if (!el || typeof el.matches !== "function") return;
   if (!el.matches("[data-current-scope-autosubmit]")) return;
 
-  // The submitting control usually lives INSIDE the frame Turbo is about to
-  // replace, so it is destroyed by its own submit and focus falls to the body.
-  // Remember it and put focus back when the frame lands, or a keyboard operator
-  // is thrown to the top of the document on every pick — including in the
-  // search field the page tells them to refine.
-  if (el.id) currentScopeFocusId = el.id;
+  // A control INSIDE the frame is destroyed by its own submit, so focus falls
+  // to the body; remember it and put focus back when the frame lands, or a
+  // keyboard operator is thrown to the top of the document on every pick,
+  // including in the search field the page tells them to refine. Only in-frame
+  // controls: the role and subject selects live outside it and are never
+  // replaced, so re-focusing one would move focus for no reason.
+  if (el.id && el.closest("turbo-frame#cascade")) currentScopeFocusId = el.id;
   var form = el.form || el.closest("form");
   if (form) form.requestSubmit();
 });
@@ -35,6 +36,10 @@ document.addEventListener("turbo:frame-load", function (event) {
   var el = document.getElementById(currentScopeFocusId);
   currentScopeFocusId = null;
   if (!el || typeof el.focus !== "function") return;
+  // Only when focus was actually lost with the old element. If the operator
+  // moved somewhere else while the request was in flight, leave them there.
+  var active = document.activeElement;
+  if (active && active !== document.body && active !== document.documentElement) return;
 
   el.focus();
   // A text field keeps its caret at the end, so typing continues where it was.

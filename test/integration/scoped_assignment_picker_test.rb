@@ -782,6 +782,29 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_select "#cs_resource_refused", /different resource type/
   end
 
+  # ...unless the page has already said no type here takes any role. Naming
+  # another type would contradict the message right below it (#183).
+  test "a refused link says nothing about types when no type accepts anything" do
+    locked = Class.new do
+      include CurrentScope::GrantableRoles
+      def self.name = "LockedThing"
+      def self.model_name = ActiveModel::Name.new(self, nil, "LockedThing")
+      self.current_scope_grantable_roles = [] # throwaway class: nothing to restore
+    end
+    folder = Folder.create!(name: "Q3 Ledger")
+    declare_grantable_roles(Folder, [])
+
+    with_scopeable_resources([ locked ]) do
+      get current_scope.new_scoped_role_assignment_path(
+        role_id: @member_role.id, resource_gid: folder.to_gid.to_s
+      ), headers: as(@owner)
+
+      assert_select "#cs_types_none_accept_locked"
+      assert_select "#cs_resource_refused", /Q3 Ledger/
+      assert_select "#cs_resource_refused", { text: /Pick a different/, count: 0 }
+    end
+  end
+
   # A locked base can still hold subclass records that declare their own roles,
   # and past the scanned window a search can find them — "none ever will" is
   # untrue there, so the advice to search wins (#183).

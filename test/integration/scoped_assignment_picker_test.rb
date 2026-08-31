@@ -659,12 +659,15 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   test "an undeclared STI type keeps the narrow indexed fetch" do
     Receipt.create!(title: "Doc 1")
     stub_searchable_scope(Document)
-    # SQLite binds the LIMIT, so read the bound values rather than the SQL text.
+    # Adapters differ: SQLite binds the LIMIT, MySQL inlines it in the SQL. Read
+    # both, or this pins one adapter and fails on the other.
     limits = []
     watcher = lambda do |*, payload|
-      next unless payload[:sql].to_s.include?("documents") && payload[:sql].to_s.include?("LIMIT")
+      sql = payload[:sql].to_s
+      next unless sql.include?("documents") && sql.include?("LIMIT")
 
-      limits.concat(Array(payload[:binds]).map(&:value))
+      limits.concat(sql.scan(/LIMIT\s+(\d+)/i).flatten.map(&:to_i))
+      limits.concat(Array(payload[:binds]).map(&:value).grep(Integer))
     end
 
     with_scopeable_resources([ Document ]) do

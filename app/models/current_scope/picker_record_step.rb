@@ -105,7 +105,10 @@ module CurrentScope
       # declare their own roles, and when a search reads past the scanned window
       # it can find them — "none ever will" would be untrue there (#183 review).
       return :records_refused_searchable if advise_search? && role
-      return :records_locked if @locked && @withheld && role
+      # No @withheld here: an empty table refuses nothing, and a lockdown is
+      # knowable on the first visit. "No records to pick from yet" would send
+      # the operator off to create one, only to be told then (#183 review).
+      return :records_locked if @locked && role
       return :records_refused if @withheld && role
 
       :records_none

@@ -290,8 +290,11 @@ end
   role may be granted on that type. It is an assignment rather than a DSL call
   precisely so a computed empty list declares the lockdown instead of silently
   reading the current value. Assigning **`nil`** is the opposite: it means no
-  declaration, so a list read from config with a missing key leaves the default
-  in place rather than locking the type. Mind the difference when you compute
+  declaration, so a list read from config with a missing key leaves the type as
+  it was rather than locking it. "As it was" means the accept-everything default
+  on a plain class, and the **parent's** declaration on a subclass, which is the
+  next bullet's inheritance rule: `SpecialInvoice.current_scope_grantable_roles
+  = nil` under a locked-down base inherits that lockdown. Mind the difference when you compute
   the list: `ENV.fetch("CS_ROLES", "").split(",")` is `[]` with the variable
   unset, which is a lockdown, and that is the fail-closed answer. Assign `nil`
   when you mean "no declaration".

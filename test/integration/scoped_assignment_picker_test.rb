@@ -630,6 +630,20 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # The lockdown is knowable before any record exists: "no records yet" would
+  # send the operator to create one and be told then (#183 review).
+  test "a locked type with an empty table says so on the first visit" do
+    declare_grantable_roles(Document, [])
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
+          headers: as(@owner)
+
+      assert_select "#cs_records_locked"
+      assert_select "#cs_records_none", count: 0
+    end
+  end
+
   # A locked base can still hold subclass records that declare their own roles,
   # and past the scanned window a search can find them — "none ever will" is
   # untrue there, so the advice to search wins (#183 review).

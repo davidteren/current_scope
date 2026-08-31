@@ -1,0 +1,27 @@
+app/views/current_scope/scoped_role_assignments/new.html.erb
+  s_240773ee81a9c0::t_131462713444ed 165,167,171,187,201,203,211,213,219,225,230
+app/models/current_scope/picker_record_step.rb
+  s_240773ee81a9c0::t_4b123fb677f1e6 58,81-89,91-92,94,104,110-111,113
+app/models/current_scope/scoped_role_assignment.rb
+  s_240773ee81a9c0::t_70c62b707db88a 131-134
+docs/guides/checking-permissions.md
+  s_240773ee81a9c0::t_70c62b707db88a 300-302
+app/controllers/current_scope/scoped_role_assignments_controller.rb
+  s_240773ee81a9c0::t_4b123fb677f1e6 72-82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "fb9dbf6722dde20b7c62f95f03e07610d0c9c5a4",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

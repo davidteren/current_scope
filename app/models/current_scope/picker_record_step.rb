@@ -16,7 +16,8 @@ module CurrentScope
     # indexed     the type has an indexed search scope, which reads past that cap
     # searchable  the type holds more rows than the search threshold
     # deep_linked a linked record that survived the type and role gates
-    def initialize(records:, withheld:, unread:, indexed:, searchable:, query:, role:, deep_linked:)
+    def initialize(records:, withheld:, unread:, indexed:, searchable:, query:, role:, deep_linked:,
+                   locked: false)
       @records = records
       @withheld = withheld
       @unread = unread
@@ -25,6 +26,7 @@ module CurrentScope
       @query = query
       @role = role
       @deep_linked = deep_linked
+      @locked = locked
     end
 
     # The empty state is skipped when a deep-linked record survived: it is
@@ -87,10 +89,12 @@ module CurrentScope
     # list is empty with no query, that one only with a query). Every name is
     # defined once, so no name can carry two sentences (#183 review).
     #
+    # :records_locked             — the type itself accepts no role at all
     # :records_refused_searchable — all read refuse the role, more rows unread
     # :records_refused            — all read refuse it, nothing left to read
     # :records_none               — the type simply has no records
     def records_state
+      return :records_locked if @locked && @withheld && role
       return :records_refused_searchable if advise_search? && role
       return :records_refused if @withheld && role
 
@@ -101,7 +105,10 @@ module CurrentScope
     # A surviving deep-linked record silences the refusals: it is selected and
     # grantable, so "pick a different role" would contradict what is on screen.
     def search_state
-      return nil unless offer_search? && query.present?
+      # query.present? alone: offer_search? answers true for any query, so
+      # asking it here would be a condition that cannot decide anything. It
+      # decides in advise_search?, where the box's absence matters.
+      return nil if query.blank?
       # Matches ARE shown, but the role filter took some of them out of the
       # list, and no other hint on the page covers records (#183 review).
       return @withheld ? :search_shown_withheld : :search_shown if records.present?

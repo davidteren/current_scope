@@ -630,6 +630,21 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # And when that locked type IS picked, the record step has to say what the
+  # type step could not: no role will ever list these (#183 review).
+  test "a locked type says so where its records would be, not to pick another role" do
+    Receipt.create!(title: "RCT-1")
+    declare_grantable_roles(Document, [])
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
+          headers: as(@owner)
+
+      assert_select "#cs_records_locked"
+      assert_select "#cs_records_refused", count: 0
+    end
+  end
+
   # And with nothing but lockdowns registered, the same promise would be just as
   # empty on the page that says no type accepts the role.
   test "with every type locked down, the page does not blame the role either" do

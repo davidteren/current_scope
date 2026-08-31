@@ -67,7 +67,13 @@ module CurrentScope
         # search re-reads the very rows an empty list came from.
         indexed: @resource_type.respond_to?(:current_scope_searchable_scope),
         searchable: searchable?(@resource_type), query: @query,
-        role: @selected_role, deep_linked: @resource
+        role: @selected_role, deep_linked: @resource,
+        # An empty declaration on the chosen type is a LOCKDOWN: no role will
+        # ever list a record that inherits it, so "pick a different role" is a
+        # promise none can keep. The type step says this for a type it withheld;
+        # an STI base is kept ON OFFER, so the record step has to say it too
+        # (#183 review).
+        locked: @resource_type.try(:current_scope_grantable_roles)&.empty? || false
       )
       # The record's OWN GlobalID, and only when it survived judge_deep_link —
       # which is the gate: a stale gid, a record of another type or one whose

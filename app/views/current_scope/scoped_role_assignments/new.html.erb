@@ -156,7 +156,7 @@
                 form: "cs-cascade", data: { current_scope_autosubmit: true } %>
         </p>
       <% end %>
-      <%# @resource excluded: a surviving deep-linked record is prepended to the
+      <%# The deep-linked record is excluded: it is prepended to the
           options in the else branch, and skipping to the empty state would leave
           a Grant button posting a record the page never shows (#183 review). %>
       <% if @step.empty? %>
@@ -207,7 +207,7 @@
           <% end %>
           <% if @step.search_state %>
             <%# Keyed off the raw SEARCH results, not record_options — a
-                deep-linked @resource is prepended to the options even when the
+                deep-linked record is prepended to the options even when the
                 query matched nothing, and must not fake a "matches shown". %>
             <% if @step.matches_shown? %>
               <span id="cs_<%= @step.search_state %>" class="cs-hint cs-search-shown">

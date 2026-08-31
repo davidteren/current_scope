@@ -151,7 +151,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     invoice = Invoice.create!(title: "Doc 50")
     declare_grantable_roles(Document, [ "Owner" ])
     declare_grantable_roles(Invoice, [ "Member" ])
-    Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
+    stub_searchable_scope(Document)
 
     with_scopeable_resources([ Document ]) do
       get current_scope.new_scoped_role_assignment_path(
@@ -253,7 +253,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     # Past SEARCH_THRESHOLD, so the type really offers a search box.
     21.times { |i| Receipt.create!(title: "Quarter close #{i}") }
     declare_grantable_roles(Document, [ "Owner" ])
-    Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
+    stub_searchable_scope(Document)
 
     with_scopeable_resources([ Document ]) do
       get current_scope.new_scoped_role_assignment_path(
@@ -283,7 +283,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
     Document.insert_all(rows)
     declare_grantable_roles(Document, [ "Owner" ])
-    Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
+    stub_searchable_scope(Document)
 
     with_scopeable_resources([ Document ]) do
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
@@ -311,7 +311,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
     Document.insert_all(rows)
     declare_grantable_roles(Document, [ "Owner" ])
-    Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
+    stub_searchable_scope(Document)
 
     with_scopeable_resources([ Document ]) do
       get current_scope.new_scoped_role_assignment_path(
@@ -320,10 +320,6 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_select "#cs_search_refused_searchable", /Member/
       assert_select "#cs_search_refused", count: 0
-    end
-  ensure
-    if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
-      Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
     end
   end
 
@@ -336,7 +332,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
     Document.insert_all(rows)
     declare_grantable_roles(Document, [ "Owner" ])
-    Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
+    stub_searchable_scope(Document)
 
     with_scopeable_resources([ Document ]) do
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
@@ -344,10 +340,6 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_select "#cs_records_refused"
       assert_select "#cs_records_refused_searchable", count: 0
-    end
-  ensure
-    if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
-      Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
     end
   end
 
@@ -357,7 +349,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   test "a fully read table does not suggest searching, even with an indexed scope" do
     21.times { |i| Receipt.create!(title: "RCT-#{i}") }
     declare_grantable_roles(Document, [ "Owner" ])
-    Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
+    stub_searchable_scope(Document)
 
     with_scopeable_resources([ Document ]) do
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
@@ -367,10 +359,6 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
       assert_select "#cs_records_refused_searchable", count: 0
       assert_select "input[name=q]", count: 0,
                     message: "a box beside a message saying searching cannot help is its own contradiction"
-    end
-  ensure
-    if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
-      Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
     end
   end
 
@@ -657,7 +645,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   # wider fetch where a declaration can actually remove rows (#183 review).
   test "an undeclared STI type keeps the narrow indexed fetch" do
     Receipt.create!(title: "Doc 1")
-    Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
+    stub_searchable_scope(Document)
     # SQLite binds the LIMIT, so read the bound values rather than the SQL text.
     limits = []
     watcher = lambda do |*, payload|
@@ -677,10 +665,6 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_includes limits, CurrentScope::ScopedRoleAssignmentsController::DISPLAY_LIMIT + 1,
                     "no class here declares its roles, so the filter can drop nothing"
     assert_not_includes limits, CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP + 1
-  ensure
-    if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
-      Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
-    end
   end
 
   # A locked base can still hold subclass records that declare their own roles,
@@ -694,7 +678,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     Document.insert_all(rows)
     declare_grantable_roles(Document, [])
     declare_grantable_roles(SpecialInvoice, [ "Member" ])
-    Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
+    stub_searchable_scope(Document)
 
     with_scopeable_resources([ Document ]) do
       get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
@@ -702,10 +686,6 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_select "#cs_records_refused_searchable"
       assert_select "#cs_records_locked", count: 0
-    end
-  ensure
-    if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
-      Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
     end
   end
 

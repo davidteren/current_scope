@@ -139,6 +139,26 @@ class GrantableRolesTest < ActiveSupport::TestCase
   # An empty declaration is a LOCKDOWN, not "no restriction" (#183 review). A
   # host computing the list from config and getting an empty array must not find
   # the type wide open.
+  # The record answers for itself while it is there. Once it is gone, the stored
+  # token is all that is left, and that token names the BASE class — so an
+  # orphaned STI grant meets the base's declaration, not the subclass's. The
+  # guide says so; this pins it, because a resolver that answered nil here
+  # instead would skip the gate and open every orphaned grant (#183 review).
+  test "an orphaned STI grant is judged by the base class" do
+    special = SpecialInvoice.create!(title: "SI-1")
+    assignment = CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: @container, resource: special)
+    declare_grantable_roles(Document, [])
+    declare_grantable_roles(SpecialInvoice, [ "Project Lead" ])
+
+    assert assignment.valid?, "the live record is a SpecialInvoice, which accepts this role"
+
+    special.delete # leaves the grant pointing at a row that is no longer there
+    assignment.reload
+
+    assert_not assignment.valid?
+    assert_includes assignment.errors[:role].first, "cannot be granted on Document"
+  end
+
   test "an empty declaration accepts no role at all" do
     declare_grantable_roles(Project, [])
 

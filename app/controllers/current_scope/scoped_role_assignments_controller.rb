@@ -30,13 +30,13 @@ module CurrentScope
       # Read once, through the same guard as every other param the picker takes.
       @query = scalar_param(:q)
       @subject_gid = scalar_param(:subject_gid)
-      @all_scopeable = CurrentScope.scopeable_resources
+      all_scopeable = CurrentScope.scopeable_resources
       # #183: the cascade picks the ROLE first, so the types are what gets
       # narrowed. A type that declares its grantable roles and does not list this
       # one is not offered, and the view says how many were withheld — silently
       # shortening a dropdown is its own kind of surprise. The model validation
       # is the actual gate; this only keeps the operator out of a dead end.
-      @scopeable = grantable_types(@all_scopeable, @selected_role)
+      scopeable = grantable_types(all_scopeable, @selected_role)
       @bulk_subjects = resolve_bulk_subjects # [] unless a multi-select bulk grant
 
       # The record a deep link asked for, before any gate has judged it.
@@ -49,14 +49,14 @@ module CurrentScope
       # would otherwise leave the withheld type selected, its records loaded and
       # a Grant button showing, directly under a hint saying that type was not
       # listed — the dead end this filter exists to prevent (#183 review).
-      chosen_type = resolve_type(scalar_param(:resource_type), within: @scopeable)
+      chosen_type = resolve_type(scalar_param(:resource_type), within: scopeable)
       @resource_type = chosen_type || deep_linked_type(anchor, @selected_role)
-      @resource = kept_deep_link(linked, @resource_type, @selected_role, chosen_type)
+      resource = kept_deep_link(linked, @resource_type, @selected_role, chosen_type)
       # From the ANCHOR, not the selected record: on the submits where the record
       # select is not on screen only linked_gid comes back, and the explanation
       # would vanish exactly where the operator is stuck (#183 review).
       refused = refused_deep_link(anchor, @selected_role, chosen_type)
-      @types = PickerTypeStep.new(all_types: @all_scopeable, offered: @scopeable,
+      @types = PickerTypeStep.new(all_types: all_scopeable, offered: scopeable,
                                   resolved: @resource_type, role: @selected_role,
                                   anchor: anchor, refused_link: refused)
       records, withheld, unread = candidate_records(@resource_type, @query, @selected_role)
@@ -68,7 +68,7 @@ module CurrentScope
         # search re-reads the very rows an empty list came from.
         indexed: @resource_type.respond_to?(:current_scope_searchable_scope),
         searchable: searchable?(@resource_type), query: @query,
-        role: @selected_role, deep_linked: @resource,
+        role: @selected_role, deep_linked: resource,
         # An empty declaration on the chosen type is a LOCKDOWN: no role will
         # ever list a record that inherits it, so "pick a different role" is a
         # promise none can keep. The type step says this for a type it withheld;
@@ -168,8 +168,8 @@ module CurrentScope
       return false unless klass.respond_to?(:has_attribute?) && klass.respond_to?(:inheritance_column)
 
       klass.has_attribute?(klass.inheritance_column)
-    rescue StandardError
-      false # tableless double, or no database to ask
+    rescue ActiveRecord::ActiveRecordError
+      false # no database to ask; a NoMethodError here would be a bug in this gem
     end
 
     # True when this class or a LOADED descendant declares its grantable roles,
@@ -188,8 +188,6 @@ module CurrentScope
       return false unless klass.respond_to?(:descendants)
 
       klass.descendants.any? { |sub| !sub.try(:current_scope_grantable_roles).nil? }
-    rescue StandardError
-      false
     end
 
     # The type for a deep link, only when the linked record's own class accepts

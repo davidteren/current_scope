@@ -61,7 +61,33 @@ module CurrentScope
   end
 end
 
+# A14 + #183: several picker tests give a model the opt-in indexed search hook.
+# Leaving it defined makes every LATER test take the indexed branch, which
+# changes what the picker offers and advises, so the same teardown was
+# hand-copied into eight tests. One helper removes it once (#183 review).
+module CurrentScope
+  module SearchableScopeStub
+    HOOK = :current_scope_searchable_scope
+
+    def stub_searchable_scope(klass, &relation)
+      (@searchable_scope_stubs ||= []) << klass
+      klass.define_singleton_method(HOOK, &(relation || ->(_term) { all }))
+    end
+
+    def remove_searchable_scope_stubs!
+      Array(@searchable_scope_stubs).each do |klass|
+        klass.singleton_class.send(:remove_method, HOOK) if klass.singleton_class.method_defined?(HOOK)
+      end
+      @searchable_scope_stubs = nil
+    end
+  end
+end
+
 class ActiveSupport::TestCase
   include CurrentScope::GrantableRolesIsolation
-  teardown { restore_grantable_roles! }
+  include CurrentScope::SearchableScopeStub
+  teardown do
+    restore_grantable_roles!
+    remove_searchable_scope_stubs!
+  end
 end

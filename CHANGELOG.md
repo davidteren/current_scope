@@ -29,6 +29,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   it and says how many were withheld and why, rather than silently shortening a
   dropdown.
 
+  The check is a validation, so it judges a grant when the row is written and
+  never again: the rows already in the table when a declaration lands are exactly
+  the ones the widening was noticed on. `bin/rails current_scope:report` now
+  lists the grants whose type would refuse them today, so a host can find and
+  revoke them.
+
   **Absent a declaration nothing changes**: every role stays grantable on every
   type, which is what every existing host has. The declaration lives on the
   resource rather than on the role, because that is already where a host says how

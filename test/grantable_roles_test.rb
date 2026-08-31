@@ -162,6 +162,20 @@ class GrantableRolesTest < ActiveSupport::TestCase
     assert_not_includes CurrentScope.scopeable_resources, Project
   end
 
+  # The other half of "adding a declaration rewrites no existing grant": the row
+  # already written keeps RESOLVING. The gate is a validation, and the resolver
+  # never asks it — `bin/rails current_scope:report` is what names those rows.
+  test "a grant written before the declaration keeps resolving afterwards" do
+    CurrentScope::ScopedRoleAssignment.create!(subject: @alice, role: @per_record, resource: @project)
+    resolver = CurrentScope::Resolver.new
+    assert resolver.allow?(subject: @alice, permission: "reports#show", record: @report)
+
+    declare_grantable_roles(Project, [ "Project Lead" ])
+
+    assert resolver.allow?(subject: @alice, permission: "reports#show", record: @report),
+      "the declaration judges WRITES; the row that predates it is untouched and still opens the child"
+  end
+
   # A seed, a rake task and a console one-liner all write through the model, so
   # the model is where the rule has to live — the console's filtering is a
   # convenience on top of it.

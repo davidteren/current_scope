@@ -258,7 +258,9 @@ end
 
 This is **browse-only sugar** — it does *not* gate anything. The raw-GlobalID
 path still accepts **any** model as a scoped-role target whether or not it opts
-in; the mixin only decides what shows up in the dropdown. `current_scope_label`
+in, and once a record of such a type is linked the console will list that type's
+records too, so a full-access operator can browse a table you never registered;
+the mixin only decides what shows up in the dropdown unprompted. `current_scope_label`
 is a plain instance method, so your own definition always wins over the default.
 
 ### Which roles may be granted on a type (#183)
@@ -316,7 +318,8 @@ end
 code makes: role ids are per-database and cannot be named in a model file. So
 renaming a role stops the declarations that name it from matching, and a new role
 that reuses the name inherits its acceptance. If you rename a role, grep for its
-old name in your models.
+old name in your models, and run `bin/rails current_scope:report`: it lists the
+grants whose type would refuse them today, which is where a rename shows up.
 
 Adding a declaration does not rewrite or delete any grant already in the table.
 It does apply the next time such a row is **saved**, though: the check runs on

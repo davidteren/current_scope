@@ -1,0 +1,19 @@
+test/integration/scoped_assignment_picker_test.rb
+  s_240773ee81a9c0::t_b97b8a4bbc704b 662-663,666-667,669-670
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "50491e2db36490edd489328f98850136b70aaeea",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

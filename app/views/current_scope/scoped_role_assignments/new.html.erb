@@ -73,9 +73,9 @@
   <%# A refused deep link is explained wherever it happens, INCLUDING the states
       below that render nothing else — the refusal is often why the picker has
       no type on screen at all (#183 review). %>
-  <% if @refused_resource && role_name %>
+  <% if @step.refused && role_name %>
     <p id="cs_resource_refused" class="cs-hint cs-picker-empty cs-resource-refused">
-      The linked <strong><%= current_scope_label(@refused_resource) %></strong>
+      The linked <strong><%= current_scope_label(@step.refused) %></strong>
       is not in the list: <strong><%= role_name %></strong> may not be
       granted on it. Pick a different role, or a different record.
     </p>
@@ -85,8 +85,8 @@
       type cannot be resolved from its name, only from a record. Outside the
       case for the same reason the submit is: the states that render nothing
       else are the ones an operator most needs to get back out of (#183 review). %>
-  <% if @type_anchor_gid %>
-    <%= hidden_field_tag :linked_gid, @type_anchor_gid, form: "cs-cascade" %>
+  <% if @types.anchor_gid %>
+    <%= hidden_field_tag :linked_gid, @types.anchor_gid, form: "cs-cascade" %>
   <% end %>
 
   <%# Two different empties (#183 review): nothing registered at all, and
@@ -193,7 +193,7 @@
               (#183 review). %>
           <% record_options = @step.offered_records.map { |record| [ current_scope_label(record), record.to_gid.to_s ] } %>
           <%= select_tag :resource_gid,
-                options_for_select(record_options, @grantable_gid),
+                options_for_select(record_options, @step.grantable_gid),
                 include_blank: "— choose a record —", form: "cs-cascade",
                 data: { current_scope_autosubmit: true } %>
           <% if @step.shortened? %>
@@ -264,19 +264,19 @@
         selected (nil when the stale one is no longer listed). %>
     <%# The RESOLVED role, not the param: a deleted id would otherwise post a
         Grant that can only fail (#183 review). %>
-    <% ready = @selected_role.present? && @grantable_gid.present? %>
+    <% ready = @selected_role.present? && @step.grantable_gid.present? %>
     <% if @bulk_subjects.any? %>
       <% if ready %>
         <%= button_to "Grant to #{@bulk_subjects.size} #{'subject'.pluralize(@bulk_subjects.size)}",
               scoped_role_assignments_path, method: :post,
-              params: { role_id: @selected_role.id, resource_gid: @grantable_gid,
+              params: { role_id: @selected_role.id, resource_gid: @step.grantable_gid,
                         subject_gids: @bulk_subjects.map { |s| s.to_gid.to_s } },
               data: { turbo_frame: "_top" }, class: "cs-btn-primary" %>
       <% end %>
     <% elsif ready && @subject_gid.present? %>
       <%= button_to "Grant scoped role", scoped_role_assignments_path, method: :post,
             params: { role_id: @selected_role.id, subject_gid: @subject_gid,
-                      resource_gid: @grantable_gid },
+                      resource_gid: @step.grantable_gid },
             data: { turbo_frame: "_top" }, class: "cs-btn-primary" %>
     <% end %>
   </p>

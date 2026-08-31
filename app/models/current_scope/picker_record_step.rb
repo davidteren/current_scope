@@ -8,7 +8,7 @@ module CurrentScope
   # without moving the sentence beside it, which is the drift that produced
   # most of this feature's review findings.
   class PickerRecordStep
-    attr_reader :records, :query, :role, :deep_linked
+    attr_reader :records, :query, :role, :deep_linked, :refused
 
     # records     rows on offer, already role-filtered (nil ⇒ no type chosen)
     # withheld    the role filter removed rows from what was read
@@ -17,7 +17,7 @@ module CurrentScope
     # searchable  the type holds more rows than the search threshold
     # deep_linked a linked record that survived the type and role gates
     def initialize(records:, withheld:, unread:, indexed:, searchable:, query:, role:, deep_linked:,
-                   locked: false)
+                   refused: nil, locked: false)
       @records = records
       @withheld = withheld
       @unread = unread
@@ -26,6 +26,7 @@ module CurrentScope
       @query = query
       @role = role
       @deep_linked = deep_linked
+      @refused = refused
       @locked = locked
     end
 
@@ -39,6 +40,12 @@ module CurrentScope
     # The records on offer, the deep-linked one first — the ONE list the select
     # renders and the Grant button is checked against, so the button can never
     # post a record the select did not show (#183 review).
+    # What the Grant button posts: the record that survived both gates, by its
+    # OWN GlobalID. Nil is the button's absence.
+    def grantable_gid
+      deep_linked&.to_gid&.to_s
+    end
+
     def offered_records
       list = Array(records)
       return list if deep_linked.nil? || list.any? { |record| same?(record, deep_linked) }
@@ -94,8 +101,11 @@ module CurrentScope
     # :records_refused            — all read refuse it, nothing left to read
     # :records_none               — the type simply has no records
     def records_state
-      return :records_locked if @locked && @withheld && role
+      # advise_search? FIRST: a locked base can still hold subclass records that
+      # declare their own roles, and when a search reads past the scanned window
+      # it can find them — "none ever will" would be untrue there (#183 review).
       return :records_refused_searchable if advise_search? && role
+      return :records_locked if @locked && @withheld && role
       return :records_refused if @withheld && role
 
       :records_none

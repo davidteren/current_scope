@@ -41,11 +41,8 @@ module CurrentScope
 
       # The record a deep link asked for, before any gate has judged it.
       linked = deep_linked_resource(scalar_param(:resource_gid))
-      # A type reached by deep link need not be registered, so it cannot be
-      # resolved from its NAME on the next request — only from a record. Blanking
-      # the Record select would otherwise drop the type out of the picker with no
-      # way back but the browser's Back button, so the cascade carries the gid
-      # that anchors it (#183 review).
+      # Blanking the Record select would otherwise drop an unregistered
+      # deep-linked type out of the picker: the type step carries its anchor.
       anchor = linked || deep_linked_resource(scalar_param(:linked_gid))
       # Resolved against the FILTERED list: the cascade carries resource_type on
       # every autosubmit, so picking a role, then a type, then changing the role
@@ -54,10 +51,9 @@ module CurrentScope
       # listed — the dead end this filter exists to prevent (#183 review).
       @resource_type = resolve_type(scalar_param(:resource_type), within: @scopeable) ||
                        deep_linked_type(anchor, @selected_role)
-      @resource, @refused_resource = judge_deep_link(linked, @resource_type, @selected_role)
-      @type_anchor_gid = anchor&.to_gid&.to_s unless @scopeable.include?(@resource_type)
+      @resource, refused = judge_deep_link(linked, @resource_type, @selected_role)
       @types = PickerTypeStep.new(all_types: @all_scopeable, offered: @scopeable,
-                                  resolved: @resource_type, role: @selected_role)
+                                  resolved: @resource_type, role: @selected_role, anchor: anchor)
       records, withheld, unread = candidate_records(@resource_type, @query, @selected_role)
       # One object owns every display decision for the record step, so the
       # control and the sentence beside it cannot drift apart (#183 review).
@@ -67,25 +63,14 @@ module CurrentScope
         # search re-reads the very rows an empty list came from.
         indexed: @resource_type.respond_to?(:current_scope_searchable_scope),
         searchable: searchable?(@resource_type), query: @query,
-        role: @selected_role, deep_linked: @resource,
+        role: @selected_role, deep_linked: @resource, refused: refused,
         # An empty declaration on the chosen type is a LOCKDOWN: no role will
         # ever list a record that inherits it, so "pick a different role" is a
         # promise none can keep. The type step says this for a type it withheld;
         # an STI base is kept ON OFFER, so the record step has to say it too
         # (#183 review).
-        locked: @resource_type.try(:current_scope_grantable_roles)&.empty? || false
+        locked: @resource_type.try(:current_scope_locked_down?) || false
       )
-      # The record's OWN GlobalID, and only when it survived judge_deep_link —
-      # which is the gate: a stale gid, a record of another type or one whose
-      # class refuses the role leaves @resource nil, and no button. The step
-      # always offers this record, so re-asking it would be a check that cannot
-      # fail, reading like protection while judge_deep_link does the work.
-      #
-      # The record's gid rather than the param, because a hand-written link can
-      # name an STI record by its base token (gid://app/Document/5 for a
-      # SpecialInvoice): it locates the right row, and a string compare then
-      # matched nothing (#183 review).
-      @grantable_gid = @resource&.to_gid&.to_s
     end
 
     def create

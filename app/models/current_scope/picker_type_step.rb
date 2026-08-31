@@ -9,11 +9,19 @@ module CurrentScope
     # offered    what survived it
     # resolved   the type on screen (may be reached by deep link, and then it
     #            need not be registered at all)
-    def initialize(all_types:, offered:, resolved:, role:)
+    def initialize(all_types:, offered:, resolved:, role:, anchor: nil)
       @all_types = all_types
       @offered = offered
       @resolved = resolved
       @role = role
+      @anchor = anchor
+    end
+
+    # A type reached by deep link need not be registered, so it cannot be
+    # resolved from its NAME on the next request — only from a record. The
+    # cascade carries the gid that anchors it (#183 review).
+    def anchor_gid
+      @anchor&.to_gid&.to_s unless @offered.include?(@resolved)
     end
 
     # :none_accept  — types are registered, and none accepts the chosen role
@@ -49,7 +57,7 @@ module CurrentScope
     # kept on offer anyway (its subclasses may declare their own roles), and
     # counting it here would describe types that are on the list.
     def locked_count
-      withheld_types.count { |klass| klass.try(:current_scope_grantable_roles)&.empty? }
+      withheld_types.count { |klass| klass.try(:current_scope_locked_down?) }
     end
 
     def all_withheld_locked?

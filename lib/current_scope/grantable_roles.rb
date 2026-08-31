@@ -91,6 +91,14 @@ module CurrentScope
       # (the console's picker) has to say that itself — asking this method would
       # read the absence as a refusal, which is the reading that broke the
       # documented deep link during this feature's own review (#183).
+      # An empty declaration is a LOCKDOWN: no role may be granted on this type.
+      # Written here rather than spelled out at each call site, so what "empty
+      # declaration" means stays where the other two predicates live (#183
+      # review).
+      def current_scope_locked_down?
+        current_scope_grantable_roles&.empty? || false
+      end
+
       def current_scope_grants_role?(role)
         return false if role.nil?
 

@@ -630,6 +630,32 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # A locked base can still hold subclass records that declare their own roles,
+  # and past the scanned window a search can find them — "none ever will" is
+  # untrue there, so the advice to search wins (#183 review).
+  test "a locked base with unread rows offers the search instead of calling it hopeless" do
+    now = Time.current
+    rows = Array.new(CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP + 1) do |i|
+      { title: "RCT-#{i}", type: "Receipt", created_at: now, updated_at: now }
+    end
+    Document.insert_all(rows)
+    declare_grantable_roles(Document, [])
+    declare_grantable_roles(SpecialInvoice, [ "Member" ])
+    Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
+          headers: as(@owner)
+
+      assert_select "#cs_records_refused_searchable"
+      assert_select "#cs_records_locked", count: 0
+    end
+  ensure
+    if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
+      Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
+    end
+  end
+
   # And when that locked type IS picked, the record step has to say what the
   # type step could not: no role will ever list these (#183 review).
   test "a locked type says so where its records would be, not to pick another role" do

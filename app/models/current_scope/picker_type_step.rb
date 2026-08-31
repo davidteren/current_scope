@@ -49,10 +49,14 @@ module CurrentScope
       :none_accept
     end
 
-    # No role will ever list anything here, so advice to change the role is a
-    # promise the page cannot keep (#183 review).
-    def no_role_will_help?
-      state == :none_accept_locked
+    # About the REFUSED RECORD's own class, not the registry as a whole: "pick a
+    # different role" is wrong when that record's type accepts none, whatever
+    # the other types do. The global question (`state`) answers for the page;
+    # this sentence is about one record (#183 review).
+    def refused_link_hopeless?
+      return false if @refused_link.nil?
+
+      @refused_link.class.try(:current_scope_locked_down_everywhere?) || false
     end
 
     def withheld_types

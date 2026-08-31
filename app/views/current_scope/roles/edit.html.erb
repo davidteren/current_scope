@@ -10,13 +10,16 @@
   <p><%= f.label :name %> <%= f.text_field :name %></p>
   <%# #183: a model declares which roles a resource type accepts BY NAME, since
       role ids are per-database and cannot be written in a model file. So a
-      rename moves those declarations to whatever now carries the old name. %>
-  <p id="cs_role_rename_hint" class="cs-hint">
-    Renaming changes which resource types accept this role: a model names the
-    roles it accepts, and it names them by this. Run
-    <code>bin/rails current_scope:report</code> after a rename to see the grants
-    their type would now refuse.
-  </p>
+      rename moves those declarations to whatever now carries the old name.
+      Shown only where a declaration exists: the feature is opt-in. %>
+  <% if @grantable_roles_declared %>
+    <p id="cs_role_rename_hint" class="cs-hint">
+      Renaming changes which resource types accept this role: a model names the
+      roles it accepts, and it names them by this. Run
+      <code>bin/rails current_scope:report</code> after a rename to see the
+      grants their type would now refuse.
+    </p>
+  <% end %>
   <p>
     <%= f.label :description %>
     <%= f.text_area :description, rows: 2, placeholder: "What is this role for? (optional)" %>

@@ -32,6 +32,14 @@ module CurrentScope
 
     def edit
       @role = Role.find(params[:id])
+      # #183: model declarations name roles BY NAME, so a rename moves them. The
+      # hint only makes sense where a declaration exists, and it is opt-in — for
+      # a host that has declared nothing the sentence would be false and the
+      # task it points at would find nothing. (A type that includes
+      # GrantableRoles WITHOUT Scopeable is not in this list; it is the only
+      # case this misses, and it errs toward saying nothing.)
+      @grantable_roles_declared =
+        CurrentScope.scopeable_resources.any? { |klass| klass.try(:current_scope_declares_roles?) }
     end
 
     # Who holds this role — the role-side complement to the subjects page. Org-wide

@@ -13,11 +13,21 @@ class RoleGridTest < ActionDispatch::IntegrationTest
   def as(user) = { "X-User-Id" => user.id.to_s }
 
   # #183: a model names the roles a type accepts BY NAME, so a rename silently
-  # moves those declarations. The screen where the rename happens says so.
+  # moves those declarations. The screen where the rename happens says so —
+  # where there IS a declaration, since the feature is opt-in and the sentence
+  # would otherwise be false for every host that never used it.
   test "the role form warns that renaming moves the type declarations" do
+    declare_grantable_roles(Folder, [ "Editor" ])
+
     get current_scope.edit_role_url(@role), headers: as(@owner)
 
     assert_select "#cs_role_rename_hint"
+  end
+
+  test "the rename warning stays off where nothing declares its grantable roles" do
+    get current_scope.edit_role_url(@role), headers: as(@owner)
+
+    assert_select "#cs_role_rename_hint", count: 0
   end
 
   test "the grid renders fixed CRUD column headers" do

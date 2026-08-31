@@ -336,6 +336,9 @@ namespace :current_scope do
       dead_grants = []
       untargeted_grants = []
       nonconforming_grants = []
+      # And the count that speaks for that scan: the loop was abandoned, so a
+      # partial tally would describe a pass that did not finish (#183 review).
+      unjudgeable_grants = 0
     end
 
     # Same rescue the org_role_suffix lambda above needs, for the same reason: a

@@ -757,6 +757,23 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # The refused-record sentence is about THAT record's type, not the registry: a
+  # locked type beside a type that does accept the role still cannot be reached
+  # by changing roles (#183 review).
+  test "a refused link on a locked type is not told to try another role" do
+    Gadget # autoload ⇒ a second type that accepts everything
+    folder = Folder.create!(name: "Q3 Ledger")
+    declare_grantable_roles(Folder, [])
+
+    get current_scope.new_scoped_role_assignment_path(
+      role_id: @member_role.id, resource_gid: folder.to_gid.to_s
+    ), headers: as(@owner)
+
+    assert_select "#cs_resource_refused", /Q3 Ledger/
+    assert_select "#cs_resource_refused", { text: /different role/, count: 0 },
+                  "no role will ever list a record of a locked type"
+  end
+
   # A locked base can still hold subclass records that declare their own roles,
   # and past the scanned window a search can find them — "none ever will" is
   # untrue there, so the advice to search wins (#183 review).

@@ -3,15 +3,17 @@ module CurrentScope
     # #183: model declarations name roles BY NAME, so a rename moves them. The
     # warning only makes sense where a declaration exists — it is opt-in, and
     # for a host that has declared nothing the sentence would be false and the
-    # task it points at would find nothing. (A type that includes GrantableRoles
-    # The module's own registry, not the picker's: a type can take the rule
-    # without becoming browsable, and that container shape is the one #183 was
-    # opened for.)
+    # task it points at would find nothing.
     #
-    # On update too, or a rename that fails validation re-renders the form
-    # without the warning — on the retry screen, which is the worst place to
-    # lose it.
+    # Asked of the declaration module's own registry, not the picker's: a type
+    # can take the rule WITHOUT becoming browsable, and that container shape is
+    # the one #183 was opened for.
+    #
+    # On update as well as edit, or a rename that fails validation re-renders
+    # the form without the warning — on the retry screen, which is the worst
+    # place to lose it.
     before_action :assign_grantable_roles_declared, only: %i[edit update]
+
     def index
       # Includes for delete-confirm holder counts (cascade warning).
       @roles = Role.order(:name).includes(:role_assignments, :scoped_role_assignments)

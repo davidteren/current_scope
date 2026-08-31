@@ -277,7 +277,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   # claim the code cannot make.
   test "an empty role-filtered list keeps the search box where searching can reach further" do
     now = Time.current
-    rows = Array.new(CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP) do |i|
+    # One PAST the cap, so rows really are left unread.
+    rows = Array.new(CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP + 1) do |i|
       { title: "RCT-#{i}", type: "Receipt", created_at: now, updated_at: now }
     end
     Document.insert_all(rows)
@@ -304,7 +305,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   # left to look (#183 review).
   test "a search that filled its cap with refused matches says to narrow it, not to give up on the role" do
     now = Time.current
-    rows = Array.new(CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP) do |i|
+    # One PAST the cap, so rows really are left unread.
+    rows = Array.new(CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP + 1) do |i|
       { title: "RCT-#{i}", type: "Receipt", created_at: now, updated_at: now }
     end
     Document.insert_all(rows)
@@ -318,6 +320,30 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_select "#cs_search_refused_searchable", /Member/
       assert_select "#cs_search_refused", count: 0
+    end
+  ensure
+    if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
+      Document.singleton_class.send(:remove_method, :current_scope_searchable_scope)
+    end
+  end
+
+  # Exactly at the cap: the table WAS read to the end, so there is nothing left
+  # for a search to find and the page must not offer one (#183 review).
+  test "a table holding exactly the scan cap is not called partly unread" do
+    now = Time.current
+    rows = Array.new(CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP) do |i|
+      { title: "RCT-#{i}", type: "Receipt", created_at: now, updated_at: now }
+    end
+    Document.insert_all(rows)
+    declare_grantable_roles(Document, [ "Owner" ])
+    Document.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
+
+    with_scopeable_resources([ Document ]) do
+      get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Document"),
+          headers: as(@owner)
+
+      assert_select "#cs_records_refused"
+      assert_select "#cs_records_refused_searchable", count: 0
     end
   ensure
     if Document.singleton_class.method_defined?(:current_scope_searchable_scope)
@@ -402,6 +428,8 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
 
       assert_select "select[name=resource_gid] option[selected][value=?]", invoice.to_gid.to_s
       assert_select "input[type=hidden][name=resource_gid][value=?]", invoice.to_gid.to_s
+      # One option left, and the reason the other 500 are gone (#183 review).
+      assert_select "#cs_records_shortened", /Member/
     end
   end
 

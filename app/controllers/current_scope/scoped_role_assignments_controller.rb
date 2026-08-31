@@ -296,21 +296,26 @@ module CurrentScope
         # only what is loaded, and an under-fetch there would silently drop
         # grantable records rather than merely cost rows (#183 review).
         cap = role && sti_table?(klass) ? SCAN_CAP : DISPLAY_LIMIT
-        found = klass.current_scope_searchable_scope(query).limit(cap).to_a
+        # One row PAST the cap, and dropped again: a table holding exactly `cap`
+        # rows was read to the end, and calling that "more to find" would offer
+        # a search that cannot reach anything (#183 review).
+        fetched = klass.current_scope_searchable_scope(query).limit(cap + 1).to_a
+        found = fetched.first(cap)
         kept = grantable_records(found, role)
-        return [ kept.first(DISPLAY_LIMIT), kept.size < found.size, found.size == cap ]
+        return [ kept.first(DISPLAY_LIMIT), kept.size < found.size, fetched.size > cap ]
       end
 
       # Fallback: current_scope_label is a Ruby method with no backing column, so
       # scan the first SCAN_CAP rows and filter the label in Ruby.
-      scanned = klass.limit(SCAN_CAP).to_a
+      fetched = klass.limit(SCAN_CAP + 1).to_a # one past the cap: see above
+      scanned = fetched.first(SCAN_CAP)
       records = scanned
       if query.present?
         needle = query.downcase
         records = records.select { |record| helpers.current_scope_label(record).downcase.include?(needle) }
       end
       kept = grantable_records(records, role)
-      [ kept.first(DISPLAY_LIMIT), kept.size < records.size, scanned.size == SCAN_CAP ]
+      [ kept.first(DISPLAY_LIMIT), kept.size < records.size, fetched.size > SCAN_CAP ]
     end
 
     # The model gate judges the record's OWN class, so an STI table can hold

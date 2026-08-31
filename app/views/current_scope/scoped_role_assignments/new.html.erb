@@ -47,9 +47,12 @@
   <% else %>
     <p>
       <%= label_tag :subject_gid, "Subject" %>
+      <%# include_blank for the same reason as the role select: the browser
+          preselects the first subject while the server has applied none. %>
       <%= select_tag :subject_gid,
             options_for_select(@subjects.map { |s| [ current_scope_subject_label(s), s.to_gid.to_s ] },
                                @subject_gid),
+            include_blank: "— choose a subject —",
             data: { current_scope_autosubmit: true } %>
     </p>
   <% end %>

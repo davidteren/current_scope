@@ -48,8 +48,11 @@ module CurrentScope
     # effect — the search hint covers the same thing when a query is typed, and
     # without one nothing else on the page mentions them. Silently shortening a
     # list is the surprise this feature exists to remove (#183 review).
+    # offered_records, not records: with every scanned row refused and only the
+    # deep-linked one left, the list is at its most shortened and was the one
+    # case that said nothing (#183 review).
     def shortened?
-      @withheld && role.present? && records.present? && query.blank?
+      @withheld && role.present? && offered_records.present? && query.blank?
     end
 
     # Both :shown states mean the list HAS matches — the difference is only

@@ -18,11 +18,6 @@ module CurrentScope
       @assignment = ScopedRoleAssignment.new
       @roles = Role.order(:name)
       @subjects = subject_class.order(:id)
-      # #183: the cascade picks the ROLE first, so the types are what gets
-      # narrowed. A type that declares its grantable roles and does not list this
-      # one is not offered, and the view says how many were withheld — silently
-      # shortening a dropdown is its own kind of surprise. The model validation
-      # is the actual gate; this only keeps the operator out of a dead end.
       # scalar_param: a nested query string (?role_id[x]=1) is not an id, and
       # every reader below expects a string. Rails answers nil for it today
       # rather than raising, so this states the expectation rather than fixing a
@@ -36,6 +31,11 @@ module CurrentScope
       @query = scalar_param(:q)
       @subject_gid = scalar_param(:subject_gid)
       @all_scopeable = CurrentScope.scopeable_resources
+      # #183: the cascade picks the ROLE first, so the types are what gets
+      # narrowed. A type that declares its grantable roles and does not list this
+      # one is not offered, and the view says how many were withheld — silently
+      # shortening a dropdown is its own kind of surprise. The model validation
+      # is the actual gate; this only keeps the operator out of a dead end.
       @scopeable = grantable_types(@all_scopeable, @selected_role)
       @bulk_subjects = resolve_bulk_subjects # [] unless a multi-select bulk grant
 
@@ -53,7 +53,8 @@ module CurrentScope
       @resource_type = chosen_type || deep_linked_type(anchor, @selected_role)
       @resource, refused = judge_deep_link(linked, @resource_type, @selected_role, chosen_type)
       @types = PickerTypeStep.new(all_types: @all_scopeable, offered: @scopeable,
-                                  resolved: @resource_type, role: @selected_role, anchor: anchor)
+                                  resolved: @resource_type, role: @selected_role,
+                                  anchor: anchor, refused_link: refused)
       records, withheld, unread = candidate_records(@resource_type, @query, @selected_role)
       # One object owns every display decision for the record step, so the
       # control and the sentence beside it cannot drift apart (#183 review).
@@ -63,7 +64,7 @@ module CurrentScope
         # search re-reads the very rows an empty list came from.
         indexed: @resource_type.respond_to?(:current_scope_searchable_scope),
         searchable: searchable?(@resource_type), query: @query,
-        role: @selected_role, deep_linked: @resource, refused: refused,
+        role: @selected_role, deep_linked: @resource,
         # An empty declaration on the chosen type is a LOCKDOWN: no role will
         # ever list a record that inherits it, so "pick a different role" is a
         # promise none can keep. The type step says this for a type it withheld;

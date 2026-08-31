@@ -73,9 +73,9 @@
   <%# A refused deep link is explained wherever it happens, INCLUDING the states
       below that render nothing else — the refusal is often why the picker has
       no type on screen at all (#183 review). %>
-  <% if @step.refused && role_name %>
+  <% if @types.refused_link && role_name %>
     <p id="cs_resource_refused" class="cs-hint cs-picker-empty cs-resource-refused">
-      The linked <strong><%= current_scope_label(@step.refused) %></strong>
+      The linked <strong><%= current_scope_label(@types.refused_link) %></strong>
       is not in the list: <strong><%= role_name %></strong> may not be
       granted on it. Pick a different role, or a different record.
     </p>

@@ -138,7 +138,7 @@ module CurrentScope
       # say — what the query found, and that the record on screen is the linked
       # one rather than a match (#183 review).
       return @withheld ? :search_refused_linked : :search_none_linked if deep_linked
-      return :search_none unless @withheld && role
+      return :search_none unless @withheld
 
       advise_search? ? :search_refused_searchable : :search_refused
     end

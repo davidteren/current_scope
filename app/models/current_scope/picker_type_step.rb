@@ -9,13 +9,19 @@ module CurrentScope
     # offered    what survived it
     # resolved   the type on screen (may be reached by deep link, and then it
     #            need not be registered at all)
-    def initialize(all_types:, offered:, resolved:, role:, anchor: nil)
+    # refused_link: a deep-linked record the chosen role may not be granted on.
+    # It belongs to this step because its refusal is often WHY no type is on
+    # screen, and the sentence naming it renders above the dropdown.
+    def initialize(all_types:, offered:, resolved:, role:, anchor: nil, refused_link: nil)
       @all_types = all_types
       @offered = offered
       @resolved = resolved
       @role = role
       @anchor = anchor
+      @refused_link = refused_link
     end
+
+    attr_reader :refused_link
 
     # A type reached by deep link need not be registered, so it cannot be
     # resolved from its NAME on the next request — only from a record. The

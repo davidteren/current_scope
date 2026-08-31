@@ -779,9 +779,13 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
   # untrue there, so the advice to search wins (#183 review).
   test "a locked base with unread rows offers the search instead of calling it hopeless" do
     now = Time.current
-    rows = Array.new(CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP + 1) do |i|
+    rows = Array.new(CurrentScope::ScopedRoleAssignmentsController::SCAN_CAP) do |i|
       { title: "RCT-#{i}", type: "Receipt", created_at: now, updated_at: now }
     end
+    # A row of the DECLARING subclass, past the scan window: the table really
+    # does hold a record another role lists, which is what makes the lockdown
+    # claim false here.
+    rows << { title: "SI-1", type: "SpecialInvoice", created_at: now, updated_at: now }
     Document.insert_all(rows)
     declare_grantable_roles(Document, [])
     declare_grantable_roles(SpecialInvoice, [ "Member" ])

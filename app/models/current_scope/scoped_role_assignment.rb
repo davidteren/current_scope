@@ -137,6 +137,15 @@ module CurrentScope
     def role_grantable_on_resource_type
       return if role.nil? || resource_type.blank?
 
+      # This resolves the RECORD (one find_by when the association is not
+      # loaded) before it can know whether any declaration exists. Skipping that
+      # for hosts who declared nothing would need a cheap "nobody declared"
+      # answer, and every cheap one — the token's class, its loaded descendants,
+      # a process flag — can be wrong in the OPEN direction under lazy loading:
+      # a subclass that declares and has not been referenced reads as "no rule",
+      # and the write sails through. A gate may cost a query; it may not guess
+      # (#183 review).
+
       klass = current_scope_governing_class
       return if klass.nil? || !klass.respond_to?(:current_scope_grants_role?)
       return if klass.current_scope_grants_role?(role)

@@ -102,9 +102,34 @@ module CurrentScope
       # stating a falsehood.
       def current_scope_locked_down_everywhere?
         return false unless current_scope_locked_down?
-        return true unless respond_to?(:descendants)
+        return true unless current_scope_inheritable_table?
 
-        descendants.none? { |sub| sub.try(:current_scope_grantable_roles).present? }
+        current_scope_classes_in_table.all? do |klass|
+          klass && klass.try(:current_scope_grantable_roles).blank?
+        end
+      rescue ActiveRecord::ActiveRecordError
+        false # no database to ask; do not claim a lockdown we cannot check
+      end
+
+      # The classes the ROWS name, not the ones this process happens to have
+      # loaded. `descendants` sees only loaded classes, so a subclass nothing
+      # has referenced yet would read as "no subclass declares" and the console
+      # would state a lockdown that is false — hiding the search that reaches
+      # those very records. Resolving a stored type string is what Rails itself
+      # does to instantiate those rows, and an unresolvable one answers nil,
+      # which fails toward NOT claiming (#183 review).
+      def current_scope_classes_in_table
+        where.not(inheritance_column => nil)
+             .distinct
+             .pluck(inheritance_column)
+             .map { |stored| stored.to_s.safe_constantize }
+      end
+
+      # True when rows of this table can load as some other class.
+      def current_scope_inheritable_table?
+        return false unless respond_to?(:has_attribute?) && respond_to?(:inheritance_column)
+
+        has_attribute?(inheritance_column)
       end
 
       # An empty declaration is a LOCKDOWN: no role may be granted on this type.

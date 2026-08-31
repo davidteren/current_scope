@@ -176,6 +176,24 @@ class GrantableRolesTest < ActiveSupport::TestCase
       "the declaration judges WRITES; the row that predates it is untouched and still opens the child"
   end
 
+  # The lockdown answer must not depend on what this process happens to have
+  # loaded: a declaring subclass nothing has referenced would otherwise read as
+  # "no subclass declares", and the console would state a lockdown that is false
+  # while hiding the search that reaches those records (#183 review).
+  test "the lockdown answer comes from the rows, not from the loaded classes" do
+    declare_grantable_roles(Document, [])
+    assert Document.current_scope_locked_down_everywhere?, "an empty table cannot hold a grantable record"
+
+    Receipt.create!(title: "RCT-1") # inherits the empty declaration
+    assert Document.current_scope_locked_down_everywhere?
+
+    Invoice.create!(title: "INV-1")
+    declare_grantable_roles(Invoice, [ "Project Lead" ])
+
+    assert_not Document.current_scope_locked_down_everywhere?,
+      "a row of a declaring class is in the table, whatever the class registry has seen"
+  end
+
   # A seed, a rake task and a console one-liner all write through the model, so
   # the model is where the rule has to live — the console's filtering is a
   # convenience on top of it.

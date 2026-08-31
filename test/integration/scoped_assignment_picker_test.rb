@@ -880,6 +880,34 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
                   count: 1 # a SIBLING row, not just the linked one
   end
 
+  # The picker explains a dozen narrowings; staying silent about the one pick
+  # that is actually missing was the loudest omission of the lot, and the blank
+  # subject option made it a normal first visit (#183).
+  test "the picker says which pick is still missing where the Grant button would be" do
+    folder = Folder.create!(name: "Q3 Ledger")
+
+    get current_scope.new_scoped_role_assignment_path(
+      role_id: @member_role.id, resource_type: "Folder", resource_gid: folder.to_gid.to_s
+    ), headers: as(@owner)
+
+    assert_select "#cs_needs_subject"
+    assert_select "input[type=hidden][name=resource_gid]", count: 0
+
+    get current_scope.new_scoped_role_assignment_path(
+      subject_gid: @member.to_gid.to_s, resource_type: "Folder", resource_gid: folder.to_gid.to_s
+    ), headers: as(@owner)
+
+    assert_select "#cs_needs_role"
+  end
+
+  # A frame swap is not a navigation, so without a live region every message
+  # this picker adds is silent for a screen reader (#183).
+  test "the cascade frame is a polite live region" do
+    get current_scope.new_scoped_role_assignment_path, headers: as(@owner)
+
+    assert_select "turbo-frame#cascade[role=status][aria-live=polite]"
+  end
+
   # The Grant button posts what the operator can SEE selected. A resource_gid
   # survives every autosubmit, so an earlier pick must not ride along after the
   # role or the type moves on (#183).

@@ -7,13 +7,44 @@
 // step renders without a manual click. Every such control still has a visible
 // submit button, so the cascade works with this script disabled, and with no
 // Turbo at all (the submit is a plain full-page GET).
+
+// The id of the control that autosubmitted, so focus can go back to it once
+// the frame it lived in has been replaced.
+var currentScopeFocusId = null;
+
 document.addEventListener("change", function (event) {
   var el = event.target;
   if (!el || typeof el.matches !== "function") return;
   if (!el.matches("[data-current-scope-autosubmit]")) return;
 
+  // The submitting control usually lives INSIDE the frame Turbo is about to
+  // replace, so it is destroyed by its own submit and focus falls to the body.
+  // Remember it and put focus back when the frame lands, or a keyboard operator
+  // is thrown to the top of the document on every pick — including in the
+  // search field the page tells them to refine.
+  if (el.id) currentScopeFocusId = el.id;
   var form = el.form || el.closest("form");
   if (form) form.requestSubmit();
+});
+
+document.addEventListener("turbo:frame-load", function (event) {
+  if (!currentScopeFocusId) return;
+  var frame = event.target;
+  if (!frame || frame.id !== "cascade") return;
+
+  var el = document.getElementById(currentScopeFocusId);
+  currentScopeFocusId = null;
+  if (!el || typeof el.focus !== "function") return;
+
+  el.focus();
+  // A text field keeps its caret at the end, so typing continues where it was.
+  if (typeof el.setSelectionRange === "function" && typeof el.value === "string") {
+    try {
+      el.setSelectionRange(el.value.length, el.value.length);
+    } catch (ignored) {
+      // Some input types refuse a selection range; focus alone is enough.
+    }
+  }
 });
 
 // CSP-safe confirmation for destructive submits. `data-turbo-confirm` only fires

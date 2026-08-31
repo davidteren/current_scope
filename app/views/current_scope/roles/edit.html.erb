@@ -13,11 +13,11 @@
       rename moves those declarations to whatever now carries the old name.
       Shown only where a declaration exists: the feature is opt-in. %>
   <% if @grantable_roles_declared %>
-    <p id="cs_role_rename_hint" class="cs-hint">
-      Renaming changes which resource types accept this role: a model names the
-      roles it accepts, and it names them by this. Run
-      <code>bin/rails current_scope:report</code> after a rename to see the
-      grants their type would now refuse.
+    <p id="cs_role_rename_hint" class="cs-alert">
+      <strong>Renaming changes which record types accept this role.</strong>
+      Some types name the roles they take, and they name them by this exact
+      name. After a rename, run <code>bin/rails current_scope:report</code> to
+      see the grants their type would no longer accept.
     </p>
   <% end %>
   <p>

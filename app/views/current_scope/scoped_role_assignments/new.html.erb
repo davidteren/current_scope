@@ -58,7 +58,10 @@
   <% end %>
 <% end %>
 
-<turbo-frame id="cascade">
+<%# A frame swap is not a navigation, so nothing is announced: without this,
+    every explanation this picker adds is silent for a screen reader. Polite,
+    so it waits for a pause rather than interrupting. %>
+<turbo-frame id="cascade" role="status" aria-live="polite">
   <%# Every sentence below that names the role runs only when a role IS chosen —
       each flag the controller sets is computed from one. Reading the name once,
       nil-safe, keeps that coupling in view instead of in six dereferences
@@ -109,9 +112,9 @@
     </p>
   <% when :none_accept_locked %>
     <p id="cs_types_none_accept_locked" class="cs-alert cs-picker-empty cs-types-none-accept">
-      No resource type accepts any scoped role. Every registered type declares
-      an empty list, which is a lockdown — no role will list them. Give a type
-      the roles it should accept to grant here.
+      No resource type accepts any role. Every type here has been set to accept
+      none, so nothing can be granted until one of them is given the roles it
+      should take.
     </p>
   <% when :unregistered %>
     <p id="cs_types_unregistered" class="cs-alert cs-picker-empty cs-types-unregistered">
@@ -125,8 +128,8 @@
           operator to pick a different role would be a promise no role can
           keep (#183). %>
       <p id="cs_types_locked" class="cs-hint cs-types-withheld">
-        <%= pluralize(@types.withheld_count, "type") %> not listed. Each accepts
-        no scoped roles at all, so no role will list
+        <%= pluralize(@types.withheld_count, "type") %> not listed. Each is set
+        to accept no roles at all, so no role will show
         <%= @types.withheld_count == 1 ? "it" : "them" %>.
       </p>
     <% elsif @types.withheld? %>
@@ -137,8 +140,8 @@
         <%= @types.withheld_count == 1 ? "it" : "them" %>.
         <% if @types.locked_count.positive? %>
           Of those, <%= @types.locked_count %>
-          <%= @types.locked_count == 1 ? "accepts" : "accept" %> no scoped roles
-          at all.
+          <%= @types.locked_count == 1 ? "accepts" : "accept" %> no role at all,
+          whichever you pick.
         <% end %>
       </p>
     <% end %>
@@ -147,6 +150,7 @@
       <%= select_tag :resource_type,
             options_for_select(@types.options, @resource_type&.name),
             include_blank: "— choose a type —", form: "cs-cascade",
+            "aria-describedby": @types.withheld? ? "cs_types_withheld" : nil,
             data: { current_scope_autosubmit: true } %>
     </p>
 
@@ -178,8 +182,8 @@
                 empty and needs no claim about rows the scan may not have read.
                 No subclass route promised: a locked LEAF has no subclasses. %>
             <strong><%= @resource_type.model_name.human %></strong> accepts no
-            scoped roles at all, so no record that inherits that declaration can
-            be granted here.
+            roles at all, so nothing here can be granted — apart from records of
+            a kind that sets its own.
           <% when :records_refused_searchable %>
             None of the <%= @resource_type.model_name.human.pluralize.downcase %>
             <%# A locked type never reaches this state: it renders
@@ -238,8 +242,8 @@
                 <% case @step.search_state
                    when :search_locked %>
                   <strong><%= @resource_type.model_name.human %></strong> accepts
-                  no scoped roles at all, so no record that inherits that
-                  declaration can be granted here — whatever the search finds.
+                  no roles at all, so nothing here can be granted, whatever the
+                  search finds.
                 <% when :search_refused_searchable %>
                   <%# The matches READ all refuse, but the search stopped at its
                       cap, so a narrower search can still turn one up. %>
@@ -279,7 +283,10 @@
       can still submit (#183). %>
   <p class="cs-picker-actions">
     <%# No-JS / no-Turbo fallback: reload the cascade with the current picks. %>
-    <%= submit_tag "Show records", name: nil, form: "cs-cascade", class: "cs-picker-refresh" %>
+    <%# "Show records" only where a record list is what comes next; elsewhere it
+        re-runs the cascade with the picks as they stand. %>
+    <%= submit_tag(@resource_type ? "Show records" : "Update the list",
+                   name: nil, form: "cs-cascade", class: "cs-picker-refresh") %>
     <%# Grant only a selection that is actually on offer. Every cascade control
         autosubmits, but a resource_gid picked earlier survives a change of role
         or type, so the controller hands us the gid the operator can SEE
@@ -296,6 +303,13 @@
               data: { turbo_frame: "_top" }, class: "cs-btn-primary",
               id: "cs_grant_scoped_role" %>
       <% end %>
+    <% elsif ready && @subject_gid.blank? %>
+      <%# The picker explains a dozen narrowings; staying silent about the one
+          pick that is actually missing is the loudest omission of the lot —
+          and the blank subject option makes this a normal first visit. %>
+      <span id="cs_needs_subject" class="cs-hint">Choose a subject above to grant this.</span>
+    <% elsif @step.grantable_gid.present? && @selected_role.nil? %>
+      <span id="cs_needs_role" class="cs-hint">Choose a role above to grant this.</span>
     <% elsif ready && @subject_gid.present? %>
       <%= button_to "Grant scoped role", scoped_role_assignments_path, method: :post,
             params: { role_id: @selected_role.id, subject_gid: @subject_gid,

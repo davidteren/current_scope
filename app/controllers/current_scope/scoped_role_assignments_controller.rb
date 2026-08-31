@@ -56,7 +56,7 @@ module CurrentScope
         # search re-reads the very rows an empty list came from.
         indexed: @resource_type.respond_to?(:current_scope_searchable_scope),
         searchable: searchable?(@resource_type), query: @query,
-        role: @selected_role, deep_linked: link.record,
+        role: @selected_role, selected: link.record,
         # An empty declaration on the chosen type is a LOCKDOWN: no role will
         # ever list a record that inherits it, so "pick a different role" is a
         # promise none can keep. The type step says this for a type it withheld;
@@ -138,6 +138,10 @@ module CurrentScope
       !klass.respond_to?(:current_scope_grants_role?) || klass.current_scope_grants_role?(role)
     end
 
+    # A TABLE-shape question rather than a declaration one, which is why it
+    # stays here: whether rows queried through this class can load as another
+    # class is Rails STI, and the module answers about declarations.
+    #
     # True when a row queried through this class can load as a class OTHER than
     # this one — then the class the model gate will ask is not known until the
     # row itself is loaded, and the RECORD list is what narrows.
@@ -158,24 +162,6 @@ module CurrentScope
       klass.has_attribute?(klass.inheritance_column)
     rescue ActiveRecord::ActiveRecordError
       false # no database to ask; a NoMethodError here would be a bug in this gem
-    end
-
-    # True when this class or a LOADED descendant declares its grantable roles,
-    # which is the only case where the role filter can drop a record.
-    #
-    # ponytail: descendants sees what is LOADED, so under lazy loading a
-    # declaring subclass can be missed and the fetch stays narrow — while the
-    # row filter, one line later, judges record.class and autoloads that same
-    # subclass as it instantiates. With every row in the narrow window belonging
-    # to it, the list comes back empty where the wide scan would have found a
-    # grantable record; the search advice is the way out. Rails eager-loads in
-    # production, where descendants is complete.
-    def declares_grantable_roles?(klass)
-      return false unless klass.respond_to?(:current_scope_grantable_roles)
-      return true unless klass.current_scope_grantable_roles.nil?
-      return false unless klass.respond_to?(:descendants)
-
-      klass.descendants.any? { |sub| !sub.try(:current_scope_grantable_roles).nil? }
     end
 
     # The type for a deep link, only when the linked record's own class accepts
@@ -340,7 +326,7 @@ module CurrentScope
         # the filter keeps everything, so widening would instantiate 450 extra
         # records per keystroke for a host that never opted into #183 — the very
         # cost the indexed scope exists to avoid (#183 review).
-        cap = role && sti_table?(klass) && declares_grantable_roles?(klass) ? SCAN_CAP : DISPLAY_LIMIT
+        cap = role && sti_table?(klass) && klass.try(:current_scope_declares_roles?) ? SCAN_CAP : DISPLAY_LIMIT
         # One row PAST the cap, and dropped again: a table holding exactly `cap`
         # rows was read to the end, and calling that "more to find" would offer
         # a search that cannot reach anything (#183 review).

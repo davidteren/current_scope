@@ -103,6 +103,30 @@ class GrantableRolesTest < ActiveSupport::TestCase
     assert_not Project.current_scope_grants_role?(nil), "a nil role is not a role"
   end
 
+  # A host may answer the predicate itself and hold no list — the message must
+  # then say the type refused THIS role, not that it accepts none (#183 review).
+  test "a type that computes its own answer is refused without being called empty" do
+    Project.define_singleton_method(:current_scope_grants_role?) { |_role| false }
+
+    assignment = grant(@container, @project)
+
+    assert_not assignment.valid?
+    assert_includes assignment.errors[:role].first, "does not accept this one"
+    assert_not_includes assignment.errors[:role].first, "accepts no scoped roles at all"
+  ensure
+    Project.singleton_class.send(:remove_method, :current_scope_grants_role?)
+  end
+
+  # The wider indexed fetch asks this, and so may a host: does a declaration
+  # anywhere in this hierarchy exist to filter by?
+  test "declares_roles? sees a declaration on the class or on a loaded subclass" do
+    assert_not Document.current_scope_declares_roles?
+
+    declare_grantable_roles(SpecialInvoice, [ "Project Lead" ])
+    assert Document.current_scope_declares_roles?, "a loaded subclass declared"
+    assert SpecialInvoice.current_scope_declares_roles?
+  end
+
   # A seed, a rake task and a console one-liner all write through the model, so
   # the model is where the rule has to live — the console's filtering is a
   # convenience on top of it.

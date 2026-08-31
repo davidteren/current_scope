@@ -77,6 +77,21 @@ module CurrentScope
         nil
       end
 
+      # True when this class or a LOADED descendant declares its grantable roles,
+      # which is the only case where filtering by role can drop a record. Here
+      # rather than in the console, so a caller asking "can a declaration govern
+      # this type?" finds it beside the other predicates (#183 review).
+      #
+      # ponytail: descendants sees what is LOADED. Rails eager-loads in
+      # production; under lazy loading a declaring subclass can be missed, and
+      # the caller that reads this decides how wide to look.
+      def current_scope_declares_roles?
+        return true unless current_scope_grantable_roles.nil?
+        return false unless respond_to?(:descendants)
+
+        descendants.any? { |sub| !sub.try(:current_scope_grantable_roles).nil? }
+      end
+
       # An empty declaration is a LOCKDOWN: no role may be granted on this type.
       # Written here rather than spelled out at each call site, so what "empty
       # declaration" means stays where the other two predicates live (#183

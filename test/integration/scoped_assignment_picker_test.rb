@@ -241,8 +241,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
         role_id: @member_role.id, resource_type: "Document", resource_gid: receipt.to_gid.to_s
       ), headers: as(@owner)
 
-      assert_select "#cs_resource_refused", /RCT-1/,
-                    "and it names the record the operator linked from"
+      assert_select "#cs_resource_refused", /RCT-1/, "and it names the record"
       assert_select "select[name=resource_gid] option[value=?]", invoice.to_gid.to_s,
                     count: 1 # the rest of the list still works
       assert_select "input[type=hidden][name=resource_gid]", count: 0
@@ -736,7 +735,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
         resource_gid: invoice.to_gid.to_s, q: "Q3"
       ), headers: as(@owner)
 
-      assert_select "#cs_search_refused_linked", /INV-1/
+      assert_select "#cs_search_refused_selected", /INV-1/
       assert_select "select[name=resource_gid] option[selected][value=?]", invoice.to_gid.to_s
     end
   end
@@ -907,7 +906,7 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_select "select[name=resource_gid] option[value=?]", pinned.to_gid.to_s # still selectable
     # Its own state (#183 review): "no records match" beside a visible selected
     # option reads as a contradiction, so the hint names the linked record.
-    assert_select "#cs_search_none_linked"
+    assert_select "#cs_search_none_selected"
     assert_select "#cs_search_none", count: 0
     assert_select "#cs_search_shown", count: 0
   end

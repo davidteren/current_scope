@@ -8,15 +8,16 @@ module CurrentScope
   # without moving the sentence beside it, which is the drift that produced
   # most of this feature's review findings.
   class PickerRecordStep
-    attr_reader :records, :query, :role, :deep_linked
+    attr_reader :records, :query, :role, :selected
 
     # records     rows on offer, already role-filtered (nil ⇒ no type chosen)
     # withheld    the role filter removed rows from what was read
     # unread      the scan stopped at its cap: records exist nothing looked at
     # indexed     the type has an indexed search scope, which reads past that cap
     # searchable  the type holds more rows than the search threshold
-    # deep_linked a linked record that survived the type and role gates
-    def initialize(records:, withheld:, unread:, indexed:, searchable:, query:, role:, deep_linked:,
+    # selected    the record on the form — picked from the dropdown or reached
+    #             by deep link — that survived the type and role gates
+    def initialize(records:, withheld:, unread:, indexed:, searchable:, query:, role:, selected:,
                    locked: false)
       @records = records
       @withheld = withheld
@@ -25,7 +26,7 @@ module CurrentScope
       @searchable = searchable
       @query = query
       @role = role
-      @deep_linked = deep_linked
+      @selected = selected
       @locked = locked
     end
 
@@ -42,14 +43,14 @@ module CurrentScope
     # What the Grant button posts: the record that survived both gates, by its
     # OWN GlobalID. Nil is the button's absence.
     def grantable_gid
-      deep_linked&.to_gid&.to_s
+      selected&.to_gid&.to_s
     end
 
     def offered_records
       list = Array(records)
-      return list if deep_linked.nil? || list.any? { |record| same?(record, deep_linked) }
+      return list if selected.nil? || list.any? { |record| same?(record, selected) }
 
-      [ deep_linked, *list ]
+      [ selected, *list ]
     end
 
     # Records dropped from a list that still HAS records, with no search in
@@ -124,7 +125,7 @@ module CurrentScope
     end
 
     # The search hint. nil ⇒ no hint at all, because no search is on screen.
-    # A surviving deep-linked record silences the refusals: it is selected and
+    # A surviving record silences the refusals: it is selected and
     # grantable, so "pick a different role" would contradict what is on screen.
     def search_state
       # query.present? alone: offer_search? answers true for any query, so
@@ -134,12 +135,12 @@ module CurrentScope
       # Matches ARE shown, but the role filter took some of them out of the
       # list, and no other hint on the page covers records (#183 review).
       return @withheld ? :search_shown_withheld : :search_shown if records.present?
-      # A surviving deep-linked record is selected and grantable, so the plain
+      # A surviving record is selected and grantable, so the plain
       # refusals cannot be said beside it: "pick a different role" contradicts
       # the role that accepts this one. Both cases still have something true to
       # say — what the query found, and that the record on screen is the linked
       # one rather than a match (#183 review).
-      return @withheld ? :search_refused_linked : :search_none_linked if deep_linked
+      return @withheld ? :search_refused_selected : :search_none_selected if selected
       return :search_none unless @withheld
 
       advise_search? ? :search_refused_searchable : :search_refused

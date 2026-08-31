@@ -75,9 +75,11 @@
       no type on screen at all (#183 review). %>
   <% if @types.refused_link && role_name %>
     <p id="cs_resource_refused" class="cs-hint cs-picker-empty cs-resource-refused">
-      The linked <strong><%= current_scope_label(@types.refused_link) %></strong>
-      is not in the list: <strong><%= role_name %></strong> may not be
-      granted on it. Pick a different role, or a different record.
+      <%# Not "the linked …": the same params arrive when the record was picked
+          from the dropdown one step earlier (#183 review). %>
+      <strong><%= current_scope_label(@types.refused_link) %></strong> is not in
+      the list: <strong><%= role_name %></strong> may not be granted on it. Pick
+      a different role, or a different record.
     </p>
   <% end %>
 
@@ -234,15 +236,15 @@
                       at its cap and cannot speak for the whole table. %>
                   No match for “<%= @query %>” among the records read accepts
                   <strong><%= role_name %></strong> — pick a different role.
-                <% when :search_refused_linked %>
+                <% when :search_refused_selected %>
                   No match for “<%= @query %>” accepts
-                  <strong><%= role_name %></strong>. The linked
-                  <strong><%= current_scope_label(@step.deep_linked) %></strong>
-                  does, and is still selectable.
-                <% when :search_none_linked %>
-                  No records match “<%= @query %>”. The linked
-                  <strong><%= current_scope_label(@step.deep_linked) %></strong>
-                  is still selectable.
+                  <strong><%= role_name %></strong>.
+                  <strong><%= current_scope_label(@step.selected) %></strong>
+                  does, and is still selected.
+                <% when :search_none_selected %>
+                  No records match “<%= @query %>”.
+                  <strong><%= current_scope_label(@step.selected) %></strong>
+                  is still selected.
                 <% else %>
                   No records match “<%= @query %>” — try a different search.
                 <% end %>

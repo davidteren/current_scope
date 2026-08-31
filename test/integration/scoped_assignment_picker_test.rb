@@ -801,6 +801,24 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
                   message: "granting a Folder from the Gadget step would be a grant the operator never saw"
   end
 
+  # The same move, with a record the chosen role also refuses: the refusal
+  # message would name a record the operator is no longer looking at, on the
+  # type they just switched away from (#183 review).
+  test "switching type says nothing about the record left behind, refused or not" do
+    Gadget # autoload ⇒ self-registers, so the type step really moves to Gadget
+    folder = Folder.create!(name: "Q3 Ledger")
+    declare_grantable_roles(Folder, [ "Owner" ])
+
+    get current_scope.new_scoped_role_assignment_path(
+      role_id: @member_role.id, subject_gid: @member.to_gid.to_s,
+      resource_type: "Gadget", resource_gid: folder.to_gid.to_s
+    ), headers: as(@owner)
+
+    assert_select "option[selected][value=?]", "Gadget"
+    assert_select "#cs_resource_refused", count: 0
+    assert_select "input[type=hidden][name=resource_gid]", count: 0
+  end
+
   test "a type that accepts the chosen role is offered" do
     picky = picky_type
 

@@ -24,9 +24,11 @@ module CurrentScope
       @anchor&.to_gid&.to_s unless @offered.include?(@resolved)
     end
 
-    # :none_accept  — types are registered, and none accepts the chosen role
-    # :unregistered — nothing has opted into the picker yet
-    # :choose       — show the dropdown
+    # :none_accept        — types are registered, none accepts the chosen role
+    # :none_accept_locked — every registered type declares an empty list, so no
+    #                       role will ever list one
+    # :unregistered       — nothing has opted into the picker yet
+    # :choose             — show the dropdown
     #
     # A resolved type wins over both: it is a target the operator can still
     # grant on, and printing "no type accepts this role" over it would be both

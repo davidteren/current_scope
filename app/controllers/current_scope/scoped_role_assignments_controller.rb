@@ -49,9 +49,9 @@ module CurrentScope
       # would otherwise leave the withheld type selected, its records loaded and
       # a Grant button showing, directly under a hint saying that type was not
       # listed — the dead end this filter exists to prevent (#183 review).
-      @resource_type = resolve_type(scalar_param(:resource_type), within: @scopeable) ||
-                       deep_linked_type(anchor, @selected_role)
-      @resource, refused = judge_deep_link(linked, @resource_type, @selected_role)
+      chosen_type = resolve_type(scalar_param(:resource_type), within: @scopeable)
+      @resource_type = chosen_type || deep_linked_type(anchor, @selected_role)
+      @resource, refused = judge_deep_link(linked, @resource_type, @selected_role, chosen_type)
       @types = PickerTypeStep.new(all_types: @all_scopeable, offered: @scopeable,
                                   resolved: @resource_type, role: @selected_role, anchor: anchor)
       records, withheld, unread = candidate_records(@resource_type, @query, @selected_role)
@@ -170,10 +170,13 @@ module CurrentScope
     # True when this class or a LOADED descendant declares its grantable roles,
     # which is the only case where the role filter can drop a record.
     #
-    # ponytail: descendants sees what is loaded, so under lazy loading a
-    # declaring subclass can be missed and the fetch stays narrow; Rails
-    # eager-loads in production, and the cost of being wrong here is a search
-    # that reads 50 rows instead of 500, not a wrong answer.
+    # ponytail: descendants sees what is LOADED, so under lazy loading a
+    # declaring subclass can be missed and the fetch stays narrow — while the
+    # row filter, one line later, judges record.class and autoloads that same
+    # subclass as it instantiates. With every row in the narrow window belonging
+    # to it, the list comes back empty where the wide scan would have found a
+    # grantable record; the search advice is the way out. Rails eager-loads in
+    # production, where descendants is complete.
     def declares_grantable_roles?(klass)
       return false unless klass.respond_to?(:current_scope_grantable_roles)
       return true unless klass.current_scope_grantable_roles.nil?
@@ -197,8 +200,12 @@ module CurrentScope
     # button that only the model can then say no to. A refusal is REFUSED rather
     # than dropped, because a record that vanishes from the picker with no word
     # is the invisible dead end #183 exists to remove (#183 review).
-    def judge_deep_link(linked, type, role)
+    def judge_deep_link(linked, type, role, chosen_type)
       return [ nil, nil ] if linked.nil?
+      # The operator moved to another type: the carried gid is not a link they
+      # followed, and naming it would explain a record they are not looking at
+      # (#183 review). Silent, whatever the role says about it.
+      return [ nil, nil ] if chosen_type && !linked.is_a?(chosen_type)
       return [ nil, linked ] unless filter_allows?(linked.class, role)
       return [ nil, nil ] unless type && linked.is_a?(type)
 

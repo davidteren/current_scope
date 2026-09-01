@@ -9,12 +9,19 @@
   A preference the interface forgets one click after it was given is worse than
   never offering it.
 
-  Applied in <head>, before first paint, so the docs never flash the wrong
-  theme. jtd.setTheme is defined later by the theme's own script, so the class
-  is set directly here and reconciled once the theme's JS is available.
+  HOW the theme actually switches (checked against just-the-docs v0.12.0):
+  jtd.setTheme rewrites the href of the FIRST <link rel="stylesheet"> to
+  assets/css/just-the-docs-<scheme>.css. It is not a class on <html>. This
+  include is rendered at head.html:51, after that link at head.html:17, so the
+  swap here happens before first paint and the docs never flash the wrong theme.
+  The filename is derived from the existing href so the site's baseurl is
+  respected wherever it is mounted.
 -->
 <script>
   (function () {
+    var link = document.querySelector('link[rel="stylesheet"]');
+    if (!link) return;
+
     var stored = null;
     try { stored = localStorage.getItem("cs-theme"); } catch (e) {}
 
@@ -24,68 +31,50 @@
     }
     if (!theme) return;
 
-    var html = document.documentElement;
-    html.classList.remove("color-scheme-dark", "color-scheme-light");
-    html.classList.add("color-scheme-" + theme);
-    html.setAttribute("data-cs-theme", theme);
+    function swap(next) {
+      var href = link.getAttribute("href") || "";
+      link.setAttribute("href", href.replace(/just-the-docs-[a-z]+\.css/, "just-the-docs-" + next + ".css"));
+      document.documentElement.setAttribute("data-cs-theme", next);
+    }
 
-    // The theme's own bootstrap runs later and reads jtd.getTheme(); tell it
-    // what we chose once it exists, and wire the toggle the header renders.
+    swap(theme);
+
     document.addEventListener("DOMContentLoaded", function () {
-      if (window.jtd && typeof window.jtd.setTheme === "function") {
-        window.jtd.setTheme(theme);
-      }
-
       var toggle = document.querySelector("[data-cs-theme-toggle]");
       if (!toggle) return;
 
-      var apply = function (next) {
-        theme = next;
-        html.setAttribute("data-cs-theme", next);
-        if (window.jtd && typeof window.jtd.setTheme === "function") {
-          window.jtd.setTheme(next);
-        } else {
-          html.classList.remove("color-scheme-dark", "color-scheme-light");
-          html.classList.add("color-scheme-" + next);
-        }
-        toggle.setAttribute("aria-pressed", String(next === "dark"));
-        try { localStorage.setItem("cs-theme", next); } catch (e) {}
+      var label = function () {
+        toggle.setAttribute("aria-pressed", String(theme === "dark"));
+        toggle.textContent = theme === "dark" ? "Light theme" : "Dark theme";
       };
 
-      toggle.setAttribute("aria-pressed", String(theme === "dark"));
+      label();
       toggle.addEventListener("click", function () {
-        apply(theme === "dark" ? "light" : "dark");
+        theme = theme === "dark" ? "light" : "dark";
+        // Prefer the theme's own API when it has loaded; it points at the same
+        // stylesheet and keeps jtd.getTheme() honest for anything else reading it.
+        if (window.jtd && typeof window.jtd.setTheme === "function") {
+          window.jtd.setTheme(theme);
+          document.documentElement.setAttribute("data-cs-theme", theme);
+        } else {
+          swap(theme);
+        }
+        try { localStorage.setItem("cs-theme", theme); } catch (e) {}
+        label();
       });
     });
   })();
 </script>
 
 <style>
-  /* Three tokens carried over from the landing page, so the docs read as the
-     same product: the accent, the top of the type scale, and the pill. Not a
-     theme rewrite — just the parts a reader notices in the first second. */
-  :root {
-    --cs-accent: #2f5bff;
-    --cs-accent-soft: rgba(47, 91, 255, .12);
-  }
-
-  html.color-scheme-dark {
-    --cs-accent: #7f9bff;
-    --cs-accent-soft: rgba(127, 155, 255, .16);
-  }
-
-  .site-title.lh-tight {
-    font-weight: 700;
-    letter-spacing: -.02em;
-  }
-
-  /* The way back. A reader who arrived on Quickstart from a search engine has
-     no route to "should I use this at all?" without this. */
+  /* The way back. A reader who arrived on a guide from a search engine has no
+     route to "should I use this at all?" without these. */
   .cs-site-links {
     display: flex;
     flex-wrap: wrap;
-    gap: .35rem .75rem;
-    padding: .35rem 1rem .75rem;
+    align-items: center;
+    gap: .4rem .8rem;
+    padding: .5rem 1rem 1rem;
     font-size: .75rem;
     line-height: 1.4;
   }
@@ -95,21 +84,16 @@
 
   .cs-theme-toggle {
     font: inherit;
-    font-size: .75rem;
+    font-size: .72rem;
     background: none;
     border: 1px solid currentColor;
     border-radius: 100px;
-    padding: .1rem .55rem;
+    padding: .12rem .6rem;
     cursor: pointer;
     color: inherit;
-    opacity: .8;
+    opacity: .75;
   }
 
   .cs-theme-toggle:hover { opacity: 1; }
-  .cs-theme-toggle:focus-visible { outline: 2px solid var(--cs-accent); outline-offset: 2px; }
-
-  /* The copy button the theme now renders sits tight against the code; give it
-     the same breathing room the landing page's copy button has. */
-  .code-example + .highlighter-rouge .copy-button,
-  .highlighter-rouge .copy-button { margin: .35rem; }
+  .cs-theme-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 </style>

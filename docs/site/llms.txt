@@ -28,6 +28,7 @@ Key facts agents get wrong without reading:
 
 ## Docs
 
+- [Is it the right fit?](https://davidteren.github.io/current_scope/comparison.html): CurrentScope vs Pundit, Action Policy, CanCanCan, Banken, Oso; when to choose one of them instead; adoption cost for greenfield vs an existing app
 - [Quickstart](https://davidteren.github.io/current_scope/quickstart.html): install, gate skip, report mode, bootstrap admin
 - [Concepts](https://davidteren.github.io/current_scope/concepts.html): resolver order, permissions from routes, ambient context
 - [Separation of duties](https://davidteren.github.io/current_scope/separation-of-duties.html): the anti-fraud veto — opt-in, how to enable, verify, break-glass

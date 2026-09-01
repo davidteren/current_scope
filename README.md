@@ -120,6 +120,32 @@ per-record scoped roles; server-side search across all subjects.
 
 Screenshot regenerate command: [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Is it the right fit?
+
+Authorization is a decision you live with for years, so the docs site carries a
+comparison written to help you say **no** as easily as yes:
+**[Is it the right fit?](https://davidteren.github.io/current_scope/comparison.html)**
+— CurrentScope beside Pundit, Action Policy, CanCanCan, Banken and Oso, five
+questions that point at one of them, and what adopting it actually costs
+(source: [docs/site/comparison.md](docs/site/comparison.md)).
+
+The trade in one line: **the others put your rules in code you deploy, Oso puts
+them in a policy language, CurrentScope puts them in rows an administrator
+edits.** So:
+
+| Reach for something else when | Because |
+|---|---|
+| Rules depend on the record's data or the time ("only under 10,000") | CurrentScope has no vocabulary for attribute rules. Pundit, Action Policy, CanCanCan and Oso do. |
+| Something outside Rails needs the same answer | It is a Rails engine. Oso is built for one policy across services. |
+| Every permission change should be a code review | That is a legitimate policy, and an argument for Pundit or Action Policy. |
+| You want the smallest possible dependency | Pundit is a convention and a few hundred lines; this brings tables, a UI and a ledger. |
+| You cannot ship beta | The last gate before 1.0 is a real-host bake ([#116](https://github.com/davidteren/current_scope/issues/116)). |
+
+Reach for CurrentScope when roles change often and not by developers, access is
+per record rather than per class, somebody has to answer "who could approve this,
+and when did that change?", or you are retrofitting a live app and need report
+mode to tell you what would break.
+
 ## Installation
 
 > **Upgrading from 0.4 or earlier? Run the migrations.** 0.5 widens the columns
@@ -343,6 +369,7 @@ role grid, org-wide assignments, scoped grants.
 | [Testing](docs/guides/testing.md) | `TestHelpers`, grants in request specs |
 | [Adopting in an existing app](docs/guides/adopting-in-an-existing-app.md) | Report-mode retrofit ladder |
 | [Security & production checklist](docs/SECURITY-CHECKLIST.md) | Pre-ship tick list |
+| [Is it the right fit?](https://davidteren.github.io/current_scope/comparison.html) | CurrentScope vs Pundit, Action Policy, CanCanCan, Banken, Oso — and adoption cost |
 | [Docs site](https://davidteren.github.io/current_scope/) | Published quickstart, SoD story, AI-agent prompts |
 
 Root [CONCEPTS.md](CONCEPTS.md) is the longer glossary narrative for maintainers.
@@ -397,6 +424,10 @@ authorize on the server.
 | Report × model_undeclared / model_invalid | Hard 403 (reason header + dev nudge) only when a scoped grant would otherwise satisfy; plain no_grant still report-mode observes |
 | GatingTripwire opt-in | Never-included Guard stays open; include Guard + optional tripwire |
 | Parent/child cascade is opt-in | Flat unless the child declares `current_scope_parent`; then bounded at 5 hops, and `full_access` does not cascade (#108) |
+
+If any of these rules CurrentScope out for you, the
+[fit comparison](https://davidteren.github.io/current_scope/comparison.html)
+names which of Pundit, Action Policy, CanCanCan, Banken or Oso to read next.
 
 ## Design notes
 

@@ -37,18 +37,25 @@
       document.documentElement.setAttribute("data-cs-theme", next);
     }
 
-    swap(theme);
+    // The theme's first stylesheet is compiled from site.color_scheme, so when
+    // the visitor's theme already matches it there is nothing to fetch: swapping
+    // anyway abandons an in-flight, render-blocking stylesheet for a
+    // byte-identical one under a different name.
+    if (theme !== {{ site.color_scheme | jsonify }}) swap(theme);
+    document.documentElement.setAttribute("data-cs-theme", theme);
 
     document.addEventListener("DOMContentLoaded", function () {
       var toggle = document.querySelector("[data-cs-theme-toggle]");
       if (!toggle) return;
 
+      // A command button that names what it will do — not aria-pressed, which
+      // would announce "Light theme, pressed" while the page is dark.
       var label = function () {
-        toggle.setAttribute("aria-pressed", String(theme === "dark"));
         toggle.textContent = theme === "dark" ? "Light theme" : "Dark theme";
       };
 
       label();
+      toggle.hidden = false; // only now is it a control that does something
       toggle.addEventListener("click", function () {
         theme = theme === "dark" ? "light" : "dark";
         // Prefer the theme's own API when it has loaded; it points at the same

@@ -398,11 +398,14 @@
      Tuned in scratch/reveal-tuner (DialKit); ported as plain custom properties
      because this page has no build step. */
   :root{--cs-reveal-stagger:70ms;--cs-reveal-rise:14px}
-  .js .reveal{opacity:0;transform:translateY(var(--cs-reveal-rise));
+  .js-reveal-arming .reveal{transition:none!important}
+  .js-reveal .reveal:not(.in){opacity:0;transform:translateY(var(--cs-reveal-rise));
     transition:opacity .6s ease,transform .6s cubic-bezier(.2,.7,.3,1);
     transition-delay:calc(var(--cs-reveal-i,0) * var(--cs-reveal-stagger))}
   .reveal.in{opacity:1;transform:none}
-  @media(prefers-reduced-motion:reduce){.js .reveal{opacity:1;transform:none;transition:none;transition-delay:0s}}
+  @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none;transition-delay:0s}}
+  /* A printed or PDF'd page is never scrolled. */
+  @media print{.reveal{opacity:1!important;transform:none!important}}
 </style>
 </head>
 <body>
@@ -423,9 +426,8 @@
     <nav class="links" id="navlinks" aria-label="Primary">
       <a href="#features">Features</a>
       <a href="#quickstart">Install</a>
-      <a href="comparison.html">Is it for you?</a>
+      <a href="comparison.html">Is it the right fit?</a>
       <a href="quickstart.html">Docs</a>
-      <a href="#comparison">Comparison</a>
       <a href="https://github.com/davidteren/current_scope" rel="noopener">GitHub</a>
       <a href="#showcase">Showcase</a>
       <a href="#status">Status</a>
@@ -466,7 +468,7 @@
     </ul>
     <div class="cta">
       <a class="btn primary" href="#quickstart">Quickstart</a>
-      <a class="btn ghost" href="comparison.html">Is it right for you?</a>
+      <a class="btn ghost" href="comparison.html">Is it the right fit?</a>
     </div>
     <p class="cta-more">
       <a href="quickstart.html">Docs</a>
@@ -1229,33 +1231,42 @@ bin/rails server    <span class="tk-com"># http://localhost:3000</span></pre>
   function revealAll(){document.querySelectorAll('.reveal').forEach(function(el){
     el.style.setProperty('--cs-reveal-i', 0); el.classList.add('in')
   })}
-  if('IntersectionObserver' in window){
-    var revealed=0;
+  // Reveal-on-scroll, arranged so nothing can be permanently invisible.
+  //
+  // The page ships fully visible. Only when the reader scrolls for the first
+  // time do the sections still BELOW them get hidden and handed to the
+  // observer, which brings each one in as it arrives. So a client that never
+  // scrolls — a crawler, a print or PDF, a screenshot, an agent reading the
+  // site — sees the whole document, and a reader still gets the choreography
+  // for everything they have not reached yet.
+  //
+  // (Two earlier shapes were worse: revealing everything on a 2.6s timer meant
+  // the animation never played for anyone, and making that timer conditional
+  // meant a non-scrolling client could be left looking at empty sections.)
+  if('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches){
+    var armed=false;
     var io=new IntersectionObserver(function(en){
-      en.forEach(function(e){if(e.isIntersecting){revealed++;e.target.classList.add('in');io.unobserve(e.target)}})
+      en.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})
     },{rootMargin:'0px 0px -8% 0px',threshold:.08});
-    document.querySelectorAll('.reveal').forEach(function(el){io.observe(el)});
-    // The safety net used to reveal EVERYTHING at 2600ms, which meant no
-    // section below the fold ever animated: by the time a reader scrolled to
-    // one it had already been shown. Now it only fires when the observer has
-    // produced nothing at all — a broken observer, not a slow reader.
-    setTimeout(function(){ if(revealed===0) revealAll() },2600);
 
-    // Belt and braces: anything already inside the viewport gets shown even if
-    // the observer misses it. Content on an authorization library's site must
-    // not be able to stay invisible.
-    var ticking=false;
-    function sweep(){
-      ticking=false;
+    var arm=function(){
+      if(armed)return; armed=true;
       var h=window.innerHeight||document.documentElement.clientHeight;
-      document.querySelectorAll('.reveal:not(.in)').forEach(function(el){
-        var r=el.getBoundingClientRect();
-        if(r.top < h && r.bottom > 0){el.classList.add('in');io.unobserve(el)}
+      // Hide instantly, not over 600ms: arming must not fade the page out
+      // under a reader who is already scrolling toward it.
+      document.documentElement.classList.add('js-reveal','js-reveal-arming');
+      document.querySelectorAll('.reveal').forEach(function(el){
+        // Anything on screen or already passed stays put; only what is still
+        // ahead of the reader is hidden and animated.
+        if(el.getBoundingClientRect().top < h){el.classList.add('in')}else{io.observe(el)}
+      });
+      void document.documentElement.offsetHeight; // flush the hidden state
+      requestAnimationFrame(function(){
+        document.documentElement.classList.remove('js-reveal-arming')
       })
-    }
-    addEventListener('scroll',function(){if(!ticking){ticking=true;requestAnimationFrame(sweep)}},{passive:true});
-    addEventListener('resize',sweep,{passive:true});
-  }else{revealAll()}
+    };
+    addEventListener('scroll',arm,{passive:true,once:true});
+  }
 
   if(window.fetch){
     fetch('https://rubygems.org/api/v1/gems/current_scope.json')

@@ -110,7 +110,7 @@ comparison that flatters the author is worth nothing.
 Answer five questions. Nothing is sent anywhere: this runs in your browser, and
 the plain-text version below works with JavaScript off.
 
-<div id="fitter" data-fitter>
+<div id="fitter" data-fitter role="group" aria-live="polite" aria-label="Which library fits you">
   <noscript><p><em>The guided version needs JavaScript. The decision table below says the same thing.</em></p></noscript>
 </div>
 
@@ -320,7 +320,7 @@ not developer time.
     el.innerHTML =
       '<div class="cs-fit-bar"><i style="width:' + Math.round((state.i / QUESTIONS.length) * 100) + '%"></i></div>' +
       '<div class="cs-fit-step">Question ' + (state.i + 1) + " of " + QUESTIONS.length + "</div>" +
-      '<p class="cs-fit-q"></p><div class="cs-fit-opts"></div>';
+      '<p class="cs-fit-q" data-focus></p><div class="cs-fit-opts"></div>';
     el.querySelector(".cs-fit-q").textContent = q.q;
 
     var opts = el.querySelector(".cs-fit-opts");
@@ -339,8 +339,20 @@ not developer time.
       opts.appendChild(b);
     });
 
+    swapIn(el);
+  }
+
+  // The activated button is destroyed by its own click, so focus falls to the
+  // body unless we move it. The new heading takes it, which also makes the
+  // live region announce the question rather than nothing.
+  function swapIn(el, focusFirst) {
+    var hadFocus = mount.contains(document.activeElement);
     mount.innerHTML = "";
     mount.appendChild(el);
+    if (!hadFocus) return;
+    var target = focusFirst || el.querySelector("[data-focus]") || el;
+    if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+    target.focus();
   }
 
   function renderVerdict() {
@@ -384,8 +396,7 @@ not developer time.
       render();
     });
 
-    mount.innerHTML = "";
-    mount.appendChild(el);
+    swapIn(el, el.querySelector("h4"));
   }
 
   render();

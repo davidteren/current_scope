@@ -10,5 +10,7 @@
   <a href="{{ '/' | relative_url }}">Overview</a>
   <a href="{{ '/comparison.html' | relative_url }}">Is it the right fit?</a>
   <a href="https://github.com/davidteren/current_scope">GitHub</a>
-  <button type="button" class="cs-theme-toggle" data-cs-theme-toggle aria-pressed="true">Dark theme</button>
+  <!-- Unhidden by head_custom.html once the click handler is wired, so it can
+       never render as a control that does nothing. -->
+  <button type="button" class="cs-theme-toggle" data-cs-theme-toggle hidden>Switch theme</button>
 </div>

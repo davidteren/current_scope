@@ -33,6 +33,46 @@ class DocsSiteTest < ActiveSupport::TestCase
     assert_equal 1, stops.length, "keyboard users should hit one grid cell, then arrow"
   end
 
+  # The seam between the marketing page and the docs is held together by three
+  # string literals in three files. Nothing else notices if one of them moves.
+  test "the marketing page and the docs agree on the theme storage key" do
+    include_path = File.expand_path("../docs/site/_includes/head_custom.html", __dir__)
+    docs_head = File.read(include_path, encoding: "UTF-8")
+
+    assert_match(/localStorage\.getItem\("cs-theme"\)/, docs_head,
+                 "the docs read the key the landing page writes")
+    assert_match(/localStorage\.getItem\('cs-theme'\)/, @html,
+                 "the landing page writes the key the docs read")
+    assert_match(/just-the-docs-" \+ next \+ "\.css/, docs_head,
+                 "just-the-docs switches theme by swapping the stylesheet href, not a class")
+  end
+
+  test "the fit page keeps its chooser and its no-JavaScript fallback" do
+    page = File.read(File.expand_path("../docs/site/comparison.md", __dir__), encoding: "UTF-8")
+
+    assert_match(/data-fitter/, page, "the chooser needs its mount point")
+    assert_match(/<noscript>/, page, "the chooser must degrade to the table below it")
+    assert_match(/aria-live/, page, "each question has to be announced")
+    assert_match(/^\| If this is true of you/, page,
+                 "the plain-table version is the fallback the noscript promises")
+    %w[Pundit Action\ Policy CanCanCan Banken Oso].each do |lib|
+      assert_match(/#{lib}/, page, "the comparison names #{lib}")
+    end
+  end
+
+  # The reveal has been wrong in both directions: an unconditional timer meant
+  # it never played, and a conditional one could leave a client that does not
+  # scroll looking at empty sections.
+  test "nothing is hidden until the reader scrolls" do
+    assert_match(/js-reveal-arming/, @html, "arming must not fade the page out")
+    assert_match(/classList\.add\('js-reveal'/, @html,
+                 "the hiding rule is added on first scroll, not at load")
+    assert_match(/@media print\{\.reveal\{opacity:1!important/, @html,
+                 "a printed page is never scrolled")
+    refute_match(/setTimeout\(revealAll/, @html,
+                 "the timer-based reveal is what made the animation pointless")
+  end
+
   test "landing page does not reintroduce the view/gate overclaim" do
     refute_match(/can(?:not|'t) disagree|never drift apart/i, @html)
   end

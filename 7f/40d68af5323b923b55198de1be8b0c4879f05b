@@ -1,0 +1,21 @@
+docs/site/_includes/head_custom.html
+  s_240773ee81a9c0::t_3c4fbb34a708db 12-18,22-24,34-38,40,42,46-48,51,53-63,70-71,75-77,87,91,94,98
+docs/site/_includes/nav_footer_custom.html
+  s_240773ee81a9c0::t_2846a0cc82c231 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "7f40d68af5323b923b55198de1be8b0c4879f05b",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

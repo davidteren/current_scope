@@ -27,9 +27,18 @@ plugins:
   - jekyll-sitemap
   - jekyll-relative-links
 
+# The landing page (index.html) lets a visitor choose, and remembers the choice
+# in localStorage['cs-theme']. _includes/head_custom.html applies that choice
+# here, so the pick survives the click from the marketing page into the docs.
+# This is the fallback for a first visit with no stored choice and no readable
+# OS preference.
 color_scheme: dark
 search_enabled: true
 heading_anchors: true
+
+# Six of the quickstart's steps are commands. The page a developer works from
+# should let them take the command.
+enable_copy_code_button: true
 
 aux_links:
   GitHub: https://github.com/davidteren/current_scope

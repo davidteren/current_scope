@@ -54,17 +54,43 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
 
   teardown { FileUtils.remove_entry(@dir) if @dir && File.directory?(@dir) }
 
-  def with_page(size)
+  # just-the-docs v0.12.0's own switcher, which the include prefers whenever it
+  # is loaded: it rewrites the first stylesheet's href to
+  # assets/css/just-the-docs-<scheme>.css.
+  JTD_STUB = <<~JS.freeze
+    window.jtd = { setTheme: function (t) {
+      var l = document.querySelector('link[rel="stylesheet"]');
+      l.setAttribute("href", "/current_scope/assets/css/just-the-docs-" + t + ".css");
+    } };
+  JS
+
+  # `jtd:` picks which branch of the click handler runs. On the real site the
+  # theme's script is loaded in <head>, so window.jtd is always defined and its
+  # setTheme is the branch that ships; the swap() fallback beside it runs only
+  # if that script is ever absent. A harness that defines neither would exercise
+  # the fallback and leave the shipped path untested.
+  def with_page(size, jtd: false)
     browser = Ferrum::Browser.new(
       headless: true, window_size: size, process_timeout: 30, timeout: 30,
       browser_options: { "no-sandbox" => nil }
     )
     page = browser.create_page
     page.go_to("file://#{File.join(@dir, 'docs.html')}")
+    # After load, which is fine: the handler reads window.jtd when it is
+    # clicked, not when it is attached.
+    page.execute(JTD_STUB) if jtd
     sleep 0.2
     yield page
   ensure
     browser&.quit
+  end
+
+  def press_visible_toggle(page)
+    page.evaluate(<<~JS)
+      Array.prototype.filter.call(document.querySelectorAll("[data-cs-docs-theme-toggle]"),
+        function (t) { var r = t.getBoundingClientRect(); return !t.hidden && r.height > 0 })[0].click()
+    JS
+    sleep 0.2
   end
 
   def toggles(page)
@@ -94,20 +120,21 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
       end
     end
 
-    test "clicking the toggle actually changes the stylesheet on #{name}" do
-      with_page(size) do |page|
-        before = stylesheet(page)
-        page.evaluate(<<~JS)
-          Array.prototype.filter.call(document.querySelectorAll("[data-cs-docs-theme-toggle]"),
-            function (t) { var r = t.getBoundingClientRect(); return !t.hidden && r.height > 0 })[0].click()
-        JS
-        sleep 0.2
+    # Both branches. Exercising only the fallback would leave the path that
+    # actually ships free to break while the suite stayed green, which is
+    # failure mode 1 in this file's header: a visible, pressable, dead control.
+    { "with just-the-docs loaded" => true, "without it" => false }.each do |how, jtd|
+      test "pressing the toggle changes the stylesheet on #{name}, #{how}" do
+        with_page(size, jtd: jtd) do |page|
+          before = stylesheet(page)
+          press_visible_toggle(page)
 
-        refute_equal before, stylesheet(page),
-                     "the control is visible and pressable but the page never changed: " \
-                     "just-the-docs themes by swapping the stylesheet href, not by a class"
-        assert_match(/just-the-docs-light\.css/, stylesheet(page),
-                     "the stored default here is dark, so one press has to land on light")
+          refute_equal before, stylesheet(page),
+                       "the control is visible and pressable but the page never changed: " \
+                       "just-the-docs themes by swapping the stylesheet href, not by a class"
+          assert_match(/just-the-docs-light\.css/, stylesheet(page),
+                       "the stored default here is dark, so one press has to land on light")
+        end
       end
     end
   end
@@ -117,11 +144,7 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
       assert_equal [ "Light theme" ], toggles(page).map { |t| t["label"] }.uniq,
                    "the button names the action it performs, from a dark starting point"
 
-      page.evaluate(<<~JS)
-        Array.prototype.filter.call(document.querySelectorAll("[data-cs-docs-theme-toggle]"),
-          function (t) { var r = t.getBoundingClientRect(); return !t.hidden && r.height > 0 })[0].click()
-      JS
-      sleep 0.2
+      press_visible_toggle(page)
 
       assert_equal [ "Dark theme" ], toggles(page).map { |t| t["label"] }.uniq,
                    "both copies have to relabel, or the reader who resizes sees the wrong one"

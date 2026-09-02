@@ -90,6 +90,36 @@ class DocsSiteTest < ActiveSupport::TestCase
     end
   end
 
+  # The README's fit section restates the comparison page's trade-off story, so
+  # the two can drift apart. Pin what has to stay true of both: the same five
+  # libraries, the same question count, and every disqualifier the chooser can
+  # apply also named in the README's "reach for something else" table.
+  test "the README fit section agrees with the comparison page" do
+    readme = File.read(File.expand_path("../README.md", __dir__), encoding: "UTF-8")
+    page   = File.read(File.expand_path("../docs/site/comparison.md", __dir__), encoding: "UTF-8")
+
+    section = readme[/^## Is it the right fit\?$.*?(?=^## )/m] or
+      flunk "the README lost its fit section"
+
+    %w[Pundit Action\ Policy CanCanCan Banken Oso].each do |lib|
+      assert_includes section, lib, "the README fit section names #{lib}"
+    end
+
+    count = page.scan(/^\s+q: "/).length
+    words = %w[zero one two three four five six seven eight nine]
+    assert_includes section.gsub(/\s+/, " "), "#{words.fetch(count)} questions",
+                    "the README says how many questions the page asks; it asks #{count}"
+    assert_includes page.gsub(/\s+/, " "), "Answer #{words.fetch(count)} questions",
+                    "the page says how many questions it asks; it asks #{count}"
+
+    { "attribute rules" => "no vocabulary for attribute rules",
+      "polyglot" => "outside Rails",
+      "beta" => "cannot ship beta" }.each do |veto, phrase|
+      assert_match(/veto: "#{veto.split.first}/, page, "#{veto} is still a disqualifier on the page")
+      assert_includes section, phrase, "the README names the #{veto} disqualifier"
+    end
+  end
+
   # The page exists to help a reader say no. Two answers must be able to rule
   # CurrentScope out on their own, and the verdict must never sell a library
   # without naming what it costs.

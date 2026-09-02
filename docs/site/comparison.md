@@ -228,8 +228,10 @@ not developer time.
   if (!mount) return;
 
   // Each answer adds points to one or more libraries, and can set a hard
-  // disqualifier. Order matters: the disqualifiers are asked first, so a reader
-  // who should not use CurrentScope learns it on question one or two.
+  // disqualifier that no score can outweigh. The two that most often rule
+  // CurrentScope out are asked first, so a reader who should not use it learns
+  // that on question one or two rather than at the end. The beta question is
+  // last on purpose: see the comment above it.
   var QUESTIONS = [
     {
       q: "Do any of your access rules depend on the record's data or the time — an amount, a date, a region, a status?",
@@ -273,6 +275,10 @@ not developer time.
     // CurrentScope's own headline disqualifier. It was in the table and not in
     // the questions, so a reader who cannot ship beta software could be walked
     // through the whole thing and handed CurrentScope at the end.
+    //
+    // Last, not first: it asks about this project's maturity rather than the
+    // shape of the reader's app, so it cannot help choose between the others.
+    // Asked first it would read as an apology before a single question.
     {
       q: "Can you put software that is still in beta into production?",
       opts: [
@@ -403,6 +409,23 @@ not developer time.
       .map(function (k) { return { key: k, n: state.score[k] || 0 }; })
       .sort(function (a, b) { return b.n - a.n; });
 
+    // No veto combination empties this today, but a future one could, and a
+    // throw here would freeze the chooser on the last question with nothing on
+    // screen. Say the honest thing instead.
+    if (!ranked.length) {
+      var none = document.createElement("div");
+      none.className = "cs-fit cs-fit-verdict";
+      none.innerHTML = '<div class="cs-fit-step">Based on your answers</div>' +
+        "<h3>None of these</h3><p>Your answers rule out every library on this page. " +
+        "The table above is the place to start instead.</p>" +
+        '<p class="cs-fit-restart"><button type="button" data-restart>Start again</button></p>';
+      none.querySelector("[data-restart]").addEventListener("click", function () {
+        state = { i: 0, score: {}, vetoes: [] };
+        render();
+      });
+      return swapIn(none, none.querySelector("h3"));
+    }
+
     // Every library that scored the top score, not just the first two. The
     // scores are coarse on purpose, so ties are common; naming one of them the
     // answer would only report the order this object literal is written in.
@@ -440,8 +463,11 @@ not developer time.
       html += "<p><strong>What you give up with " + l.name + ":</strong> " + l.givesUp + "</p>";
     });
 
+    // The runner-up is a recommendation too, so it carries its cost like the
+    // winners do. Naming only the upside is the flattering kind.
     if (runnerUp) {
-      html += "<p>Worth a look as well: <strong>" + runnerUp.name + "</strong> — " + runnerUp.line + "</p>";
+      html += "<p>Worth a look as well: <strong>" + runnerUp.name + "</strong> — " + runnerUp.line +
+        " <em>" + runnerUp.givesUp + "</em></p>";
     }
 
     html += "<p>" + winners.map(function (l) {

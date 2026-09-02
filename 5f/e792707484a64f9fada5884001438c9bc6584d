@@ -1,0 +1,22 @@
+test/system/docs_site_reveal_test.rb
+  s_240773ee81a9c0::t_960463a3dfa960 28-30,112-116,120-128,133-139
+  s_240773ee81a9c0::t_fcd8452821830f 117-119
+test/docs_site_test.rb
+  s_240773ee81a9c0::t_85dfa5f2728d0f 48,53,127-135,137-139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "5fe792707484a64f9fada5884001438c9bc6584d",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

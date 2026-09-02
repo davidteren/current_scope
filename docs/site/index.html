@@ -186,6 +186,11 @@
   .btn.primary{background:var(--accent);color:#fff;box-shadow:0 8px 24px -8px var(--glow)}
   .btn.primary:hover{background:var(--accent2);transform:translateY(-1px)}
   .btn.ghost{border-color:var(--border2);color:var(--txt);background:var(--panel)}
+  /* A .btn inside a <p> in <main> picks up the underline from
+     `main :is(p,...) a` (0,1,3); .btn is only (0,1,0) and sets no
+     text-decoration, so it would render underlined, unlike every other button
+     on the page. Matched at (0,1,3) and declared later, so this wins. */
+  main :is(p,li) a.btn{text-decoration:none}
   .btn.ghost:hover{border-color:var(--accent);background:var(--panel2)}
   .btn.tiny{font-size:13.5px;padding:9px 13px}
 

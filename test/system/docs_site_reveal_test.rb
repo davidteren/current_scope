@@ -78,6 +78,14 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
     end
   end
 
+  # Defined on the class, not inside a test block: a `def` inside a block still
+  # lands on the class, but only once that test has run, so a same-named helper
+  # elsewhere would behave differently under Minitest's random ordering.
+  def hex(value)
+    m = value.to_s.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/) or return value.to_s.downcase
+    format("#%02x%02x%02x", m[1].to_i, m[2].to_i, m[3].to_i)
+  end
+
   def opacities(selector = ".reveal")
     @page.evaluate(<<~JS)
       Array.prototype.map.call(document.querySelectorAll(#{selector.inspect}),
@@ -106,11 +114,6 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
 
     refute_nil colours["link"], "the landing page lost its secondary calls to action"
 
-    def hex(value)
-      m = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/) or return value.downcase
-      format("#%02x%02x%02x", m[1].to_i, m[2].to_i, m[3].to_i)
-    end
-
     actual = hex(colours["link"])
     [ "accent", "accent2" ].each do |name|
       refute_equal hex(colours[name]), actual,
@@ -119,6 +122,16 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
     end
     assert_equal hex(colours["dim"]), actual,
                  "the secondary links should carry the palette's quiet tone"
+
+    # Same specificity leak, different victim: a .btn inside a <p> in <main>
+    # inherits the prose underline and renders unlike every other button.
+    underlined = @page.evaluate(<<~JS)
+      Array.prototype.filter.call(document.querySelectorAll("a.btn"), function (b) {
+        return getComputedStyle(b).textDecorationLine.indexOf("underline") > -1;
+      }).map(function (b) { return b.textContent.trim().slice(0, 40) })
+    JS
+    assert_empty underlined,
+                 "these buttons render underlined, unlike every other button on the page"
   end
 
   test "a client that never scrolls sees the whole page" do

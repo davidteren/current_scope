@@ -65,6 +65,19 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
     end
   end
 
+  # The first scroll arms the reveal; the transient arming class is removed in a
+  # requestAnimationFrame callback, so waiting a fixed 300ms for it is a race on
+  # a loaded runner.
+  def arm!
+    @page.evaluate("window.scrollTo(0, 200)")
+    wait_until(message: "the first scroll has to arm the reveal") do
+      @page.evaluate("document.documentElement.classList.contains('js-reveal')")
+    end
+    wait_until(message: "the arming class is transient; leaving it on disables every transition") do
+      !@page.evaluate("document.documentElement.classList.contains('js-reveal-arming')")
+    end
+  end
+
   def opacities(selector = ".reveal")
     @page.evaluate(<<~JS)
       Array.prototype.map.call(document.querySelectorAll(#{selector.inspect}),
@@ -80,13 +93,7 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
   end
 
   test "the first scroll hides what is still below the reader, and reveals it on arrival" do
-    @page.evaluate("window.scrollTo(0, 200)")
-    sleep 0.3
-
-    assert @page.evaluate("document.documentElement.classList.contains('js-reveal')"),
-           "the first scroll arms the reveal"
-    refute @page.evaluate("document.documentElement.classList.contains('js-reveal-arming')"),
-           "the arming class is transient; leaving it on would disable every transition"
+    arm!
 
     hidden = opacities.count { |o| o < 0.01 }
     assert_operator hidden, :>, 0, "sections below the reader are handed to the observer"
@@ -113,11 +120,16 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
   # already jumped to 1 (1, 0.47, 0.47, 0.47, 0.47, 0.47, 0.47). Counting the
   # distinct opacities within one sample separates them cleanly.
   test "revealed siblings arrive in turn rather than as one block" do
-    @page.evaluate("window.scrollTo(0, 200)")
-    sleep 0.3
+    arm!
 
-    assert_operator opacities("#features .reveal").length, :>=, 4,
+    before = opacities("#features .reveal")
+    assert_operator before.length, :>=, 4,
                     "the stagger is only observable across several siblings"
+    # Without this the next assertion can fail for the wrong reason: if the hero
+    # ever gets shorter, #features is above the fold at arm time, is revealed
+    # immediately, and the stagger message would blame CSS that is fine.
+    assert_empty before.reject { |o| o < 0.01 },
+                 "#features has to start below the reader for its arrival to be observable"
 
     # Recorded inside the browser, on its own animation frames, and read back
     # once at the end. Two earlier shapes were both races: a browser-side busy

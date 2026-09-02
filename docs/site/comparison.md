@@ -212,8 +212,7 @@ not developer time.
   .cs-fit-q { font-size: 1.15rem; font-weight: 600; margin: .35rem 0 1rem; line-height: 1.3; }
   .cs-fit-opts { display: flex; flex-wrap: wrap; gap: .5rem; }
   .cs-fit-opts button,
-  .cs-fit-nav button,
-  .cs-fit-restart button {
+  .cs-fit-nav button {
     font: inherit;
     font-size: .95rem;
     padding: .5rem .9rem;
@@ -224,21 +223,18 @@ not developer time.
     cursor: pointer;
   }
   .cs-fit-opts button:hover,
-  .cs-fit-nav button:hover,
-  .cs-fit-restart button:hover { border-color: currentColor; }
+  .cs-fit-nav button:hover { border-color: currentColor; }
   .cs-fit-opts button:focus-visible,
-  .cs-fit-nav button:focus-visible,
-  .cs-fit-restart button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+  .cs-fit-nav button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
   /* Secondary to the answers: same shape, quieter. */
   .cs-fit-nav { margin-top: .9rem; }
-  .cs-fit-nav button, .cs-fit-restart button { font-size: .85rem; padding: .35rem .7rem; opacity: .8; }
-  .cs-fit-nav button:hover, .cs-fit-restart button:hover { opacity: 1; }
+  .cs-fit-nav button { font-size: .85rem; padding: .35rem .7rem; opacity: .8; }
+  .cs-fit-nav button:hover { opacity: 1; }
   .cs-fit-bar { height: 3px; background: rgba(128, 145, 150, .25); border-radius: 3px; margin-bottom: 1rem; overflow: hidden; }
   .cs-fit-bar i { display: block; height: 100%; background: currentColor; opacity: .55; transition: width .2s ease; }
   .cs-fit-verdict h3 { margin: .2rem 0 .6rem; font-size: 1.25rem; }
   .cs-fit-why { margin: 0 0 1rem; padding-left: 1.1rem; }
   .cs-fit-why li { margin-bottom: .35rem; }
-  .cs-fit-restart { font-size: .9rem; }
   @media (prefers-reduced-motion: reduce) { .cs-fit-bar i { transition: none; } }
 </style>
 

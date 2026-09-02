@@ -83,9 +83,15 @@
         t.addEventListener("click", function () {
           var next = theme === "dark" ? "light" : "dark";
           // Prefer the theme's own API when it has loaded; it points at the
-          // same stylesheet and respects baseurl the same way.
+          // same stylesheet and respects baseurl the same way. Either way, the
+          // href has to actually move: this is the branch that runs in
+          // production, so it needs the same guard as the fallback. Otherwise a
+          // stylesheet rename in a future just-the-docs would flip the label
+          // and persist a preference over a page that never changed.
+          var before = link.getAttribute("href");
           if (window.jtd && typeof window.jtd.setTheme === "function") {
             window.jtd.setTheme(next);
+            if (link.getAttribute("href") === before) return;
           } else if (!swap(next)) {
             return; // nothing moved on screen, so do not relabel or store
           }

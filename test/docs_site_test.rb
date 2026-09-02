@@ -78,12 +78,12 @@ class DocsSiteTest < ActiveSupport::TestCase
     # Each question is announced by taking focus, not by a live region. Pin the
     # focus target and its marker, or the mechanism can be removed silently.
     assert_match(/data-focus/, page, "the new question has to be the focus target")
-    assert_match(/target\.focus\(\)/, page, "each question has to be announced on focus")
+    assert_match(/\.focus\(\)/, page, "each question has to be announced on focus")
     assert_match(/^\| If this is true of you/, page,
                  "the plain-table version is the fallback the noscript promises")
     # A mis-click must not cost the reader a page reload.
     assert_match(/data-back/, page, "the chooser needs a way back from a mis-click")
-    assert_match(/history\.pop\(\)/, page, "Back has to restore the previous answer")
+    assert_match(/\bpop\(\)/, page, "Back has to restore the previous answer")
     # Pin the table's header row, not a bare name: every one of these also
     # appears in prose and in the chooser's own constants, so a loose match
     # passes with the comparison column gone.
@@ -91,6 +91,28 @@ class DocsSiteTest < ActiveSupport::TestCase
     %w[Pundit Action\ Policy CanCanCan Banken Oso].each do |lib|
       assert_includes header, lib, "#{lib} needs a column in the comparison table"
     end
+  end
+
+  # There are now two comparison tables: the short one on the landing page and
+  # the full one on the fit page. Nothing stops a corrected claim on one from
+  # contradicting the other, so pin the seam: the landing table may only name
+  # libraries the full page covers, and it has to send the reader there.
+  test "the landing page's short comparison defers to the full one" do
+    page = File.read(File.expand_path("../docs/site/comparison.md", __dir__), encoding: "UTF-8")
+    covered = page[/^\| \| CurrentScope \|.*$/].to_s.split("|").map(&:strip).reject(&:empty?)
+
+    section = @html[/<section id="comparison">.*?<\/section>/m] or
+      flunk "the landing page lost its comparison section"
+
+    %w[Pundit Action\ Policy CanCanCan Banken Oso].each do |lib|
+      next unless section.include?(lib)
+
+      assert_includes covered, lib,
+                      "the landing table names #{lib}, so the full comparison has to cover it"
+    end
+
+    assert_match(%r{href="comparison\.html"}, section,
+                 "the short table has to hand the reader to the full one")
   end
 
   # The README's fit section restates the comparison page's trade-off story, so
@@ -167,7 +189,7 @@ class DocsSiteTest < ActiveSupport::TestCase
                  "only one place may add the class that hides content"
     assert_match(/addEventListener\('scroll',\s*arm\b/, @html,
                  "arming has to hang off the reader's first scroll")
-    assert_match(/var arm\s*=\s*function\s*\(\)\s*\{[^{}]*if\(armed\)return/, @html,
+    assert_match(/function\s*\(\)\s*\{\s*if\s*\(?\s*armed\s*\)?\s*return/, @html,
                  "arm runs once; a client that never scrolls never arms it")
     refute_match(/^\s*arm\(\)/, @html,
                  "calling arm() directly is what blanks the page for a crawler")

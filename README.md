@@ -127,9 +127,10 @@ comparison written to help you say **no** as easily as yes:
 **[Is it the right fit?](https://davidteren.github.io/current_scope/comparison.html)**
 — CurrentScope beside Pundit, Action Policy, CanCanCan, Banken and Oso, six
 questions that narrow it down for you, and what adopting it actually costs
-(source: [docs/site/comparison.md](docs/site/comparison.md)). The questions
-leave Banken to the table: it has had no release since 2019, so a guided answer
-should not send you there without you weighing that yourself.
+(source: [docs/site/comparison.md](docs/site/comparison.md)). The six questions
+never answer "Banken": it has had no release since 2019, so it is covered in the
+side-by-side table on that page, where you can weigh that for yourself, rather
+than handed to you as a recommendation.
 
 The trade in one line: **the others put your rules in code you deploy, Oso puts
 them in a policy language, CurrentScope puts them in rows an administrator

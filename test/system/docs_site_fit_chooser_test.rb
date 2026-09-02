@@ -17,6 +17,14 @@ require "fileutils"
 # inline, so the test assembles the same three parts Jekyll would (the mount
 # point, the style and the script) into a plain HTML file and walks every answer
 # path in the browser.
+#
+# What that does and does not cover: it exercises the shipped script, styles and
+# markup, so the scoring, the disqualifiers, the ties, Back and the focus
+# announcement are all real. It does NOT build the page through Jekyll, so it
+# cannot see a break caused by the front matter, the theme layout, or kramdown's
+# handling of the raw HTML block. Building the site here would mean installing
+# Jekyll and the remote theme that GitHub Pages resolves at deploy time; the
+# Pages build itself is the check for that layer.
 class DocsSiteFitChooserTest < ActiveSupport::TestCase
   PAGE = File.expand_path("../../docs/site/comparison.md", __dir__)
 

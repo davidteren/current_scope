@@ -32,7 +32,17 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
     )
     @page = @browser.create_page
     @page.go_to("file://#{LANDING}")
-    @page.network.wait_for_idle(timeout: 5) rescue nil
+
+    # Not wait_for_idle: the page fires a decorative cross-origin fetch to
+    # rubygems.org for the version badge, so on a runner with restricted egress
+    # every test would pay the full timeout before starting. Nothing here
+    # depends on that request. Wait for the document and the elements instead,
+    # and let a real browser error raise where it happens rather than swallowing
+    # it into a confusing assertion failure later.
+    wait_until(timeout: 10, message: "the landing page never finished parsing") do
+      @page.evaluate("document.readyState") == "complete" &&
+        @page.evaluate("document.querySelectorAll('.reveal').length") > 0
+    end
   end
 
   teardown { @browser&.quit }

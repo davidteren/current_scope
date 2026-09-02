@@ -45,7 +45,7 @@ class DocsSiteTest < ActiveSupport::TestCase
                  "the docs read the key the landing page writes")
     assert_match(/localStorage\.setItem\(["']cs-theme["']/, @html,
                  "the landing page writes the key the docs read")
-    assert_match(/just-the-docs-["'] \+ next \+ ["']\.css/, docs_head,
+    assert_match(/just-the-docs-["']\s*\+\s*\w+\s*\+\s*["']\.css/, docs_head,
                  "just-the-docs switches theme by swapping the stylesheet href, not a class")
 
     # just-the-docs renders nav_footer_custom.html twice, desktop and mobile.
@@ -126,8 +126,10 @@ class DocsSiteTest < ActiveSupport::TestCase
       flunk "the landing page lost its audience section"
     # Only the "not a fit" card, so a word used approvingly in the "good fit"
     # card beside it cannot satisfy a disqualifier.
-    not_for_you = audience[/<div class="card aud no">.*?<\/div>\s*<\/div>/m] ||
-                  audience[/Pick something else.*/m] or
+    # No fallback that widens to the rest of the section: a card added after
+    # this one could then satisfy a claim this list no longer makes, which is
+    # the drift the test exists to catch.
+    not_for_you = audience[/<div class="card aud no">.*?<\/div>\s*<\/div>/m] or
       flunk "the landing page lost its 'pick something else' card"
 
     { "attributes" => /rules depend on the record's data or the time/i,
@@ -206,16 +208,17 @@ class DocsSiteTest < ActiveSupport::TestCase
                  "a printed page is never scrolled")
 
     # The hiding rule is `.js-reveal .reveal:not(.in)`, so whatever adds the
-    # `js-reveal` class is what can blank the page. Pin that it is only ever
-    # added inside `arm`, and that `arm` only ever runs from a scroll event:
-    # a bare `arm()` at load would restore the bug and read as harmless.
-    adds = @html.scan(/classList\.add\(\s*'js-reveal'/)
+    # `js-reveal` class is what can blank the page: it may happen in exactly one
+    # place, and that place has to hang off the reader's first scroll.
+    #
+    # Deliberately no pin on the handler's name. The behaviour these guard —
+    # that a client which never scrolls sees the whole page — is measured in
+    # test/system/docs_site_reveal_test.rb, so a rename should not turn this red.
+    adds = @html.scan(/classList\.add\(\s*["']js-reveal["']/)
     assert_equal 1, adds.length,
                  "only one place may add the class that hides content"
-    assert_match(/addEventListener\('scroll',\s*arm\b/, @html,
+    assert_match(/addEventListener\(\s*["']scroll["']\s*,\s*\w+/, @html,
                  "arming has to hang off the reader's first scroll")
-    refute_match(/^\s*arm\(\)/, @html,
-                 "calling arm() directly is what blanks the page for a crawler")
   end
 
   # The transition and its per-sibling delay have to sit on a selector that

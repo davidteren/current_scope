@@ -58,17 +58,27 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
       <script>#{script}</script></body></html>
     HTML
 
-    @browser = Ferrum::Browser.new(
-      headless: true, window_size: [ 1280, 900 ], process_timeout: 30,
-      # The answer-space walk is one evaluate holding thousands of clicks, each
-      # rebuilding the widget. Ferrum's per-command CDP timeout defaults to 5s and
-      # process_timeout does not cover it, so that call can time out under load
-      # and report as a browser error rather than a readable assertion.
-      timeout: 60,
-      browser_options: { "no-sandbox" => nil }
-    )
-    @page = @browser.create_page
-    @page.go_to("file://#{File.join(@dir, 'fit.html')}")
+    @page_path = File.join(@dir, "fit.html")
+  end
+
+  # Opened only when a test actually drives the widget. Three of them read
+  # nothing but the class-level walk, which is computed once, so opening a
+  # Chrome for those is three browsers per run doing no work.
+  def page
+    @page ||= begin
+      @browser = Ferrum::Browser.new(
+        headless: true, window_size: [ 1280, 900 ], process_timeout: 30,
+        # The answer-space walk is one evaluate holding thousands of clicks,
+        # each rebuilding the widget. Ferrum's per-command CDP timeout defaults
+        # to 5s and process_timeout does not cover it, so that call can time out
+        # under load and report as a browser error rather than an assertion.
+        timeout: 60,
+        browser_options: { "no-sandbox" => nil }
+      )
+      opened = @browser.create_page
+      opened.go_to("file://#{@page_path}")
+      opened
+    end
   end
 
   teardown do
@@ -85,12 +95,14 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
   # widget's innerHTML. Computed once for the whole class rather than per test,
   # because the page is static and the walk is deterministic: five tests read
   # the same answer. Add a question and this stays one traversal.
-  def self.walk(page)
-    @walk ||= page.evaluate(WALK_JS)
+  # Takes something that opens a page rather than a page, so a run whose walk is
+  # already cached never launches a browser at all.
+  def self.walk(open_page)
+    @walk ||= open_page.call.evaluate(WALK_JS)
   end
 
   def every_path
-    self.class.walk(@page)
+    self.class.walk(-> { page })
   end
 
   WALK_JS = <<~JS.freeze
@@ -160,7 +172,7 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
 
   test "saying something outside Rails needs the same answer rules out every Rails-only library" do
     # Find the polyglot question by its text, then the affirmative option.
-    polyglot = @page.evaluate(<<~JS)
+    polyglot = page.evaluate(<<~JS)
       (function () {
         var mount = document.querySelector("[data-fitter]");
         var again = mount.querySelector("[data-restart]");
@@ -201,7 +213,7 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
 
   test "every library the chooser can offer is reachable by some answer" do
     headings = every_path.map { |r| r["heading"].to_s }
-    offered = @page.evaluate(<<~JS)
+    offered = page.evaluate(<<~JS)
       (function () {
         // The names the chooser is willing to print, read from the page itself.
         var m = document.documentElement.innerHTML.match(/name: "([^"]+)"/g) || [];
@@ -227,18 +239,37 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
   # asked for ("no admin screen, no ledger" to someone who said they are
   # audited), with nothing acknowledging the mismatch.
   test "a reader who rules out the library that fitted them is told so" do
-    told = every_path.select { |r| r["vetoed"] }
-                     .select { |r| r["body"].to_s.include?("described what CurrentScope is for") }
+    NOTE = "described what CurrentScope is for" unless defined?(NOTE)
+
+    told = every_path.select { |r| r["vetoed"] && r["body"].to_s.include?(NOTE) }
     refute_empty told,
                  "no vetoed path acknowledges that the reader's other answers fitted " \
                  "CurrentScope, so some of them silently recommend the opposite of what " \
                  "was asked for"
+
+    # A reader who asked for all three of the things CurrentScope exists to give
+    # — a role screen an administrator edits, per-record grants, and an audit
+    # trail — described it as plainly as the questions allow. If a veto then
+    # rules it out, they must always be told, whatever the other scores did.
+    # Comparing against the top score rather than the first strict maximum is
+    # what makes that hold: the earlier shape dropped the note wherever
+    # CurrentScope merely tied, on about 5% of the whole answer space.
+    asked_for_all_three = every_path.select do |r|
+      r["vetoed"] && r["answers"][2].zero? && r["answers"][3].zero? && r["answers"][4].zero?
+    end
+    refute_empty asked_for_all_three, "no path asks for all three and then rules them out"
+
+    silent = asked_for_all_three.reject { |r| r["body"].to_s.include?(NOTE) }
+    assert_empty silent.map { |r| r["answers"] },
+                 "these readers asked for a role screen, per-record grants and an audit " \
+                 "trail, ruled CurrentScope out, and were handed something else with no " \
+                 "word that their answers had described the library they just excluded"
   end
 
   # There is no aria-live region: each new question is announced by taking
   # focus. A source pin cannot tell whether focus actually lands.
   test "each question takes focus so a screen reader announces it" do
-    landed = @page.evaluate(<<~JS)
+    landed = page.evaluate(<<~JS)
       (function () {
         var mount = document.querySelector("[data-fitter]");
         var again = mount.querySelector("[data-restart]");
@@ -269,7 +300,7 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
   end
 
   test "a mis-click can be undone without starting over" do
-    steps = @page.evaluate(<<~JS)
+    steps = page.evaluate(<<~JS)
       (function () {
         var mount = document.querySelector("[data-fitter]");
         var again = mount.querySelector("[data-restart]");

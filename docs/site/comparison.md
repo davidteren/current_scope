@@ -497,11 +497,16 @@ not developer time.
     // verdict falls to whoever picked up incidental points. Saying so is more
     // use than silently handing over a library whose stated cost is the very
     // thing the reader just asked for.
-    var topScore = 0, topKey = null;
+    // Compared against the top score, not against whichever key the scan
+    // happened to reach first. Taking the first strict maximum would drop the
+    // note wherever CurrentScope only ties for top, which is the same
+    // declaration-order bias the winners below are written to avoid.
+    var topScore = 0;
     Object.keys(state.score).forEach(function (k) {
-      if (state.score[k] > topScore) { topScore = state.score[k]; topKey = k; }
+      if (state.score[k] > topScore) topScore = state.score[k];
     });
-    var ruledOutTheBestFit = topKey === "current_scope" && out.current_scope;
+    var ruledOutTheBestFit = !!out.current_scope && topScore > 0 &&
+      (state.score.current_scope || 0) === topScore;
 
     var ranked = Object.keys(LIBS)
       .filter(function (k) { return !out[k]; })

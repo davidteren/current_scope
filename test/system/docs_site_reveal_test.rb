@@ -28,6 +28,9 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
       # Matches test/application_system_test_case.rb. Ferrum's own default is
       # 10s, and this suite already found that too short for a cold runner.
       process_timeout: 30,
+      # Ferrum's per-command CDP timeout defaults to 5s and is separate from
+      # process_timeout. The waits below can outlast it on a loaded machine.
+      timeout: 30,
       browser_options: { "no-sandbox" => nil }
     )
     @page = @browser.create_page
@@ -39,8 +42,13 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
     # depends on that request. Wait for the document and the elements instead,
     # and let a real browser error raise where it happens rather than swallowing
     # it into a confusing assertion failure later.
-    wait_until(timeout: 10, message: "the landing page never finished parsing") do
-      @page.evaluate("document.readyState") == "complete" &&
+    # Not "complete": that waits for the load event, which is blocked by three
+    # remote badge images (shields.io, the CI badge). A runner with restricted
+    # egress would fail every test here in setup, which is the same coupling
+    # the note above avoids for the rubygems fetch. The reveal script sits at
+    # the end of <body>, so "interactive" is already past it.
+    wait_until(timeout: 15, message: "the landing page never finished parsing") do
+      @page.evaluate("document.readyState") != "loading" &&
         @page.evaluate("document.querySelectorAll('.reveal').length") > 0
     end
   end

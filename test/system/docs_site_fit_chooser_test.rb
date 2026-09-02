@@ -39,6 +39,11 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
 
     @browser = Ferrum::Browser.new(
       headless: true, window_size: [ 1280, 900 ], process_timeout: 30,
+      # every_path replays all 324 answer paths in one evaluate, which is a few
+      # thousand re-renders. Ferrum's per-command CDP timeout defaults to 5s and
+      # process_timeout does not cover it, so that call can time out under load
+      # and report as a browser error rather than a readable assertion.
+      timeout: 60,
       browser_options: { "no-sandbox" => nil }
     )
     @page = @browser.create_page

@@ -101,11 +101,18 @@ class DocsSiteTest < ActiveSupport::TestCase
     section = @html[/<section id="comparison">.*?<\/section>/m] or
       flunk "the landing page lost its comparison section"
 
-    %w[Pundit Action\ Policy CanCanCan Banken Oso].each do |lib|
-      next unless section.include?(lib)
+    # Read from the landing table's own header, not a list written here: a
+    # column added there for a library the full page does not cover is exactly
+    # the drift this test exists to catch, and a hardcoded list cannot see it.
+    landing = Nokogiri::HTML5.fragment(section).css("table.cmp-table thead th")
+                             .map(&:text).map(&:strip)
+                             .reject { |h| h.empty? || h == "Question" || h == "CurrentScope" }
+    refute_empty landing, "the landing comparison table lost its column headers"
 
+    landing.each do |lib|
       assert_includes covered, lib,
-                      "the landing table names #{lib}, so the full comparison has to cover it"
+                      "the landing table has a #{lib} column, so the full comparison has to " \
+                      "cover it: a reader who follows the link must not find it missing"
     end
 
     assert_match(%r{href="comparison\.html"}, section,

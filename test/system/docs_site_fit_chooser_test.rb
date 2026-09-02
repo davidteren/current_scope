@@ -60,8 +60,8 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
 
     @browser = Ferrum::Browser.new(
       headless: true, window_size: [ 1280, 900 ], process_timeout: 30,
-      # every_path replays all 324 answer paths in one evaluate, which is a few
-      # thousand re-renders. Ferrum's per-command CDP timeout defaults to 5s and
+      # The answer-space walk is one evaluate holding thousands of clicks, each
+      # rebuilding the widget. Ferrum's per-command CDP timeout defaults to 5s and
       # process_timeout does not cover it, so that call can time out under load
       # and report as a browser error rather than a readable assertion.
       timeout: 60,
@@ -78,9 +78,22 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
 
   # Walks every combination of answers by clicking, and reports what each one
   # was actually told. Done in one browser-side pass: each click re-renders
-  # synchronously, so no waiting is involved and the whole space is cheap.
+  # synchronously, so no waiting is involved.
+  #
+  # The space is the product of the options on each question, so it grows fast:
+  # seven questions is 972 paths and roughly 6,800 clicks, each rebuilding the
+  # widget's innerHTML. Computed once for the whole class rather than per test,
+  # because the page is static and the walk is deterministic: five tests read
+  # the same answer. Add a question and this stays one traversal.
+  def self.walk(page)
+    @walk ||= page.evaluate(WALK_JS)
+  end
+
   def every_path
-    @page.evaluate(<<~JS)
+    self.class.walk(@page)
+  end
+
+  WALK_JS = <<~JS.freeze
       (function () {
         var mount = document.querySelector("[data-fitter]");
 
@@ -130,8 +143,7 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
           };
         });
       })()
-    JS
-  end
+  JS
 
   test "every answer path reaches a verdict that names a library and its cost" do
     results = every_path

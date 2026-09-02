@@ -29,12 +29,21 @@
     if (!theme && window.matchMedia) {
       theme = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
     }
-    if (!theme) return;
+    // No stored choice and no matchMedia: fall back to what the site is built
+    // with. Returning here instead would skip the wiring below, and the reader
+    // would lose the toggle with nothing on screen explaining why.
+    if (!theme) theme = {{ site.color_scheme | jsonify }};
 
+    // Reports whether it actually changed anything. String.replace returns the
+    // subject unchanged when the pattern misses, so without this a theme bump
+    // that renames the stylesheet would leave the button relabelling itself
+    // over a page that never changed.
     function swap(next) {
       var href = link.getAttribute("href") || "";
-      link.setAttribute("href", href.replace(/just-the-docs-[a-z]+\.css/, "just-the-docs-" + next + ".css"));
-      document.documentElement.setAttribute("data-cs-theme", next);
+      var swapped = href.replace(/just-the-docs-[a-z]+\.css/, "just-the-docs-" + next + ".css");
+      if (swapped === href) return false;
+      link.setAttribute("href", swapped);
+      return true;
     }
 
     // The theme's first stylesheet is compiled from site.color_scheme, so when
@@ -42,32 +51,42 @@
     // anyway abandons an in-flight, render-blocking stylesheet for a
     // byte-identical one under a different name.
     if (theme !== {{ site.color_scheme | jsonify }}) swap(theme);
-    document.documentElement.setAttribute("data-cs-theme", theme);
 
     document.addEventListener("DOMContentLoaded", function () {
-      var toggle = document.querySelector("[data-cs-theme-toggle]");
-      if (!toggle) return;
+      // querySelectorAll, not querySelector: just-the-docs renders
+      // nav_footer_custom.html TWICE, once in components/sidebar.html inside
+      // `.d-md-block.d-none` (desktop) and once in components/footer.html
+      // inside `.d-md-none` (mobile). Wiring only the first one leaves a phone
+      // reader with an invisible wired button and a visible dead one.
+      var toggles = document.querySelectorAll("[data-cs-docs-theme-toggle]");
+      if (!toggles.length) return;
+
+      var each = function (fn) { Array.prototype.forEach.call(toggles, fn); };
 
       // A command button that names what it will do — not aria-pressed, which
       // would announce "Light theme, pressed" while the page is dark.
       var label = function () {
-        toggle.textContent = theme === "dark" ? "Light theme" : "Dark theme";
+        var text = theme === "dark" ? "Light theme" : "Dark theme";
+        each(function (t) { t.textContent = text; });
       };
 
       label();
-      toggle.hidden = false; // only now is it a control that does something
-      toggle.addEventListener("click", function () {
-        theme = theme === "dark" ? "light" : "dark";
-        // Prefer the theme's own API when it has loaded; it points at the same
-        // stylesheet and keeps jtd.getTheme() honest for anything else reading it.
-        if (window.jtd && typeof window.jtd.setTheme === "function") {
-          window.jtd.setTheme(theme);
-          document.documentElement.setAttribute("data-cs-theme", theme);
-        } else {
-          swap(theme);
-        }
-        try { localStorage.setItem("cs-theme", theme); } catch (e) {}
-        label();
+      each(function (t) { t.hidden = false; }); // only now do they do something
+
+      each(function (t) {
+        t.addEventListener("click", function () {
+          var next = theme === "dark" ? "light" : "dark";
+          // Prefer the theme's own API when it has loaded; it points at the
+          // same stylesheet and respects baseurl the same way.
+          if (window.jtd && typeof window.jtd.setTheme === "function") {
+            window.jtd.setTheme(next);
+          } else if (!swap(next)) {
+            return; // nothing moved on screen, so do not relabel or store
+          }
+          theme = next;
+          try { localStorage.setItem("cs-theme", theme); } catch (e) {}
+          label();
+        });
       });
     });
   })();
@@ -75,7 +94,7 @@
 
 <style>
   /* The way back. A reader who arrived on a guide from a search engine has no
-     route to "should I use this at all?" without these. */
+     route to the landing page without this, and no way to change theme. */
   .cs-site-links {
     display: flex;
     flex-wrap: wrap;
@@ -89,7 +108,7 @@
   .cs-site-links a { text-decoration: none; }
   .cs-site-links a:hover { text-decoration: underline; }
 
-  .cs-theme-toggle {
+  .cs-docs-theme-toggle {
     font: inherit;
     font-size: .72rem;
     background: none;
@@ -101,6 +120,6 @@
     opacity: .75;
   }
 
-  .cs-theme-toggle:hover { opacity: 1; }
-  .cs-theme-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+  .cs-docs-theme-toggle:hover { opacity: 1; }
+  .cs-docs-theme-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 </style>

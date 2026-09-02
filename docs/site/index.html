@@ -395,15 +395,22 @@
   /* Every element in a section used to land at the same instant, so a section
      read as "a block appeared" rather than "a section arrived". One step of
      stagger per sibling, capped so nothing waits longer than 4 steps.
-     Tuned in scratch/reveal-tuner (DialKit); ported as plain custom properties
-     because this page has no build step. */
+     Ported as plain custom properties because this page has no build step.
+
+     The transition lives on the selector that matches in BOTH states. A
+     transition is read from the after-change style, so declaring it only on
+     :not(.in) would mean the rule stops matching at the instant .in is added
+     and every element snaps in with no fade, rise or stagger. */
   :root{--cs-reveal-stagger:70ms;--cs-reveal-rise:14px}
-  .js-reveal-arming .reveal{transition:none!important}
-  .js-reveal .reveal:not(.in){opacity:0;transform:translateY(var(--cs-reveal-rise));
-    transition:opacity .6s ease,transform .6s cubic-bezier(.2,.7,.3,1);
+  .js-reveal .reveal{transition:opacity .6s ease,transform .6s cubic-bezier(.2,.7,.3,1);
     transition-delay:calc(var(--cs-reveal-i,0) * var(--cs-reveal-stagger))}
+  .js-reveal-arming .reveal{transition:none!important}
+  .js-reveal .reveal:not(.in){opacity:0;transform:translateY(var(--cs-reveal-rise))}
   .reveal.in{opacity:1;transform:none}
-  @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none;transition-delay:0s}}
+  /* !important, because the hiding rule above it is more specific: a reader who
+     turns reduced motion on after the page armed must still see the content. */
+  @media(prefers-reduced-motion:reduce){
+    .reveal{opacity:1!important;transform:none!important;transition:none!important;transition-delay:0s!important}}
   /* A printed or PDF'd page is never scrolled. */
   @media print{.reveal{opacity:1!important;transform:none!important}}
 </style>
@@ -1228,9 +1235,6 @@ bin/rails server    <span class="tk-com"># http://localhost:3000</span></pre>
     })
   });
 
-  function revealAll(){document.querySelectorAll('.reveal').forEach(function(el){
-    el.style.setProperty('--cs-reveal-i', 0); el.classList.add('in')
-  })}
   // Reveal-on-scroll, arranged so nothing can be permanently invisible.
   //
   // The page ships fully visible. Only when the reader scrolls for the first
@@ -1247,7 +1251,10 @@ bin/rails server    <span class="tk-com"># http://localhost:3000</span></pre>
     var armed=false;
     var io=new IntersectionObserver(function(en){
       en.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})
-    },{rootMargin:'0px 0px -8% 0px',threshold:.08});
+    // threshold 0: any pixel counts. A threshold of .08 asks for 8% of the
+    // element's own box, which an element taller than the viewport can never
+    // satisfy, and there is no timer left to rescue it.
+    },{rootMargin:'0px 0px -8% 0px',threshold:0});
 
     var arm=function(){
       if(armed)return; armed=true;

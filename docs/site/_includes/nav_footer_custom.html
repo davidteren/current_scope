@@ -1,16 +1,24 @@
 <!--
   The way back out of the docs.
 
-  The sidebar lists the guides and nothing else, so a reader who landed on
-  Quickstart from a search engine has no route to the two pages that answer
-  "should I use this at all?" — the overview and the fit comparison. Both live
-  outside the theme's nav, so they are named here explicitly.
+  The landing page has no front matter, so just-the-docs never lists it: a
+  reader who arrived on Quickstart from a search engine has no route back to
+  the overview without the browser's back button. It is named here.
+
+  "Is it the right fit?" is deliberately NOT repeated here. It is a real page in
+  the sidebar above, at nav_order 1, and the same link twice on one screen reads
+  as two different destinations.
 -->
 <div class="cs-site-links">
   <a href="{{ '/' | relative_url }}">Overview</a>
-  <a href="{{ '/comparison.html' | relative_url }}">Is it the right fit?</a>
   <a href="https://github.com/davidteren/current_scope">GitHub</a>
   <!-- Unhidden by head_custom.html once the click handler is wired, so it can
-       never render as a control that does nothing. -->
-  <button type="button" class="cs-theme-toggle" data-cs-theme-toggle hidden>Switch theme</button>
+       never render as a control that does nothing.
+
+       The hook is deliberately NOT the engine's data-cs-theme-toggle. That one
+       is a cookie-backed control in the mounted admin UI that sets aria-pressed
+       and is asserted on by test/system. This one is a localStorage-backed
+       stylesheet swap with no aria-pressed. One selector must not mean two
+       different contracts. -->
+  <button type="button" class="cs-docs-theme-toggle" data-cs-docs-theme-toggle hidden>Switch theme</button>
 </div>

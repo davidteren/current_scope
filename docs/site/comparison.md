@@ -63,7 +63,8 @@ table.
   ships. Do not plan to bend it into ABAC.
 - **You are not only on Rails.** One policy across several services or
   languages is what Oso is built for. CurrentScope is a Rails engine and nothing
-  else.
+  else. Note that Oso now means Oso Cloud, a paid hosted service: the
+  open-source library was retired in 2024.
 - **Your permissions are not shaped like your routes.** A right that spans many
   controllers, or one screen holding several different rights, fits a policy
   object better than a `controller#action` grid.
@@ -85,21 +86,28 @@ Read the first two rows first; the rest are consequences of them.
 
 | | CurrentScope | Pundit | Action Policy | CanCanCan | Banken | Oso |
 |---|---|---|---|---|---|---|
-| **Where a rule lives** | Rows in your database | A policy class per model | A policy class, with pre-checks | One `Ability` class per user | A loyalty class per controller | Polar policy files, or a hosted service |
+| **Where a rule lives** | Rows in your database | A policy class per model | A policy class, with pre-checks | One `Ability` class per user | A loyalty class per controller | Polar policy files, evaluated by a hosted service |
 | **Who changes it** | An administrator, in a screen, live | A developer, then a deploy | A developer, then a deploy | A developer, then a deploy | A developer, then a deploy | A developer, or a policy deploy |
 | **The permission list** | Derived from your routes | The methods you define | The rules you define | The actions and subjects you name | The methods you define | The actions you name in the policy |
 | **A grant on one record** | Stored, with an audit trail | You model and query it | You model and query it | Conditions in the `Ability` | You model it | First-class relationship facts |
 | **Reaching a parent record** | Opt-in declared chain, up to five hops | Hand-written in the policy | Hand-written in the policy | Nested conditions | Hand-written | Rules over the relationship graph |
 | **Filtering a list** | `scope_for` returns a relation | Policy scopes | Scoping rules | Rules converted to SQL | Not its focus | Filter queries from the engine |
-| **Attribute rules** ("under R10,000") | **Not expressible** | Any Ruby | Any Ruby | Conditions on attributes | Any Ruby | A core strength |
+| **Attribute rules** ("under 10,000") | **Not expressible** | Any Ruby | Any Ruby | Conditions on attributes | Any Ruby | A core strength |
 | **Who-did-what ledger** | Built in, append-only | Bring your own | Bring your own | Bring your own | Bring your own | Centralised logs in the cloud product |
 | **Safe rollout on a live app** | Report mode + a starter grid | Your own instrumentation | Your own instrumentation | Your own instrumentation | Your own instrumentation | Test and simulation tooling |
 | **Four-eyes rule** | Structural: not grantable around | A condition you write | A condition you write | A condition you write | A condition you write | A rule you write |
 | **Admin UI** | Mounted, included | None | None | None | None | In the cloud product |
-| **Runs where** | In your app, on your database | In your app | In your app | In your app | In your app | In your app, or a service you call |
+| **Runs where** | In your app, on your database | In your app | In your app | In your app | In your app | A service you call |
+| **Last release** (2026-09-01) | 0.5.1, beta | 2.5.2, Sep 2025 | 0.7.6, Jan 2026 | 3.6.1, May 2024 | 1.0.3, Jan 2019 | Ruby gem retired Jan 2024 |
 
 *Written from the shape of each library rather than a feature audit of its
-latest release.* If something here is out of date, please
+latest release.* The release row is the one thing here that goes stale on its
+own, so it is dated; check RubyGems before you decide. Two entries need a word
+of warning rather than a column: **Banken** has had no release since 2019, and
+**Oso's** open-source library, the `oso-oso` gem included, is
+[deprecated](https://github.com/osohq/oso) in favour of Oso Cloud, so choosing
+Oso today means paying for a hosted service, not adding a gem. If something
+here is out of date, please
 [open an issue](https://github.com/davidteren/current_scope/issues) — a
 comparison that flatters the author is worth nothing.
 
@@ -107,14 +115,14 @@ comparison that flatters the author is worth nothing.
 
 ## Which one fits you?
 
-Answer five questions. Nothing is sent anywhere: this runs in your browser, and
-the plain-text version below works with JavaScript off.
+Answer six questions. Nothing is sent anywhere: this runs in your browser, and
+the shorter table below works with JavaScript off.
 
-<div id="fitter" data-fitter role="group" aria-live="polite" aria-label="Which library fits you">
-  <noscript><p><em>The guided version needs JavaScript. The decision table below says the same thing.</em></p></noscript>
+<div id="fitter" data-fitter role="group" aria-label="Which library fits you">
+  <noscript><p><em>The guided version needs JavaScript. The table below is a shorter version of the same decision.</em></p></noscript>
 </div>
 
-### The same thing, as a table
+### A shorter version, as a table
 
 | If this is true of you | Then |
 |---|---|
@@ -207,7 +215,7 @@ not developer time.
   .cs-fit-opts button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
   .cs-fit-bar { height: 3px; background: rgba(128, 145, 150, .25); border-radius: 3px; margin-bottom: 1rem; overflow: hidden; }
   .cs-fit-bar i { display: block; height: 100%; background: currentColor; opacity: .55; transition: width .2s ease; }
-  .cs-fit-verdict h4 { margin: .2rem 0 .6rem; font-size: 1.25rem; }
+  .cs-fit-verdict h3 { margin: .2rem 0 .6rem; font-size: 1.25rem; }
   .cs-fit-why { margin: 0 0 1rem; padding-left: 1.1rem; }
   .cs-fit-why li { margin-bottom: .35rem; }
   .cs-fit-restart { font-size: .9rem; }
@@ -235,14 +243,14 @@ not developer time.
       q: "Does anything other than a Rails app need the same answer — another service, another language?",
       opts: [
         { label: "Yes", score: { oso: 4 }, veto: "polyglot" },
-        { label: "No, one Rails app", score: { current_scope: 2, pundit: 1, action_policy: 1, cancancan: 1, banken: 1 } }
+        { label: "No, one Rails app", score: { current_scope: 2, pundit: 1, action_policy: 1, cancancan: 1 } }
       ]
     },
     {
       q: "Who should be able to change what a role means?",
       opts: [
         { label: "An administrator, in a screen, without a deploy", score: { current_scope: 4 } },
-        { label: "A developer, through code review", score: { pundit: 2, action_policy: 2, cancancan: 2, banken: 2 } },
+        { label: "A developer, through code review", score: { pundit: 2, action_policy: 2, cancancan: 2 } },
         { label: "Either is fine", score: { current_scope: 1, action_policy: 1 } }
       ]
     },
@@ -251,7 +259,7 @@ not developer time.
       opts: [
         { label: "Yes, constantly", score: { current_scope: 3, oso: 2 } },
         { label: "Sometimes", score: { current_scope: 1, cancancan: 1, action_policy: 1 } },
-        { label: "No, access is the same across all records of a type", score: { pundit: 2, action_policy: 2, banken: 1 } }
+        { label: "No, access is the same across all records of a type", score: { pundit: 2, action_policy: 2 } }
       ]
     },
     {
@@ -259,47 +267,63 @@ not developer time.
       opts: [
         { label: "Yes, both — we are audited", score: { current_scope: 4 } },
         { label: "The audit trail, at least", score: { current_scope: 2 } },
-        { label: "Neither", score: { pundit: 1, action_policy: 1, cancancan: 1, banken: 1 } }
+        { label: "Neither", score: { pundit: 1, action_policy: 1, cancancan: 1 } }
+      ]
+    },
+    // CurrentScope's own headline disqualifier. It was in the table and not in
+    // the questions, so a reader who cannot ship beta software could be walked
+    // through the whole thing and handed CurrentScope at the end.
+    {
+      q: "Can you put software that is still in beta into production?",
+      opts: [
+        { label: "No — it has to be 1.0 or later", score: { pundit: 2, action_policy: 2, cancancan: 2 }, veto: "beta" },
+        { label: "Yes, with our eyes open", score: { current_scope: 1 } }
       ]
     }
   ];
 
+  // Every entry carries what you give up by choosing it, and the verdict always
+  // prints it. A recommendation that names only the upside is the flattering
+  // kind this page exists to avoid.
+  //
+  // Banken is deliberately absent. It is in the table above, but it has had no
+  // release since 2019, and a guided answer that points a reader at a dormant
+  // gem is worse advice than a table row they can weigh for themselves.
   var LIBS = {
     current_scope: {
       name: "CurrentScope",
       line: "Roles as data an administrator edits, per-record grants, an audit ledger and a report-mode rollout.",
+      givesUp: "Any rule that depends on an amount, a date or a status has to live in your own application code: the grid is controller and action. It is also still in beta.",
       href: "quickstart.html",
       cta: "Read the quickstart"
     },
     pundit: {
       name: "Pundit",
       line: "The smallest, most conventional choice: a plain policy class per model, and nothing else to run.",
+      givesUp: "There is no admin screen, no audit trail and no per-record grant store. You write and maintain each of those yourself.",
       href: "https://github.com/varvet/pundit",
       cta: "Pundit on GitHub"
     },
     action_policy: {
       name: "Action Policy",
       line: "Policy objects with pre-checks, caching, failure reasons and testing tools — policies as a first-class layer.",
+      givesUp: "Changing what a role means is still a code change, a review and a deploy. No admin screen, no ledger.",
       href: "https://actionpolicy.evilmartians.io/",
       cta: "Action Policy docs"
     },
     cancancan: {
       name: "CanCanCan",
       line: "One Ability per user, declared as data your app can also turn into SQL for filtering lists.",
+      givesUp: "The single Ability class grows with the app and is the usual complaint about it. No admin screen, no ledger.",
       href: "https://github.com/CanCanCommunity/cancancan",
       cta: "CanCanCan on GitHub"
     },
-    banken: {
-      name: "Banken",
-      line: "Pundit's shape, but per controller rather than per model, and deliberately tiny.",
-      href: "https://github.com/Kanety/banken",
-      cta: "Banken on GitHub"
-    },
     oso: {
-      name: "Oso",
-      line: "A policy language of its own, built for rich rules and for one answer shared across services.",
+      name: "Oso Cloud",
+      line: "A policy language of its own, built for rich rules and for one answer shared across services and languages.",
+      givesUp: "The open-source library was retired in 2024, so this is a paid hosted service your app calls, and one more thing that has to be up for a request to be authorized.",
       href: "https://www.osohq.com/",
-      cta: "Oso"
+      cta: "Oso Cloud"
     }
   };
 
@@ -307,7 +331,9 @@ not developer time.
     attributes:
       "You said several rules depend on the record's data or the time. CurrentScope cannot express those: its grid is controller and action, and roles do not carry conditions.",
     polyglot:
-      "You said something outside Rails needs the same answer. CurrentScope is a Rails engine, so it can only speak for the Rails app."
+      "You said something outside Rails needs the same answer. CurrentScope is a Rails engine, so it can only speak for the Rails app.",
+    beta:
+      "You said production needs 1.0 or later. CurrentScope is still in beta: the last gate before 1.0 is one real application running report mode and then enforcing."
   };
 
   var state = { i: 0, score: {}, vetoes: [] };
@@ -343,8 +369,9 @@ not developer time.
   }
 
   // The activated button is destroyed by its own click, so focus falls to the
-  // body unless we move it. The new heading takes it, which also makes the
-  // live region announce the question rather than nothing.
+  // body unless we move it. The new question takes it, and a screen reader
+  // announces it on focus. There is deliberately no aria-live on the container:
+  // with the focus move in place it would announce every question twice.
   function swapIn(el, focusFirst) {
     var hadFocus = mount.contains(document.activeElement);
     mount.innerHTML = "";
@@ -367,14 +394,23 @@ not developer time.
     }
 
     var top = LIBS[ranked[0].key];
-    var runnerUp = ranked[1] && ranked[1].n > 0 ? LIBS[ranked[1].key] : null;
+    // A tie is common: the scores are coarse on purpose. Naming one of them the
+    // answer would be an artefact of the order this object literal is written
+    // in, so a tie is presented as a tie.
+    var tied = ranked[1] && ranked[1].n === ranked[0].n ? LIBS[ranked[1].key] : null;
+    var runnerUp = !tied && ranked[1] && ranked[1].n > 0 ? LIBS[ranked[1].key] : null;
 
     var el = document.createElement("div");
     el.className = "cs-fit cs-fit-verdict";
     var html =
       '<div class="cs-fit-step">Based on your answers</div>' +
-      "<h4>" + top.name + "</h4>" +
+      "<h3>" + top.name + (tied ? " or " + tied.name : "") + "</h3>" +
       "<p>" + top.line + "</p>";
+
+    if (tied) {
+      html += "<p><strong>" + tied.name + "</strong> — " + tied.line +
+        "</p><p>Your answers fit these two equally well. Read both.</p>";
+    }
 
     if (state.vetoes.length) {
       html += '<ul class="cs-fit-why">';
@@ -382,12 +418,16 @@ not developer time.
       html += "</ul>";
     }
 
+    html += "<p><strong>What you give up:</strong> " + top.givesUp + "</p>";
+    if (tied) html += "<p><strong>And with " + tied.name + ":</strong> " + tied.givesUp + "</p>";
+
     if (runnerUp) {
       html += "<p>Worth a look as well: <strong>" + runnerUp.name + "</strong> — " + runnerUp.line + "</p>";
     }
 
     html +=
-      '<p><a href="' + top.href + '">' + top.cta + "</a></p>" +
+      '<p><a href="' + top.href + '">' + top.cta + "</a>" +
+      (tied ? ' &middot; <a href="' + tied.href + '">' + tied.cta + "</a>" : "") + "</p>" +
       '<p class="cs-fit-restart"><button type="button" data-restart>Start again</button></p>';
 
     el.innerHTML = html;
@@ -396,7 +436,7 @@ not developer time.
       render();
     });
 
-    swapIn(el, el.querySelector("h4"));
+    swapIn(el, el.querySelector("h3"));
   }
 
   render();

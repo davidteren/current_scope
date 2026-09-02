@@ -50,7 +50,13 @@
     // the visitor's theme already matches it there is nothing to fetch: swapping
     // anyway abandons an in-flight, render-blocking stylesheet for a
     // byte-identical one under a different name.
-    if (theme !== {{ site.color_scheme | jsonify }}) swap(theme);
+    // If the swap misses, the page is rendering site.color_scheme whatever the
+    // reader stored, so `theme` has to follow what is on screen. Otherwise the
+    // button would label the wrong direction and the first click would store a
+    // preference the reader never made.
+    if (theme !== {{ site.color_scheme | jsonify }} && !swap(theme)) {
+      theme = {{ site.color_scheme | jsonify }};
+    }
 
     document.addEventListener("DOMContentLoaded", function () {
       // querySelectorAll, not querySelector: just-the-docs renders

@@ -133,7 +133,7 @@ the shorter table below works with JavaScript off.
 | You want the smallest, most conventional Rails dependency | **Pundit** |
 | You want policy objects with caching, testing and failure reasons built in | **Action Policy** |
 | You already think in `can :read, Post` and want list filtering from the same rules | **CanCanCan** |
-| Your authorization is per controller, not per model, and you want it tiny | **Banken** |
+| Your authorization is per controller, not per model, and you want it tiny | **Banken**, but read the maintenance note above the table first |
 | You cannot ship anything that is still in beta | Not CurrentScope, yet |
 
 ---
@@ -327,13 +327,23 @@ not developer time.
     }
   };
 
-  var VETO_NOTE = {
-    attributes:
-      "You said several rules depend on the record's data or the time. CurrentScope cannot express those: its grid is controller and action, and roles do not carry conditions.",
-    polyglot:
-      "You said something outside Rails needs the same answer. CurrentScope is a Rails engine, so it can only speak for the Rails app.",
-    beta:
-      "You said production needs 1.0 or later. CurrentScope is still in beta: the last gate before 1.0 is one real application running report mode and then enforcing."
+  // A veto is a requirement no score can outweigh, so it removes every library
+  // that cannot meet it — not just this one's. Saying "another language needs
+  // the same answer" and then being handed a Rails-only gem is the failure this
+  // shape prevents.
+  var VETOES = {
+    attributes: {
+      note: "You said several rules depend on the record's data or the time. CurrentScope cannot express those: its grid is controller and action, and roles do not carry conditions.",
+      removes: ["current_scope"]
+    },
+    polyglot: {
+      note: "You said something outside Rails needs the same answer. That rules out every Rails-only library here, CurrentScope included.",
+      removes: ["current_scope", "pundit", "action_policy", "cancancan"]
+    },
+    beta: {
+      note: "You said production needs 1.0 or later. CurrentScope is still in beta: the last gate before 1.0 is one real application running report mode and then enforcing.",
+      removes: ["current_scope"]
+    }
   };
 
   var state = { i: 0, score: {}, vetoes: [] };
@@ -383,51 +393,60 @@ not developer time.
   }
 
   function renderVerdict() {
+    var out = {};
+    state.vetoes.forEach(function (v) {
+      VETOES[v].removes.forEach(function (k) { out[k] = true; });
+    });
+
     var ranked = Object.keys(LIBS)
+      .filter(function (k) { return !out[k]; })
       .map(function (k) { return { key: k, n: state.score[k] || 0 }; })
       .sort(function (a, b) { return b.n - a.n; });
 
-    // A veto removes CurrentScope from the running, whatever it scored: the
-    // point of this page is to let someone say no early.
-    if (state.vetoes.length) {
-      ranked = ranked.filter(function (r) { return r.key !== "current_scope"; });
-    }
+    // Every library that scored the top score, not just the first two. The
+    // scores are coarse on purpose, so ties are common; naming one of them the
+    // answer would only report the order this object literal is written in.
+    var winners = ranked.filter(function (r) { return r.n === ranked[0].n; })
+      .map(function (r) { return LIBS[r.key]; });
+    var next = ranked[winners.length];
+    var runnerUp = next && next.n > 0 ? LIBS[next.key] : null;
 
-    var top = LIBS[ranked[0].key];
-    // A tie is common: the scores are coarse on purpose. Naming one of them the
-    // answer would be an artefact of the order this object literal is written
-    // in, so a tie is presented as a tie.
-    var tied = ranked[1] && ranked[1].n === ranked[0].n ? LIBS[ranked[1].key] : null;
-    var runnerUp = !tied && ranked[1] && ranked[1].n > 0 ? LIBS[ranked[1].key] : null;
+    var names = winners.map(function (l) { return l.name; });
+    var heading = names.length === 1
+      ? names[0]
+      : names.slice(0, -1).join(", ") + " or " + names[names.length - 1];
 
     var el = document.createElement("div");
     el.className = "cs-fit cs-fit-verdict";
     var html =
       '<div class="cs-fit-step">Based on your answers</div>' +
-      "<h3>" + top.name + (tied ? " or " + tied.name : "") + "</h3>" +
-      "<p>" + top.line + "</p>";
+      "<h3>" + heading + "</h3>";
 
-    if (tied) {
-      html += "<p><strong>" + tied.name + "</strong> — " + tied.line +
-        "</p><p>Your answers fit these two equally well. Read both.</p>";
+    winners.forEach(function (l) {
+      html += "<p>" + (winners.length > 1 ? "<strong>" + l.name + "</strong> — " : "") + l.line + "</p>";
+    });
+    if (winners.length > 1) {
+      html += "<p>Your answers fit " + (winners.length === 2 ? "these two" : "all " + winners.length) +
+        " equally well. Read them side by side.</p>";
     }
 
     if (state.vetoes.length) {
       html += '<ul class="cs-fit-why">';
-      state.vetoes.forEach(function (v) { html += "<li>" + VETO_NOTE[v] + "</li>"; });
+      state.vetoes.forEach(function (v) { html += "<li>" + VETOES[v].note + "</li>"; });
       html += "</ul>";
     }
 
-    html += "<p><strong>What you give up:</strong> " + top.givesUp + "</p>";
-    if (tied) html += "<p><strong>And with " + tied.name + ":</strong> " + tied.givesUp + "</p>";
+    winners.forEach(function (l) {
+      html += "<p><strong>What you give up with " + l.name + ":</strong> " + l.givesUp + "</p>";
+    });
 
     if (runnerUp) {
       html += "<p>Worth a look as well: <strong>" + runnerUp.name + "</strong> — " + runnerUp.line + "</p>";
     }
 
-    html +=
-      '<p><a href="' + top.href + '">' + top.cta + "</a>" +
-      (tied ? ' &middot; <a href="' + tied.href + '">' + tied.cta + "</a>" : "") + "</p>" +
+    html += "<p>" + winners.map(function (l) {
+      return '<a href="' + l.href + '">' + l.cta + "</a>";
+    }).join(" &middot; ") + "</p>" +
       '<p class="cs-fit-restart"><button type="button" data-restart>Start again</button></p>';
 
     el.innerHTML = html;

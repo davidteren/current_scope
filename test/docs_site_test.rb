@@ -97,8 +97,16 @@ class DocsSiteTest < ActiveSupport::TestCase
     page = File.read(File.expand_path("../docs/site/comparison.md", __dir__), encoding: "UTF-8")
 
     %w[attributes polyglot beta].each do |veto|
-      assert_match(/#{veto}:\s*$|#{veto}:/, page, "#{veto} has to be a stated disqualifier")
       assert_match(/veto: "#{veto}"/, page, "#{veto} has to be reachable from an answer")
+      assert_match(/#{veto}: \{\s*\n\s*note:/, page, "#{veto} has to explain itself to the reader")
+      assert_match(/#{veto}: \{.*?removes: \[[^\]]+\]/m, page,
+                   "#{veto} has to remove the libraries that cannot meet it")
+    end
+    # The polyglot answer must rule out every Rails-only library, or the reader
+    # is told "another language needs this" and handed a Rails-only gem.
+    polyglot = page[/polyglot: \{.*?removes: \[([^\]]+)\]/m, 1].to_s
+    %w[current_scope pundit action_policy cancancan].each do |lib|
+      assert_includes polyglot, lib, "the polyglot veto has to rule out #{lib}"
     end
     assert_match(/What you give up/, page,
                  "a verdict that names only the upside is the flattering kind")

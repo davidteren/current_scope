@@ -125,7 +125,7 @@ Screenshot regenerate command: [CONTRIBUTING.md](CONTRIBUTING.md).
 Authorization is a decision you live with for years, so the docs site carries a
 comparison written to help you say **no** as easily as yes:
 **[Is it the right fit?](https://davidteren.github.io/current_scope/comparison.html)**
-— CurrentScope beside Pundit, Action Policy, CanCanCan, Banken and Oso, five
+— CurrentScope beside Pundit, Action Policy, CanCanCan, Banken and Oso, six
 questions that point at one of them, and what adopting it actually costs
 (source: [docs/site/comparison.md](docs/site/comparison.md)).
 

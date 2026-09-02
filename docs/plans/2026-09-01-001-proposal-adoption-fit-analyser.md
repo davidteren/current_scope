@@ -6,7 +6,7 @@ cost *me*, in *my* app".
 
 ## The gap
 
-The comparison page ends with six questions and an honest cost table:
+The comparison page ends with seven questions and an honest cost table:
 half a day for greenfield, one to four weeks of report-mode bake for a live app.
 Both are generic. The questions a real adopter actually has are about their own
 repository:

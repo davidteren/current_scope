@@ -125,7 +125,7 @@ comparison that flatters the author is worth nothing.
 
 ## Which one fits you?
 
-Answer six questions. Nothing is sent anywhere: this runs in your browser, and
+Answer seven questions. Nothing is sent anywhere: this runs in your browser, and
 the shorter table below works with JavaScript off.
 
 <div id="fitter" data-fitter role="group" aria-label="Which library fits you">
@@ -267,7 +267,7 @@ not developer time.
     {
       q: "Who should be able to change what a role means?",
       opts: [
-        { label: "An administrator, in a screen, without a deploy", score: { current_scope: 4 } },
+        { label: "An administrator, in a screen, without a deploy", score: { current_scope: 4, oso: 1 } },
         // A veto, not just points. Both this page and the README list "every
         // permission change should be a code review" as a reason to choose
         // something else, and it is the exact premise CurrentScope inverts. A
@@ -288,9 +288,21 @@ not developer time.
     {
       q: "Do you need an audit trail of who granted what, and a rule that stops the author of a record approving it?",
       opts: [
-        { label: "Yes, both — we are audited", score: { current_scope: 4 } },
-        { label: "The audit trail, at least", score: { current_scope: 2 } },
+        { label: "Yes, both — we are audited", score: { current_scope: 4, oso: 1 } },
+        { label: "The audit trail, at least", score: { current_scope: 2, oso: 1 } },
         { label: "Neither", score: { pundit: 1, action_policy: 1, cancancan: 1 } }
+      ]
+    },
+    // Pundit was weakly dominated before this: Action Policy scored at least as
+    // well on every option of every question, so Pundit could only ever tie and
+    // never be the answer, while the table below promised it to exactly this
+    // reader. Nothing asked about footprint, so nothing could send them there.
+    {
+      q: "How much are you willing to add to the application?",
+      opts: [
+        { label: "As little as possible — a convention and a few hundred lines", score: { pundit: 4 } },
+        { label: "A policy layer with its own tooling is fine", score: { action_policy: 2, cancancan: 2 } },
+        { label: "Tables, a mounted UI and a migration are fine", score: { current_scope: 2, oso: 1 } }
       ]
     },
     // CurrentScope's own headline disqualifier. It was in the table and not in
@@ -479,6 +491,18 @@ not developer time.
       VETOES[v].removes.forEach(function (k) { out[k] = true; });
     });
 
+    // Did the reader describe a CurrentScope-shaped problem and then rule it
+    // out? Every answer that expresses one of its strengths scores only
+    // CurrentScope, so after the filter those answers count for nothing and the
+    // verdict falls to whoever picked up incidental points. Saying so is more
+    // use than silently handing over a library whose stated cost is the very
+    // thing the reader just asked for.
+    var topScore = 0, topKey = null;
+    Object.keys(state.score).forEach(function (k) {
+      if (state.score[k] > topScore) { topScore = state.score[k]; topKey = k; }
+    });
+    var ruledOutTheBestFit = topKey === "current_scope" && out.current_scope;
+
     var ranked = Object.keys(LIBS)
       .filter(function (k) { return !out[k]; })
       .map(function (k) { return { key: k, n: state.score[k] || 0 }; })
@@ -533,6 +557,13 @@ not developer time.
       html += '<ul class="cs-fit-why">';
       state.vetoes.forEach(function (v) { html += "<li>" + VETOES[v].note + "</li>"; });
       html += "</ul>";
+    }
+
+    if (ruledOutTheBestFit) {
+      html += "<p>Your other answers described what CurrentScope is for, so read the " +
+        "recommendation above as the closest thing you can use rather than a match: " +
+        "whatever you needed from a role screen, per-record grants or an audit trail, " +
+        "you will be building on top of it.</p>";
     }
 
     winners.forEach(function (l) {

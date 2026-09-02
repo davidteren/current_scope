@@ -198,10 +198,29 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
     JS
     refute_empty offered, "the chooser has to offer at least one library"
 
-    unreachable = offered.reject { |name| headings.any? { |h| h.include?(name) } }
-    assert_empty unreachable,
-                 "these libraries are in the chooser's data but no answer can reach them, so " \
-                 "their entries are dead code that reads as a live recommendation"
+    # Sole winner, not merely present in a heading. Tied winners are joined into
+    # one heading, so an `include?` test passes for a library that can only ever
+    # appear alongside another and is never actually the answer: which is how
+    # Pundit stayed weakly dominated behind a green test.
+    never_the_answer = offered.reject { |name| headings.any? { |h| h.strip == name } }
+    assert_empty never_the_answer,
+                 "these libraries can never be the chooser's answer on their own, so the page " \
+                 "can never send anyone to them even where its own table says it should"
+  end
+
+  # Every answer that expresses a CurrentScope-shaped need scores only
+  # CurrentScope, so once a veto removes it those answers count for nothing and
+  # the verdict falls to whoever picked up incidental points. The reader was
+  # then handed a library whose stated cost is the very thing they had just
+  # asked for ("no admin screen, no ledger" to someone who said they are
+  # audited), with nothing acknowledging the mismatch.
+  test "a reader who rules out the library that fitted them is told so" do
+    told = every_path.select { |r| r["vetoed"] }
+                     .select { |r| r["body"].to_s.include?("described what CurrentScope is for") }
+    refute_empty told,
+                 "no vetoed path acknowledges that the reader's other answers fitted " \
+                 "CurrentScope, so some of them silently recommend the opposite of what " \
+                 "was asked for"
   end
 
   # There is no aria-live region: each new question is announced by taking

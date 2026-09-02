@@ -239,9 +239,9 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
   # asked for ("no admin screen, no ledger" to someone who said they are
   # audited), with nothing acknowledging the mismatch.
   test "a reader who rules out the library that fitted them is told so" do
-    NOTE = "described what CurrentScope is for" unless defined?(NOTE)
+    note = "described what CurrentScope is for"
 
-    told = every_path.select { |r| r["vetoed"] && r["body"].to_s.include?(NOTE) }
+    told = every_path.select { |r| r["vetoed"] && r["body"].to_s.include?(note) }
     refute_empty told,
                  "no vetoed path acknowledges that the reader's other answers fitted " \
                  "CurrentScope, so some of them silently recommend the opposite of what " \
@@ -259,7 +259,7 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
     end
     refute_empty asked_for_all_three, "no path asks for all three and then rules them out"
 
-    silent = asked_for_all_three.reject { |r| r["body"].to_s.include?(NOTE) }
+    silent = asked_for_all_three.reject { |r| r["body"].to_s.include?(note) }
     assert_empty silent.map { |r| r["answers"] },
                  "these readers asked for a role screen, per-record grants and an audit " \
                  "trail, ruled CurrentScope out, and were handed something else with no " \

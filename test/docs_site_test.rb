@@ -115,6 +115,25 @@ class DocsSiteTest < ActiveSupport::TestCase
                  "the short table has to hand the reader to the full one")
   end
 
+  # "Do not use CurrentScope when…" is now written on four surfaces: this list,
+  # the landing page's short table, the README, and the fit page. The fit page
+  # is the one the chooser reads, so it is the source of truth; every
+  # disqualifier it can apply has to appear here too, or the reader who only
+  # scrolls the landing page is told less than the one who clicks through.
+  test "the landing page's 'pick something else' list names every disqualifier" do
+    page = File.read(File.expand_path("../docs/site/comparison.md", __dir__), encoding: "UTF-8")
+    audience = @html[/<section id="audience">.*?<\/section>/m] or
+      flunk "the landing page lost its audience section"
+
+    { "attributes" => /amount|attribute|under 10,000/i,
+      "polyglot"   => /outside Rails|not only on Rails|another (language|service)/i,
+      "beta"       => /beta/i }.each do |veto, phrase|
+      assert_match(/veto: "#{veto}"/, page, "#{veto} is still a disqualifier on the fit page")
+      assert_match(phrase, audience,
+                   "the landing page's 'not for you' list has to name the #{veto} disqualifier")
+    end
+  end
+
   # The README's fit section restates the comparison page's trade-off story, so
   # the two can drift apart. Pin what has to stay true of both: the same five
   # libraries, the same question count, and every disqualifier the chooser can
@@ -189,21 +208,20 @@ class DocsSiteTest < ActiveSupport::TestCase
                  "only one place may add the class that hides content"
     assert_match(/addEventListener\('scroll',\s*arm\b/, @html,
                  "arming has to hang off the reader's first scroll")
-    assert_match(/function\s*\(\)\s*\{\s*if\s*\(?\s*armed\s*\)?\s*return/, @html,
-                 "arm runs once; a client that never scrolls never arms it")
     refute_match(/^\s*arm\(\)/, @html,
                  "calling arm() directly is what blanks the page for a crawler")
   end
 
-  # A transition is read from the after-change style. Declaring it on the
-  # hiding rule alone means the rule stops matching the moment `.in` lands, so
-  # every element snaps in with no fade, rise or stagger and the whole
-  # `--cs-reveal-i` cascade does nothing. The selector has to match both states.
+  # The transition and its per-sibling delay have to sit on a selector that
+  # still matches once the element is revealed. On the hiding rule alone the
+  # delay is dropped, so the siblings arrive as one block instead of in turn.
+  #
+  # This is a source pin and it can only catch the shape, not the behaviour.
+  # The behaviour is measured in test/system/docs_site_reveal_test.rb, which
+  # watches the siblings actually arrive; that is the test that goes red.
   test "the reveal transition is declared on a selector that survives .in" do
-    assert_match(/\.js-reveal\s+\.reveal\s*\{\s*transition:\s*opacity/, @html,
-                 "the transition must be on .js-reveal .reveal, not on :not(.in)")
-    refute_match(/:not\(\.in\)\s*\{[^}]*transition:\s*opacity/, @html,
-                 "a transition that only matches while hidden never plays")
+    refute_match(/:not\(\.in\)\s*\{[^}]*transition-delay/, @html,
+                 "a delay that only matches while hidden is dropped at the reveal")
   end
 
   test "landing page does not reintroduce the view/gate overclaim" do

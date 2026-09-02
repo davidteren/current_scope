@@ -1,0 +1,21 @@
+test/system/support/headless_chrome.rb
+  s_240773ee81a9c0::t_b5b5f524d82b12 36-41,43
+test/docs_site_test.rb
+  s_240773ee81a9c0::t_b5b5f524d82b12 64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "3fdbfc7ad49e2262e43996185905864bc0cc33c4",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

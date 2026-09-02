@@ -392,6 +392,26 @@ not developer time.
     render();
   }
 
+  // The same two buttons appear on a question, on the verdict, and on the
+  // "none of these" verdict. Built and wired in one place so a change to how
+  // Back restores state cannot be applied to two of the three.
+  var NAV_HTML =
+    '<p class="cs-fit-nav"><button type="button" data-back>Back</button> ' +
+    '<button type="button" data-restart>Start again</button></p>';
+
+  function wireNav(el) {
+    var back = el.querySelector("[data-back]");
+    if (back) {
+      back.addEventListener("click", function () {
+        if (!history.length) return restart();
+        state = history.pop();
+        render();
+      });
+    }
+    var again = el.querySelector("[data-restart]");
+    if (again) again.addEventListener("click", restart);
+  }
+
   function render() {
     if (state.i >= QUESTIONS.length) return renderVerdict();
     var q = QUESTIONS[state.i];
@@ -401,19 +421,10 @@ not developer time.
       '<div class="cs-fit-bar"><i style="width:' + Math.round((state.i / QUESTIONS.length) * 100) + '%"></i></div>' +
       '<div class="cs-fit-step">Question ' + (state.i + 1) + " of " + QUESTIONS.length + "</div>" +
       '<p class="cs-fit-q" data-focus></p><div class="cs-fit-opts"></div>' +
-      (history.length
-        ? '<p class="cs-fit-nav"><button type="button" data-back>Back</button> ' +
-          '<button type="button" data-restart>Start again</button></p>'
-        : "");
+      (history.length ? NAV_HTML : "");
     el.querySelector(".cs-fit-q").textContent = q.q;
 
-    if (history.length) {
-      el.querySelector("[data-back]").addEventListener("click", function () {
-        state = history.pop();
-        render();
-      });
-      el.querySelector("[data-restart]").addEventListener("click", restart);
-    }
+    wireNav(el);
 
     var opts = el.querySelector(".cs-fit-opts");
     q.opts.forEach(function (opt) {
@@ -477,13 +488,8 @@ not developer time.
       none.innerHTML = '<div class="cs-fit-step">Based on your answers</div>' +
         "<h3>None of these</h3><p>Your answers rule out every library on this page. " +
         "The table above is the place to start instead.</p>" +
-        '<p class="cs-fit-restart"><button type="button" data-back>Back</button> ' +
-        '<button type="button" data-restart>Start again</button></p>';
-      none.querySelector("[data-back]").addEventListener("click", function () {
-        state = history.pop();
-        render();
-      });
-      none.querySelector("[data-restart]").addEventListener("click", restart);
+        NAV_HTML;
+      wireNav(none);
       return swapIn(none, none.querySelector("h3"));
     }
 
@@ -538,17 +544,12 @@ not developer time.
     html += "<p>" + winners.map(function (l) {
       return '<a href="' + l.href + '">' + l.cta + "</a>";
     }).join(" &middot; ") + "</p>" +
-      '<p class="cs-fit-restart"><button type="button" data-back>Back</button> ' +
-      '<button type="button" data-restart>Start again</button></p>';
+      NAV_HTML;
 
     el.innerHTML = html;
     // Back from the verdict returns to the last question, so a reader who wants
     // to see what one different answer would have said does not start over.
-    el.querySelector("[data-back]").addEventListener("click", function () {
-      state = history.pop();
-      render();
-    });
-    el.querySelector("[data-restart]").addEventListener("click", restart);
+    wireNav(el);
 
     swapIn(el, el.querySelector("h3"));
   }

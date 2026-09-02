@@ -38,11 +38,15 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
   # 400-500ms before the section is even in view, and the last card then waits
   # out its stagger (up to 4 x 70ms) plus a 600ms fade. A fixed sleep sized to
   # that is a race on a loaded runner; wait for the condition instead.
+  # `message` may be a proc, so a failure can report what was actually seen
+  # rather than a value captured before the first sample.
   def wait_until(timeout: 6, message: "condition never held")
     deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
     loop do
       return if yield
-      flunk message if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+      if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+        flunk message.respond_to?(:call) ? message.call : message
+      end
 
       sleep 0.05
     end
@@ -99,24 +103,27 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
     @page.evaluate("window.scrollTo(0, 200)")
     sleep 0.3
 
-    # Sampled from here, not in a browser-side loop: a busy-wait blocks the
-    # main thread, so nothing animates and the page stops responding.
-    @page.evaluate("document.querySelector('#features').scrollIntoView()")
-    samples = []
-    6.times do
-      sleep 0.05
-      samples << opacities("#features .reveal")
-    end
-
-    refute_empty samples.flatten, "expected a section with revealed elements"
-    assert_operator samples.first.length, :>=, 4,
+    assert_operator opacities("#features .reveal").length, :>=, 4,
                     "the stagger is only observable across several siblings"
 
-    spread = samples.map { |row| row.uniq.length }.max
-    assert_operator spread, :>=, 3,
-                    "the siblings never held more than #{spread} distinct opacities, so they " \
-                    "moved as one block: the transition-delay is on a selector that stops " \
-                    "matching the moment the element is revealed"
+    # Sampled from here, not in a browser-side loop: a busy-wait blocks the
+    # main thread, so nothing animates and the page stops responding.
+    #
+    # And sampled until the spread appears rather than across a fixed window:
+    # the choreography only exists while the section is arriving, and the smooth
+    # scroll alone runs 400-500ms. A window fixed in advance is a race on a
+    # loaded runner, where the process can be descheduled through the whole
+    # animation and see nothing but rows of 1.0.
+    @page.evaluate("document.querySelector('#features').scrollIntoView()")
+    spread = 0
+    wait_until(message: -> {
+      "the siblings never held more than #{spread} distinct opacities, so they moved as one " \
+        "block: the transition-delay is on a selector that stops matching the moment the " \
+        "element is revealed"
+    }) do
+      spread = [ spread, opacities("#features .reveal").uniq.length ].max
+      spread >= 3
+    end
 
     wait_until(message: "the fade has to finish") do
       opacities("#features .reveal").all? { |o| o > 0.99 }

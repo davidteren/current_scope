@@ -1,6 +1,7 @@
 require "test_helper"
 require "ferrum"
 require "tmpdir"
+require "fileutils"
 
 # The fit chooser on docs/site/comparison.md is the most consequential logic in
 # the docs site: it tells a reader which authorization library to adopt, and it

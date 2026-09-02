@@ -152,7 +152,7 @@ class DocsSiteTest < ActiveSupport::TestCase
   # scroll looking at empty sections.
   test "nothing is hidden until the reader scrolls" do
     assert_match(/js-reveal-arming/, @html, "arming must not fade the page out")
-    assert_match(/@media print\{\.reveal\{opacity:1!important/, @html,
+    assert_match(/\@media\s*print\s*\{\s*\.reveal\s*\{[^}]*opacity:\s*1\s*!important/, @html,
                  "a printed page is never scrolled")
 
     # The hiding rule is `.js-reveal .reveal:not(.in)`, so whatever adds the
@@ -175,9 +175,9 @@ class DocsSiteTest < ActiveSupport::TestCase
   # every element snaps in with no fade, rise or stagger and the whole
   # `--cs-reveal-i` cascade does nothing. The selector has to match both states.
   test "the reveal transition is declared on a selector that survives .in" do
-    assert_match(/\.js-reveal \.reveal\{transition:opacity/, @html,
+    assert_match(/\.js-reveal\s+\.reveal\s*\{\s*transition:\s*opacity/, @html,
                  "the transition must be on .js-reveal .reveal, not on :not(.in)")
-    refute_match(/:not\(\.in\)\{[^}]*transition:opacity/, @html,
+    refute_match(/:not\(\.in\)\s*\{[^}]*transition:\s*opacity/, @html,
                  "a transition that only matches while hidden never plays")
   end
 

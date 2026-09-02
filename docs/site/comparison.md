@@ -431,8 +431,12 @@ not developer time.
     // answer would only report the order this object literal is written in.
     var winners = ranked.filter(function (r) { return r.n === ranked[0].n; })
       .map(function (r) { return LIBS[r.key]; });
+    // Second place gets the same treatment as first. Taking ranked[n] alone
+    // would resolve a tie for second by declaration order, and CurrentScope is
+    // declared first, so the bias the winners avoid would come back here.
     var next = ranked[winners.length];
-    var runnerUp = next && next.n > 0 ? LIBS[next.key] : null;
+    var seconds = !next || next.n <= 0 ? [] :
+      ranked.filter(function (r) { return r.n === next.n; }).map(function (r) { return LIBS[r.key]; });
 
     var names = winners.map(function (l) { return l.name; });
     var heading = names.length === 1
@@ -463,12 +467,12 @@ not developer time.
       html += "<p><strong>What you give up with " + l.name + ":</strong> " + l.givesUp + "</p>";
     });
 
-    // The runner-up is a recommendation too, so it carries its cost like the
+    // A runner-up is a recommendation too, so it carries its cost like the
     // winners do. Naming only the upside is the flattering kind.
-    if (runnerUp) {
-      html += "<p>Worth a look as well: <strong>" + runnerUp.name + "</strong> — " + runnerUp.line +
-        " <em>" + runnerUp.givesUp + "</em></p>";
-    }
+    seconds.forEach(function (l) {
+      html += "<p>Worth a look as well: <strong>" + l.name + "</strong> — " + l.line +
+        " <em>" + l.givesUp + "</em></p>";
+    });
 
     html += "<p>" + winners.map(function (l) {
       return '<a href="' + l.href + '">' + l.cta + "</a>";

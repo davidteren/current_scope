@@ -161,6 +161,20 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
     end
   end
 
+  # The observer's root is shrunk 8% at the bottom, and the timer that used to
+  # rescue anything it missed is gone, so an element that never intersects would
+  # stay invisible for good. No element sits in that band today, which is
+  # exactly why it needs pinning: adding a short trailing band or a `reveal` on
+  # the footer row would blank it in production and nothing would say so.
+  test "nothing is left hidden once the reader reaches the bottom" do
+    arm!
+    @page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+
+    wait_until(message: "an element the reader has scrolled past is still hidden") do
+      opacities.all? { |o| o > 0.99 }
+    end
+  end
+
   # The regression that shipped: the transition and its per-sibling delay were
   # declared only on the hiding rule, `.js-reveal .reveal:not(.in)`, which stops
   # matching the moment the element is revealed.

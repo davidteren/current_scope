@@ -25,10 +25,23 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
   RAILS_ONLY = [ "CurrentScope", "Pundit", "Action Policy", "CanCanCan" ].freeze
 
   setup do
-    source  = File.read(PAGE, encoding: "UTF-8")
-    mount   = source[/<div id="fitter".*?<\/div>/m] or flunk "the chooser lost its mount point"
-    style   = source[/<style>\n(.*?)<\/style>/m, 1] or flunk "the chooser lost its styles"
-    script  = source[/<script>\n(.*?)<\/script>/m, 1] or flunk "the chooser lost its script"
+    source = File.read(PAGE, encoding: "UTF-8")
+
+    # Chosen by content, not by position: taking the first <script> or <style>
+    # would silently assemble a different widget than the site ships if another
+    # block were ever added above the chooser, and the real one would go
+    # untested while everything still passed.
+    scripts = source.scan(/<script\b[^>]*>(.*?)<\/script>/m).flatten
+    styles  = source.scan(/<style\b[^>]*>(.*?)<\/style>/m).flatten
+    script  = scripts.find { |b| b.include?("QUESTIONS") && b.include?("LIBS") } or
+      flunk "no <script> in comparison.md defines the chooser"
+    style   = styles.find { |b| b.include?(".cs-fit") } or
+      flunk "no <style> in comparison.md styles the chooser"
+
+    mount = source[/<div id="fitter"[^>]*>.*?<\/div>/m] or flunk "the chooser lost its mount point"
+    assert_includes mount, "data-fitter", "the mount point lost the hook the script looks for"
+    assert_includes mount, "</noscript>",
+                    "the mount match stopped early, so the no-JavaScript fallback is outside it"
 
     @dir = Dir.mktmpdir("cs-fit")
     File.write(File.join(@dir, "fit.html"), <<~HTML)

@@ -1288,6 +1288,22 @@ bin/rails server    <span class="tk-com"># http://localhost:3000</span></pre>
         // ahead of the reader is hidden and animated.
         if(above[i]){el.classList.add('in')}else{io.observe(el)}
       });
+      // A net for anything the observer can never fire for. Its root is shrunk
+      // by 8% at the bottom, so an element lying entirely inside that band at
+      // maximum scroll never intersects, and the 2.6s timer that used to rescue
+      // such a case is gone. Nothing on the page sits there today; this makes
+      // sure adding something there cannot blank it.
+      var sweep;
+      addEventListener('scroll',function(){
+        clearTimeout(sweep);
+        sweep=setTimeout(function(){
+          var vh=window.innerHeight||document.documentElement.clientHeight;
+          document.querySelectorAll('.reveal:not(.in)').forEach(function(el){
+            if(el.getBoundingClientRect().top < vh){el.classList.add('in');io.unobserve(el)}
+          })
+        },150)
+      },{passive:true});
+
       void document.documentElement.offsetHeight; // flush the hidden state
       requestAnimationFrame(function(){
         document.documentElement.classList.remove('js-reveal-arming')

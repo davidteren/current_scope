@@ -268,7 +268,12 @@ not developer time.
       q: "Who should be able to change what a role means?",
       opts: [
         { label: "An administrator, in a screen, without a deploy", score: { current_scope: 4 } },
-        { label: "A developer, through code review", score: { pundit: 2, action_policy: 2, cancancan: 2 } },
+        // A veto, not just points. Both this page and the README list "every
+        // permission change should be a code review" as a reason to choose
+        // something else, and it is the exact premise CurrentScope inverts. A
+        // high score elsewhere used to override the reader saying so.
+        { label: "A developer, through code review", score: { pundit: 2, action_policy: 2, cancancan: 2 },
+          veto: "code_review" },
         { label: "Either is fine", score: { current_scope: 1, action_policy: 1 } }
       ]
     },
@@ -361,6 +366,10 @@ not developer time.
     polyglot: {
       note: "You said something outside Rails needs the same answer. That rules out every Rails-only library here, CurrentScope included.",
       removes: ["current_scope", "pundit", "action_policy", "cancancan"]
+    },
+    code_review: {
+      note: "You said a permission change should go through code review. That is exactly what CurrentScope removes: a role is a row an administrator edits while the app is running.",
+      removes: ["current_scope"]
     },
     beta: {
       note: "You said production needs 1.0 or later. CurrentScope is still in beta: the last gate before 1.0 is one real application running report mode and then enforcing.",

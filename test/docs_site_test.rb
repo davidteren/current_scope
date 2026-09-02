@@ -135,9 +135,10 @@ class DocsSiteTest < ActiveSupport::TestCase
     # Derived from the page, not hardcoded: the comment at the top of
     # comparison.md promises this test fails when a disqualifier there has no
     # counterpart here, and a literal list would quietly not do that.
-    claims = { "attributes" => /rules depend on the record's data or the time/i,
-               "polyglot"   => /outside Rails needs the same answer/i,
-               "beta"       => /cannot put beta software into production/i }
+    claims = { "attributes"  => /rules depend on the record's data or the time/i,
+               "polyglot"    => /outside Rails needs the same answer/i,
+               "code_review" => /permission change as a code review/i,
+               "beta"        => /cannot put beta software into production/i }
 
     vetoes = page.scan(/veto: "(\w+)"/).flatten.uniq
     refute_empty vetoes, "the chooser has to be able to rule CurrentScope out"
@@ -194,25 +195,18 @@ class DocsSiteTest < ActiveSupport::TestCase
   test "the chooser can rule CurrentScope out and never recommends without a caveat" do
     page = File.read(File.expand_path("../docs/site/comparison.md", __dir__), encoding: "UTF-8")
 
-    %w[attributes polyglot beta].each do |veto|
-      assert_match(/veto: "#{veto}"/, page, "#{veto} has to be reachable from an answer")
-      assert_match(/#{veto}: \{\s*\n\s*note:/, page, "#{veto} has to explain itself to the reader")
-      assert_match(/#{veto}: \{.*?removes: \[[^\]]+\]/m, page,
+    # Only that each disqualifier is reachable from an answer and explains
+    # itself. Whether the chooser actually honours them — no verdict without a
+    # cost, no Rails-only answer after the polyglot one, no library stranded
+    # unreachable — is driven for real in
+    # test/system/docs_site_fit_chooser_test.rb, so it is not re-pinned here
+    # against the source's indentation and key order.
+    page.scan(/veto: "(\w+)"/).flatten.uniq.each do |veto|
+      assert_match(/#{veto}:\s*\{/, page, "#{veto} has to be a defined disqualifier")
+      assert_match(/#{veto}:\s*\{[^}]*note:/m, page, "#{veto} has to explain itself to the reader")
+      assert_match(/#{veto}:\s*\{[^}]*removes:\s*\[[^\]]+\]/m, page,
                    "#{veto} has to remove the libraries that cannot meet it")
     end
-    # The polyglot answer must rule out every Rails-only library, or the reader
-    # is told "another language needs this" and handed a Rails-only gem.
-    polyglot = page[/polyglot: \{.*?removes: \[([^\]]+)\]/m, 1].to_s
-    %w[current_scope pundit action_policy cancancan].each do |lib|
-      assert_includes polyglot, lib, "the polyglot veto has to rule out #{lib}"
-    end
-    assert_match(/What you give up/, page,
-                 "a verdict that names only the upside is the flattering kind")
-
-    named = page.scan(/^\s+name: "([^"]+)"/).flatten
-    refute_empty named, "the chooser has to offer at least one library"
-    assert_equal named.length, page.scan(/^\s+givesUp:/).length,
-                 "every library the chooser can recommend needs a stated cost: #{named.join(', ')}"
   end
 
   # The reveal's behaviour — a client that never scrolls sees the whole page,

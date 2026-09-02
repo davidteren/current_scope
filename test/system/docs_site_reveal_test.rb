@@ -34,6 +34,11 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
       browser_options: { "no-sandbox" => nil }
     )
     @page = @browser.create_page
+    # The reveal is skipped entirely under prefers-reduced-motion, and correctly
+    # so. Unpinned, these tests would read the machine's accessibility setting
+    # and fail against a page behaving exactly as designed.
+    @page.command("Emulation.setEmulatedMedia", media: "screen",
+                  features: [ { "name" => "prefers-reduced-motion", "value" => "no-preference" } ])
     @page.go_to("file://#{LANDING}")
 
     # Not wait_for_idle: the page fires a decorative cross-origin fetch to

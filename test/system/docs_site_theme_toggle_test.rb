@@ -69,12 +69,18 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
   # setTheme is the branch that ships; the swap() fallback beside it runs only
   # if that script is ever absent. A harness that defines neither would exercise
   # the fallback and leave the shipped path untested.
-  def with_page(size, jtd: false)
+  # With nothing stored, head_custom.html follows the operating system, so the
+  # starting theme is decided by prefers-color-scheme. Left unpinned, these
+  # tests would encode whatever the machine running them happens to prefer and
+  # fail on a runner set the other way: ubuntu-latest reports light.
+  def with_page(size, jtd: false, prefers: "dark")
     browser = Ferrum::Browser.new(
       headless: true, window_size: size, process_timeout: 30, timeout: 30,
       browser_options: { "no-sandbox" => nil }
     )
     page = browser.create_page
+    page.command("Emulation.setEmulatedMedia", media: "screen",
+                 features: [ { "name" => "prefers-color-scheme", "value" => prefers } ])
     page.go_to("file://#{File.join(@dir, 'docs.html')}")
     # After load, which is fine: the handler reads window.jtd when it is
     # clicked, not when it is attached.
@@ -133,7 +139,7 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
                        "the control is visible and pressable but the page never changed: " \
                        "just-the-docs themes by swapping the stylesheet href, not by a class"
           assert_match(/just-the-docs-light\.css/, stylesheet(page),
-                       "the stored default here is dark, so one press has to land on light")
+                       "this page starts dark, so one press has to land on light")
         end
       end
     end
@@ -153,6 +159,22 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
     end
   end
 
+  # The other half of the same promise: with no stored choice, the docs follow
+  # the operating system, exactly as the landing page does.
+  test "with nothing stored the docs follow the operating system" do
+    with_page(DESKTOP, prefers: "light") do |page|
+      assert_match(/just-the-docs-light\.css/, stylesheet(page),
+                   "a visitor on a light OS should not be shown a dark documentation site")
+      assert_equal [ "Dark theme" ], toggles(page).map { |t| t["label"] }.uniq,
+                   "the button has to offer the other theme, not the one already applied"
+    end
+
+    with_page(DESKTOP, prefers: "dark") do |page|
+      refute_match(/just-the-docs-light\.css/, stylesheet(page),
+                   "a visitor on a dark OS should not be flipped to light")
+    end
+  end
+
   # The whole point of the seam: what the landing page stored has to be applied
   # here before first paint, without the reader touching anything.
   test "a choice made on the landing page is already applied when the docs load" do
@@ -161,6 +183,10 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
       browser_options: { "no-sandbox" => nil }
     )
     page = browser.create_page
+    # Emulated dark, so that a light result can only have come from the stored
+    # choice and not from the machine's own preference.
+    page.command("Emulation.setEmulatedMedia", media: "screen",
+                 features: [ { "name" => "prefers-color-scheme", "value" => "dark" } ])
     page.go_to("file://#{File.join(@dir, 'docs.html')}")
     page.evaluate('localStorage.setItem("cs-theme", "light")')
     page.go_to("file://#{File.join(@dir, 'docs.html')}")

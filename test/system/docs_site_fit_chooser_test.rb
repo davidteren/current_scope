@@ -94,7 +94,10 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
   # seven questions is 972 paths and roughly 6,800 clicks, each rebuilding the
   # widget's innerHTML. Computed once for the whole class rather than per test,
   # because the page is static and the walk is deterministic: five tests read
-  # the same answer. Add a question and this stays one traversal.
+  # the same answer. Note the cost is multiplicative, not additive: one more
+  # three-option question takes 972 paths to about 2,900 and 6,800 widget
+  # rebuilds to roughly 23,000, so the CDP timeout above is what will move
+  # first. It stays one traversal, but not a cheap one.
   # Takes something that opens a page rather than a page, so a run whose walk is
   # already cached never launches a browser at all.
   def self.walk(open_page)

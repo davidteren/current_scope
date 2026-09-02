@@ -201,7 +201,9 @@ not developer time.
   .cs-fit-step { font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; opacity: .7; }
   .cs-fit-q { font-size: 1.15rem; font-weight: 600; margin: .35rem 0 1rem; line-height: 1.3; }
   .cs-fit-opts { display: flex; flex-wrap: wrap; gap: .5rem; }
-  .cs-fit-opts button {
+  .cs-fit-opts button,
+  .cs-fit-nav button,
+  .cs-fit-restart button {
     font: inherit;
     font-size: .95rem;
     padding: .5rem .9rem;
@@ -211,8 +213,16 @@ not developer time.
     color: inherit;
     cursor: pointer;
   }
-  .cs-fit-opts button:hover { border-color: currentColor; }
-  .cs-fit-opts button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+  .cs-fit-opts button:hover,
+  .cs-fit-nav button:hover,
+  .cs-fit-restart button:hover { border-color: currentColor; }
+  .cs-fit-opts button:focus-visible,
+  .cs-fit-nav button:focus-visible,
+  .cs-fit-restart button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+  /* Secondary to the answers: same shape, quieter. */
+  .cs-fit-nav { margin-top: .9rem; }
+  .cs-fit-nav button, .cs-fit-restart button { font-size: .85rem; padding: .35rem .7rem; opacity: .8; }
+  .cs-fit-nav button:hover, .cs-fit-restart button:hover { opacity: 1; }
   .cs-fit-bar { height: 3px; background: rgba(128, 145, 150, .25); border-radius: 3px; margin-bottom: 1rem; overflow: hidden; }
   .cs-fit-bar i { display: block; height: 100%; background: currentColor; opacity: .55; transition: width .2s ease; }
   .cs-fit-verdict h3 { margin: .2rem 0 .6rem; font-size: 1.25rem; }
@@ -352,7 +362,25 @@ not developer time.
     }
   };
 
-  var state = { i: 0, score: {}, vetoes: [] };
+  function fresh() { return { i: 0, score: {}, vetoes: [] }; }
+
+  var state = fresh();
+  // One snapshot per answer, so a mis-click costs one click to undo rather than
+  // a page reload. Undoing by subtracting the answer's points back out would
+  // have to stay in step with the scoring forever; a snapshot cannot drift.
+  var history = [];
+
+  function snapshot() {
+    var score = {};
+    Object.keys(state.score).forEach(function (k) { score[k] = state.score[k]; });
+    return { i: state.i, score: score, vetoes: state.vetoes.slice() };
+  }
+
+  function restart() {
+    state = fresh();
+    history = [];
+    render();
+  }
 
   function render() {
     if (state.i >= QUESTIONS.length) return renderVerdict();
@@ -362,8 +390,20 @@ not developer time.
     el.innerHTML =
       '<div class="cs-fit-bar"><i style="width:' + Math.round((state.i / QUESTIONS.length) * 100) + '%"></i></div>' +
       '<div class="cs-fit-step">Question ' + (state.i + 1) + " of " + QUESTIONS.length + "</div>" +
-      '<p class="cs-fit-q" data-focus></p><div class="cs-fit-opts"></div>';
+      '<p class="cs-fit-q" data-focus></p><div class="cs-fit-opts"></div>' +
+      (history.length
+        ? '<p class="cs-fit-nav"><button type="button" data-back>Back</button> ' +
+          '<button type="button" data-restart>Start again</button></p>'
+        : "");
     el.querySelector(".cs-fit-q").textContent = q.q;
+
+    if (history.length) {
+      el.querySelector("[data-back]").addEventListener("click", function () {
+        state = history.pop();
+        render();
+      });
+      el.querySelector("[data-restart]").addEventListener("click", restart);
+    }
 
     var opts = el.querySelector(".cs-fit-opts");
     q.opts.forEach(function (opt) {
@@ -371,6 +411,7 @@ not developer time.
       b.type = "button";
       b.textContent = opt.label;
       b.addEventListener("click", function () {
+        history.push(snapshot());
         Object.keys(opt.score || {}).forEach(function (k) {
           state.score[k] = (state.score[k] || 0) + opt.score[k];
         });
@@ -426,11 +467,13 @@ not developer time.
       none.innerHTML = '<div class="cs-fit-step">Based on your answers</div>' +
         "<h3>None of these</h3><p>Your answers rule out every library on this page. " +
         "The table above is the place to start instead.</p>" +
-        '<p class="cs-fit-restart"><button type="button" data-restart>Start again</button></p>';
-      none.querySelector("[data-restart]").addEventListener("click", function () {
-        state = { i: 0, score: {}, vetoes: [] };
+        '<p class="cs-fit-restart"><button type="button" data-back>Back</button> ' +
+        '<button type="button" data-restart>Start again</button></p>';
+      none.querySelector("[data-back]").addEventListener("click", function () {
+        state = history.pop();
         render();
       });
+      none.querySelector("[data-restart]").addEventListener("click", restart);
       return swapIn(none, none.querySelector("h3"));
     }
 
@@ -485,13 +528,17 @@ not developer time.
     html += "<p>" + winners.map(function (l) {
       return '<a href="' + l.href + '">' + l.cta + "</a>";
     }).join(" &middot; ") + "</p>" +
-      '<p class="cs-fit-restart"><button type="button" data-restart>Start again</button></p>';
+      '<p class="cs-fit-restart"><button type="button" data-back>Back</button> ' +
+      '<button type="button" data-restart>Start again</button></p>';
 
     el.innerHTML = html;
-    el.querySelector("[data-restart]").addEventListener("click", function () {
-      state = { i: 0, score: {}, vetoes: [] };
+    // Back from the verdict returns to the last question, so a reader who wants
+    // to see what one different answer would have said does not start over.
+    el.querySelector("[data-back]").addEventListener("click", function () {
+      state = history.pop();
       render();
     });
+    el.querySelector("[data-restart]").addEventListener("click", restart);
 
     swapIn(el, el.querySelector("h3"));
   }

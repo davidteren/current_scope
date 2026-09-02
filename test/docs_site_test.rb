@@ -81,6 +81,9 @@ class DocsSiteTest < ActiveSupport::TestCase
     assert_match(/target\.focus\(\)/, page, "each question has to be announced on focus")
     assert_match(/^\| If this is true of you/, page,
                  "the plain-table version is the fallback the noscript promises")
+    # A mis-click must not cost the reader a page reload.
+    assert_match(/data-back/, page, "the chooser needs a way back from a mis-click")
+    assert_match(/history\.pop\(\)/, page, "Back has to restore the previous answer")
     # Pin the table's header row, not a bare name: every one of these also
     # appears in prose and in the chooser's own constants, so a loose match
     # passes with the comparison column gone.

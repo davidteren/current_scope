@@ -45,12 +45,12 @@ class DocsSiteTest < ActiveSupport::TestCase
                  "the docs read the key the landing page writes")
     assert_match(/localStorage\.setItem\(["']cs-theme["']/, @html,
                  "the landing page writes the key the docs read")
-    assert_match(/just-the-docs-" \+ next \+ "\.css/, docs_head,
+    assert_match(/just-the-docs-["'] \+ next \+ ["']\.css/, docs_head,
                  "just-the-docs switches theme by swapping the stylesheet href, not a class")
 
     # just-the-docs renders nav_footer_custom.html twice, desktop and mobile.
     # querySelector wires only the first, which is the one a phone cannot see.
-    assert_match(/querySelectorAll\("\[data-cs-docs-theme-toggle\]"\)/, docs_head,
+    assert_match(/querySelectorAll\(["']\[data-cs-docs-theme-toggle\]["']\)/, docs_head,
                  "both copies of the toggle have to be wired, not just the desktop one")
 
     # The engine's admin UI already owns data-cs-theme-toggle and [data-cs-theme]
@@ -124,13 +124,19 @@ class DocsSiteTest < ActiveSupport::TestCase
     page = File.read(File.expand_path("../docs/site/comparison.md", __dir__), encoding: "UTF-8")
     audience = @html[/<section id="audience">.*?<\/section>/m] or
       flunk "the landing page lost its audience section"
+    # Only the "not a fit" card, so a word used approvingly in the "good fit"
+    # card beside it cannot satisfy a disqualifier.
+    not_for_you = audience[/<div class="card aud no">.*?<\/div>\s*<\/div>/m] ||
+                  audience[/Pick something else.*/m] or
+      flunk "the landing page lost its 'pick something else' card"
 
-    { "attributes" => /amount|attribute|under 10,000/i,
-      "polyglot"   => /outside Rails|not only on Rails|another (language|service)/i,
-      "beta"       => /beta/i }.each do |veto, phrase|
+    { "attributes" => /rules depend on the record's data or the time/i,
+      "polyglot"   => /outside Rails needs the same answer/i,
+      "beta"       => /cannot put beta software into production/i }.each do |veto, claim|
       assert_match(/veto: "#{veto}"/, page, "#{veto} is still a disqualifier on the fit page")
-      assert_match(phrase, audience,
-                   "the landing page's 'not for you' list has to name the #{veto} disqualifier")
+      assert_match(claim, not_for_you,
+                   "the landing page's 'not for you' list has to make the #{veto} claim, " \
+                   "not merely use the word somewhere nearby")
     end
   end
 

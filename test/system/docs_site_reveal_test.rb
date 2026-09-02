@@ -25,6 +25,9 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
     @browser = Ferrum::Browser.new(
       headless: true,
       window_size: [ 1440, 1000 ],
+      # Matches test/application_system_test_case.rb. Ferrum's own default is
+      # 10s, and this suite already found that too short for a cold runner.
+      process_timeout: 30,
       browser_options: { "no-sandbox" => nil }
     )
     @page = @browser.create_page
@@ -106,27 +109,33 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
     assert_operator opacities("#features .reveal").length, :>=, 4,
                     "the stagger is only observable across several siblings"
 
-    # Sampled from here, not in a browser-side loop: a busy-wait blocks the
-    # main thread, so nothing animates and the page stops responding.
-    #
-    # And sampled until the spread appears rather than across a fixed window:
-    # the choreography only exists while the section is arriving, and the smooth
-    # scroll alone runs 400-500ms. A window fixed in advance is a race on a
-    # loaded runner, where the process can be descheduled through the whole
-    # animation and see nothing but rows of 1.0.
-    @page.evaluate("document.querySelector('#features').scrollIntoView()")
-    spread = 0
-    wait_until(message: -> {
-      "the siblings never held more than #{spread} distinct opacities, so they moved as one " \
-        "block: the transition-delay is on a selector that stops matching the moment the " \
-        "element is revealed"
-    }) do
-      spread = [ spread, opacities("#features .reveal").uniq.length ].max
-      spread >= 3
-    end
+    # Recorded inside the browser, on its own animation frames, and read back
+    # once at the end. Two earlier shapes were both races: a browser-side busy
+    # loop blocks the main thread so nothing animates at all, and polling from
+    # Ruby can be descheduled straight through the ~900ms in which the stagger
+    # is visible, failing on a page that is behaving correctly.
+    # execute, not evaluate: evaluate wraps a single expression, so a
+    # multi-statement script silently does nothing at all.
+    @page.execute(<<~JS)
+      window.__reveal = [];
+      (function record() {
+        window.__reveal.push(Array.prototype.map.call(
+          document.querySelectorAll("#features .reveal"),
+          function (el) { return parseFloat(getComputedStyle(el).opacity) }));
+        if (window.__reveal.length < 180) requestAnimationFrame(record);
+      })();
+      document.querySelector("#features").scrollIntoView();
+    JS
 
     wait_until(message: "the fade has to finish") do
       opacities("#features .reveal").all? { |o| o > 0.99 }
     end
+
+    frames = @page.evaluate("window.__reveal")
+    spread = frames.map { |row| row.uniq.length }.max
+    assert_operator spread, :>=, 3,
+                    "across #{frames.length} animation frames the siblings never held more " \
+                    "than #{spread} distinct opacities, so they moved as one block: the " \
+                    "transition-delay is on a selector that stops matching at the reveal"
   end
 end

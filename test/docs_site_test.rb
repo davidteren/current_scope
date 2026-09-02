@@ -75,15 +75,12 @@ class DocsSiteTest < ActiveSupport::TestCase
     # (which deletes the noscript nested in it) would not fail a bare match.
     assert_match(%r{<div id="fitter" data-fitter[^>]*>\s*<noscript>}, page,
                  "the chooser's mount point carries the no-JavaScript fallback")
-    # Each question is announced by taking focus, not by a live region. Pin the
-    # focus target and its marker, or the mechanism can be removed silently.
-    assert_match(/data-focus/, page, "the new question has to be the focus target")
-    assert_match(/\.focus\(\)/, page, "each question has to be announced on focus")
     assert_match(/^\| If this is true of you/, page,
                  "the plain-table version is the fallback the noscript promises")
-    # A mis-click must not cost the reader a page reload.
-    assert_match(/data-back/, page, "the chooser needs a way back from a mis-click")
-    assert_match(/\bpop\(\)/, page, "Back has to restore the previous answer")
+    # Focus-based announcement and the Back button are behaviour, and both are
+    # driven in test/system/docs_site_fit_chooser_test.rb. Pinning their source
+    # spelling here would go red on a rename and stay green on a Back button
+    # that restored the wrong answer.
     # Pin the table's header row, not a bare name: every one of these also
     # appears in prose and in the chooser's own constants, so a loose match
     # passes with the comparison column gone.

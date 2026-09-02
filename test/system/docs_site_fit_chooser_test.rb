@@ -157,8 +157,11 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
     JS
     refute_equal(-1, polyglot, "the chooser no longer asks whether anything outside Rails needs it")
 
+    # Substring, not equality: tied winners are joined into one heading
+    # ("Pundit or Action Policy"), which matches no exact name, so an equality
+    # test would pass straight through the regression this exists to catch.
     offenders = every_path.select { |r| r["answers"][polyglot].zero? }
-                          .select { |r| RAILS_ONLY.include?(r["heading"].to_s.strip) }
+                          .select { |r| RAILS_ONLY.any? { |n| r["heading"].to_s.include?(n) } }
 
     assert_empty offenders.map { |r| r["answers"] }.first(5),
                  "after that answer the chooser still recommended a Rails-only library"
@@ -191,6 +194,39 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
     assert_empty unreachable,
                  "these libraries are in the chooser's data but no answer can reach them, so " \
                  "their entries are dead code that reads as a live recommendation"
+  end
+
+  # There is no aria-live region: each new question is announced by taking
+  # focus. A source pin cannot tell whether focus actually lands.
+  test "each question takes focus so a screen reader announces it" do
+    landed = @page.evaluate(<<~JS)
+      (function () {
+        var mount = document.querySelector("[data-fitter]");
+        var again = mount.querySelector("[data-restart]");
+        if (again) again.click();
+        var seen = [];
+        for (var i = 0; i < 8; i++) {
+          var opts = mount.querySelectorAll(".cs-fit-opts button");
+          if (!opts.length) break;
+          opts[0].click();
+          var el = document.activeElement;
+          // Inside the widget, not a particular class: the question is a
+          // <p class="cs-fit-q"> and the verdict's target is a bare <h3>.
+          seen.push({
+            inside: !!(el && mount.contains(el)),
+            tag: el ? el.tagName : null,
+            text: el ? (el.textContent || "").trim().slice(0, 30) : ""
+          });
+        }
+        return seen;
+      })()
+    JS
+
+    refute_empty landed, "the chooser asked nothing"
+    stranded = landed.reject { |f| f["inside"] }
+    assert_empty stranded,
+                 "after an answer the focus has to land inside the chooser, on the new " \
+                 "question or the verdict; otherwise nothing is announced at all"
   end
 
   test "a mis-click can be undone without starting over" do

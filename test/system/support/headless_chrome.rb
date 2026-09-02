@@ -1,4 +1,5 @@
 require "ferrum"
+require "yaml"
 
 # One place that knows how this repo launches Chrome for the docs-site tests.
 #

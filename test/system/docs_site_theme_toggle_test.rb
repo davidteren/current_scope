@@ -64,7 +64,7 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
   # just-the-docs v0.12.0's own switcher, which the include prefers whenever it
   # is loaded: it rewrites the first stylesheet's href to
   # assets/css/just-the-docs-<scheme>.css.
-  JTD_STUB = <<~JS.freeze
+  JTD_STUB = <<~'JS'.freeze
     window.jtd = { setTheme: function (t) {
       var l = document.querySelector('link[rel="stylesheet"]');
       l.setAttribute("href", l.getAttribute("href").replace(/just-the-docs-[a-z]+\.css/, "just-the-docs-" + t + ".css"));
@@ -102,10 +102,21 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
 
   def press_visible_toggle(page)
     before = stylesheet(page)
-    page.evaluate(<<~JS)
-      Array.prototype.filter.call(document.querySelectorAll("[data-cs-docs-theme-toggle]"),
-        function (t) { var r = t.getBoundingClientRect(); return !t.hidden && r.height > 0 })[0].click()
+    # Asserted, not indexed blindly. In the failure this file exists to catch —
+    # the wrong copy of the footer include gets wired — there is nothing visible
+    # to press, and `[0].click()` would raise a JavaScript error on top of the
+    # real assertion instead of leaving it to speak for itself.
+    pressed = page.evaluate(<<~JS)
+      (function () {
+        var t = Array.prototype.filter.call(
+          document.querySelectorAll("[data-cs-docs-theme-toggle]"),
+          function (b) { var r = b.getBoundingClientRect(); return !b.hidden && r.height > 0 })[0];
+        if (!t) return false;
+        t.click();
+        return true;
+      })()
     JS
+    assert pressed, "there is no visible theme toggle to press"
     # Waits on the effect rather than a fixed moment. `settled?` rather than
     # `wait_until` because a press that changes nothing is exactly what some of
     # these tests assert on: the failure should come from the assertion, with

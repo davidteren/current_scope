@@ -30,13 +30,17 @@ module HeadlessChrome
     end
   end
 
-  # just-the-docs compiles its first stylesheet from color_scheme, and serves it
-  # under that name at the site's baseurl.
   def site_color_scheme = site_config.fetch("color_scheme")
   def site_baseurl = site_config.fetch("baseurl", "").to_s
 
+  # Always `-default.css`, whatever color_scheme says. just-the-docs hardcodes
+  # this link (v0.12.0 _includes/head.html:17) and compiles the chosen scheme
+  # INTO that file; the scheme never appears in the filename. Deriving the name
+  # from color_scheme instead would start the harness on a stylesheet the site
+  # never serves, and any logic that reads the scheme back out of the href
+  # would be tested against "dark" where production gives "default".
   def starting_stylesheet
-    "#{site_baseurl}/assets/css/just-the-docs-#{site_color_scheme}.css"
+    "#{site_baseurl}/assets/css/just-the-docs-default.css"
   end
 
   # The harness reproduces this version's include structure by hand (which

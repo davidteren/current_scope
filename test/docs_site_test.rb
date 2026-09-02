@@ -61,7 +61,7 @@ class DocsSiteTest < ActiveSupport::TestCase
                  "the docs toggle must not reuse the engine's admin-UI hook")
     refute_match(/\bcs-theme-toggle\b/, button,
                  "the docs toggle must not reuse the engine's admin-UI class")
-    refute_match(/setAttribute\("data-cs-theme"/, docs_head,
+    refute_match(/setAttribute\(["']data-cs-theme["']/, docs_head,
                  "[data-cs-theme] is the engine's styling hook; the docs theme by stylesheet")
   end
 

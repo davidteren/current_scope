@@ -1,0 +1,30 @@
+test/docs_site_test.rb
+  s_240773ee81a9c0::t_a7eef934a2b5d6 138-141
+  s_240773ee81a9c0::t_b6d1faadcce24e 198-207
+docs/site/index.html
+  s_240773ee81a9c0::t_e52a02332f8205 1291-1306
+test/system/docs_site_fit_chooser_test.rb
+  s_240773ee81a9c0::t_af48a826d81f32 41
+  s_240773ee81a9c0::t_83bbd7f6fcd367 28-40,42-44
+test/system/docs_site_reveal_test.rb
+  s_240773ee81a9c0::t_e52a02332f8205 164-177
+docs/site/comparison.md
+  s_240773ee81a9c0::t_a7eef934a2b5d6 271-276,370-372
+  s_240773ee81a9c0::t_fb68009388bd7f 373
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "cad82dad0cd96771cbb60d0620e28a3bdbb62811",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -316,6 +316,7 @@ DEPENDENCIES
   capybara
   cuprite
   current_scope!
+  ferrum
   pg
   propshaft
   puma

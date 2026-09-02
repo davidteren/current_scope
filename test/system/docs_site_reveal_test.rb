@@ -10,8 +10,8 @@ require "ferrum"
 #      crawler, a print, a screenshot, an agent reading the site — could be left
 #      looking at empty sections.
 #   3. Declaring the transition on the hiding rule alone meant the rule stopped
-#      matching the instant the element was revealed, so every element snapped
-#      in with no fade, no rise and no stagger.
+#      matching the instant the element was revealed, which drops the
+#      per-sibling delay: the section arrived as one block instead of in turn.
 #
 # None of those can be caught by matching strings in the file, which is what the
 # unit pins in test/docs_site_test.rb were reduced to doing. This drives the real
@@ -33,6 +33,20 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
   end
 
   teardown { @browser&.quit }
+
+  # scroll-behavior is smooth on this page, so scrollIntoView animates for
+  # 400-500ms before the section is even in view, and the last card then waits
+  # out its stagger (up to 4 x 70ms) plus a 600ms fade. A fixed sleep sized to
+  # that is a race on a loaded runner; wait for the condition instead.
+  def wait_until(timeout: 6, message: "condition never held")
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+    loop do
+      return if yield
+      flunk message if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+
+      sleep 0.05
+    end
+  end
 
   def opacities(selector = ".reveal")
     @page.evaluate(<<~JS)
@@ -61,9 +75,9 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
     assert_operator hidden, :>, 0, "sections below the reader are handed to the observer"
 
     @page.evaluate("document.querySelector('#features').scrollIntoView()")
-    sleep 1.2
-    assert_empty opacities("#features .reveal").reject { |o| o > 0.99 },
-                 "a section the reader has arrived at must be visible"
+    wait_until(message: "a section the reader has arrived at must become visible") do
+      opacities("#features .reveal").all? { |o| o > 0.99 }
+    end
   end
 
   # The regression that shipped: the transition and its per-sibling delay were
@@ -104,8 +118,8 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
                     "moved as one block: the transition-delay is on a selector that stops " \
                     "matching the moment the element is revealed"
 
-    sleep 1.0
-    assert_empty opacities("#features .reveal").reject { |o| o > 0.99 },
-                 "the fade has to finish"
+    wait_until(message: "the fade has to finish") do
+      opacities("#features .reveal").all? { |o| o > 0.99 }
+    end
   end
 end

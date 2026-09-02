@@ -3,6 +3,16 @@ title: Is it the right fit?
 nav_order: 1
 ---
 
+<!--
+  SOURCE OF TRUTH for "when not to use CurrentScope".
+
+  The same answer is written on three other surfaces: the README's "Is it the
+  right fit?" section, and the landing page's short comparison table and its
+  "Pick something else, or wait" list. When the answer changes, change it here
+  first and carry it to those three. test/docs_site_test.rb holds the seam and
+  will fail if a disqualifier here has no counterpart there.
+-->
+
 # Is CurrentScope the right fit?
 
 Authorization is a decision you live with for years, so this page is written to

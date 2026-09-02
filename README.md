@@ -135,6 +135,8 @@ The trade in one line: **the others put your rules in code you deploy, Oso puts
 them in a policy language, CurrentScope puts them in rows an administrator
 edits.** So:
 
+<!-- Mirrors docs/site/comparison.md, the source of truth for this list. -->
+
 | Reach for something else when | Because |
 |---|---|
 | Rules depend on the record's data or the time ("only under 10,000") | CurrentScope has no vocabulary for attribute rules. Pundit, Action Policy, CanCanCan and Oso do. |

@@ -376,6 +376,7 @@ not developer time.
         });
         if (opt.veto) state.vetoes.push(opt.veto);
         state.i += 1;
+        answered = true; // from here on, every swap announces itself
         render();
       });
       opts.appendChild(b);
@@ -388,11 +389,18 @@ not developer time.
   // body unless we move it. The new question takes it, and a screen reader
   // announces it on focus. There is deliberately no aria-live on the container:
   // with the focus move in place it would announce every question twice.
+  //
+  // `answered` rather than checking document.activeElement: Safari and Firefox
+  // on macOS do not focus a <button> on a mouse click, so an activeElement test
+  // reads as "the reader was never here" and the announcement never happens for
+  // pointer users on those browsers. What matters is that the reader answered,
+  // not which input device told us.
+  var answered = false;
+
   function swapIn(el, focusFirst) {
-    var hadFocus = mount.contains(document.activeElement);
     mount.innerHTML = "";
     mount.appendChild(el);
-    if (!hadFocus) return;
+    if (!answered) return;
     var target = focusFirst || el.querySelector("[data-focus]") || el;
     if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
     target.focus();

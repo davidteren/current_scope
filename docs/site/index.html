@@ -1259,13 +1259,19 @@ bin/rails server    <span class="tk-com"># http://localhost:3000</span></pre>
     var arm=function(){
       if(armed)return; armed=true;
       var h=window.innerHeight||document.documentElement.clientHeight;
+      // Measure BEFORE hiding. The hiding rule carries translateY, so a rect
+      // read after the class is added reports every element 14px lower than it
+      // really is, and anything sitting in that last 14px of the viewport gets
+      // hidden out from under the reader.
+      var els=[].slice.call(document.querySelectorAll('.reveal'));
+      var above=els.map(function(el){return el.getBoundingClientRect().top < h});
       // Hide instantly, not over 600ms: arming must not fade the page out
       // under a reader who is already scrolling toward it.
       document.documentElement.classList.add('js-reveal','js-reveal-arming');
-      document.querySelectorAll('.reveal').forEach(function(el){
+      els.forEach(function(el,i){
         // Anything on screen or already passed stays put; only what is still
         // ahead of the reader is hidden and animated.
-        if(el.getBoundingClientRect().top < h){el.classList.add('in')}else{io.observe(el)}
+        if(above[i]){el.classList.add('in')}else{io.observe(el)}
       });
       void document.documentElement.offsetHeight; // flush the hidden state
       requestAnimationFrame(function(){

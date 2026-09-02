@@ -107,9 +107,9 @@ class DocsSiteTest < ActiveSupport::TestCase
 
     count = page.scan(/^\s+q: "/).length
     words = %w[zero one two three four five six seven eight nine]
-    assert_includes section.gsub(/\s+/, " "), "#{words.fetch(count)} questions",
+    assert_includes section.gsub(/\s+/, " "), "#{words.fetch(count) { count.to_s }} questions",
                     "the README says how many questions the page asks; it asks #{count}"
-    assert_includes page.gsub(/\s+/, " "), "Answer #{words.fetch(count)} questions",
+    assert_includes page.gsub(/\s+/, " "), "Answer #{words.fetch(count) { count.to_s }} questions",
                     "the page says how many questions it asks; it asks #{count}"
 
     { "attribute rules" => "no vocabulary for attribute rules",

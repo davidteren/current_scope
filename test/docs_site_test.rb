@@ -178,11 +178,21 @@ class DocsSiteTest < ActiveSupport::TestCase
     assert_includes page.gsub(/\s+/, " "), "Answer #{words.fetch(count) { count.to_s }} questions",
                     "the page says how many questions it asks; it asks #{count}"
 
-    { "attribute rules" => "no vocabulary for attribute rules",
-      "polyglot" => "outside Rails",
-      "beta" => "cannot ship beta" }.each do |veto, phrase|
-      assert_match(/veto: "#{veto.split.first}/, page, "#{veto} is still a disqualifier on the page")
-      assert_includes section, phrase, "the README names the #{veto} disqualifier"
+    # Derived, like the landing-page half: a hardcoded list here would let a new
+    # disqualifier be added to the chooser while the README quietly fell behind,
+    # which is what the other half's failure message already promises it cannot.
+    phrases = { "attributes"  => "no vocabulary for attribute rules",
+                "polyglot"    => "outside Rails",
+                "code_review" => "should be a code review",
+                "beta"        => "cannot ship beta" }
+    vetoes = page.scan(/veto: "(\w+)"/).flatten.uniq
+    assert_equal phrases.keys.sort, vetoes.sort,
+                 "a disqualifier was added to or removed from the chooser; the README's " \
+                 "'Reach for something else when' table has to state it, and it has to be " \
+                 "named here so this test keeps checking that"
+    vetoes.each do |veto|
+      assert_includes section, phrases.fetch(veto),
+                      "the README has to name the #{veto} disqualifier"
     end
   end
 

@@ -1298,6 +1298,12 @@ bin/rails server    <span class="tk-com"># http://localhost:3000</span></pre>
         clearTimeout(sweep);
         sweep=setTimeout(function(){
           var vh=window.innerHeight||document.documentElement.clientHeight;
+          // Only at the bottom, which is the only place the dead band exists.
+          // Sweeping on every pause would reveal elements 8% of a viewport
+          // earlier than the observer's rootMargin asks for, so the stagger
+          // would play before the section is properly on screen.
+          var doc=document.documentElement;
+          if(Math.ceil(vh+(window.scrollY||doc.scrollTop))<doc.scrollHeight-2)return;
           document.querySelectorAll('.reveal:not(.in)').forEach(function(el){
             if(el.getBoundingClientRect().top < vh){el.classList.add('in');io.unobserve(el)}
           })

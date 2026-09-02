@@ -53,24 +53,6 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
 
   teardown { @browser&.quit }
 
-  # scroll-behavior is smooth on this page, so scrollIntoView animates for
-  # 400-500ms before the section is even in view, and the last card then waits
-  # out its stagger (up to 4 x 70ms) plus a 600ms fade. A fixed sleep sized to
-  # that is a race on a loaded runner; wait for the condition instead.
-  # `message` may be a proc, so a failure can report what was actually seen
-  # rather than a value captured before the first sample.
-  def wait_until(timeout: 12, message: "condition never held")
-    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
-    loop do
-      return if yield
-      if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
-        flunk message.respond_to?(:call) ? message.call : message
-      end
-
-      sleep 0.05
-    end
-  end
-
   # The first scroll arms the reveal; the transient arming class is removed in a
   # requestAnimationFrame callback, so waiting a fixed 300ms for it is a race on
   # a loaded runner.

@@ -20,6 +20,35 @@ module HeadlessChrome
     )
   end
 
+  # Waiting on a condition, never on a fixed sleep. A sleep sized to an
+  # animation, a navigation or a class flip is a race on a loaded runner: it
+  # passes locally and fails in CI against a page behaving exactly as designed.
+  # `message` may be a proc, so a failure can report what was actually seen.
+  def wait_until(timeout: 12, message: "condition never held")
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+    loop do
+      return if yield
+      if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+        flunk message.respond_to?(:call) ? message.call : message
+      end
+
+      sleep 0.05
+    end
+  end
+
+  # Same polling, but reports whether the condition held instead of failing.
+  # For cases where not holding is itself what a test asserts on, so the failure
+  # comes from the assertion with its own message rather than from a timeout.
+  def settled?(timeout: 2)
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+    loop do
+      return true if yield
+      return false if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+
+      sleep 0.05
+    end
+  end
+
   # The docs site's own settings, read rather than restated: a harness that
   # hardcodes them cannot fail when they change, which is the one thing a test
   # over a config file is for.

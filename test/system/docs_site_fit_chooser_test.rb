@@ -82,19 +82,11 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
   end
 
   # Walks every combination of answers by clicking, and reports what each one
-  # was actually told. Done in one browser-side pass: each click re-renders
-  # synchronously, so no waiting is involved.
-  #
-  # The space is the product of the options on each question, so it grows fast:
-  # seven questions is 972 paths and roughly 6,800 clicks, each rebuilding the
-  # widget's innerHTML. Computed once for the whole class rather than per test,
-  # because the page is static and the walk is deterministic: five tests read
-  # the same answer. Note the cost is multiplicative, not additive: one more
-  # three-option question takes 972 paths to about 2,900 and 6,800 widget
-  # rebuilds to roughly 23,000, so the CDP timeout above is what will move
-  # first. It stays one traversal, but not a cheap one.
-  # Takes something that opens a page rather than a page, so a run whose walk is
-  # already cached never launches a browser at all.
+  # was actually told. Each click re-renders synchronously, so no waiting is
+  # involved. Computed once for the whole class rather than per test, because
+  # the page is static and the walk is deterministic: every test reads the same
+  # answer, and it takes something that opens a page rather than a page, so a
+  # test that only reads the cache never launches a browser at all.
   #
   # Replayed in batches rather than one call. The space is the product of the
   # options on each question, so it grows multiplicatively: seven questions is

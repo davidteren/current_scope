@@ -89,18 +89,28 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
     # After load, which is fine: the handler reads window.jtd when it is
     # clicked, not when it is attached.
     page.execute(JTD_STUB) if jtd
-    sleep 0.2
+    # The buttons are unhidden on DOMContentLoaded, so wait for that rather than
+    # for a fixed moment: a slow runner would otherwise read them as still
+    # hidden and fail against a page that is about to be correct.
+    wait_until(message: "the toggle was never wired") do
+      toggles(page).any? { |t| !t["hidden"] }
+    end
     yield page
   ensure
     browser&.quit
   end
 
   def press_visible_toggle(page)
+    before = stylesheet(page)
     page.evaluate(<<~JS)
       Array.prototype.filter.call(document.querySelectorAll("[data-cs-docs-theme-toggle]"),
         function (t) { var r = t.getBoundingClientRect(); return !t.hidden && r.height > 0 })[0].click()
     JS
-    sleep 0.2
+    # Waits on the effect rather than a fixed moment. `settled?` rather than
+    # `wait_until` because a press that changes nothing is exactly what some of
+    # these tests assert on: the failure should come from the assertion, with
+    # its own message, not from a timeout here.
+    settled? { stylesheet(page) != before }
   end
 
   def toggles(page)
@@ -160,17 +170,21 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
     end
   end
 
-  test "both copies of the toggle keep the same label, and the choice is stored" do
-    with_page(DESKTOP) do |page|
-      assert_equal [ "Light theme" ], toggles(page).map { |t| t["label"] }.uniq,
-                   "the emulated preference is dark, so the button offers the other one"
+  { "with just-the-docs loaded" => true, "without it" => false }.each do |how, jtd|
+    test "both copies relabel together and the choice is stored, #{how}" do
+      with_page(DESKTOP, jtd: jtd) do |page|
+        assert_equal [ "Light theme" ], toggles(page).map { |t| t["label"] }.uniq,
+                     "the emulated preference is dark, so the button offers the other one"
 
-      press_visible_toggle(page)
+        press_visible_toggle(page)
 
-      assert_equal [ "Dark theme" ], toggles(page).map { |t| t["label"] }.uniq,
-                   "both copies have to relabel, or the reader who resizes sees the wrong one"
-      assert_equal "light", page.evaluate('localStorage.getItem("cs-theme")'),
-                   "the choice has to survive to the landing page, which reads the same key"
+        assert_equal [ "Dark theme" ], toggles(page).map { |t| t["label"] }.uniq,
+                     "both copies have to relabel, or the reader who resizes sees the wrong one"
+        assert_equal "light", page.evaluate('localStorage.getItem("cs-theme")'),
+                     "the choice has to survive to the landing page, which reads the same key"
+        assert_empty toggles(page).select { |t| t["hidden"] },
+                     "a press that worked must not hide the control"
+      end
     end
   end
 
@@ -202,7 +216,9 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
     page.go_to("file://#{File.join(@dir, 'docs.html')}")
     page.evaluate('localStorage.setItem("cs-theme", "light")')
     page.go_to("file://#{File.join(@dir, 'docs.html')}")
-    sleep 0.2
+    wait_until(message: "the toggle was never wired after the second load") do
+      toggles(page).any? { |t| !t["hidden"] }
+    end
 
     assert_match(/just-the-docs-light\.css/, stylesheet(page),
                  "a preference the interface forgets one click after it was given is worse " \

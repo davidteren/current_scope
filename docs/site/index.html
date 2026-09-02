@@ -173,8 +173,14 @@
      is no recommendation at all, and at 390px they stacked 2x2. */
   .cta-more{display:flex;flex-wrap:wrap;gap:6px 18px;margin:14px 0 0;font-size:14px}
   .cmp-more{margin-top:18px}
-  .cta-more a{color:var(--muted);text-decoration:none;border-bottom:1px solid var(--border2);padding-bottom:1px}
-  .cta-more a:hover{color:var(--txt);border-color:var(--accent)}
+  /* `main :is(p,...) a` above is (0,1,3) — :is() takes its most specific
+     argument, `.feat p` — and .cta-more IS a <p> inside <main>, so a bare
+     `.cta-more a` at (0,1,1) loses to it and these render as full accent
+     underlined links: three of them competing with the one primary button.
+     Matched here at (0,1,3), and later in the sheet, so this one wins. */
+  main p.cta-more a{color:var(--dim);text-decoration:none;
+    border-bottom:1px solid var(--border2);padding-bottom:1px}
+  main p.cta-more a:hover{color:var(--txt);border-color:var(--accent)}
   .btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14.5px;
     padding:11px 16px;border-radius:11px;border:1px solid transparent;transition:.16s;cursor:pointer}
   .btn.primary{background:var(--accent);color:#fff;box-shadow:0 8px 24px -8px var(--glow)}

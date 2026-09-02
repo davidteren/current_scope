@@ -85,6 +85,42 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
     JS
   end
 
+  # A CSS custom property that does not exist, or a selector that loses to a
+  # more specific one, is invisible in the source and obvious on screen. This
+  # one shipped: `.cta-more a` (0,1,1) lost to `main :is(p,...) a` (0,1,3), so
+  # the three secondary links rendered as full accent underlined links and
+  # competed with the single primary button they were demoted in favour of.
+  test "the secondary calls to action are quieter than the primary one" do
+    colours = @page.evaluate(<<~JS)
+      (function () {
+        var link = document.querySelector(".cta-more a");
+        var root = getComputedStyle(document.documentElement);
+        return {
+          link: link ? getComputedStyle(link).color : null,
+          accent: root.getPropertyValue("--accent").trim(),
+          accent2: root.getPropertyValue("--accent2").trim(),
+          dim: root.getPropertyValue("--dim").trim()
+        };
+      })()
+    JS
+
+    refute_nil colours["link"], "the landing page lost its secondary calls to action"
+
+    def hex(value)
+      m = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/) or return value.downcase
+      format("#%02x%02x%02x", m[1].to_i, m[2].to_i, m[3].to_i)
+    end
+
+    actual = hex(colours["link"])
+    [ "accent", "accent2" ].each do |name|
+      refute_equal hex(colours[name]), actual,
+                   "the secondary links render in --#{name}, so they compete with the primary " \
+                   "button instead of sitting below it"
+    end
+    assert_equal hex(colours["dim"]), actual,
+                 "the secondary links should carry the palette's quiet tone"
+  end
+
   test "a client that never scrolls sees the whole page" do
     values = opacities
     assert_operator values.length, :>=, 10, "expected the page's revealed sections"

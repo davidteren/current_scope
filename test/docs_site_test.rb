@@ -132,13 +132,24 @@ class DocsSiteTest < ActiveSupport::TestCase
     not_for_you = audience[/<div class="card aud no">.*?<\/div>\s*<\/div>/m] or
       flunk "the landing page lost its 'pick something else' card"
 
-    { "attributes" => /rules depend on the record's data or the time/i,
-      "polyglot"   => /outside Rails needs the same answer/i,
-      "beta"       => /cannot put beta software into production/i }.each do |veto, claim|
-      assert_match(/veto: "#{veto}"/, page, "#{veto} is still a disqualifier on the fit page")
-      assert_match(claim, not_for_you,
+    # Derived from the page, not hardcoded: the comment at the top of
+    # comparison.md promises this test fails when a disqualifier there has no
+    # counterpart here, and a literal list would quietly not do that.
+    claims = { "attributes" => /rules depend on the record's data or the time/i,
+               "polyglot"   => /outside Rails needs the same answer/i,
+               "beta"       => /cannot put beta software into production/i }
+
+    vetoes = page.scan(/veto: "(\w+)"/).flatten.uniq
+    refute_empty vetoes, "the chooser has to be able to rule CurrentScope out"
+    assert_equal claims.keys.sort, vetoes.sort,
+                 "a disqualifier was added to or removed from the chooser. Every one of them " \
+                 "has to be stated on the landing page's 'Pick something else' card and in " \
+                 "the README, and named here so this test keeps checking that"
+
+    vetoes.each do |veto|
+      assert_match claims.fetch(veto), not_for_you,
                    "the landing page's 'not for you' list has to make the #{veto} claim, " \
-                   "not merely use the word somewhere nearby")
+                   "not merely use the word somewhere nearby"
     end
   end
 
@@ -153,7 +164,12 @@ class DocsSiteTest < ActiveSupport::TestCase
     section = readme[/^## Is it the right fit\?$.*?(?=^## )/m] or
       flunk "the README lost its fit section"
 
-    %w[Pundit Action\ Policy CanCanCan Banken Oso].each do |lib|
+    # Derived from the comparison table, so adding a library there fails here
+    # until the README names it too.
+    libraries = page[/^\| \| CurrentScope \|.*$/].to_s.split("|").map(&:strip)
+                    .reject { |c| c.empty? || c == "CurrentScope" }
+    assert_operator libraries.length, :>=, 5, "expected the comparison table's columns"
+    libraries.each do |lib|
       assert_includes section, lib, "the README fit section names #{lib}"
     end
 
@@ -199,38 +215,19 @@ class DocsSiteTest < ActiveSupport::TestCase
                  "every library the chooser can recommend needs a stated cost: #{named.join(', ')}"
   end
 
-  # The reveal has been wrong in both directions: an unconditional timer meant
-  # it never played, and a conditional one could leave a client that does not
-  # scroll looking at empty sections.
-  test "nothing is hidden until the reader scrolls" do
-    assert_match(/js-reveal-arming/, @html, "arming must not fade the page out")
+  # The reveal's behaviour — a client that never scrolls sees the whole page,
+  # and revealed siblings arrive in turn — is measured in a real browser by
+  # test/system/docs_site_reveal_test.rb. Only the two things a browser cannot
+  # show are pinned here: print, which no headless run exercises, and the fact
+  # that exactly one place adds the class that can blank the page.
+  test "nothing is hidden from a printed page, and one place can hide content" do
     assert_match(/\@media\s*print\s*\{\s*\.reveal\s*\{[^}]*opacity:\s*1\s*!important/, @html,
                  "a printed page is never scrolled")
-
-    # The hiding rule is `.js-reveal .reveal:not(.in)`, so whatever adds the
-    # `js-reveal` class is what can blank the page: it may happen in exactly one
-    # place, and that place has to hang off the reader's first scroll.
-    #
-    # Deliberately no pin on the handler's name. The behaviour these guard —
-    # that a client which never scrolls sees the whole page — is measured in
-    # test/system/docs_site_reveal_test.rb, so a rename should not turn this red.
     adds = @html.scan(/classList\.add\(\s*["']js-reveal["']/)
     assert_equal 1, adds.length,
                  "only one place may add the class that hides content"
     assert_match(/addEventListener\(\s*["']scroll["']\s*,\s*\w+/, @html,
                  "arming has to hang off the reader's first scroll")
-  end
-
-  # The transition and its per-sibling delay have to sit on a selector that
-  # still matches once the element is revealed. On the hiding rule alone the
-  # delay is dropped, so the siblings arrive as one block instead of in turn.
-  #
-  # This is a source pin and it can only catch the shape, not the behaviour.
-  # The behaviour is measured in test/system/docs_site_reveal_test.rb, which
-  # watches the siblings actually arrive; that is the test that goes red.
-  test "the reveal transition is declared on a selector that survives .in" do
-    refute_match(/:not\(\.in\)\s*\{[^}]*transition-delay/, @html,
-                 "a delay that only matches while hidden is dropped at the reveal")
   end
 
   test "landing page does not reintroduce the view/gate overclaim" do

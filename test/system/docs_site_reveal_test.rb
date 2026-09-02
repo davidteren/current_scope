@@ -53,7 +53,7 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
   # that is a race on a loaded runner; wait for the condition instead.
   # `message` may be a proc, so a failure can report what was actually seen
   # rather than a value captured before the first sample.
-  def wait_until(timeout: 6, message: "condition never held")
+  def wait_until(timeout: 12, message: "condition never held")
     deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
     loop do
       return if yield

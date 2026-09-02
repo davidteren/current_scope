@@ -77,6 +77,14 @@
       };
 
       label();
+      // Shown only if the theme can actually be switched. The href has to match
+      // the name the swap rewrites, unless the theme's own API is loaded and
+      // can do it instead. A control that renders and cannot work is worse than
+      // no control: the reader presses it and concludes the site is broken.
+      var swappable = /just-the-docs-[a-z]+\.css/.test(link.getAttribute("href") || "") ||
+        (window.jtd && typeof window.jtd.setTheme === "function");
+      if (!swappable) return;
+
       each(function (t) { t.hidden = false; }); // only now do they do something
 
       each(function (t) {
@@ -89,11 +97,18 @@
           // stylesheet rename in a future just-the-docs would flip the label
           // and persist a preference over a page that never changed.
           var before = link.getAttribute("href");
+          var moved = true;
           if (window.jtd && typeof window.jtd.setTheme === "function") {
             window.jtd.setTheme(next);
-            if (link.getAttribute("href") === before) return;
-          } else if (!swap(next)) {
-            return; // nothing moved on screen, so do not relabel or store
+            moved = link.getAttribute("href") !== before;
+          } else {
+            moved = swap(next);
+          }
+          if (!moved) {
+            // It proved itself dead, so stop offering it rather than leaving a
+            // button that does nothing every time it is pressed.
+            each(function (b) { b.hidden = true; });
+            return;
           }
           theme = next;
           try { localStorage.setItem("cs-theme", theme); } catch (e) {}

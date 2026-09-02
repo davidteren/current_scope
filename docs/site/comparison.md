@@ -300,7 +300,13 @@ not developer time.
     {
       q: "How much are you willing to add to the application?",
       opts: [
-        { label: "As little as possible — a convention and a few hundred lines", score: { pundit: 4 } },
+        // A veto for the same reason the polyglot answer is one: this rules two
+        // libraries out rather than merely preferring the others. Without it a
+        // reader who asked for one Rails app and the smallest possible
+        // dependency could be handed Oso Cloud, a paid service their app calls
+        // over the network, because nothing ever subtracted from its score.
+        { label: "As little as possible — a convention and a few hundred lines", score: { pundit: 4 },
+          veto: "minimal_footprint" },
         { label: "A policy layer with its own tooling is fine", score: { action_policy: 2, cancancan: 2 } },
         { label: "Tables, a mounted UI and a migration are fine", score: { current_scope: 2, oso: 1 } }
       ]
@@ -382,6 +388,10 @@ not developer time.
     code_review: {
       note: "You said a permission change should go through code review. That is exactly what CurrentScope removes: a role is a row an administrator edits while the app is running.",
       removes: ["current_scope"]
+    },
+    minimal_footprint: {
+      note: "You said you want to add as little as possible. That rules out CurrentScope, which brings tables, a mounted UI, an audit ledger and a schema guard, and Oso Cloud, which is a paid service your app calls over the network.",
+      removes: ["current_scope", "oso"]
     },
     beta: {
       note: "You said production needs 1.0 or later. CurrentScope is still in beta: the last gate before 1.0 is one real application running report mode and then enforcing.",
@@ -519,9 +529,19 @@ not developer time.
     if (!ranked.length) {
       var none = document.createElement("div");
       none.className = "cs-fit cs-fit-verdict";
+      var why = '<ul class="cs-fit-why">';
+      state.vetoes.forEach(function (v) { why += "<li>" + VETOES[v].note + "</li>"; });
+      why += "</ul>";
       none.innerHTML = '<div class="cs-fit-step">Based on your answers</div>' +
-        "<h3>None of these</h3><p>Your answers rule out every library on this page. " +
-        "The table above is the place to start instead.</p>" +
+        "<h3>None of these</h3>" +
+        "<p>Taken together, your answers rule out every library on this page:</p>" + why +
+        (ruledOutTheBestFit
+          ? "<p>Your other answers described what CurrentScope is for, so the disqualifier " +
+            "above is the whole of why it is not the answer here.</p>"
+          : "") +
+        "<p>That combination is a real one, and it is worth knowing before you start rather " +
+        "than three months in. The table above is where to weigh the trade you are going to " +
+        "have to make.</p>" +
         NAV_HTML;
       wireNav(none);
       return swapIn(none, none.querySelector("h3"));

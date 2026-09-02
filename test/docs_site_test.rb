@@ -137,10 +137,11 @@ class DocsSiteTest < ActiveSupport::TestCase
     # Derived from the page, not hardcoded: the comment at the top of
     # comparison.md promises this test fails when a disqualifier there has no
     # counterpart here, and a literal list would quietly not do that.
-    claims = { "attributes"  => /rules depend on the record's data or the time/i,
-               "polyglot"    => /outside Rails needs the same answer/i,
-               "code_review" => /permission change as a code review/i,
-               "beta"        => /cannot put beta software into production/i }
+    claims = { "attributes"        => /rules depend on the record's data or the time/i,
+               "polyglot"          => /outside Rails needs the same answer/i,
+               "code_review"       => /permission change as a code review/i,
+               "minimal_footprint" => /smallest possible dependency/i,
+               "beta"              => /cannot put beta software into production/i }
 
     vetoes = page.scan(/veto: "(\w+)"/).flatten.uniq
     refute_empty vetoes, "the chooser has to be able to rule CurrentScope out"
@@ -186,10 +187,11 @@ class DocsSiteTest < ActiveSupport::TestCase
     # Derived, like the landing-page half: a hardcoded list here would let a new
     # disqualifier be added to the chooser while the README quietly fell behind,
     # which is what the other half's failure message already promises it cannot.
-    phrases = { "attributes"  => "no vocabulary for attribute rules",
-                "polyglot"    => "outside Rails",
-                "code_review" => "should be a code review",
-                "beta"        => "cannot ship beta" }
+    phrases = { "attributes"        => "no vocabulary for attribute rules",
+                "polyglot"          => "outside Rails",
+                "code_review"       => "should be a code review",
+                "minimal_footprint" => "smallest possible dependency",
+                "beta"              => "cannot ship beta" }
     vetoes = page.scan(/veto: "(\w+)"/).flatten.uniq
     assert_equal phrases.keys.sort, vetoes.sort,
                  "a disqualifier was added to or removed from the chooser; the README's " \

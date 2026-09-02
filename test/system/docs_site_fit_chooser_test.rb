@@ -167,7 +167,18 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
     blank = results.reject { |r| r["heading"].to_s.strip.length.positive? }
     assert_empty blank.first(3), "some answers reached no verdict at all"
 
-    costless = results.reject { |r| r["body"].to_s.include?("What you give up") }
+    # Some answers rule out everything on the page: needing attribute rules,
+    # another language and the smallest possible dependency has no answer here,
+    # and saying so is the honest verdict. It names no library, so it has no
+    # cost to state, but it must still send the reader somewhere.
+    none, named = results.partition { |r| r["heading"].to_s.strip == "None of these" }
+    refute_empty named, "every answer path ruled out every library"
+    none.each do |r|
+      assert_match(/table above/i, r["body"].to_s,
+                   "a verdict that recommends nothing has to point somewhere: #{r['answers']}")
+    end
+
+    costless = named.reject { |r| r["body"].to_s.include?("What you give up") }
     assert_empty costless.map { |r| r["answers"] }.first(3),
                  "a verdict named a library with no cost: naming only the upside is the " \
                  "flattering kind this page exists to avoid"

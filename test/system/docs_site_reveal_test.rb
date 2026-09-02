@@ -1,5 +1,6 @@
 require "test_helper"
 require "ferrum"
+require_relative "support/headless_chrome"
 
 # The landing page's scroll reveal has been wrong in three different ways, and
 # every one of them looked fine in the source:
@@ -19,20 +20,12 @@ require "ferrum"
 #
 # It does not boot the app: the page is static, so it is loaded over file://.
 class DocsSiteRevealTest < ActiveSupport::TestCase
+  include HeadlessChrome
+
   LANDING = File.expand_path("../../docs/site/index.html", __dir__)
 
   setup do
-    @browser = Ferrum::Browser.new(
-      headless: true,
-      window_size: [ 1440, 1000 ],
-      # Matches test/application_system_test_case.rb. Ferrum's own default is
-      # 10s, and this suite already found that too short for a cold runner.
-      process_timeout: 30,
-      # Ferrum's per-command CDP timeout defaults to 5s and is separate from
-      # process_timeout. The waits below can outlast it on a loaded machine.
-      timeout: 30,
-      browser_options: { "no-sandbox" => nil }
-    )
+    @browser = open_browser(size: [ 1440, 1000 ])
     @page = @browser.create_page
     # The reveal is skipped entirely under prefers-reduced-motion, and correctly
     # so. Unpinned, these tests would read the machine's accessibility setting

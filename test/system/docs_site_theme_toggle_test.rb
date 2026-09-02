@@ -2,6 +2,8 @@ require "test_helper"
 require "ferrum"
 require "tmpdir"
 require "fileutils"
+require "yaml"
+require_relative "support/headless_chrome"
 
 # The theme seam is the headline of this work: a visitor who picks light on the
 # landing page and clicks "Docs" should not land in dark. It is also the part
@@ -20,6 +22,8 @@ require "fileutils"
 # either. This assembles the page the way just-the-docs does, including that
 # double render, and drives it at both widths.
 class DocsSiteThemeToggleTest < ActiveSupport::TestCase
+  include HeadlessChrome
+
   SITE = File.expand_path("../../docs/site", __dir__)
 
   # The widths either side of just-the-docs' `md` breakpoint (800px), which is
@@ -28,8 +32,11 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
   MOBILE  = [ 390, 844 ].freeze
 
   setup do
+    # Rendered from the site's own settings, not from literals written here: a
+    # harness that hardcodes color_scheme cannot fail when it changes, and the
+    # assertions below are all phrased in terms of what it is.
     head   = File.read(File.join(SITE, "_includes/head_custom.html"), encoding: "UTF-8")
-                 .gsub("{{ site.color_scheme | jsonify }}", '"dark"')
+                 .gsub("{{ site.color_scheme | jsonify }}", site_color_scheme.to_json)
     footer = File.read(File.join(SITE, "_includes/nav_footer_custom.html"), encoding: "UTF-8")
                  .gsub(/\{\{ '\/' \| relative_url \}\}/, "/")
 
@@ -37,7 +44,7 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
     File.write(File.join(@dir, "docs.html"), <<~HTML)
       <!doctype html><html lang="en"><head><meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
-      <link rel="stylesheet" href="/current_scope/assets/css/just-the-docs-default.css">
+      <link rel="stylesheet" href="#{starting_stylesheet}">
       <style>
         /* The theme's own responsive utilities: these decide which copy of the
            footer include a reader can actually see. */
@@ -60,7 +67,7 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
   JTD_STUB = <<~JS.freeze
     window.jtd = { setTheme: function (t) {
       var l = document.querySelector('link[rel="stylesheet"]');
-      l.setAttribute("href", "/current_scope/assets/css/just-the-docs-" + t + ".css");
+      l.setAttribute("href", l.getAttribute("href").replace(/just-the-docs-[a-z]+\.css/, "just-the-docs-" + t + ".css"));
     } };
   JS
 
@@ -74,10 +81,7 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
   # tests would encode whatever the machine running them happens to prefer and
   # fail on a runner set the other way: ubuntu-latest reports light.
   def with_page(size, jtd: false, prefers: "dark")
-    browser = Ferrum::Browser.new(
-      headless: true, window_size: size, process_timeout: 30, timeout: 30,
-      browser_options: { "no-sandbox" => nil }
-    )
+    browser = open_browser(size: size)
     page = browser.create_page
     page.command("Emulation.setEmulatedMedia", media: "screen",
                  features: [ { "name" => "prefers-color-scheme", "value" => prefers } ])
@@ -112,6 +116,12 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
     page.evaluate('document.querySelector("link[rel=stylesheet]").getAttribute("href")').to_s
   end
 
+  # The harness below hand-reproduces this theme version's include structure.
+  # A bump has to be a deliberate step that re-checks it, not a silent one.
+  test "the docs theme is the version these harnesses were written against" do
+    assert_theme_pin_unchanged
+  end
+
   { "desktop" => DESKTOP, "mobile" => MOBILE }.each do |name, size|
     test "the reader has exactly one usable theme toggle on #{name}" do
       with_page(size) do |page|
@@ -138,8 +148,13 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
           refute_equal before, stylesheet(page),
                        "the control is visible and pressable but the page never changed: " \
                        "just-the-docs themes by swapping the stylesheet href, not by a class"
+          # With nothing stored the starting theme is the emulated OS
+          # preference, whatever the site is compiled as; site.color_scheme
+          # only decides the first stylesheet's name and whether the initial
+          # swap has anything to do.
           assert_match(/just-the-docs-light\.css/, stylesheet(page),
-                       "this page starts dark, so one press has to land on light")
+                       "this page starts on the emulated dark preference, so one press has " \
+                       "to land on light")
         end
       end
     end
@@ -148,7 +163,7 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
   test "both copies of the toggle keep the same label, and the choice is stored" do
     with_page(DESKTOP) do |page|
       assert_equal [ "Light theme" ], toggles(page).map { |t| t["label"] }.uniq,
-                   "the button names the action it performs, from a dark starting point"
+                   "the emulated preference is dark, so the button offers the other one"
 
       press_visible_toggle(page)
 
@@ -178,10 +193,7 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
   # The whole point of the seam: what the landing page stored has to be applied
   # here before first paint, without the reader touching anything.
   test "a choice made on the landing page is already applied when the docs load" do
-    browser = Ferrum::Browser.new(
-      headless: true, window_size: DESKTOP, process_timeout: 30, timeout: 30,
-      browser_options: { "no-sandbox" => nil }
-    )
+    browser = open_browser(size: DESKTOP)
     page = browser.create_page
     # Emulated dark, so that a light result can only have come from the stored
     # choice and not from the machine's own preference.

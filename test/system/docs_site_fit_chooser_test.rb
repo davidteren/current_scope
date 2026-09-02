@@ -2,6 +2,7 @@ require "test_helper"
 require "ferrum"
 require "tmpdir"
 require "fileutils"
+require_relative "support/headless_chrome"
 
 # The fit chooser on docs/site/comparison.md is the most consequential logic in
 # the docs site: it tells a reader which authorization library to adopt, and it
@@ -26,6 +27,8 @@ require "fileutils"
 # Jekyll and the remote theme that GitHub Pages resolves at deploy time; the
 # Pages build itself is the check for that layer.
 class DocsSiteFitChooserTest < ActiveSupport::TestCase
+  include HeadlessChrome
+
   PAGE = File.expand_path("../../docs/site/comparison.md", __dir__)
 
   # Every library here answers only for a Rails app, so none of them may be the
@@ -66,15 +69,7 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
   # Chrome for those is three browsers per run doing no work.
   def page
     @page ||= begin
-      @browser = Ferrum::Browser.new(
-        headless: true, window_size: [ 1280, 900 ], process_timeout: 30,
-        # The answer-space walk is one evaluate holding thousands of clicks,
-        # each rebuilding the widget. Ferrum's per-command CDP timeout defaults
-        # to 5s and process_timeout does not cover it, so that call can time out
-        # under load and report as a browser error rather than an assertion.
-        timeout: 60,
-        browser_options: { "no-sandbox" => nil }
-      )
+      @browser = open_browser(size: [ 1280, 900 ], timeout: 60)
       opened = @browser.create_page
       opened.go_to("file://#{@page_path}")
       opened
@@ -100,64 +95,94 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
   # first. It stays one traversal, but not a cheap one.
   # Takes something that opens a page rather than a page, so a run whose walk is
   # already cached never launches a browser at all.
+  #
+  # Replayed in batches rather than one call. The space is the product of the
+  # options on each question, so it grows multiplicatively: seven questions is
+  # 972 paths and roughly 6,800 widget rebuilds, and one more three-option
+  # question would be about 2,900 paths and 23,000 rebuilds. As a single CDP
+  # command that eventually exceeds the timeout and surfaces as a browser error
+  # rather than a readable assertion. Batching keeps each command small, so
+  # adding a question costs proportionally more time and never a cliff.
+  BATCH = 150
+
   def self.walk(open_page)
-    @walk ||= open_page.call.evaluate(WALK_JS)
+    @walk ||= begin
+      page = open_page.call
+      shape = page.evaluate(SHAPE_JS)
+      total = shape.reduce(1) { |n, options| n * options }
+
+      (0...total).step(BATCH).flat_map do |from|
+        page.evaluate(format(REPLAY_JS, shape: shape.to_json, from: from, to: from + BATCH))
+      end
+    end
   end
 
   def every_path
     self.class.walk(-> { page })
   end
 
-  WALK_JS = <<~JS.freeze
-      (function () {
-        var mount = document.querySelector("[data-fitter]");
+  # Discover the widget's shape: how many options each question offers. Walking
+  # with the first option each time is enough, and it starts from a restart so
+  # the counts cannot be measured from wherever a previous call left the widget
+  # — which would shift every answer index silently, leaving the assertions
+  # running happily on the wrong paths.
+  SHAPE_JS = <<~JS.freeze
+    (function () {
+      var mount = document.querySelector("[data-fitter]");
+      var again = mount.querySelector("[data-restart]");
+      if (again) again.click();
 
-        // Back to question one first. Without this the shape below is measured
-        // from wherever a previous walk left the widget, and every answer index
-        // shifts silently: the walk still runs and the assertions still pass,
-        // but on the wrong paths.
-        var reset = mount.querySelector("[data-restart]");
-        if (reset) reset.click();
-        if (!mount.querySelector(".cs-fit-opts")) return [];
+      var counts = [];
+      while (mount.querySelector(".cs-fit-opts")) {
+        counts.push(mount.querySelectorAll(".cs-fit-opts button").length);
+        mount.querySelector(".cs-fit-opts button").click();
+      }
+      return counts;
+    })()
+  JS
 
-        var counts = [];
-        // Discover the shape by walking once with the first option each time.
-        while (mount.querySelector(".cs-fit-opts")) {
-          counts.push(mount.querySelectorAll(".cs-fit-opts button").length);
-          mount.querySelector(".cs-fit-opts button").click();
+  # Replay one batch of answer paths and report what each was actually told.
+  # Each click re-renders synchronously, so no waiting is involved.
+  REPLAY_JS = <<~'JS'.freeze
+    (function () {
+      var mount = document.querySelector("[data-fitter]");
+      var shape = %{shape}, from = %{from}, to = %{to};
+
+      var total = shape.reduce(function (n, o) { return n * o }, 1);
+      if (to > total) to = total;
+
+      function pathAt(index) {
+        var out = [], rest = index;
+        for (var i = shape.length - 1; i >= 0; i--) {
+          out[i] = rest %% shape[i];
+          rest = Math.floor(rest / shape[i]);
         }
+        return out;
+      }
 
-        var paths = [[]];
-        counts.forEach(function (n) {
-          var next = [];
-          paths.forEach(function (p) {
-            for (var i = 0; i < n; i++) next.push(p.concat(i));
-          });
-          paths = next;
+      var results = [];
+      for (var n = from; n < to; n++) {
+        var again = mount.querySelector("[data-restart]");
+        if (again) again.click();
+
+        var path = pathAt(n);
+        path.forEach(function (choice) {
+          var opts = mount.querySelectorAll(".cs-fit-opts button");
+          if (opts.length) opts[Math.min(choice, opts.length - 1)].click();
         });
 
-        function restart() {
-          var again = mount.querySelector("[data-restart]");
-          if (again) again.click();
-        }
-
-        return paths.map(function (path) {
-          restart();
-          path.forEach(function (choice) {
-            var opts = mount.querySelectorAll(".cs-fit-opts button");
-            if (opts.length) opts[Math.min(choice, opts.length - 1)].click();
-          });
-          var verdict = mount.querySelector(".cs-fit-verdict");
-          return {
-            answers: path,
-            heading: verdict ? verdict.querySelector("h3").textContent : null,
-            body: verdict ? verdict.textContent : null,
-            // The disqualifiers render in their own list; matching the prose
-            // would also catch a library's cost line saying "still in beta".
-            vetoed: !!(verdict && verdict.querySelector(".cs-fit-why"))
-          };
+        var verdict = mount.querySelector(".cs-fit-verdict");
+        results.push({
+          answers: path,
+          heading: verdict ? verdict.querySelector("h3").textContent : null,
+          body: verdict ? verdict.textContent : null,
+          // The disqualifiers render in their own list; matching the prose
+          // would also catch a library's cost line saying "still in beta".
+          vetoed: !!(verdict && verdict.querySelector(".cs-fit-why"))
         });
-      })()
+      }
+      return results;
+    })()
   JS
 
   test "every answer path reaches a verdict that names a library and its cost" do

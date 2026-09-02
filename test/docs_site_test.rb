@@ -45,13 +45,11 @@ class DocsSiteTest < ActiveSupport::TestCase
                  "the docs read the key the landing page writes")
     assert_match(/localStorage\.setItem\(["']cs-theme["']/, @html,
                  "the landing page writes the key the docs read")
-    assert_match(/just-the-docs-["']\s*\+\s*\w+\s*\+\s*["']\.css/, docs_head,
-                 "just-the-docs switches theme by swapping the stylesheet href, not a class")
-
-    # just-the-docs renders nav_footer_custom.html twice, desktop and mobile.
-    # querySelector wires only the first, which is the one a phone cannot see.
-    assert_match(/querySelectorAll\(["']\[data-cs-docs-theme-toggle\]["']\)/, docs_head,
-                 "both copies of the toggle have to be wired, not just the desktop one")
+    # How the swap works, and that both copies of the toggle are wired, are
+    # behaviour: they are driven at both breakpoints in
+    # test/system/docs_site_theme_toggle_test.rb, which goes red on each of the
+    # two bugs that actually shipped here. Pinning their spelling as well would
+    # go red on a rewrite and stay green on a control that does nothing.
 
     # The engine's admin UI already owns data-cs-theme-toggle and [data-cs-theme]
     # with a different contract (cookie-backed, sets aria-pressed). One selector

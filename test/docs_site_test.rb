@@ -234,8 +234,11 @@ class DocsSiteTest < ActiveSupport::TestCase
     adds = @html.scan(/classList\.add\(\s*["']js-reveal["']/)
     assert_equal 1, adds.length,
                  "only one place may add the class that hides content"
-    assert_match(/addEventListener\(\s*["']scroll["']\s*,\s*\w+/, @html,
-                 "arming has to hang off the reader's first scroll")
+    # No pin here on the scroll registration itself. There are two scroll
+    # listeners now (arming, and the bottom sweep), so a pattern loose enough to
+    # survive a rename matches the wrong one and cannot fail on the regression
+    # it would claim to guard. That arming happens on the reader's first scroll,
+    # and only then, is measured in test/system/docs_site_reveal_test.rb.
   end
 
   test "landing page does not reintroduce the view/gate overclaim" do

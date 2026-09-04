@@ -1,0 +1,19 @@
+test/system/support/headless_chrome.rb
+  s_240773ee81a9c0::t_4f81963578f353 14-20,24,37-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "e670904e7437fdd6e3bfe2c1e5b6da5d7828be5e",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

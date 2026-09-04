@@ -1,5 +1,14 @@
 # Docs site — design critique
 
+> **Read this as a snapshot, not as current fact.** It describes the site as it
+> stood on `main` at v0.5.1, *before* the work it prompted. Several observations
+> below were true then and are false now: the docs had no copy buttons
+> (`enable_copy_code_button` is set now), the comparison named neither Banken
+> nor Oso (the fit page compares both), a `stars 0` badge sat in the hero (it is
+> gone), and the theme choice did not survive the click into the docs (it does).
+> It is kept unedited because a critique rewritten after the fact stops being
+> evidence of what was wrong.
+
 Method: Josh Puckett's Design Critique (Interface Craft). Evidence: headless
 captures of the live site at 1440×1000 and 390×844, light and dark, plus the
 `docs/site` source. Captured 2026-09-01 against `main` (v0.5.1).

@@ -113,6 +113,29 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
     self.class.walk(-> { page })
   end
 
+  # Where a question sits, found by its text. Positions are not stable — this
+  # branch inserted two questions — so anything that depends on one resolves it
+  # rather than hardcoding an index that would quietly come to mean something
+  # else. `source` is a plain substring, matched case-insensitively.
+  def question_index(source)
+    page.evaluate(<<~JS)
+      (function () {
+        var mount = document.querySelector("[data-fitter]");
+        var again = mount.querySelector("[data-restart]");
+        if (again) again.click();
+        var needle = #{source.downcase.to_json};
+        for (var q = 0; q < 20; q++) {
+          var el = mount.querySelector(".cs-fit-q");
+          var opts = mount.querySelectorAll(".cs-fit-opts button");
+          if (!opts.length) break;
+          if (el && el.textContent.toLowerCase().indexOf(needle) > -1) return q;
+          opts[0].click();
+        }
+        return -1;
+      })()
+    JS
+  end
+
   # Discover the widget's shape: how many options each question offers. Walking
   # with the first option each time is enough, and it starts from a restart so
   # the counts cannot be measured from wherever a previous call left the widget
@@ -285,8 +308,19 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
     # Comparing against the top score rather than the first strict maximum is
     # what makes that hold: the earlier shape dropped the note wherever
     # CurrentScope merely tied, on about 5% of the whole answer space.
+    # Positions resolved by question text, not hardcoded. The polyglot test in
+    # this file already scans for its question for the same reason: an inserted
+    # or reordered question would silently make these indices mean something
+    # else, and the assertion would pass or fail for the wrong reason.
+    role_screen = question_index("change what a role means")
+    per_record  = question_index("access to individual records")
+    audit_trail = question_index("audit trail of who granted what")
+    [ role_screen, per_record, audit_trail ].each do |i|
+      refute_equal(-1, i, "a question this test depends on is no longer asked")
+    end
+
     asked_for_all_three = every_path.select do |r|
-      r["vetoed"] && r["answers"][2].zero? && r["answers"][3].zero? && r["answers"][4].zero?
+      r["vetoed"] && [ role_screen, per_record, audit_trail ].all? { |i| r["answers"][i].zero? }
     end
     refute_empty asked_for_all_three, "no path asks for all three and then rules them out"
 

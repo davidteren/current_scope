@@ -55,13 +55,17 @@ table.
   A model can opt into a parent chain so a grant on a project covers that
   project's reports, including reports created after the grant.
 - **Somebody has to be able to answer "who could approve this, and when did
-  that change?"** Every grant and revoke lands in an append-only ledger.
+  that change?"** With `config.audit` on, every grant and revoke lands in an
+  append-only ledger.
 - **A four-eyes rule that must not be negotiable.** The separation-of-duties
   veto is checked before everything else and cannot be granted around, not even
-  by full access.
-- **You are retrofitting a live app.** Report mode decides nothing and records
-  every request it *would* have refused, so you read the list before you
-  enforce.
+  by full access. There is one deliberate exception, and it is a break-glass
+  rather than a permission: a host can implement `current_scope_sod_bypassed?`
+  on a record, and the resulting allow is written to the ledger as such.
+- **You are retrofitting a live app.** Report mode downgrades **a missing
+  grant** to a logged allow, so you read the list before you enforce. It is not
+  an off switch: the separation-of-duties veto still refuses, and the management
+  console answers to its own full-access check rather than the gate.
 
 ## Where one of the others is the better choice
 
@@ -165,14 +169,19 @@ Plan this in four stages. The long pole is **stage 2**, and it is calendar time,
 not developer time.
 
 1. **Install and record (a day).** Add the gem, run migrations, set
-   `config.enforcement = :report` and `config.audit = true`. Nothing is refused;
-   every request that *would* have been refused is written to the ledger.
+   `config.enforcement = :report` and `config.audit = true`. A request that
+   would have been refused **for want of a grant** is allowed through and
+   written to the ledger instead. Read that as "no big-bang cutover", not as
+   "nothing is refused": the separation-of-duties veto and the management
+   console's own full-access check are outside this setting and still refuse.
 2. **Bake (one to four weeks).** Let real traffic run. Month-end, quarter-end
    and the annual job matter here: an action nobody performs during your bake is
    an action nobody has granted, and it will fail the day someone runs it.
-3. **Build the grid (a day or two).** `bin/rails current_scope:report` turns the
-   recorded denials into a starter set of roles. Tick, assign, re-run, repeat
-   until the report is empty.
+3. **Build the grid (a day or two).** `bin/rails current_scope:report` prints
+   what each subject was refused and still needs. It creates no roles: you read
+   the list, design the roles yourself, tick the grid, assign, re-run, and
+   repeat until the report is empty. The work it saves is finding out what is
+   missing, not deciding what a role should mean.
 4. **Enforce (an hour, plus a watchful week).** Flip to `:enforce`. Keep the
    ledger on; it is now your record of who was refused what.
 
@@ -321,7 +330,7 @@ not developer time.
     {
       q: "Can you put software that is still in beta into production?",
       opts: [
-        { label: "No — it has to be 1.0 or later", score: { pundit: 2, action_policy: 2, cancancan: 2 }, veto: "beta" },
+        { label: "No — it has to be 1.0 or later", score: { pundit: 2, cancancan: 2 }, veto: "beta" },
         { label: "Yes, with our eyes open", score: { current_scope: 1 } }
       ]
     }
@@ -394,8 +403,8 @@ not developer time.
       removes: ["current_scope", "oso"]
     },
     beta: {
-      note: "You said production needs 1.0 or later. CurrentScope is still in beta: the last gate before 1.0 is one real application running report mode and then enforcing.",
-      removes: ["current_scope"]
+      note: "You said production needs 1.0 or later. That rules out CurrentScope, which is in beta, and also Action Policy, which is mature and widely used but has never cut a 1.0 (0.7.6 today). If your rule is about stability rather than the version string, Action Policy is worth a second look.",
+      removes: ["current_scope", "action_policy"]
     }
   };
 
@@ -445,7 +454,10 @@ not developer time.
     var el = document.createElement("div");
     el.className = "cs-fit";
     el.innerHTML =
-      '<div class="cs-fit-bar"><i style="width:' + Math.round((state.i / QUESTIONS.length) * 100) + '%"></i></div>' +
+      // Answered, not passed: (i + 1) / total. The old form showed 0% on the
+      // first question and stopped at 6 of 7, because the verdict replaces the
+      // bar and a reader never saw it complete.
+      '<div class="cs-fit-bar"><i style="width:' + Math.round(((state.i + 1) / QUESTIONS.length) * 100) + '%"></i></div>' +
       '<div class="cs-fit-step">Question ' + (state.i + 1) + " of " + QUESTIONS.length + "</div>" +
       '<p class="cs-fit-q" data-focus></p><div class="cs-fit-opts"></div>' +
       (history.length ? NAV_HTML : "");

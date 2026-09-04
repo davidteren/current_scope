@@ -139,6 +139,19 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
     wait_until(message: "a section the reader has arrived at must become visible") do
       opacities("#features .reveal").all? { |o| o > 0.99 }
     end
+
+    # Opacity alone would pass for a section that is visible but nowhere near
+    # the viewport, which is not what "the reader has arrived at it" means.
+    on_screen = @page.evaluate(<<~JS)
+      (function () {
+        var h = window.innerHeight || document.documentElement.clientHeight;
+        return Array.prototype.filter.call(document.querySelectorAll("#features .reveal"),
+          function (el) { var r = el.getBoundingClientRect(); return r.bottom > 0 && r.top < h }).length;
+      })()
+    JS
+    assert_operator on_screen, :>, 0,
+                    "scrollIntoView did not actually bring #features into the viewport, so the " \
+                    "opacity check above proved nothing about arriving at a section"
   end
 
   # The observer's root is shrunk 8% at the bottom, and the timer that used to

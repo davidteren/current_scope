@@ -6,7 +6,7 @@ cost *me*, in *my* app".
 
 ## The gap
 
-The comparison page ends with seven questions and an honest cost table:
+The comparison page asks seven questions, then gives an honest cost table, then says what makes adoption slower and what you give up:
 half a day for greenfield, one to four weeks of report-mode bake for a live app.
 Both are generic. The questions a real adopter actually has are about their own
 repository:
@@ -57,7 +57,7 @@ month-end, here is the job" attacks the one failure mode that
 [#116](https://github.com/davidteren/current_scope/issues/116) exists to close.
 
 It is also the honest form of marketing for a library whose best pitch is "here
-is when not to use me": a tool that tells a third of its visitors to go and use
+is when not to use me": a tool willing to tell a large share of its visitors to go and use
 Action Policy is more persuasive than a comparison table that says the same
 thing.
 

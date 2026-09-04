@@ -36,8 +36,9 @@ color_scheme: dark
 search_enabled: true
 heading_anchors: true
 
-# Six of the quickstart's steps are commands. The page a developer works from
-# should let them take the command.
+# The quickstart is mostly code the reader has to run or paste: three shell
+# blocks and five Ruby ones. The page a developer works from should let them
+# take it without selecting by hand.
 enable_copy_code_button: true
 
 aux_links:

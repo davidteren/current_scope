@@ -143,6 +143,7 @@ edits.** So:
 | Rules depend on the record's data or the time ("only under 10,000") | CurrentScope has no vocabulary for attribute rules. Pundit, Action Policy, CanCanCan and Oso do. |
 | Something outside Rails needs the same answer | It is a Rails engine. Oso is built for one policy across services. |
 | Every permission change should be a code review | That is a legitimate policy, and an argument for Pundit or Action Policy. |
+| Your permissions are not shaped like your routes | A right spanning many controllers, or one screen holding several rights, fits a policy object better than a `controller#action` grid. |
 | You want the smallest possible dependency | Pundit is a convention and a few hundred lines; this brings tables, a UI and a ledger. |
 | You cannot ship beta | The last gate before 1.0 is a real-host bake ([#116](https://github.com/davidteren/current_scope/issues/116)). |
 

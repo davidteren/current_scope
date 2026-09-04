@@ -1,0 +1,21 @@
+STATUS.md
+  s_240773ee81a9c0::t_dc7e07c7519a6f 5-9
+notes/2026-09-04_validation-brief.md
+  s_240773ee81a9c0::t_15262c1ef2f86f 1,4-5,7-20,27-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "37a3332575d32b989d91168b1d0ca3f2024b8356",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

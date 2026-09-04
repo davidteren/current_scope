@@ -160,10 +160,11 @@ jobs:
           RAILS_ENV: test
           DATABASE_URL: ${{ matrix.url }}
           COVERAGE: "0"
-        # schema.rb cannot express MySQL's collation, so a freshly-loaded schema
-        # has the right column type and the wrong collation — and db:migrate
-        # cannot fix it, because loading a schema stamps every version as
-        # applied. This is the same repair task an upgrading host runs, which is
+        # This job loads schema.rb, which is dumped from SQLite here, so it
+        # carries no per-column collation: the MySQL run comes out with the right
+        # column type and the server's default collation. db:migrate cannot fix
+        # that, because loading a schema stamps every version as applied. (A
+        # schema.rb dumped from MySQL does carry the collation — #194.) This is the same repair task an upgrading host runs, which is
         # the point: CI exercises the documented recovery path rather than a
         # private one-liner that could drift from it (#151).
         run: |

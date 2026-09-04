@@ -8,8 +8,10 @@ namespace :current_scope do
     #
     # A database built by `db:schema:load` / `db:setup` / `db:test:prepare` —
     # every new app, every CI run, every fresh checkout — comes out with the
-    # right column TYPE and the server's default collation, because schema.rb
-    # cannot express a MySQL collation. Loading a schema also stamps every
+    # right column TYPE, and with the server's default collation whenever that
+    # schema.rb was dumped from PostgreSQL or SQLite, which carry no per-column
+    # collation for Rails to write down. A dump taken from MySQL does carry one
+    # (#194). Loading a schema also stamps every
     # migration version as applied, so `db:migrate` has nothing pending and
     # prints nothing. On MySQL that left a host unable to boot, with the boot
     # error prescribing a command that could not possibly fix it.
@@ -22,14 +24,34 @@ namespace :current_scope do
     load path
     migration = WidenCurrentScopePolymorphicIds.new
     migration.verbose = false
-    migration.migrate(:up)
+    # exec_migration against the GRANT MODELS' pool, not `migrate` (#193
+    # review). `Migration#migrate` runs on
+    # ActiveRecord::Tasks::DatabaseTasks.migration_connection, which is the
+    # DEFAULT database. A host that puts the engine's tables on a second
+    # connection would have watched this task report success against the wrong
+    # database while the one the boot refusal named stayed unrepaired, and boot
+    # kept failing — and the refusal now names that database, so the promise is
+    # explicit.
+    # The ENGINE's own base, not one concrete model: this migration alters both
+    # grant tables, and CurrentScope::RoleAssignment and ScopedRoleAssignment
+    # both inherit CurrentScope::ApplicationRecord, so its pool is the one that
+    # holds them. A host that repoints only one of the two concrete models is
+    # past what a single pass can repair, and the boot refusal names the
+    # database it judged so they can see which one is still wrong.
+    CurrentScope::ApplicationRecord.connection_pool.with_connection do |conn|
+      migration.exec_migration(conn, :up)
+    end
 
     # Say what this adapter actually did. The binary collation is a MySQL-only
     # step — PostgreSQL and SQLite already compare these columns byte for byte —
     # so claiming it everywhere would tell a PostgreSQL operator their columns
     # were re-collated when nothing of the sort happened.
     shape = "#{CurrentScope::KEY_LIMIT}-character"
-    shape += ", binary-collated" if CurrentScope.mysql?(CurrentScope::RoleAssignment.connection)
+    # The same two-name test the guard uses, or this line would understate what
+    # the migration just did on a host whose adapter key does not say mysql.
+    shape += ", binary-collated" if CurrentScope.mysql_config?(
+      CurrentScope::ApplicationRecord.connection_pool.db_config
+    )
     puts "CurrentScope grant columns are in the #{shape} shape #151 requires."
   end
 

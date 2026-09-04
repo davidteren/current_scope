@@ -9,6 +9,24 @@ require "test_helper"
 # SUPPORTED rather than refused. These tests assert that support, and pin the
 # column type so a narrowing migration could never pass quietly.
 class UuidKeyCollisionTest < ActiveSupport::TestCase
+  # #193 — every refusal prescribes a command, and a command with no environment
+  # runs against development. A host who migrated development and then met this
+  # on `bin/rails test` was told to run what they had just run. The message has
+  # to name the database it judged and the environment to name on the command
+  # line.
+  def assert_guard_names_the_database(message)
+    # From the Rails configuration, not from the same expression the guard uses:
+    # deriving it the production way would pin the FORMAT and let a wrong
+    # database pass (#193 review).
+    name = ActiveRecord::Base.configurations
+                             .configs_for(env_name: Rails.env, name: "primary")
+                             .database
+    assert_includes message, "on the #{Rails.env} database #{name.inspect}",
+      "the refusal must say WHICH database failed"
+    assert_includes message, "RAILS_ENV=#{Rails.env} bin/rails",
+      "and the command it prescribes must run against that same one"
+  end
+
   ALICE_ID = "7f00aaaa-1111-4111-8111-aaaaaaaaaaaa".freeze
   BOB_ID   = "7f00bbbb-2222-4222-8222-bbbbbbbbbbbb".freeze
 
@@ -232,7 +250,20 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
         CurrentScope::SchemaGuard.check!
       end
       assert_match(/still integer/, error.message)
-      assert_match(/db:migrate/, error.message, "the message must name the fix")
+      assert_guard_names_the_database(error.message)
+      # THREE paths, because the refusal has three audiences (#193 review): a
+      # host who never installed the migration, a server that has it and has not
+      # run it, and a database built FROM schema.rb where db:migrate has nothing
+      # pending. One assertion each, because a reader who finds only their own
+      # case named will run the nearest command instead.
+      assert_match(/current_scope:install:migrations && bin\/rails db:migrate` in your\s+development checkout/m,
+                   error.message, "not installed yet: the path that also updates schema.rb")
+      assert_match(/No RAILS_ENV on that one/, error.message,
+                   "because that path is about the checkout, not about this database")
+      assert_match(/RAILS_ENV=test bin\/rails db:migrate/, error.message,
+                   "installed but not run here: plain db:migrate, against THIS database")
+      assert_match(/RAILS_ENV=test bin\/rails current_scope:repair_schema/, error.message,
+                   "built from schema.rb: nothing pending, so only the repair works")
     ensure
       CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
     end
@@ -257,6 +288,7 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       assert_match(/subject_type/, error.message,
                    "the id columns are already correct — the TYPE column is what is still folding case")
       assert_match(/utf8mb4_0900_ai_ci/, error.message)
+      assert_guard_names_the_database(error.message)
     ensure
       CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
     end
@@ -274,7 +306,70 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
       error = assert_raises(CurrentScope::ConfigurationError) do
         CurrentScope::SchemaGuard.check!
       end
-      assert_match(/collation could not be read/, error.message)
+      assert_match(/collation that could not be read/, error.message)
+      assert_guard_names_the_database(error.message)
+      assert_match(/repair_schema/, error.message, "the message must name the fix")
+    ensure
+      CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
+    end
+  end
+
+  # #194 review — the adapter question follows the model too. A host that splits
+  # the two grant tables across adapters used to get one model's answer applied
+  # to both: the collation check running against PostgreSQL columns and raising
+  # about an unreadable MySQL collation, or skipping the MySQL ones and leaving
+  # the #151 escalation live.
+  test "the adapter is asked of the model being judged" do
+    asked = []
+    guard = CurrentScope::SchemaGuard
+    original = guard.method(:mysql?)
+    guard.define_singleton_method(:mysql?) do |model|
+      asked << model
+      false
+    end
+
+    CurrentScope::SchemaGuard.check!
+
+    assert_includes asked, CurrentScope::RoleAssignment
+    assert_includes asked, CurrentScope::ScopedRoleAssignment,
+      "both grant models are judged, so both must be asked about their own adapter"
+  ensure
+    guard.define_singleton_method(:mysql?, original)
+    guard.singleton_class.send(:private, :mysql?)
+  end
+
+  # #193 review — the reason the model is passed in rather than assumed. A host
+  # that puts the grant tables on a second database has to be told WHICH one
+  # failed, and every other test here stubs RoleAssignment, so a regression that
+  # hard-coded it would pass them all.
+  test "the refusal names the judged model's database, not RoleAssignment's" do
+    elsewhere = Class.new do
+      def self.table_name = "grants_over_there"
+
+      def self.connection_pool
+        Struct.new(:db_config).new(Struct.new(:database).new("a_second_database"))
+      end
+    end
+
+    label = CurrentScope::SchemaGuard.send(:column_label, elsewhere, "subject_id")
+
+    assert_equal "grants_over_there.subject_id on the #{Rails.env} database " \
+                 "\"a_second_database\"", label
+  end
+
+  # #193 — the fifth refusal, and the one with no test until now. A nullable id
+  # column means a grant that names no record, which the resolver cannot match
+  # and the operator cannot see.
+  test "the boot check refuses a nullable id column, and says which database" do
+    column = Struct.new(:type, :limit, :collation, :null)
+    nullable = { "subject_id" => column.new(:string, CurrentScope::KEY_LIMIT, nil, true) }
+    CurrentScope::RoleAssignment.define_singleton_method(:columns_hash) { nullable }
+    begin
+      error = assert_raises(CurrentScope::ConfigurationError) do
+        CurrentScope::SchemaGuard.check!
+      end
+      assert_match(/allows NULL/, error.message)
+      assert_guard_names_the_database(error.message)
       assert_match(/repair_schema/, error.message, "the message must name the fix")
     ensure
       CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
@@ -293,6 +388,7 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
         CurrentScope::SchemaGuard.check!
       end
       assert_match(/holds 32 characters/, error.message)
+      assert_guard_names_the_database(error.message)
       assert_match(/repair_schema/, error.message, "the message must name the fix")
     ensure
       CurrentScope::RoleAssignment.singleton_class.send(:remove_method, :columns_hash)
@@ -327,8 +423,8 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
 
   test "the boot refusal stands down for database tasks, or the fix could not be run" do
     # grant_columns_widened! raises from after_initialize, which EVERY rails
-    # command runs — including the db:migrate its own message tells the host to
-    # run. Without the exemption an upgrading host is stuck: the app will not
+    # command runs — including the repair its own refusals tell the host to run
+    # (#193). Without the exemption an upgrading host is stuck: the app will not
     # boot and the repair will not run, for the same reason.
     fake = { "subject_id" => Struct.new(:type).new(:integer) }
     CurrentScope::RoleAssignment.define_singleton_method(:columns_hash) { fake }
@@ -501,7 +597,9 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
   def with_mysql(answer)
     guard = CurrentScope::SchemaGuard
     original = guard.method(:mysql?)
-    guard.define_singleton_method(:mysql?) { answer }
+    # Takes the model now: the adapter is asked of the model being judged, so a
+    # split-adapter host gets the right answer for each (#194 review).
+    guard.define_singleton_method(:mysql?) { |_model| answer }
     yield
   ensure
     guard.define_singleton_method(:mysql?, original)

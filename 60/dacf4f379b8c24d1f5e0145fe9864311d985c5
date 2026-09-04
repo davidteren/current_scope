@@ -1,0 +1,21 @@
+notes/2026-09-04_validation-findings.md
+  s_92f671d71b11f8::t_faaca2c4fd2640 1-189
+STATUS.md
+  s_92f671d71b11f8::t_faaca2c4fd2640 5-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "60dacf4f379b8c24d1f5e0145fe9864311d985c5",
+  "prompts": {},
+  "sessions": {
+    "s_92f671d71b11f8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "89b1e1cc-21c7-4a01-ba95-6d21be397c6d",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

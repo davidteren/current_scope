@@ -1,0 +1,75 @@
+test/report_task_test.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 334-686
+test/repair_schema_task_test.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 6-8,32-67
+  s_240773ee81a9c0::t_6f85c32023cb84 68
+app/controllers/current_scope/scoped_role_assignments_controller.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 97-101,218-220,222
+app/models/concerns/current_scope/audited_writes.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 1-62
+app/controllers/current_scope/role_assignments_controller.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 70-71,164,179-182,184-185,188
+UPGRADING.md
+  s_240773ee81a9c0::t_19148c0e3e8278 114-118
+CHANGELOG.md
+  s_240773ee81a9c0::t_19148c0e3e8278 110-226
+app/models/current_scope/role.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 6-25,125-142
+docs/guides/configuration-reference.md
+  s_240773ee81a9c0::t_19148c0e3e8278 115-167
+test/dummy/app/controllers/anonymous_model_controller.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 1-26
+test/uuid_key_collision_test.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 12-29,253-266,291,309-372,391,426-427,600-602
+docs/guides/adopting-in-an-existing-app.md
+  s_240773ee81a9c0::t_19148c0e3e8278 65-73
+test/integration/audit_events_test.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 36-220,304,325,362,377,391,427,441
+lib/current_scope/schema_guard.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 18-21,53,76,79,84-86,89,93-113,115,118-127,145-147,161,164-165,173-178,180,183,188-226,232-240,246-249,326-327
+app/models/current_scope/role_assignment.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 6-12,70-81
+app/models/current_scope/scoped_role_assignment.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 28-58,200-211
+docs/site/upgrading.md
+  s_240773ee81a9c0::t_19148c0e3e8278 73-75
+lib/generators/current_scope/install/templates/initializer.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 136-141
+lib/current_scope.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 332-337,353,361,409-445
+lib/tasks/current_scope_tasks.rake
+  s_240773ee81a9c0::t_19148c0e3e8278 11-14,27-43,50-54,155,202-217,227-239,248-252,255-261,309,326-359,361-362,367-381,418-453,537,546-550,564,570-571,575,582-592,596,600-618,667-672,677-680,690-697,700-710,718-721,727,734
+.github/workflows/ci.yml
+  s_240773ee81a9c0::t_19148c0e3e8278 163-167
+app/controllers/current_scope/roles_controller.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 36-37,140-149,188
+db/migrate/20260805000001_widen_current_scope_polymorphic_ids.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 140-145
+lib/current_scope/guard.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 181,364-370,376,444,463-505,507,520-549
+  s_240773ee81a9c0::t_1569aecd0af81c 550
+test/integration/report_only_test.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 76-170
+lib/current_scope/definitions_document.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 284-322,324-356,358-363
+test/dummy/config/routes.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 62
+test/definitions_import_test.rb
+  s_240773ee81a9c0::t_19148c0e3e8278 38-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "e8a48fc47cc22a1a59f66204c8e0697e84a49cf7",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

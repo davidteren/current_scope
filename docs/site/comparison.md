@@ -88,7 +88,7 @@ table.
   few hundred lines. CurrentScope brings tables, a mounted UI, an audit ledger
   and a schema guard.
 - **You need it certified for production today.** CurrentScope is
-  [beta](limitations.html): the last gate before 1.0 is one real application
+  [beta](limitations.md): the last gate before 1.0 is one real application
   running report mode and then enforcing
   ([#116](https://github.com/davidteren/current_scope/issues/116)).
 
@@ -161,7 +161,7 @@ Honest estimates, from the shape of the work rather than a promise.
 **Half a day to a day.** There is nothing to retrofit and no traffic to break.
 Install, run the generator, migrate, bootstrap the first admin, tick the grid,
 and gate your controllers. The
-[quickstart](quickstart.html) is the whole path.
+[quickstart](quickstart.md) is the whole path.
 
 ### An existing app with users
 
@@ -202,9 +202,9 @@ not developer time.
 
 ## Still deciding?
 
-- Read [Limitations](limitations.html) — it is the least flattering page on this
+- Read [Limitations](limitations.md) — it is the least flattering page on this
   site, on purpose.
-- Read [Concepts](concepts.html) for the resolver order that decides every
+- Read [Concepts](concepts.md) for the resolver order that decides every
   request.
 - Install it in a branch, run report mode for a week, and look at what the
   report says. That costs a day and tells you more than any comparison table.
@@ -348,6 +348,9 @@ not developer time.
       name: "CurrentScope",
       line: "Roles as data an administrator edits, per-record grants, an audit ledger and a report-mode rollout.",
       givesUp: "Any rule that depends on an amount, a date or a status has to live in your own application code: the grid is controller and action. It is also still in beta.",
+      // .html, unlike the Markdown links on this page: jekyll-relative-links
+      // rewrites link syntax, not a string inside a <script>, so this one has
+      // to name the built path.
       href: "quickstart.html",
       cta: "Read the quickstart"
     },

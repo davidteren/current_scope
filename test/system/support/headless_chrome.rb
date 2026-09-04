@@ -11,11 +11,17 @@ module HeadlessChrome
   # process_timeout covers launching the browser; timeout covers each CDP
   # command. They are separate, and Ferrum's default for the second is 5s, which
   # is far too short for the chooser's answer-space walk.
-  def open_browser(size:, timeout: 30)
+  #
+  # Both are sized for a cold, shared CI runner rather than for a warm laptop.
+  # 30s was enough locally and was not on GitHub Actions, which failed with
+  # "Browser did not produce websocket url within 30 seconds": these tests open
+  # a browser per test rather than reusing the one Capybara keeps, so they pay
+  # the launch cost repeatedly and hit it while other jobs are running.
+  def open_browser(size:, timeout: 60)
     Ferrum::Browser.new(
       headless: true,
       window_size: size,
-      process_timeout: 30,
+      process_timeout: 90,
       timeout: timeout,
       browser_options: { "no-sandbox" => nil }
     )
@@ -28,7 +34,13 @@ module HeadlessChrome
   def wait_until(timeout: 12, message: "condition never held")
     deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
     loop do
-      return if yield
+      if yield
+        # Recorded, because this IS the check: a test whose only verification is
+        # a wait would otherwise be reported by Minitest as missing assertions,
+        # which is how CI first told me one of these proved nothing on success.
+        assert true, message.respond_to?(:call) ? message.call : message
+        return
+      end
       if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
         flunk message.respond_to?(:call) ? message.call : message
       end

@@ -316,8 +316,10 @@ module CurrentScope
         # cost the indexed scope exists to avoid (#183).
         #
         # `declares_roles_anywhere?` reads `descendants`, which sees only LOADED
-        # classes, so this is exact in production (eager_load) and can be
-        # pessimistic in development: a declaring subclass nobody has referenced
+        # classes. Eager loading makes that usually complete in production, not
+        # guaranteed — `do_not_eager_load` and models outside the eager-load
+        # paths still miss it — and development is pessimistic outright: a
+        # declaring subclass nobody has referenced
         # yet reads as "no declaration", the fetch stays at 50, and a grantable
         # record past row 50 is not offered until something loads that class.
         # Browse-only, and it self-corrects on the next request that touches the

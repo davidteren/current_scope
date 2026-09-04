@@ -35,7 +35,13 @@ document.addEventListener("change", function (event) {
     // (number, email in some browsers); absence just means "no caret to keep".
     try {
       if (typeof el.selectionStart === "number") {
-        currentScopeFocusSelection = { start: el.selectionStart, end: el.selectionEnd };
+        currentScopeFocusSelection = {
+          start: el.selectionStart,
+          end: el.selectionEnd,
+          // Direction too, or a backward selection comes back forward and the
+          // next Shift+Arrow extends from the wrong edge.
+          direction: el.selectionDirection
+        };
       }
     } catch (ignored) {}
   }
@@ -71,7 +77,11 @@ document.addEventListener("turbo:frame-load", function (event) {
       if (end < start) end = start;
     }
     try {
-      el.setSelectionRange(start, end);
+      if (selection && selection.direction) {
+        el.setSelectionRange(start, end, selection.direction);
+      } else {
+        el.setSelectionRange(start, end);
+      }
     } catch (ignored) {
       // Some input types refuse a selection range; focus alone is enough.
     }

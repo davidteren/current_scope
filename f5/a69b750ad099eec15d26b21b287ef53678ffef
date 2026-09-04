@@ -1,0 +1,31 @@
+test/support/identity_user.rb
+  s_92f671d71b11f8::t_63ec9d44aa7893 11
+test/support/support_table.rb
+  s_92f671d71b11f8::t_ef8fe8529c5b6c 18
+  s_92f671d71b11f8::t_78e642bb4d77d8 25
+  s_92f671d71b11f8::t_2ea3b12402a812 20-24
+test/support_tables_test.rb
+  s_92f671d71b11f8::t_5ef0eb7d6cb413 22,28,34,40,58,60
+  s_92f671d71b11f8::t_342cc01f651441 13-19
+  s_92f671d71b11f8::t_78e642bb4d77d8 32-33,35-39,41-42,44
+  s_92f671d71b11f8::t_dc35c9789767bc 11
+  s_92f671d71b11f8::t_a27fa5091aba89 12
+test/support/uuid_user.rb
+  s_92f671d71b11f8::t_63ec9d44aa7893 23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "f5a69b750ad099eec15d26b21b287ef53678ffef",
+  "prompts": {},
+  "sessions": {
+    "s_92f671d71b11f8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "89b1e1cc-21c7-4a01-ba95-6d21be397c6d",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

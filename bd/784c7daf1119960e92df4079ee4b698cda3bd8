@@ -1,0 +1,26 @@
+test/system/docs_site_fit_chooser_test.rb
+  s_92f671d71b11f8::t_6717ed2ce57777 378-383
+test/support/uuid_user.rb
+  s_92f671d71b11f8::t_9ebdf367d6a845 16-22
+test/uuid_key_collision_test.rb
+  s_92f671d71b11f8::t_9ebdf367d6a845 341-351
+test/dummy/config/environments/test.rb
+  s_92f671d71b11f8::t_8847d660269a61 53-59
+  s_92f671d71b11f8::t_52a42c95fb296a 60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "bd784c7daf1119960e92df4079ee4b698cda3bd8",
+  "prompts": {},
+  "sessions": {
+    "s_92f671d71b11f8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "89b1e1cc-21c7-4a01-ba95-6d21be397c6d",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

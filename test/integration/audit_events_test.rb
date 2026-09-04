@@ -33,6 +33,191 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     CurrentScope::Event.first
   end
 
+  # #182 made every grant write audited, including the ones a test makes while
+  # ARRANGING. Clearing here narrows each assertion back to the action under
+  # test; that model-level writes are audited at all is asserted on its own
+  # below, where it is the point rather than noise.
+  def only_from_here
+    CurrentScope::Event.delete_all
+  end
+
+  # --- #182: every write path leaves the same trail ---
+  #
+  # The console recorded its own events, so a grant re-derived by the seed task
+  # left nothing behind. After a role delete cascaded revocations into the
+  # ledger, restoring every one of them added no rows, and an auditor reading
+  # later saw the revocations, found no restoration, and would reasonably
+  # conclude access was still gone when it was fully restored.
+
+  test "a grant created through the model API is audited, with no request behind it" do
+    report = Report.create!(title: "Q3", requested_by: @owner)
+    only_from_here
+
+    assert_difference -> { CurrentScope::Event.count }, 1 do
+      CurrentScope::ScopedRoleAssignment.create!(subject: @member, resource: report, role: @member_role)
+    end
+
+    event = only_event
+    assert_equal "scoped_role.granted", event.event
+    assert_equal @member.to_gid.to_s, event.target
+    assert_equal "Member", event.details["role"]
+    assert_equal "Q3", event.details["resource"]
+    assert_equal "self", event.details["attribution"],
+      "nothing had set an ambient actor, so the row is attributed to the grantee"
+  end
+
+  test "a grant destroyed through the model API is audited too" do
+    report = Report.create!(title: "Q3", requested_by: @owner)
+    grant = CurrentScope::ScopedRoleAssignment.create!(subject: @member, resource: report, role: @member_role)
+    only_from_here
+
+    assert_difference -> { CurrentScope::Event.count }, 1 do
+      grant.destroy!
+    end
+
+    assert_equal "scoped_role.revoked", only_event.event
+  end
+
+  # The incident this issue was filed from, end to end: a role is deleted
+  # through the console, its grants cascade, and the seed task restores them.
+  # The ledger has to show both halves.
+  test "a restore after a cascading role delete is visible in the ledger" do
+    report = Report.create!(title: "Q3", requested_by: @owner)
+    doomed = CurrentScope::Role.create!(name: "Doomed")
+    CurrentScope::ScopedRoleAssignment.create!(subject: @member, resource: report, role: doomed)
+    only_from_here
+
+    delete current_scope.role_url(doomed), headers: as(@owner)
+    assert_equal 1, CurrentScope::Event.where(event: "scoped_role.revoked").count
+
+    # The restore, exactly as a seed does it: model API, no request.
+    restored = CurrentScope::Role.create!(name: "Doomed")
+    CurrentScope::ScopedRoleAssignment.find_or_create_by!(subject: @member, resource: report, role: restored)
+
+    granted = CurrentScope::Event.where(event: "scoped_role.granted").last
+    assert granted, "the restoration has to be in the ledger, or the revocations read as final"
+    assert_equal "self", granted.details["attribution"]
+  end
+
+  # #182 review — role.created and role.updated both carry full_access and the
+  # permission set. A role.deleted row carrying only a name cannot tell an
+  # auditor what access the deletion removed, which is the gap this event exists
+  # to close.
+  test "role.deleted records what the deletion removed, not just the name" do
+    doomed = CurrentScope::Role.create!(name: "Doomed", full_access: true)
+    doomed.permission_keys = [ "reports#index" ]
+    doomed.save!
+    only_from_here
+
+    doomed.destroy!
+
+    event = only_event
+    assert_equal "role.deleted", event.event
+    assert_equal "Doomed", event.details["name"]
+    assert_equal true, event.details["full_access"]
+    assert_equal [ "reports#index" ], event.details["permission_keys"]
+  end
+
+  # And the PERSISTED set, not a staged one. `permission_keys` answers with an
+  # unsaved replacement when a caller has staged one, while the destroy removes
+  # what is in the table (#182 review).
+  test "role.deleted reports the permissions it removed, not an unsaved edit" do
+    doomed = CurrentScope::Role.create!(name: "Doomed")
+    doomed.permission_keys = [ "reports#index" ]
+    doomed.save!
+    doomed.permission_keys = [ "reports#show" ] # staged, never saved
+    only_from_here
+
+    doomed.destroy!
+
+    assert_equal [ "reports#index" ], only_event.details["permission_keys"],
+      "the deletion took away reports#index; the staged edit never existed"
+  end
+
+  # #182 review — an assignment whose ROLE is gone. A foreign key stops that
+  # happening on this schema, so the association is stubbed rather than the row
+  # orphaned: a host without that constraint, or one whose cleanup script uses
+  # raw SQL, could still reach it, and every destroy path records now, so an
+  # unguarded role.name would turn a survivable destroy into a NoMethodError.
+  test "a destroy whose role is already gone still records, and does not raise" do
+    report = Report.create!(title: "Q3", requested_by: @owner)
+    scoped = CurrentScope::ScopedRoleAssignment.create!(subject: @member, resource: report, role: @member_role)
+    scoped.define_singleton_method(:role) { nil }
+    only_from_here
+
+    assert_nothing_raised { scoped.destroy! }
+
+    assert_equal "(role ##{@member_role.id})", only_event.details["role"],
+      "the row names what is left of the role rather than raising on nil"
+  end
+
+  # #182 review — with auditing off, a grant write must do NO audit work at all,
+  # not merely discard the row at the end. Each recorder resolves a polymorphic
+  # subject and a resource label to build one, which is two queries per grant on
+  # a host that asked for none; the seed that motivated this issue restores 187.
+  test "no audit work happens at all when auditing is off" do
+    report = Report.create!(title: "Q3", requested_by: @owner)
+    original_audit = CurrentScope.config.audit
+    CurrentScope.config.audit = false
+
+    grant = CurrentScope::ScopedRoleAssignment.new(subject: @member, resource: report, role: @member_role)
+    grant.define_singleton_method(:audit_subject) { raise "resolved a record for a row nobody wanted" }
+    grant.define_singleton_method(:audit_resource_label) { raise "built a label for a row nobody wanted" }
+
+    assert_nothing_raised { grant.save! }
+    assert_nothing_raised { grant.destroy! }
+  ensure
+    # The ORIGINAL, not true: config.audit is tri-state, and flattening a
+    # :strict host to best-effort would change every later test in the run.
+    CurrentScope.config.audit = original_audit
+  end
+
+  # #182 review — the field is only useful if it is on every event. An auditor
+  # filtering for human-driven changes must not silently lose org-role
+  # assignments and role edits because those emitters predate it.
+  test "every event that changes an authorization carries an attribution" do
+    report = Report.create!(title: "Q3", requested_by: @owner)
+    other = User.create!(name: "Other")
+    only_from_here
+
+    post current_scope.role_assignments_url, headers: as(@owner),
+         params: { subject_gid: other.to_gid.to_s, role_id: @member_role.id }
+    post current_scope.roles_url, headers: as(@owner),
+         params: { role: { name: "Fresh" }, permission_keys: [] }
+    CurrentScope::ScopedRoleAssignment.create!(subject: @member, resource: report, role: @member_role)
+
+    # The FAMILY, named: a loop over Event.all would pass while an emitter
+    # outside this list stayed sourceless, and would fail the day an
+    # observation event (which deliberately carries none) landed in the same
+    # window.
+    CurrentScope.grant!(User.create!(name: "Bootstrapped"), role: @member_role)
+
+    changes = %w[org_role.assigned role.created scoped_role.granted]
+    changes.each do |name|
+      rows = CurrentScope::Event.where(event: name).to_a
+      assert rows.any?, "expected a #{name} row from this arrangement"
+      # EVERY row of that name, not the first: org_role.assigned is written by
+      # the console AND by CurrentScope.grant!, and checking one would leave the
+      # other free to carry nothing.
+      rows.each do |event|
+        assert event.details["attribution"].present?,
+          "a #{name} row carries no attribution, so a filter on it would lose it"
+      end
+    end
+  end
+
+  test "a write with an ambient actor says so" do
+    report = Report.create!(title: "Q3", requested_by: @owner)
+    only_from_here
+
+    post current_scope.scoped_role_assignments_url, headers: as(@owner), params: {
+      subject_gid: @member.to_gid.to_s, resource_gid: report.to_gid.to_s, role_id: @member_role.id
+    }
+
+    assert_equal "actor", only_event.details["attribution"],
+      "the request set CurrentScope::Current.actor; the field claims no more than that"
+  end
+
   # Minitest 6 dropped minitest/mock, so swap record! for a raiser by hand and
   # restore the original Method object afterwards.
   def with_failing_event_record
@@ -116,6 +301,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     co = CurrentScope::Role.create!(name: "CoOwner", full_access: true)
     CurrentScope::RoleAssignment.create!(subject: other, role: co)
 
+    only_from_here
     patch current_scope.role_url(@owner_role), headers: as(@owner), params: {
       role: { name: "Owner", full_access: "0", permission_keys: [ "" ] }
     }
@@ -136,6 +322,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     CurrentScope::RoleAssignment.create!(subject: grantee, role: doomed)
     CurrentScope::ScopedRoleAssignment.create!(subject: @owner, resource: report, role: doomed)
 
+    only_from_here
     delete current_scope.role_url(doomed), headers: as(@owner)
     assert_redirected_to current_scope.roles_url
 
@@ -172,6 +359,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     other = User.create!(name: "Other")
     CurrentScope::RoleAssignment.create!(subject: other, role: @member_role)
 
+    only_from_here
     post current_scope.role_assignments_url, headers: as(@owner),
          params: { subject_gid: other.to_gid.to_s, role_id: @owner_role.id }
     event = only_event
@@ -186,6 +374,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     other = User.create!(name: "Other")
     CurrentScope::RoleAssignment.create!(subject: other, role: @member_role)
 
+    only_from_here
     post current_scope.role_assignments_url, headers: as(@owner),
          params: { subject_gid: other.to_gid.to_s, role_id: "" }
     event = only_event
@@ -199,6 +388,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     other = User.create!(name: "Other")
     CurrentScope::RoleAssignment.create!(subject: other, role: @member_role)
 
+    only_from_here
     assert_no_difference -> { CurrentScope::Event.count } do
       post current_scope.role_assignments_url, headers: as(@owner),
            params: { subject_gid: other.to_gid.to_s, role_id: @member_role.id }
@@ -234,6 +424,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     report = Report.create!(title: "Q3", requested_by: @owner)
     sra = CurrentScope::ScopedRoleAssignment.create!(subject: @member, resource: report, role: @member_role)
 
+    only_from_here
     delete current_scope.scoped_role_assignment_url(sra), headers: as(@owner)
     event = only_event
 
@@ -247,6 +438,7 @@ class AuditEventsTest < ActionDispatch::IntegrationTest
     report = Report.create!(title: "Q3", requested_by: @owner)
     CurrentScope::ScopedRoleAssignment.create!(subject: @member, resource: report, role: @member_role)
 
+    only_from_here
     assert_no_difference -> { CurrentScope::Event.count } do
       post current_scope.scoped_role_assignments_url, headers: as(@owner), params: {
         subject_gid: @member.to_gid.to_s, resource_gid: report.to_gid.to_s, role_id: @member_role.id

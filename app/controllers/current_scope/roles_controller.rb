@@ -19,7 +19,8 @@ module CurrentScope
         if saved
           Event.record!(event: "role.created", target: @role,
                         details: { name: @role.name, full_access: @role.full_access?,
-                                   permission_keys: @role.permission_keys })
+                                   permission_keys: @role.permission_keys,
+                                   attribution: "actor" })
         end
       end
 
@@ -122,21 +123,17 @@ module CurrentScope
         if would_lock_console_by_removing_role?(role)
           refused = true
         else
-          # Snapshot WITHOUT polymorphic includes — includes(:subject)/:resource
-          # can raise NameError for stale types at preload (members page avoids
-          # this for the same reason). Resolve each row inside the helpers.
-          org_removed = role.role_assignments.to_a
-          scoped_revoked = role.scoped_role_assignments.to_a
-
+          # No snapshot and no emission here any more (#182). Every one of these
+          # three events now comes from the model that is being written:
+          # Role#after_destroy for role.deleted, and the dependent: :destroy
+          # cascade firing RoleAssignment's and ScopedRoleAssignment's own
+          # callbacks for each removal. A seed or a rake task that destroys the
+          # same rows therefore records the same trail this console action does,
+          # which it did not before.
+          #
+          # The order changes with it: the cascade rows are recorded before
+          # role.deleted, because Rails destroys dependents first.
           role.destroy!
-          Event.record!(event: "role.deleted", target: role, details: { name: role.name })
-          org_removed.each do |a|
-            Event.record!(event: "org_role.removed", target: cascade_subject(a), details: { role: role.name })
-          end
-          scoped_revoked.each do |a|
-            Event.record!(event: "scoped_role.revoked", target: cascade_subject(a),
-                          details: { role: role.name, resource: cascade_resource_label(a) })
-          end
         end
       end
 
@@ -150,21 +147,7 @@ module CurrentScope
 
     private
 
-    # Polymorphic subject/resource may be deleted or unresolvable — never 500
-    # the cascade audit. Deleted records return nil without raising (especially
-    # after includes preload), so use || assignment, not rescue-only.
-    def cascade_subject(assignment)
-      assignment.current_scope_resolved_record("subject") || assignment
-    end
 
-    def cascade_resource_label(assignment)
-      resource = assignment.current_scope_resolved_record("resource")
-      return "#{assignment.resource_type}##{assignment.resource_id}" if resource.nil?
-
-      helpers.current_scope_label(resource)
-    rescue StandardError
-      "#{assignment.resource_type}##{assignment.resource_id}"
-    end
 
     # One event per save: role.renamed when the name changed (carries old/new
     # name AND the grid/full_access diff), else role.updated. Emits nothing on
@@ -184,7 +167,7 @@ module CurrentScope
         event = "role.renamed"
         details.merge!(old_name: previous_name, new_name: role.name)
       end
-      Event.record!(event: event, target: role, details: details)
+      Event.record!(event: event, target: role, details: details.merge(attribution: "actor"))
     end
 
     # The guard answers a bare true for two different reasons. Telling them apart

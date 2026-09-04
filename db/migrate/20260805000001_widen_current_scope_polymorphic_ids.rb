@@ -137,10 +137,12 @@ class WidenCurrentScopePolymorphicIds < ActiveRecord::Migration[7.1]
   end
 
   def widen(table, column)
-    # Idempotent, but NOT satisfied by type and width alone: a database built from
-    # schema.rb already has varchar(64) while carrying the server's default
-    # collation, which on MySQL is case-insensitive. Skipping there would leave the
-    # #151 collision live on every freshly-loaded schema.
+    # Idempotent, but NOT satisfied by type and width alone: a database built
+    # from a schema.rb DUMPED FROM PostgreSQL or SQLite already has varchar(64)
+    # while carrying the server's default collation, which on MySQL is case
+    # insensitive. (A dump taken from MySQL carries the column's collation, so
+    # that path arrives correct — #194.) Skipping on width alone would leave the
+    # #151 collision live on every schema loaded from the first kind of dump.
     return if already_correct?(table, column)
 
     if connection.adapter_name.match?(/postg/i)

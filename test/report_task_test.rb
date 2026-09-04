@@ -875,6 +875,46 @@ class ReportTaskTest < ActiveSupport::TestCase
                  "replacement for it")
   end
 
+  # #183: the declaration is a validation, so it judges a row when that row is
+  # written and never again. A host that adds a declaration to close a widening
+  # has not touched the grants already in the table — and those are the rows the
+  # feature was opened for, so the scan names them.
+  test "a grant its type would refuse today is named, though the row still resolves" do
+    project = Project.create!(name: "Q3")
+    role = role_with("projects#show")
+    scope_grant(@alice, role, project)
+    declare_grantable_roles(Project, [ "Someone Else" ])
+
+    out = run_task
+
+    assert_match(/no longer accepts/, out)
+    assert_match(/Q3|Project##{project.id}/, out)
+    assert CurrentScope::ScopedRoleAssignment.exists?(subject: @alice, resource: project),
+           "the row is reported, not touched — revoking is the operator's call"
+  end
+
+  # An orphaned grant resolves to nothing, so it is not one of the rows this
+  # section is about — and the heading tells the operator these still resolve
+  # (#183).
+  test "a grant whose record is gone is not named among the non-conforming" do
+    project = Project.create!(name: "Q3")
+    role = role_with("projects#show")
+    scope_grant(@alice, role, project)
+    declare_grantable_roles(Project, [ "Someone Else" ])
+    project.delete
+
+    refute_match(/no longer accepts/, run_task)
+  end
+
+  test "a grant its type still accepts is not named" do
+    project = Project.create!(name: "Q3")
+    role = role_with("projects#show")
+    scope_grant(@alice, role, project)
+    declare_grantable_roles(Project, [ role.name ])
+
+    refute_match(/no longer accepts/, run_task)
+  end
+
   test "the advisory section names its own false alarm rather than asserting a verdict" do
     # Folder, not Project: a Report-keyed role on a Project is a WORKING
     # parent-chain grant since #108 and must not be flagged.

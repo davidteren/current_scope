@@ -15,6 +15,12 @@ module CurrentScope
       scope: [ :subject_type, :subject_id, :resource_type, :resource_id ]
     }
 
+    # #183: a type may declare which roles are grantable on it. The gate, as
+    # opposed to the console's filtering, because a grant can be written by a
+    # seed, a rake task or a console one-liner and every one of those has to
+    # meet the same rule.
+    validate :role_grantable_on_resource_type
+
     # #151: a grant must name exactly one record on BOTH sides.
     include CurrentScope::StorableKeys
     validates_storable_polymorphic_keys "subject", "resource"
@@ -125,7 +131,72 @@ module CurrentScope
       end
     end
     private_class_method :mark_resources_loaded
+
+    # WHICH class governs this grant — the one the declaration is read from, for
+    # the write gate below and for the report task that names rows a type would
+    # refuse today. One copy, because the two must agree (#183).
+    #
+    # The record's OWN class when it is there, and only then the token's:
+    # CurrentScope.polymorphic_class always answers with the BASE class (the
+    # registry claims each token with klass.base_class, and an STI grant stores
+    # the base token), so asking it first would make a declaration on an STI
+    # subclass a silent no-op while the module, the guide and the reader all
+    # promise it is inherited and overridable.
+    #
+    # Through the CHECKED reader, never the raw association: a non-canonical
+    # stored id casts into an unrelated live record, and the gate would then
+    # judge (and name) the wrong class (#151).
+    #
+    # The token fallback names the base class, so an orphaned STI grant is
+    # judged by the base's declaration rather than the subclass's — there is
+    # nothing left to ask. `inert_on_error:` is the CALLER's to choose: a write
+    # path must not save under a registry that cannot say which class a token
+    # names, while a read-only scan degrades to inert.
+    def current_scope_governing_class(inert_on_error: false)
+      current_scope_resolved_record("resource")&.class ||
+        CurrentScope.polymorphic_class(resource_type, inert_on_error: inert_on_error)
+    end
+
     private
+
+    # Silent unless the type opted in (#183): with no declaration every role
+    # stays grantable on every type, which is what every existing host has.
+    #
+    # An unresolvable type is left alone — the storable-key guard and the
+    # polymorphic registry already own that question, and answering it twice
+    # with two messages helps nobody.
+    def role_grantable_on_resource_type
+      return if role.nil? || resource_type.blank?
+
+      # This resolves the RECORD (one find_by when the association is not
+      # loaded) before it can know whether any declaration exists. Skipping that
+      # for hosts who declared nothing would need a cheap "nobody declared"
+      # answer, and every cheap one — the token's class, its loaded descendants,
+      # a process flag — can be wrong in the OPEN direction under lazy loading:
+      # a subclass that declares and has not been referenced reads as "no rule",
+      # and the write sails through. A gate may cost a query; it may not guess
+      # (#183).
+
+      klass = current_scope_governing_class
+      return if klass.nil? || !klass.respond_to?(:current_scope_grants_role?)
+      return if klass.current_scope_grants_role?(role)
+
+      # Read through respond_to? and Array(): the type joins this gate by
+      # answering current_scope_grants_role? alone, which a host may compute
+      # without holding a list at all (#183).
+      declared = klass.try(:current_scope_grantable_roles)
+      allowed = Array(declared)
+      accepts = if declared.nil?
+        # A type that computes the rule and holds no list: naming an empty list
+        # would tell the operator it accepts nothing, which may be false.
+        "it does not accept this one"
+      elsif allowed.empty?
+        "it accepts no scoped roles at all"
+      else
+        "it accepts #{allowed.to_sentence(two_words_connector: ' or ', last_word_connector: ' or ')}"
+      end
+      errors.add(:role, "cannot be granted on #{klass.name}: #{accepts}")
+    end
 
     def record_scoped_role_granted = record_scoped_role_audit("scoped_role.granted")
     def record_scoped_role_revoked = record_scoped_role_audit("scoped_role.revoked")

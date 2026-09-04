@@ -25,13 +25,11 @@ class PickerSearchTest < ActionDispatch::IntegrationTest
   test "with the opt-in search hook, the model's scope drives the results (not the Ruby label filter)" do
     # A hook that ignores the term and returns all rows — so a term the label
     # filter would reject still yields results, proving the hook path was taken.
-    Folder.define_singleton_method(:current_scope_searchable_scope) { |_term| all }
+    stub_searchable_scope(Folder)
 
     get current_scope.new_scoped_role_assignment_url(resource_type: "Folder", q: "zzz"), headers: as(@owner)
     assert_response :success
     assert_includes response.body, "Alpha"
     assert_includes response.body, "Beta"
-  ensure
-    Folder.singleton_class.send(:remove_method, :current_scope_searchable_scope)
   end
 end

@@ -7,13 +7,85 @@
 // step renders without a manual click. Every such control still has a visible
 // submit button, so the cascade works with this script disabled, and with no
 // Turbo at all (the submit is a plain full-page GET).
+
+// The id of the control that autosubmitted, so focus can go back to it once
+// the frame it lived in has been replaced.
+var currentScopeFocusId = null;
+// Where the caret was when that control submitted. A search field is edited in
+// the middle as often as at the end — fixing a typo, adding a word — and the
+// frame replaces the element under the operator, so restoring focus without
+// restoring the caret silently jumps them to the end mid-word.
+var currentScopeFocusSelection = null;
+
 document.addEventListener("change", function (event) {
   var el = event.target;
   if (!el || typeof el.matches !== "function") return;
   if (!el.matches("[data-current-scope-autosubmit]")) return;
 
+  // A control INSIDE the frame is destroyed by its own submit, so focus falls
+  // to the body; remember it and put focus back when the frame lands, or a
+  // keyboard operator is thrown to the top of the document on every pick,
+  // including in the search field the page tells them to refine. Only in-frame
+  // controls: the role and subject selects live outside it and are never
+  // replaced, so re-focusing one would move focus for no reason.
+  if (el.id && el.closest("turbo-frame#cascade")) {
+    currentScopeFocusId = el.id;
+    currentScopeFocusSelection = null;
+    // Reading selectionStart throws on input types that have no selection
+    // (number, email in some browsers); absence just means "no caret to keep".
+    try {
+      if (typeof el.selectionStart === "number") {
+        currentScopeFocusSelection = {
+          start: el.selectionStart,
+          end: el.selectionEnd,
+          // Direction too, or a backward selection comes back forward and the
+          // next Shift+Arrow extends from the wrong edge.
+          direction: el.selectionDirection
+        };
+      }
+    } catch (ignored) {}
+  }
   var form = el.form || el.closest("form");
   if (form) form.requestSubmit();
+});
+
+document.addEventListener("turbo:frame-load", function (event) {
+  if (!currentScopeFocusId) return;
+  var frame = event.target;
+  if (!frame || frame.id !== "cascade") return;
+
+  var el = document.getElementById(currentScopeFocusId);
+  var selection = currentScopeFocusSelection;
+  currentScopeFocusId = null;
+  currentScopeFocusSelection = null;
+  if (!el || typeof el.focus !== "function") return;
+  // Only when focus was actually lost with the old element. If the operator
+  // moved somewhere else while the request was in flight, leave them there.
+  var active = document.activeElement;
+  if (active && active !== document.body && active !== document.documentElement) return;
+
+  el.focus();
+  // Put the caret back where it was, not at the end. Clamped, because the value
+  // can come back shorter than it went out; falls back to the end when there
+  // was no caret to remember.
+  if (typeof el.setSelectionRange === "function" && typeof el.value === "string") {
+    var end = el.value.length;
+    var start = end;
+    if (selection) {
+      start = Math.min(selection.start, end);
+      end = Math.min(selection.end, el.value.length);
+      if (end < start) end = start;
+    }
+    try {
+      if (selection && selection.direction) {
+        el.setSelectionRange(start, end, selection.direction);
+      } else {
+        el.setSelectionRange(start, end);
+      }
+    } catch (ignored) {
+      // Some input types refuse a selection range; focus alone is enough.
+    }
+  }
 });
 
 // CSP-safe confirmation for destructive submits. `data-turbo-confirm` only fires

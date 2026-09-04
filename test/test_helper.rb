@@ -31,3 +31,85 @@ end
 class ActiveSupport::TestCase
   teardown { CurrentScope::Current.reset }
 end
+
+# #183: `current_scope_grantable_roles` is a class-level instance variable, so a
+# declaration made in a test outlives the transactional rollback and leaks into
+# every later test in the process. Tests declare through this helper, which
+# restores exactly what was there before — no file has to keep a hand-written
+# list of the classes it touched (#183).
+module CurrentScope
+  module GrantableRolesIsolation
+    IVAR = :@current_scope_grantable_roles
+
+    def declare_grantable_roles(klass, names)
+      @grantable_roles_snapshots ||= {}
+      @grantable_roles_snapshots[klass] ||=
+        [ klass.instance_variable_defined?(IVAR), klass.instance_variable_get(IVAR) ]
+      klass.current_scope_grantable_roles = names
+    end
+
+    def restore_grantable_roles!
+      (@grantable_roles_snapshots || {}).each do |klass, (declared, value)|
+        if declared
+          klass.instance_variable_set(IVAR, value)
+        elsif klass.instance_variable_defined?(IVAR)
+          klass.send(:remove_instance_variable, IVAR)
+        end
+      end
+      @grantable_roles_snapshots = nil
+    end
+  end
+end
+
+# A14 + #183: several picker tests give a model the opt-in indexed search hook.
+# Leaving it defined makes every LATER test take the indexed branch, which
+# changes what the picker offers and advises, so the same teardown was
+# hand-copied into eight tests. One helper removes it once (#183).
+module CurrentScope
+  module SearchableScopeStub
+    HOOK = :current_scope_searchable_scope
+
+    def stub_searchable_scope(klass, &relation)
+      (@searchable_scope_stubs ||= []) << klass
+      klass.define_singleton_method(HOOK, &(relation || ->(_term) { all }))
+    end
+
+    def remove_searchable_scope_stubs!
+      Array(@searchable_scope_stubs).each do |klass|
+        # instance_methods(false): method_defined? answers true for a hook
+        # INHERITED from a base class's singleton, and remove_method then raises
+        # NameError in teardown, over the real failure (#183).
+        next unless klass.singleton_class.instance_methods(false).include?(HOOK)
+
+        klass.singleton_class.send(:remove_method, HOOK)
+      end
+      @searchable_scope_stubs = nil
+    end
+  end
+end
+
+# Shared, because the system tests drive the same picker the integration tests
+# do and need the same registry swap (#183).
+module CurrentScope
+  module ScopeableResourcesSwap
+    # Swap CurrentScope.scopeable_resources for one test (Minitest 6 dropped
+    # minitest/mock), matching the house style in audit_events_test.
+    def with_scopeable_resources(list)
+      original = CurrentScope.method(:scopeable_resources)
+      CurrentScope.define_singleton_method(:scopeable_resources) { list }
+      yield
+    ensure
+      CurrentScope.define_singleton_method(:scopeable_resources, original)
+    end
+  end
+end
+
+class ActiveSupport::TestCase
+  include CurrentScope::ScopeableResourcesSwap
+  include CurrentScope::GrantableRolesIsolation
+  include CurrentScope::SearchableScopeStub
+  teardown do
+    restore_grantable_roles!
+    remove_searchable_scope_stubs!
+  end
+end

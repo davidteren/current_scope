@@ -1,5 +1,8 @@
 # Validation brief: the five merged pull requests
 
+Outcome: `docs/reviews/2026-09-04-validation-findings-pr197-201.md`. The transient under Known
+soft spots has a root cause there (finding 1) and is fixed in PR #202.
+
 Written 2026-09-04, for a fresh agent asked to validate this work. All five are
 on `main` now, so this is a review of what landed rather than a merge decision.
 
@@ -13,8 +16,7 @@ on `main` now, so this is a review of what landed rather than a merge decision.
 | [#200](https://github.com/davidteren/current_scope/pull/200) | A resource type declares which roles may be granted on it |
 | [#201](https://github.com/davidteren/current_scope/pull/201) | The fit comparison, and the docs-site work around it |
 
-`main` after all five: 1109 unit runs, 55 system runs, RuboCop clean on 230
-files.
+`main` after all five: 1109 unit runs, 55 system runs, RuboCop clean.
 
 Every PR conflicted with `main` after the one before it landed. Three were
 changelog-only. **#200 was four real code conflicts**, including
@@ -30,8 +32,8 @@ Two process notes if you repeat any of this:
 
 - `gh pr checks <n> --watch` reported a *previous* run as passing while the
   checks on the new head were still queued. Verify against the head SHA
-  (`gh api repos/.../commits/<sha>/check-runs`), not the PR.
-- All 28 review threads were answered. Two marked **action-required** turned out
+  (`gh api repos/davidteren/current_scope/commits/<sha>/check-runs`), not the PR.
+- Every review thread on the five PRs is resolved. Two marked **action-required** turned out
   to be false positives, established by testing rather than reading (see the
   replies on #200). Resolved does not mean every reviewer was right; it means
   each was answered, and the reasoning is on the thread for you to disagree with.
@@ -50,12 +52,10 @@ suite does not see. Concretely:
    scroll pin that matched the wrong listener. Assume more remain. The cheapest
    check is to break the behaviour deliberately and confirm the named test
    fails with the message it advertises.
-3. **What did the tests encode about this machine?** One P1 was found late:
-   the theme tests read the developer's OS colour preference, so they would
-   have failed on `ubuntu-latest`, which prefers light. The reveal tests had
-   the same shape through `prefers-reduced-motion`. Both are now pinned with
-   `Emulation.setEmulatedMedia`. Look for anything else environment-dependent —
-   timezone, locale, screen size, network reachability, Chrome version.
+3. **What did the tests encode about this machine?** The browser tests have
+   twice failed only on CI (see Known soft spots). Look for anything else
+   environment-dependent: timezone, locale, screen size, network reachability,
+   Chrome version.
 4. **#199 and #200 touch authorization.** A bug there is a user seeing or doing
    something they should not. Give those the security lens specifically: the
    fail-closed resolver, the separation-of-duties veto, and whether a
@@ -76,8 +76,8 @@ suite does not see. Concretely:
 
 - **An unexplained transient.** One `bin/rails test` run reported 6 errors. It
   was not reproducible in nine subsequent runs and the output was not captured.
-  It coincided with heavy concurrent headless-Chrome work. It may be a real
-  race in the suite; it may be contention. Treat it as open.
+  It coincided with heavy concurrent headless-Chrome work. Root cause and fix:
+  finding 1 in the findings note, shipped in PR #202.
 - **The fit chooser is a ~400-line script inline in a Markdown file.** Its test
   (`test/system/docs_site_fit_chooser_test.rb`) regex-extracts the script,
   style and mount out of `docs/site/comparison.md` and reassembles a page, so
@@ -103,8 +103,8 @@ suite does not see. Concretely:
 ## How to run what exists
 
 ```
-bin/rails test          # unit; 984 runs. NOTE: `rake test` runs nothing and exits 0
-bin/rails test:system   # browser; 53 runs, needs Chrome
+bin/rails test          # unit; 1109 runs on main after #201. NOTE: `rake test` runs nothing and exits 0
+bin/rails test:system   # browser; 55 runs, needs Chrome
 bundle exec rubocop
 ```
 

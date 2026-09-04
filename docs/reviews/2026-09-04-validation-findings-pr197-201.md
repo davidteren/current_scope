@@ -1,9 +1,10 @@
 # Validation findings: the five merged pull requests
 
 Written 2026-09-04 by five fresh agents working from
-`notes/2026-09-04_validation-brief.md`, one slice each, in separate worktrees.
-Every claim below was tested by breaking the behaviour and reading the test
-output, not by reading the diff. All mutations were reverted; nothing was
+`docs/reviews/2026-09-04-validation-brief-pr197-201.md`, one slice each, in separate worktrees.
+Every test claim below (findings 1 to 7) was established by breaking the
+behaviour and reading the test output. Finding 8 and the P3 items were checked
+by reading the engine, not the page. All mutations were reverted; nothing was
 committed, pushed or posted.
 
 ## Verdicts
@@ -18,8 +19,8 @@ committed, pushed or posted.
 
 No P1 was found. The unexplained transient has a root cause and a candidate fix.
 
-**Status (2026-09-04, later the same day):** every P2 below and the doc claims
-in finding 8 are fixed in [PR #202](https://github.com/davidteren/current_scope/pull/202).
+**Status (2026-09-04, later the same day):** every P2 below (findings 1 to 7)
+and the doc claims in finding 8 are fixed in [PR #202](https://github.com/davidteren/current_scope/pull/202).
 The candidate fix for finding 1 grew into `test/support/support_table.rb`,
 which rebuilds a support table only when its column names drift, so neither
 the concurrent drop nor the stale-schema trap remains.
@@ -28,7 +29,7 @@ the concurrent drop nor the stale-schema trap remains.
 
 ### 1. The suite cannot run as two processes in one checkout (the transient)
 
-`test/support/uuid_user.rb:22` and `test/support/identity_user.rb:9` run
+`test/support/uuid_user.rb:22` and `test/support/identity_user.rb:10` run
 `create_table(..., force: true)` at load and `Minitest.after_run { drop_table }`
 at exit. Every process shares `storage/test.sqlite3`
 (`test/dummy/config/database.yml`). A second process drops the tables under the
@@ -54,7 +55,7 @@ Same hazard, not observed failing: `test/definitions_import_test.rb:336` and
 
 `CurrentScope.mysql_config?` (`lib/current_scope.rb:439`) is what decides
 whether the collation check runs. Making it return `false` unconditionally left
-the guard tests green (31 runs, 0 failures) because every MySQL test stubs
+the guard tests green (0 failures) because every MySQL test stubs
 `SchemaGuard.mysql?` directly. On a real MySQL host, `false` skips
 `check_collation!` entirely and the #151 case-folding escalation stays live with
 no refusal. The CI MySQL matrix would not catch it, since the dummy app boots
@@ -87,7 +88,7 @@ PR describes, in the one shape the report cannot flag.
 
 ### 5. #201: the reveal test depends on network egress (the third environment case)
 
-`test/system/docs_site_reveal_test.rb:35` says it does not wait on the remote
+`test/system/docs_site_reveal_test.rb:37-47` says it does not wait on the remote
 badges. It does. `Ferrum::Page#go_to` waits up to the 60 s timeout for the main
 frame to stop loading and raises `PendingConnectionsError` on pending requests
 (`pending_connection_errors` defaults to true). With the four remote requests
@@ -107,7 +108,7 @@ All in `docs/site/comparison.md`, tested by
 - Veto notes on a named verdict: line 596 `if (state.vetoes.length)` replaced
   with `if (false)`. Survived. The reader is never told why CurrentScope was
   ruled out.
-- Runner-up cost line: line 616 `givesUp` removed. Survived.
+- Runner-up cost line: line 617 `givesUp` removed. Survived.
 - Pundit weakly dominated again: line 317 `{ pundit: 4, action_policy: 4 }`.
   Survived. Pundit is a sole winner only through the beta veto.
 
@@ -140,7 +141,7 @@ routed permission key.
 - Lines 53-56: "a grant on a project covers that project's reports". Only a role
   that ticks the key; scoped full_access does not cascade
   (`resolver.rb:463-470`).
-- Line 180 "creates no roles" is right; the rake `desc` at
+- Line 181 "creates no roles" is right; the rake `desc` at
   `current_scope_tasks.rake:137` still says "into a starter role grid".
 
 ### 9. Smaller items (P3)
@@ -160,7 +161,7 @@ routed permission key.
 - #199: two handles to one grant, both destroyed, write two
   `scoped_role.revoked` rows. Pre-existing.
 - #197 drift question: the report gets the gate's model by name round-trip
-  (`guard.rb:498` writes `model.name`, `rake:344` constantizes). Usability
+  (`guard.rb:498` writes `model.name`, `rake:345` constantizes). Usability
   cannot drift because both sides ask `resolver.collection_type?`; identity can
   (a `self.name` override, duplicate constants across reloads). Exposure is the
   record-less arm only.

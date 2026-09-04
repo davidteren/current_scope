@@ -2,12 +2,11 @@
 
 > ## Last session handoff
 >
-> **What this is:** The five merged pull requests were validated, and every gap
-> the validation found is fixed in one open pull request.
-> **What we finished:** PR #202 is green on all three databases with every
-> review thread answered; it fixes the transient and nine test gaps.
-> **What you do next:** Merge PR #202, then open the PR for this docs branch
-> (the brief and the findings note in `notes/`).
+> **What this is:** CurrentScope, a Rails authorization engine, on `main` at Beta.
+> **What we finished:** PR #202 fixes every P2 gap the validation of PRs #197
+> to #201 found; it is green with all review threads answered. The P3 items in
+> the findings note stay open.
+> **What you do next:** Merge PR #202, then the docs PR for `docs/validation-brief`.
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >

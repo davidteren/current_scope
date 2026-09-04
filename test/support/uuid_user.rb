@@ -13,10 +13,13 @@
 # The table name is prefixed and the class name is not. This loads for every
 # test run, against whatever database DATABASE_URL points at, so it must not be
 # able to collide with a table a developer actually has. It is `if_not_exists`
-# and never dropped: two test processes share one SQLite file, and a
-# `force: true` create in the second dropped this table under the first
-# (50 errors, the "transient" in notes/2026-09-04_validation-findings.md).
-# If these columns change, `bin/rails db:test:prepare` rebuilds the database. The CLASS keeps the short name because it is
+# and never dropped: every process shares storage/test.sqlite3, and when this
+# was `force: true` a second test process (a system test file booting while
+# `bin/rails test` ran) dropped the table under the first, which errored with
+# "no such table" in 50 tests. If these columns change, run
+# `bin/rails db:test:prepare` to rebuild the database. The dummy test
+# environment tells the schema dumper to ignore the current_scope_test_ prefix,
+# so the persisted tables never reach db/schema.rb. The CLASS keeps the short name because it is
 # what lands in the polymorphic *_type column, where the tests read it.
 class UuidUser < ActiveRecord::Base
   self.table_name = "current_scope_test_uuid_users"

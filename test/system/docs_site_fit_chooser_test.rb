@@ -375,8 +375,12 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
   # beta veto removed Action Policy.
   test "every library is a sole winner on some path that did not need the beta veto" do
     offered = every_path.map { |r| r["heading"].to_s.strip }.uniq.reject { |h| h.include?(" or ") || h == "None of these" }
-    on_merit = every_path.reject { |r| r["vetoNotes"].any? { |n| n =~ /1\.0 or later/ } }
-                         .map { |r| r["heading"].to_s.strip }
+    beta = ->(r) { r["vetoNotes"].any? { |n| n =~ /1\.0 or later/ } }
+    # Guarded, because this filter is prose-matched: if the beta note is ever
+    # reworded the reject below would drop nothing and the test would pass for
+    # every library, including a dominated one.
+    refute_empty every_path.select(&beta), "the beta veto never fired, so the on-merit filter is a no-op"
+    on_merit = every_path.reject(&beta).map { |r| r["heading"].to_s.strip }
     dominated = offered.reject { |name| on_merit.include?(name) }
     assert_empty dominated,
                  "these libraries win only when this project's own beta veto removes a " \

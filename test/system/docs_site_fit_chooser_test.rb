@@ -353,8 +353,11 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
                        "no two libraries tie any more"
     ties.each do |r|
       assert_includes r["heading"].to_s, " or ", "a tie has to name every library in it: #{r['answers']}"
+      # As many cost lines as tied libraries: a three-way tie missing one of its
+      # three would still have two.
+      winners = r["heading"].to_s.split(/, | or /).length
       costs = r["body"].to_s.scan("What you give up with").length
-      assert_operator costs, :>=, 2, "a tie names two libraries, so it owes two costs: #{r['answers']}"
+      assert_equal winners, costs, "a tie owes one cost per library it names: #{r['answers']}"
     end
   end
 

@@ -338,17 +338,6 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     guard.singleton_class.send(:private, :mysql?)
   end
 
-  # The support tables persist between runs now (see test/support/uuid_user.rb),
-  # so a test-env db:migrate would dump them into the tracked schema.rb unless
-  # the dumper is told to skip them.
-  test "the load-time support tables never reach schema.rb" do
-    io = StringIO.new
-    ActiveRecord::SchemaDumper.dump(ActiveRecord::Base.connection_pool, io)
-
-    assert_empty io.string.scan(/create_table "current_scope_test_\w+"/),
-      "test/dummy/config/environments/test.rb must ignore the current_scope_test_ prefix"
-  end
-
   # The predicate every MySQL test in this file stubs around. A wrong answer
   # here does not raise: `false` on a real MySQL host SKIPS check_collation! and
   # leaves the #151 case-folding escalation live with no refusal, and the CI

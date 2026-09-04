@@ -3,8 +3,9 @@ require "rake"
 
 # #151. The repair task exists because db:migrate CANNOT fix a schema-loaded
 # database: loading a schema stamps every migration version as applied, so there
-# is nothing pending — while schema.rb cannot carry a MySQL collation, leaving
-# the columns case-insensitive and the engine unbootable. That was a dead end
+# is nothing pending — while a schema.rb dumped from PostgreSQL or SQLite
+# carries no per-column collation, so loading it on MySQL leaves the columns
+# case insensitive and the engine unbootable (#194). That was a dead end
 # with no way out, and this task is the way out, so it needs its own coverage
 # rather than being exercised only as a side effect of bin/db and CI.
 class RepairSchemaTaskTest < ActiveSupport::TestCase
@@ -27,6 +28,43 @@ class RepairSchemaTaskTest < ActiveSupport::TestCase
   end
 
   def connection = ActiveRecord::Base.connection
+
+  # #193 review — the task must repair the database the boot refusal NAMES. A
+  # migration run through `migrate` goes to
+  # ActiveRecord::Tasks::DatabaseTasks.migration_connection, which is the
+  # DEFAULT database, so a host with the engine's tables on a second connection
+  # would have watched this report success against the wrong one while boot kept
+  # failing on the right one.
+  # Asserted on the DEFAULT path, not on the grant pool: in this app both models
+  # share one database, so comparing pools proves nothing. What separates the
+  # two implementations is that `Migration#migrate` reaches for
+  # ActiveRecord::Tasks::DatabaseTasks.migration_connection and
+  # `exec_migration` does not.
+  test "it runs against the grant models' connection, not the default one" do
+    reached_for_default = false
+    tasks = ActiveRecord::Tasks::DatabaseTasks
+    original = tasks.method(:migration_connection)
+    tasks.define_singleton_method(:migration_connection) do
+      reached_for_default = true
+      original.call
+    end
+
+    run_repair
+
+    assert_not reached_for_default,
+      "the widening must be executed against the grant models' pool, which is the " \
+      "database the boot refusal names"
+  ensure
+    # Guarded: an ensure that raises would replace the assertion failure this
+    # test exists to report with a NoMethodError about the cleanup (#194 review).
+    # instance_methods(FALSE), because DatabaseTasks does `extend self`: every
+    # module method answers method_defined? on the singleton whether or not this
+    # test defined one, so that check was always true and could not prevent the
+    # NameError it was added for (#194 review).
+    if tasks&.singleton_class&.instance_methods(false)&.include?(:migration_connection)
+      tasks.singleton_class.send(:remove_method, :migration_connection)
+    end
+  end
 
   test "it leaves every grant id and type column in the shape #151 requires" do
     run_repair

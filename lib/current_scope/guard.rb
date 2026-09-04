@@ -178,7 +178,7 @@ module CurrentScope
         nudge_on_inert_scoped_grant(permission, record, reason)
         nudge_on_undeclared_collection_model(permission, record, reason)
 
-        return report_would_deny(permission, record) if report_only_denial?(reason, permission, record)
+        return report_would_deny(permission, record, model) if report_only_denial?(reason, permission, record)
 
         # Report mode still 403s the SoD blind spot (correct, fail-closed) but
         # used to do so silently — no log, no ledger, invisible to
@@ -361,13 +361,19 @@ module CurrentScope
     end
 
     # Observe and proceed.
-    def report_would_deny(permission, record)
+    # `model` is REQUIRED on both recorders (#196 review). A default would let a
+    # future call site write model: nil, which the report reads as knowledge
+    # rather than absence: re-checked on the stricter question AND not eligible
+    # for the legacy caveat that would tell the operator not to grant for it.
+    # That is the #196 false denial again, in the one shape the report cannot
+    # flag. Fail at the call site instead.
+    def report_would_deny(permission, record, model)
       Rails.logger&.warn(
         "[CurrentScope] report-only: would DENY #{permission.inspect} " \
         "(reason: no_grant) — grant it before setting config.enforcement = :enforce"
       )
       response.set_header("X-Current-Scope-Reason", "would_deny")
-      record_would_deny_event(permission, record)
+      record_would_deny_event(permission, record, model)
     end
 
     # #73: report mode refuses to *downgrade* an SoD blind-spot denial (the
@@ -435,7 +441,7 @@ module CurrentScope
     # documented raise contract, so it is the one thing worth catching; a broad
     # rescue over the whole observation would also swallow a broken logger or
     # response, which are app-fatal anyway and shouldn't be hidden. (#59 review)
-    def record_would_deny_event(permission, record)
+    def record_would_deny_event(permission, record, model)
       subject = CurrentScope::Current.user
       # No ambient subject ⇒ nothing to attribute the row to, and Event.record!
       # raises on a nil actor. Guard on the SUBJECT, not on `target` — a record
@@ -454,9 +460,51 @@ module CurrentScope
       # report re-asks the resolver and must ask with the same record the gate
       # did. Inferring it from equal GIDs would read a self-targeted denial as
       # record-less and re-check on the more permissive arm.
+      # #196: the model the GATE used, so the #116 report can re-ask the same
+      # question. Without it the report asks a stricter one — record-less with
+      # no type — and reports as denied every subject a scoped grant already
+      # admits through current_scope_model. On the bake host that was 406 of 696
+      # rows, and the fix it implied was to grant a whole controller to everyone.
+      #
+      # Recorded ONLY when the gate could use it. With NO_RECORD (the controller
+      # declares no record hook) the resolver's record-less arm never runs, so
+      # the model is inert; storing it anyway would make the report answer
+      # ALLOWED where the gate denies, which is the same bug pointing the other
+      # way. Same condition as Current.collection_model above.
+      #
+      # The key is written with nil for "no usable model here" (see
+      # recordable_model_name), and is OMITTED only if building it raises. A row
+      # from before this field existed has no key either, and lands in the same
+      # population: re-checked without a model, and warned about. nil is
+      # knowledge, absent is not.
+      details = { permission: permission, reason: "no_grant", record_less: target.nil? }
+      # Its own rescue, and deliberately not the one below. `model` is the
+      # HOST'S object and this line asks it two questions: a class with an
+      # overridden `self.name` that raises, or one whose ancestry lookup does,
+      # would otherwise lose the whole would_deny row AND burn the one
+      # per-process warning that sod_blind_spot and sod_initiator_missing still
+      # need, then label itself "could not record" and send an operator after a
+      # ledger problem that does not exist. This repo settled that argument in
+      # PR #93 and again in PR #141. Omitting the key is the honest fallback: it
+      # puts the row in the population the report warns about.
+      #
+      # No test drives it. The shape needs a class that passes the resolver's
+      # collection_type? and then raises on .name, which means an anonymous or
+      # hostile ActiveRecord class in the dummy app — the same fixture that
+      # broke GrantDiagnosisTest once already, because PolymorphicRegistry and
+      # GrantDiagnosis both walk descendants. Cheap insurance, honestly
+      # unpinned (#196 review).
+      begin
+        details[:model] = recordable_model_name(record, model) unless unnameable_model?(record, model)
+      rescue StandardError
+        # Nothing to undo: Ruby evaluates the right-hand side before assigning,
+        # so a raise leaves the key unset, which is the fallback this wants —
+        # the row joins the population the report warns about (#196 review).
+        nil
+      end
+
       CurrentScope::Event.record!(
-        event: "access.would_deny", target: target || subject,
-        details: { permission: permission, reason: "no_grant", record_less: target.nil? }
+        event: "access.would_deny", target: target || subject, details: details
       )
     rescue StandardError => e
       # ponytail: swallow and warn ONCE. An unrecordable observation is a lost
@@ -467,6 +515,37 @@ module CurrentScope
         request_outcome: "The request WAS allowed through — only the access.would_deny row is missing."
       )
       nil
+    end
+
+    # The model NAME the report may re-ask with, or nil (#196).
+    #
+    # nil in three cases, and in every one of them re-asking WITHOUT a type
+    # reproduces the gate's answer exactly, so nil is knowledge rather than a
+    # gap: the controller declared no record hook, so the gate never reached the
+    # record-less arm; it declared no model; or it declared one the resolver
+    # itself refuses. That last test is the resolver's own `collection_type?`,
+    # the same predicate the gate and SodPreflight use, so this cannot drift
+    # from what the gate would accept (#196 review).
+    #
+    # A type the resolver WOULD accept and the ledger cannot name is the one
+    # case that must record nothing at all rather than nil: a class is anonymous
+    # until it is assigned to a constant, and Class#name is nil until then.
+    # Recording nil would say "the gate had no type", the report would re-ask
+    # the stricter question, and a subject a scoped grant admits would be listed
+    # as denied with neither the caveat nor the marker that warn about exactly
+    # that. Absent puts the row in the population the report warns about
+    # (#196 review).
+    def recordable_model_name(record, model)
+      return nil if record.equal?(NO_RECORD)
+      return nil unless model.is_a?(Class)
+      return nil unless CurrentScope.resolver.collection_type?(model)
+
+      model.name.presence
+    end
+
+    def unnameable_model?(record, model)
+      !record.equal?(NO_RECORD) && model.is_a?(Class) &&
+        CurrentScope.resolver.collection_type?(model) && model.name.blank?
     end
 
     # The failure this catches is PERSISTENT, not incidental: :report + audit

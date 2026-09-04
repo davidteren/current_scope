@@ -110,6 +110,84 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   runs; moving it to `after_commit` would forfeit the `:strict` rollback every
   other event keeps. A role created by a seed therefore leaves no `role.created`
   row while its deletion leaves `role.deleted`.
+- **Four code comments stopped claiming `schema.rb` cannot carry a MySQL
+  collation (#194).** It can: Rails dumps a per-column `collation:` whenever a
+  column's collation differs from its table's, which is exactly what the #151
+  widening produces. The real hazard is narrower and is what the comments now
+  say: a dump taken from PostgreSQL or SQLite carries none, so a team that
+  develops on one adapter and runs MySQL in CI loads a schema whose grant
+  columns come out case and accent insensitive. The advice never changed,
+  because `current_scope:repair_schema` is idempotent and settles it either
+  way. #191 corrected the same claim in every prose file; these four were
+  deferred because that change could not edit `lib/`.
+- **Boot refusals name the database they judged (#193).** All five
+  `CurrentScope::SchemaGuard` refusals prescribed a command and none said which
+  database had failed, and every command was printed with no `RAILS_ENV`. That
+  built a loop: a host upgrades, migrates development, and the next `bin/rails
+  test` aborts because the TEST database still has the old shape. The message
+  then tells them to run the commands they have just run, or a repair with no
+  environment that repairs development a second time and succeeds. Each refusal
+  now names the environment and the connection's database, and prefixes the
+  command with `RAILS_ENV=` wherever that is not the default.
+
+  `current_scope:repair_schema` also repairs the engine's own database. It ran
+  the widening through `Migration#migrate`, which goes to
+  `ActiveRecord::Tasks::DatabaseTasks.migration_connection` — the DEFAULT
+  database. A host with the engine's tables on a second connection watched the
+  task report success against the wrong database while boot kept failing on the
+  right one. It executes against `CurrentScope::ApplicationRecord`'s pool now,
+  the base both grant models inherit.
+
+  The integer-column refusal now names three paths and says which is which,
+  because it has three audiences. A host who has never installed the widening
+  migration needs `current_scope:install:migrations && db:migrate` in
+  development, the path that also updates `schema.rb` so CI and teammates get
+  the same shape. A host who has it installed but has not run it on the failing
+  server needs a plain `db:migrate` against that database. A host whose
+  database was BUILT from `schema.rb` has every version stamped already, so
+  `db:migrate` finds nothing pending and `current_scope:repair_schema` is the
+  only one that works.
+- **`current_scope:report` re-checks with the model the gate used (#196).** The
+  task re-asked the resolver without `model:`, while `CurrentScope::Guard`
+  fills it from the controller's `current_scope_model` hook on every real
+  request. That is a stricter question: the resolver's record-less arm needs a
+  type to see a scoped grant at all, so every subject a scoped grant already
+  admits was reported as still denied. Worse than a miscount, because the fix
+  the list implies is to grant the whole controller to everyone. On the host
+  that found it, 406 of 696 outstanding denials were this false positive.
+
+  The `access.would_deny` ledger row now stores the model the gate decided
+  with, and the report resolves it and asks again with it. A name is recorded
+  only when the gate could have used it, and `nil` when it could not: a
+  controller that declares `current_scope_model` without `current_scope_record`
+  never reaches the record-less arm, and a hook returning a type the resolver
+  refuses is no better off. Re-asking without a model reproduces the gate's
+  answer in both cases, so the report cannot answer allowed where the gate
+  denies. A row recording `nil` is not the same as one written before the field
+  existed, which has no key at all: `nil` is knowledge, absent is not.
+
+  Rows written before this field existed are re-checked the old way, without a
+  model, and the report now says how many of its outstanding denials those are,
+  marks them in the list, and warns not to grant on the strength of that line.
+  Exercise the action again in report mode and read the fresh row instead: when
+  a newer row for the same subject, permission and target carries the model and
+  comes back granted, the old row is answered by it and leaves the count. The
+  ledger is append-only, so without that it could never clear itself and an
+  over-grant would be the only thing that moved the number.
+
+  A recorded model name that no longer loads, or that comes back as something
+  the resolver refuses, is re-checked anyway, without a type, because every arm
+  that can allow without one allows with one too. Only a denial then counts as
+  unknown, and the report says those name a class that no longer loads: an
+  org-wide grant still clears them, a scoped one cannot, because the arm that
+  reads the type is the one that cannot run.
+
+  Two private methods changed shape: `CurrentScope::Guard#report_would_deny`
+  and `#record_would_deny_event` each take the model as a required third
+  argument. Both are private and undocumented, and the argument is required on
+  purpose, because a default would let a call site record "the gate had no
+  model" when it simply forgot to say. A host or test double that overrode
+  either two-argument form has to add the parameter.
 - **`current_scope:report` tells a moot denial from one it cannot re-check
   (#190).** Every failed lookup of a recorded denial's target landed in one
   "could not be re-checked" bucket and was counted as outstanding, so a denial

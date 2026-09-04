@@ -62,6 +62,15 @@ loads a target the same way the report does and so is never asked about a row it
 cannot load. If you soft-delete, that line has one exception, and step 5 of the
 rollout below states it.
 
+The re-check asks with the same `model:` the gate used, taken from the
+controller's `current_scope_model` hook and stored on the ledger row (#196).
+Without it the report would ask a stricter question than the gate and list
+every subject a scoped grant already admits, which reads as "grant these" and
+is the one reading that hands a whole controller to everybody. Rows recorded
+before the gem stored that model are re-checked without one, and the report
+counts them on a line of their own: do not grant a permission to clear those,
+exercise the action again in report mode and read the fresh row.
+
 **Report mode is an adoption ramp, not a way to run in production.** It relaxes
 exactly one thing — "nobody has granted this yet". It never lifts the
 separation-of-duties veto, and it never opens the management console. Enabling it

@@ -148,7 +148,7 @@ the shorter table below works with JavaScript off.
 | You want policy objects with caching, testing and failure reasons built in | **Action Policy** |
 | You already think in `can :read, Post` and want list filtering from the same rules | **CanCanCan** |
 | Your authorization is per controller, not per model, and you want it tiny | **Banken**, but read the maintenance note above the table first |
-| You cannot ship anything that is still in beta | Not CurrentScope, yet |
+| You cannot ship anything that is still in beta, or anything pre-1.0 | Not CurrentScope, and not **Action Policy** either: it is mature and widely used but has never cut a 1.0 (0.7.6 today) |
 
 ---
 

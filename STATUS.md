@@ -2,13 +2,11 @@
 
 > ## Last session handoff
 >
-> **What this is:** CurrentScope on main, Beta, with the 1.0 gate now
-> actually runnable.
-> **What we finished:** The rollout rehearsal could never be finished, because
-> the report counted history instead of what is still denied. It now reaches
-> zero (PR #184) and says what it cannot see (PR #185).
-> **What you do next:** Run report mode on a real app, then flip it to
-> enforce. That is the last gate before 1.0 (#116).
+> **What this is:** All five pull requests are merged and main is green.
+> **What we finished:** The fit comparison shipped, and 28 review threads were
+> answered, which corrected what the docs claimed about report mode.
+> **What you do next:** Ask a fresh agent to validate what landed; the brief is
+> `notes/2026-09-04_validation-brief.md`.
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >

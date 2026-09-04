@@ -59,6 +59,7 @@ Rails.application.routes.draw do
   # model with NO record hook (the R9 inert-model clause).
   get "undeclared_model", to: "undeclared_model#index"
   get "invalid_model", to: "invalid_model#index" # 0.3.0 release gate: the mis-declared hook probe
+  get "anonymous_model", to: "anonymous_model#index" # #196 review: the unnameable-type probe
   get "inert_model", to: "inert_model#index"
   get "inert_model_ambient", to: "inert_model#ambient" # #50 review: the stash-nil probe
   post "writes/guarded", to: "writes#guarded", as: :writes_guarded

@@ -71,6 +71,47 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pilots.
 
 ### Fixed
+- **`current_scope:report` re-checks with the model the gate used (#196).** The
+  task re-asked the resolver without `model:`, while `CurrentScope::Guard`
+  fills it from the controller's `current_scope_model` hook on every real
+  request. That is a stricter question: the resolver's record-less arm needs a
+  type to see a scoped grant at all, so every subject a scoped grant already
+  admits was reported as still denied. Worse than a miscount, because the fix
+  the list implies is to grant the whole controller to everyone. On the host
+  that found it, 406 of 696 outstanding denials were this false positive.
+
+  The `access.would_deny` ledger row now stores the model the gate decided
+  with, and the report resolves it and asks again with it. A name is recorded
+  only when the gate could have used it, and `nil` when it could not: a
+  controller that declares `current_scope_model` without `current_scope_record`
+  never reaches the record-less arm, and a hook returning a type the resolver
+  refuses is no better off. Re-asking without a model reproduces the gate's
+  answer in both cases, so the report cannot answer allowed where the gate
+  denies. A row recording `nil` is not the same as one written before the field
+  existed, which has no key at all: `nil` is knowledge, absent is not.
+
+  Rows written before this field existed are re-checked the old way, without a
+  model, and the report now says how many of its outstanding denials those are,
+  marks them in the list, and warns not to grant on the strength of that line.
+  Exercise the action again in report mode and read the fresh row instead: when
+  a newer row for the same subject, permission and target carries the model and
+  comes back granted, the old row is answered by it and leaves the count. The
+  ledger is append-only, so without that it could never clear itself and an
+  over-grant would be the only thing that moved the number.
+
+  A recorded model name that no longer loads, or that comes back as something
+  the resolver refuses, is re-checked anyway, without a type, because every arm
+  that can allow without one allows with one too. Only a denial then counts as
+  unknown, and the report says those name a class that no longer loads: an
+  org-wide grant still clears them, a scoped one cannot, because the arm that
+  reads the type is the one that cannot run.
+
+  Two private methods changed shape: `CurrentScope::Guard#report_would_deny`
+  and `#record_would_deny_event` each take the model as a required third
+  argument. Both are private and undocumented, and the argument is required on
+  purpose, because a default would let a call site record "the gate had no
+  model" when it simply forgot to say. A host or test double that overrode
+  either two-argument form has to add the parameter.
 - **`current_scope:report` tells a moot denial from one it cannot re-check
   (#190).** Every failed lookup of a recorded denial's target landed in one
   "could not be re-checked" bucket and was counted as outstanding, so a denial

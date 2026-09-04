@@ -130,7 +130,7 @@ namespace :current_scope do
 
     begin
       rows = CurrentScope::Event.where(event: "access.would_deny")
-                                .pluck(:subject, :target_label, :details, :target)
+                                .pluck(:subject, :target_label, :details, :target, :created_at, :id)
       # #73: SoD blind-spot 403s are NOT would_deny (granting won't fix them).
       # Surface them as a separate section so the survey is complete.
       blind_rows = CurrentScope::Event.where(event: "access.sod_blind_spot")
@@ -177,6 +177,22 @@ namespace :current_scope do
     # Best effort by design, like every other section here: a subject or record
     # that no longer resolves is reported as unknown rather than silently counted
     # as fixed, because "cannot tell" must never read as "ready".
+    # Named fields, not a positional tuple (#196 review). Five sums and two set
+    # builders read this, and a wrong index is a count that silently disagrees
+    # with the headline — which is what the detail-list key got wrong once
+    # already. `denials` rather than `count`, so the reader does not shadow
+    # Enumerable#count on a Struct. Held in a LOCAL, not a constant: this file
+    # is loaded into a host application, and a gem's rake task has no business
+    # defining a name as generic as Denial at the top level.
+    # `record_less` is the RAW recorded flag, which the detail-list key must
+    # match against the ledger row; `asked_record_less` is the value the
+    # re-check actually used, which for a row written before the flag existed
+    # falls back to comparing the GIDs. Two fields because the two jobs are
+    # different, and using the raw one for the second silently excluded the
+    # oldest rows from being answered at all (#196 review).
+    denial_row = Struct.new(:subject_gid, :permission, :target_gid, :denials, :record_less,
+                            :asked_record_less, :model, :last_seen, keyword_init: true)
+
     outstanding = []
     resolved = []
     unknown = []
@@ -186,6 +202,19 @@ namespace :current_scope do
     # from `unknown`, which stays counted, and out of `signals`, because moot
     # needs no operator action.
     moot = []
+    # #196: rows written before the ledger recorded the gate's model. They are
+    # re-checked the old way, without one, which is the STRICTER question, so a
+    # subject a scoped grant already admits reads as outstanding. Counted here
+    # so the report can say how much of its own list it cannot vouch for,
+    # instead of letting an operator grant a whole controller to clear it.
+    legacy_model = []
+    # #196 review: a record-less row whose recorded model name no longer loads.
+    # It is still ASKED, without a type, because every arm that can allow
+    # without one allows with one too; only a denial lands here, and only that
+    # denial is the answer the missing type could have changed. Tracked so the
+    # report can say which part of its cannot-tell pile this is, and what does
+    # and does not move it.
+    dead_model = []
     # Keyed on the TARGET too, not just subject and permission: a denial the host
     # will clear with a scoped grant on one record is a different question from
     # the same permission on another record, and collapsing them would re-ask
@@ -194,11 +223,20 @@ namespace :current_scope do
     # before the flag existed) and a new one can share a subject, permission and
     # target, and taking either row's value would apply it to the other. A group is
     # therefore uniform by construction, and the legacy rows fall back on their own.
+    # The recorded MODEL is part of the key too (#196), for the same reason
+    # record_less is: a legacy row that never stored one and a new row that
+    # stored nil are different questions, and a group has to be uniform or one
+    # member's answer gets applied to the other. `:absent` is the field missing,
+    # nil is the field present and empty.
     rows.group_by { |subject_gid, _label, details, target_gid|
       hash = details.is_a?(Hash) ? details : {}
-      [ subject_gid, hash["permission"], target_gid, hash["record_less"] ]
-    }.each do |(subject_gid, permission, target_gid, recorded_flag), group|
-      pair = [ subject_gid, permission, target_gid, group.count, recorded_flag ]
+      [ subject_gid, hash["permission"], target_gid, hash["record_less"],
+        hash.key?("model") ? hash["model"] : :absent ]
+    }.each do |(subject_gid, permission, target_gid, recorded_flag, recorded_model), group|
+      pair = denial_row.new(subject_gid: subject_gid, permission: permission, target_gid: target_gid,
+                            denials: group.count, record_less: recorded_flag,
+                            asked_record_less: nil, model: recorded_model,
+                            last_seen: group.filter_map { |row| [ row[4], row[5] ] if row[4] }.max)
       if permission.nil?
         unknown << pair
         next
@@ -246,6 +284,7 @@ namespace :current_scope do
       # permissive arm.
       record_less = recorded_flag.nil? ? (target_gid.blank? || target_gid == subject_gid)
                                        : recorded_flag
+      pair.asked_record_less = record_less
       # A recorded target that no longer resolves is NOT the same as no target:
       # re-asking without it would answer a question the ledger never asked.
       record = nil
@@ -262,17 +301,103 @@ namespace :current_scope do
         record = located
       end
 
+      # #196: ask with the model the GATE used. CurrentScope::Guard fills
+      # `model:` from the controller's current_scope_model hook on every real
+      # request, and the resolver's record-less arm needs it to see a scoped
+      # grant at all. Re-asking without it asks a stricter question and calls a
+      # subject denied whom the gate admits — and the fix that reading implies
+      # is to grant the whole controller to everyone.
+      #
+      # A name that no longer resolves to a class is UNKNOWN, not allowed:
+      # failing closed, the same as every other cannot-tell in this task.
+      #
+      # Only for a RECORD-LESS row (#196 review). `model:` changes the
+      # record-less arm and nothing else, so a row that carries a live record is
+      # answerable with or without it. Bailing to `unknown` on a name that no
+      # longer constantizes would strand such a row as outstanding for ever,
+      # which no grant can clear — the unreachable exit condition #190 fixed,
+      # one layer down.
+      model = nil
+      dead_model_name = false
+      if record_less && recorded_model.is_a?(String)
+        model = begin
+          recorded_model.constantize
+        rescue StandardError
+          nil
+        end
+        # collection_type?, not is_a?(Class): a name can survive and come back
+        # as something the resolver refuses (a renamed constant, a module, a
+        # PORO). Passing it would label the row as re-checked with the gate's
+        # type when it was not (#196 review).
+        unless model.is_a?(Class) && CurrentScope.resolver.collection_type?(model)
+          model = nil
+          dead_model_name = true
+        end
+      end
+
       still_denied = begin
-        !CurrentScope.resolver.allow?(subject: subject, permission: permission, record: record)
+        !CurrentScope.resolver.allow?(subject: subject, permission: permission,
+                                      record: record, model: model)
       rescue StandardError
         nil
       end
       case still_denied
-      when true then outstanding << pair
+      when true
+        # A DENY is the one answer the missing type could have changed, so a
+        # dead model name makes it cannot-tell rather than grant-this. An ALLOW
+        # needs no such caveat: every arm that can allow without a type allows
+        # with one too (#196 review).
+        if dead_model_name
+          unknown << pair
+          dead_model << pair
+        else
+          outstanding << pair
+          # Only a record-less row can turn on the model, so only those are
+          # worth qualifying. A legacy row WITH a record is answered identically
+          # either way, and naming it would inflate the caveat.
+          legacy_model << pair if recorded_model == :absent && record_less
+        end
       when false then resolved << pair
       else unknown << pair
       end
     end
+
+    # Keyed on the question that was ASKED, record-lessness included: a
+    # self-targeted denial and a record-less one share a target GID, and they
+    # are answered by different arms of the resolver. Matching on the three-part
+    # key would let a record-bound answer drop a record-less row off the list,
+    # which fails open (#196 review).
+    replay_key = lambda do |denial|
+      [ denial.subject_gid, denial.permission, denial.target_gid, denial.asked_record_less ]
+    end
+    # The NEWEST model-bearing answer per question, and the questions where a
+    # model-bearing row is still denied. A legacy row is answered only when a
+    # model-bearing row for the same question came back granted, that row is
+    # newer than the legacy one, and no sibling of it is still denied.
+    #
+    # Newer, because during a rolling deploy an older new-format row would
+    # otherwise hide a later old-format denial, and the sentence this prints
+    # says "since". Newer is [created_at, id], not created_at alone: two rows
+    # written in the same request share a timestamp, and a strict comparison on
+    # that alone would refuse the answer and leave a stale denial standing
+    # (#196 review). Not-still-denied, because `current_scope_model` may return
+    # different types for the same permission, and a granted answer for one of
+    # them is no answer for the other.
+    answered_with_model = resolved.select { |denial| denial.model.is_a?(String) }
+                                  .group_by(&replay_key)
+                                  .transform_values { |denials| denials.filter_map(&:last_seen).max }
+    still_denied_with_model = outstanding.select { |denial| denial.model.is_a?(String) }
+                                         .to_set(&replay_key)
+    superseded, outstanding = outstanding.partition do |denial|
+      next false unless denial.model == :absent && denial.asked_record_less
+
+      key = replay_key.call(denial)
+      answer = answered_with_model[key]
+      # <=>, not >: last_seen is a [created_at, id] pair and Array has no >.
+      answer && !still_denied_with_model.include?(key) &&
+        (denial.last_seen.nil? || (answer <=> denial.last_seen) == 1)
+    end
+    legacy_model -= superseded
 
     dead_grants = []
     untargeted_grants = []
@@ -345,13 +470,18 @@ namespace :current_scope do
       # headline and the list below can never disagree. outstanding carries a
       # per-pair count because the re-check is per pair.
       "would-be denials STILL ungranted (grant these)" =>
-        outstanding.sum { |pair| pair[3] } + unknown.sum { |pair| pair[3] },
+        outstanding.sum(&:denials) + unknown.sum(&:denials),
       "scoped grants that can never match" => dead_grants.count,
       "scoped grants worth checking" => untargeted_grants.count,
       "SoD actions that will RAISE (500, not grantable)" => preflight_rows.count,
       "SoD blind-spot denials (not grantable)" => blind_rows.count,
       "SoD actions that already RAISED (500, not grantable)" => initiator_rows.count
     }.reject { |_label, count| count.zero? }
+
+    # The grouping key has five parts, so one subject and permission can produce
+    # two entries (a legacy row and a modern one). The sentences below say
+    # "pair(s)", so they count pairs (#196 review).
+    resolved_pairs = resolved.map { |denial| [ denial.subject_gid, denial.permission ] }.uniq.count
 
     separate.call
     # `moot` is deliberately absent from `signals`: that list is the act-on-this
@@ -366,33 +496,60 @@ namespace :current_scope do
     else
       puts "CurrentScope report: nothing #{moot.any? ? 'to act on' : 'found'} in any category."
     end
-    if outstanding.empty? && unknown.empty? && (resolved.any? || moot.any?)
+    if outstanding.empty? && unknown.empty? && (resolved.any? || moot.any? || superseded.any?)
       puts
       if moot.any?
         # Two different units in one sentence, so each names its own: resolved
         # counts PAIRS (as the sentence below it always has), moot counts
         # DENIALS (the unit of the headline and of the unknown line).
-        puts "  Nothing recorded so far is still outstanding: #{resolved.count} subject/permission pair(s)"
-        puts "  re-checked against live grants are granted, and #{moot.sum { |pair| pair[3] }} recorded denial(s) name a"
+        puts "  Nothing recorded so far is still outstanding: #{resolved_pairs} subject/permission pair(s)"
+        puts "  re-checked against live grants are granted, and #{moot.sum(&:denials)} recorded denial(s) name a"
         puts "  record that no longer loads."
       else
         puts "  Every would-be denial recorded so far is now granted " \
-             "(#{resolved.count} subject/permission pair(s) re-checked against live grants)."
+             "(#{resolved_pairs} subject/permission pair(s) re-checked against live grants)."
       end
       puts "  The ledger still lists them because it is append-only. That is the list"
       puts "  you were waiting to see empty; this is what empty looks like."
     end
     if unknown.any?
       puts
-      puts "  #{unknown.sum { |pair| pair[3] }} recorded denial(s) could not be re-checked, because the"
-      puts "  subject, the record or the permission no longer resolves. They are counted"
-      puts "  as OUTSTANDING above: cannot tell is not the same as ready."
+      puts "  #{unknown.sum(&:denials)} recorded denial(s) could not be re-checked, because the"
+      puts "  subject, the record, the permission or the recorded model no longer resolves."
+      puts "  They are counted as OUTSTANDING above: cannot tell is not the same as ready."
+      if dead_model.any?
+        puts
+        puts "  #{dead_model.sum(&:denials)} of those name a model class that no longer loads (renamed or removed)."
+        puts "  The gate's own question cannot be put again, so these were asked the only way"
+        puts "  left, without a type. An org-wide grant still clears them; a SCOPED one cannot,"
+        puts "  because the arm that reads the type is the arm that cannot run. Exercise the"
+        puts "  action again in report mode and read the fresh row."
+      end
     end
     if moot.any?
       puts
-      puts "  #{moot.sum { |pair| pair[3] }} recorded denial(s) name a record that no longer loads (deleted, or hidden"
+      puts "  #{moot.sum(&:denials)} recorded denial(s) name a record that no longer loads (deleted, or hidden"
       puts "  by a default scope). The gate can never be asked about that record again, so"
       puts "  they are NOT counted as outstanding."
+    end
+    if superseded.any?
+      puts
+      puts "  #{superseded.sum(&:denials)} recorded denial(s) predate the stored model and have since been"
+      puts "  ASKED AGAIN: a newer row for the same subject, permission and target carried the"
+      puts "  gate's model and came back granted. The old row cannot clear itself, because the"
+      puts "  ledger is append-only, so it is answered here and left out of the count."
+    end
+    if legacy_model.any?
+      puts
+      puts "  #{legacy_model.sum(&:denials)} of the outstanding denial(s) were recorded BEFORE this task stored the"
+      puts "  model the gate used, so they were re-checked without one. That is the stricter"
+      puts "  question: a subject a scoped grant admits through current_scope_model reads as"
+      puts "  denied here. Some of them may be exactly that, and the row is too old to tell."
+      puts "  Do not grant on the strength of THIS line. Exercise the action again in report"
+      puts "  mode and read the fresh row, or check one by hand with"
+      puts "  CurrentScope.resolver.decide(subject:, permission:, record: nil, model: TheModel)."
+      puts "  A * in the list below marks a line that INCLUDES one; a marked line can also"
+      puts "  hold denials recorded since, which is why the two numbers need not match."
     end
     puts
     # The SoD clause only when the host opted into SoD. A project that never set
@@ -442,12 +599,20 @@ namespace :current_scope do
     #
     # Shared tally so would_deny and sod_blind_spot sections cannot drift on
     # ordering / unknown-permission handling (PR #103 review).
-    print_permission_counts = lambda do |event_rows|
+    # `mark_keys` is optional and only the would_deny section passes one: a
+    # caveat that gives a number and no way to tell which lines it covers leaves
+    # the reader to guess, on a list where the wrong guess is a grant (#196
+    # review).
+    print_permission_counts = lambda do |event_rows, mark: nil|
+      subject_gid, mark_keys = mark
       event_rows
         .group_by { |_s, _l, details| details.is_a?(Hash) ? details["permission"] : nil }
         .transform_values(&:count)
         .sort_by { |permission, count| [ -count, permission.to_s ] }
-        .each { |permission, count| puts "    #{count.to_s.rjust(5)}x  #{permission || '(unknown)'}" }
+        .each do |permission, count|
+          marker = mark_keys&.include?([ subject_gid, permission ]) ? " *" : ""
+          puts "    #{count.to_s.rjust(5)}x  #{permission || '(unknown)'}#{marker}"
+        end
     end
 
     # Only the pairs still outstanding, so this list agrees with the headline. A
@@ -457,10 +622,27 @@ namespace :current_scope do
     # headline: this is the grant-these list and a moot denial cannot be granted.
     # Pinned by "the headline counts only outstanding denials and the moot line
     # counts denials".
-    open_keys = (outstanding + unknown).to_set { |gid, permission, target, _count, flag| [ gid, permission, target, flag ] }
+    # Keyed on the recorded model too (#196 review), because the grouping above
+    # is. A legacy row and a modern row can share a subject, permission and
+    # target, land in different buckets (the modern one re-checks with the type
+    # and can be resolved), and a four-part key here would match BOTH ledger
+    # rows and print a total the headline disagrees with.
+    open_keys = (outstanding + unknown).to_set do |denial|
+      [ denial.subject_gid, denial.permission, denial.target_gid, denial.record_less, denial.model ]
+    end
     open_rows = rows.select do |subject_gid, _label, details, target_gid|
       hash = details.is_a?(Hash) ? details : {}
-      open_keys.include?([ subject_gid, hash["permission"], target_gid, hash["record_less"] ])
+      open_keys.include?([ subject_gid, hash["permission"], target_gid, hash["record_less"],
+                           hash.key?("model") ? hash["model"] : :absent ])
+    end
+
+    # One marker for both populations, because they are the same fact: this line
+    # holds a denial that was re-checked WITHOUT the model the gate uses. A
+    # count with no way to find the lines it refers to is the gap the legacy
+    # caveat was given a marker to close, and the dead-model caveat has it too
+    # (#196 review).
+    no_model_keys = (legacy_model + dead_model).to_set do |denial|
+      [ denial.subject_gid, denial.permission ]
     end
 
     unless open_rows.empty?
@@ -468,19 +650,23 @@ namespace :current_scope do
       grouped = open_rows.group_by { |subject, _label, _details| subject }
 
       puts "Would-be denials still outstanding — grant these to stop them (most-denied first):"
+      if no_model_keys.any?
+        puts "  * = includes denial(s) re-checked WITHOUT the gate's model, because the row"
+        puts "      predates it or names a type that no longer loads. See the notes above."
+      end
       puts
 
       grouped.each do |subject_gid, subject_rows|
         label = subject_rows.first[1].presence || subject_gid
         puts "  #{label}#{org_role_suffix.call(subject_gid)}"
-        print_permission_counts.call(subject_rows)
+        print_permission_counts.call(subject_rows, mark: [ subject_gid, no_model_keys ])
         puts
       end
 
       puts "Total: #{open_rows.count} outstanding would-be denial(s) across " \
            "#{grouped.size} subject(s)."
       if resolved.any?
-        puts "#{resolved.count} more subject/permission pair(s) were recorded and are " \
+        puts "#{resolved_pairs} more subject/permission pair(s) were recorded and are " \
              "now granted; the ledger keeps them because it is append-only."
       end
     end

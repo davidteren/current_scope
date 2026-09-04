@@ -2,11 +2,12 @@
 
 > ## Last session handoff
 >
-> **What this is:** All five pull requests are merged and main is green.
-> **What we finished:** The fit comparison shipped, and 28 review threads were
-> answered, which corrected what the docs claimed about report mode.
-> **What you do next:** Ask a fresh agent to validate what landed; the brief is
-> `notes/2026-09-04_validation-brief.md`.
+> **What this is:** Five fresh agents validated the five merged pull requests
+> against the brief, one slice each.
+> **What we finished:** The findings are in `notes/2026-09-04_validation-findings.md`:
+> no P1, the transient has a root cause and a green fix, and nine P2 test gaps.
+> **What you do next:** Fix finding 1 (two support files drop shared test tables)
+> and finding 2 (the MySQL predicate is untested), then the rest in order.
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >

@@ -347,8 +347,10 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
 
   test "a tie is shown as a tie, with the cost of every library in it" do
     ties = every_path.select { |r| r["tie"] }
-    refute_empty ties, "the scores are coarse on purpose, so some answer has to tie; " \
-                       "none did, which means ties are being broken by declaration order"
+    # Guarded so the per-tie checks below cannot pass over an empty set.
+    refute_empty ties, "no answer path tied, so nothing below was checked; either ties are " \
+                       "being broken by declaration order or the scoring changed so that " \
+                       "no two libraries tie any more"
     ties.each do |r|
       assert_includes r["heading"].to_s, " or ", "a tie has to name every library in it: #{r['answers']}"
       costs = r["body"].to_s.scan("What you give up with").length

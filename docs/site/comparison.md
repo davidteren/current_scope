@@ -52,16 +52,20 @@ table.
   whole point.
 - **Access is per record, not per class.** "Editor of Project 7, and nothing on
   Project 8" is a stored grant, not a condition you re-derive in every policy.
-  A model can opt into a parent chain so a grant on a project covers that
-  project's reports, including reports created after the grant.
+  A model can opt into a parent chain so a role granted on a project also
+  answers for that project's reports, for the actions the role ticks, including
+  reports created after the grant.
 - **Somebody has to be able to answer "who could approve this, and when did
-  that change?"** With `config.audit` on, every grant and revoke lands in an
-  append-only ledger.
+  that change?"** With `config.audit` on, every scoped grant, every revoke, and
+  every org-wide grant made through the console or `CurrentScope.grant!` lands
+  in an append-only ledger. Direct model writes such as `RoleAssignment.create!`
+  are the exception; the configuration guide tables them.
 - **A four-eyes rule that must not be negotiable.** The separation-of-duties
   veto is checked before everything else and cannot be granted around, not even
-  by full access. There is one deliberate exception, and it is a break-glass
-  rather than a permission: a host can implement `current_scope_sod_bypassed?`
-  on a record, and the resulting allow is written to the ledger as such.
+  by full access. There is one deliberate break-glass, and it takes three things
+  at once: `config.allow_sod_bypass = true`, a `current_scope_sod_bypassed?`
+  hook on the record, and an initiator who holds the `bypass_sod` permission.
+  With auditing on, the resulting allow is written to the ledger as such.
 - **You are retrofitting a live app.** Report mode downgrades **a missing
   grant** to a logged allow, so you read the list before you enforce. It is not
   an off switch: the separation-of-duties veto still refuses, and the management
@@ -109,7 +113,7 @@ Read the first two rows first; the rest are consequences of them.
 | **Attribute rules** ("under 10,000") | **Not expressible** | Any Ruby | Any Ruby | Conditions on attributes | Any Ruby | A core strength |
 | **Who-did-what ledger** | Built in, append-only | Bring your own | Bring your own | Bring your own | Bring your own | Centralised logs in the cloud product |
 | **Safe rollout on a live app** | Report mode + a starter grid | Your own instrumentation | Your own instrumentation | Your own instrumentation | Your own instrumentation | Test and simulation tooling |
-| **Four-eyes rule** | Structural: not grantable around | A condition you write | A condition you write | A condition you write | A condition you write | A rule you write |
+| **Four-eyes rule** | Structural veto, with one explicit break-glass | A condition you write | A condition you write | A condition you write | A condition you write | A rule you write |
 | **Admin UI** | Mounted, included | None | None | None | None | In the cloud product |
 | **Runs where** | In your app, on your database | In your app | In your app | In your app | In your app | A service you call |
 | **Last release** (2026-09-01) | 0.5.1, beta | 2.5.2, Sep 2025 | 0.7.6, Jan 2026 | 3.6.1, May 2024 | 1.0.3, Jan 2019 | Ruby gem retired Jan 2024 |
@@ -172,8 +176,11 @@ not developer time.
    `config.enforcement = :report` and `config.audit = true`. A request that
    would have been refused **for want of a grant** is allowed through and
    written to the ledger instead. Read that as "no big-bang cutover", not as
-   "nothing is refused": the separation-of-duties veto and the management
-   console's own full-access check are outside this setting and still refuse.
+   "nothing is refused": the separation-of-duties veto, the management
+   console's own full-access check, a mis-declared record hook and the
+   impersonation gate are outside this setting and still refuse. A request
+   with no signed-in subject is let through and recorded nowhere, which is why
+   sign-in has to be skipped explicitly (below).
 2. **Bake (one to four weeks).** Let real traffic run. Month-end, quarter-end
    and the annual job matter here: an action nobody performs during your bake is
    an action nobody has granted, and it will fail the day someone runs it.

@@ -120,7 +120,7 @@ destroyed through (updates are a separate matter — see the table below).
 `role.deleted` are emitted from model callbacks, so a seed, a rake task, a
 console one-liner and the `grant_scoped_role!` test helper all record what the
 management UI records. (`grant_role!` is a direct `RoleAssignment.create!`, and
-org-role creation is one of the two writes named below as still unrecorded.)
+org-role creation is one of the five writes named below as still unrecorded.)
 Every event that CHANGES an authorization carries `details.attribution` —
 `org_role.assigned`, `org_role.changed`, `org_role.removed`, `role.created`,
 `role.updated`, `role.renamed`, `role.deleted`, `scoped_role.granted` and
@@ -146,13 +146,14 @@ one the document was applied with. Do not read an absent `attribution` as
 "not a human".
 
 What is recorded from the model is **creation and destruction of scoped
-grants**, and **destruction** of org-role assignments and of roles. Four write
+grants**, and **destruction** of org-role assignments and of roles. Five write
 paths are still silent, and it is worth knowing which before you rely on the
 ledger:
 
 | Write | Recorded? |
 |---|---|
 | `ScopedRoleAssignment` create / destroy | yes, from the model |
+| `ScopedRoleAssignment#update!` direct (`role:`, `subject:`, `resource:`) | no — the callbacks are `after_create` and `after_destroy`; re-pointing a live scoped grant leaves no row |
 | `RoleAssignment` destroy, `Role` destroy | yes, from the model |
 | `RoleAssignment.create!` direct | no — `CurrentScope.grant!` is the documented path and carries the from/to a callback cannot see |
 | `RoleAssignment#update!(role:)` direct | no — same reason; a console re-grant leaves no trail |

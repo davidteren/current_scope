@@ -18,6 +18,12 @@ committed, pushed or posted.
 
 No P1 was found. The unexplained transient has a root cause and a candidate fix.
 
+**Status (2026-09-04, later the same day):** every P2 below and the doc claims
+in finding 8 are fixed in [PR #202](https://github.com/davidteren/current_scope/pull/202).
+The candidate fix for finding 1 grew into `test/support/support_table.rb`,
+which rebuilds a support table only when its column names drift, so neither
+the concurrent drop nor the stale-schema trap remains.
+
 ## Findings, most severe first
 
 ### 1. The suite cannot run as two processes in one checkout (the transient)

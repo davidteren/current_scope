@@ -1,0 +1,23 @@
+test/grantable_roles_test.rb
+  s_240773ee81a9c0::t_3e959a78f0dde5 199-205
+app/controllers/current_scope/scoped_role_assignments_controller.rb
+  s_240773ee81a9c0::t_0f1b477797256d 317-324
+app/assets/javascripts/current_scope/application.js
+  s_240773ee81a9c0::t_484b3f1a23bde5 14-18,31-41,52,54,62-64,66-72,74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "d58cfb794bd0932f1b2d29f7d770402be3e89a54",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

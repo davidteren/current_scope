@@ -57,7 +57,7 @@ table.
   reports created after the grant.
 - **Somebody has to be able to answer "who could approve this, and when did
   that change?"** With `config.audit` on, every scoped grant, every revoke, and
-  every org-wide grant made through the console or `CurrentScope.grant!` lands
+  every org-wide grant made through the management console or `CurrentScope.grant!` lands
   in an append-only ledger. Direct model writes such as `RoleAssignment.create!`
   are the exception; the configuration guide tables them.
 - **A four-eyes rule that must not be negotiable.** The separation-of-duties

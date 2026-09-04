@@ -1,0 +1,19 @@
+test/support_tables_test.rb
+  s_92f671d71b11f8::t_96b3bcf7e09225 3-7,11,15-16,19,21,23-35,40-42,44,46,49-51,53,55,59-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "060bfeee97a679ae5a0f5ea3fd68af5514de0dcb",
+  "prompts": {},
+  "sessions": {
+    "s_92f671d71b11f8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "89b1e1cc-21c7-4a01-ba95-6d21be397c6d",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

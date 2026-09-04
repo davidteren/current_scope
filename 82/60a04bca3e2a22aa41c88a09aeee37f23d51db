@@ -1,0 +1,21 @@
+docs/reviews/2026-09-04-validation-findings-pr197-201.md
+  s_92f671d71b11f8::t_fa2cd426a82113 5-7,22-23,91
+  s_92f671d71b11f8::t_84d38882e9efad 1-4,8-21,24-31,33-57,59-90,92-110,112-143,145-163,165-195
+  s_92f671d71b11f8::t_e06318efb699fd 32,58,111,144,164
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "8260a04bca3e2a22aa41c88a09aeee37f23d51db",
+  "prompts": {},
+  "sessions": {
+    "s_92f671d71b11f8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "89b1e1cc-21c7-4a01-ba95-6d21be397c6d",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

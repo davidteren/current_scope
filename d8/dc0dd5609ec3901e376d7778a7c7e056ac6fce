@@ -1,0 +1,19 @@
+test/system/docs_site_fit_chooser_test.rb
+  s_92f671d71b11f8::t_c3f8ddbe314041 350-353
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "d8dc0dd5609ec3901e376d7778a7c7e056ac6fce",
+  "prompts": {},
+  "sessions": {
+    "s_92f671d71b11f8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "89b1e1cc-21c7-4a01-ba95-6d21be397c6d",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -18,6 +18,12 @@ gem "rubocop-rails-omakase", require: false
 group :test do
   gem "capybara"
   gem "cuprite"
+  # Required directly by the docs-site browser tests (test/system/support/
+  # headless_chrome.rb and the three docs_site_*_test.rb files), which drive the
+  # static pages over file:// with no app server. It arrives through cuprite
+  # anyway, but a file that requires it should say so: otherwise a driver change
+  # in cuprite would surface as a missing gem rather than as what it is.
+  gem "ferrum"
   # #151 widened the polymorphic id columns to string, and adapters disagree about
   # comparing a string column to an integer one: SQLite coerces silently, MySQL
   # coerces with an index cost, PostgreSQL raises. A SQLite-only suite cannot see

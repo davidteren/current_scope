@@ -1,0 +1,152 @@
+<!--
+  Carry the visitor's theme across the seam between the marketing page and the
+  docs.
+
+  index.html lets a visitor choose light or dark and stores the choice in
+  localStorage['cs-theme']; without a stored choice it follows the OS. The
+  just-the-docs theme knows nothing about either, so before this include a
+  visitor could pick light on the landing page, click "Docs", and land in dark.
+  A preference the interface forgets one click after it was given is worse than
+  never offering it.
+
+  HOW the theme actually switches (checked against just-the-docs v0.12.0):
+  jtd.setTheme rewrites the href of the FIRST <link rel="stylesheet"> to
+  assets/css/just-the-docs-<scheme>.css. It is not a class on <html>. This
+  include is rendered at head.html:51, after that link at head.html:17, so the
+  swap here happens before first paint and the docs never flash the wrong theme.
+  The filename is derived from the existing href so the site's baseurl is
+  respected wherever it is mounted.
+-->
+<script>
+  (function () {
+    var link = document.querySelector('link[rel="stylesheet"]');
+    if (!link) return;
+
+    var stored = null;
+    try { stored = localStorage.getItem("cs-theme"); } catch (e) {}
+
+    var theme = stored === "light" || stored === "dark" ? stored : null;
+    if (!theme && window.matchMedia) {
+      theme = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    }
+    // No stored choice and no matchMedia: fall back to what the site is built
+    // with. Returning here instead would skip the wiring below, and the reader
+    // would lose the toggle with nothing on screen explaining why.
+    if (!theme) theme = {{ site.color_scheme | jsonify }};
+
+    // Reports whether it actually changed anything. String.replace returns the
+    // subject unchanged when the pattern misses, so without this a theme bump
+    // that renames the stylesheet would leave the button relabelling itself
+    // over a page that never changed.
+    function swap(next) {
+      var href = link.getAttribute("href") || "";
+      var swapped = href.replace(/just-the-docs-[a-z]+\.css/, "just-the-docs-" + next + ".css");
+      if (swapped === href) return false;
+      link.setAttribute("href", swapped);
+      return true;
+    }
+
+    // The theme's first stylesheet is compiled from site.color_scheme, so when
+    // the visitor's theme already matches it there is nothing to fetch: swapping
+    // anyway abandons an in-flight, render-blocking stylesheet for a
+    // byte-identical one under a different name.
+    // If the swap misses, the page is rendering site.color_scheme whatever the
+    // reader stored, so `theme` has to follow what is on screen. Otherwise the
+    // button would label the wrong direction and the first click would store a
+    // preference the reader never made.
+    if (theme !== {{ site.color_scheme | jsonify }} && !swap(theme)) {
+      theme = {{ site.color_scheme | jsonify }};
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      // querySelectorAll, not querySelector: just-the-docs renders
+      // nav_footer_custom.html TWICE, once in components/sidebar.html inside
+      // `.d-md-block.d-none` (desktop) and once in components/footer.html
+      // inside `.d-md-none` (mobile). Wiring only the first one leaves a phone
+      // reader with an invisible wired button and a visible dead one.
+      var toggles = document.querySelectorAll("[data-cs-docs-theme-toggle]");
+      if (!toggles.length) return;
+
+      var each = function (fn) { Array.prototype.forEach.call(toggles, fn); };
+
+      // A command button that names what it will do — not aria-pressed, which
+      // would announce "Light theme, pressed" while the page is dark.
+      var label = function () {
+        var text = theme === "dark" ? "Light theme" : "Dark theme";
+        each(function (t) { t.textContent = text; });
+      };
+
+      label();
+      // Shown only if the theme can actually be switched. The href has to match
+      // the name the swap rewrites, unless the theme's own API is loaded and
+      // can do it instead. A control that renders and cannot work is worse than
+      // no control: the reader presses it and concludes the site is broken.
+      var swappable = /just-the-docs-[a-z]+\.css/.test(link.getAttribute("href") || "") ||
+        (window.jtd && typeof window.jtd.setTheme === "function");
+      if (!swappable) return;
+
+      each(function (t) { t.hidden = false; }); // only now do they do something
+
+      each(function (t) {
+        t.addEventListener("click", function () {
+          var next = theme === "dark" ? "light" : "dark";
+          // Prefer the theme's own API when it has loaded; it points at the
+          // same stylesheet and respects baseurl the same way. Either way, the
+          // href has to actually move: this is the branch that runs in
+          // production, so it needs the same guard as the fallback. Otherwise a
+          // stylesheet rename in a future just-the-docs would flip the label
+          // and persist a preference over a page that never changed.
+          var before = link.getAttribute("href");
+          var moved = true;
+          if (window.jtd && typeof window.jtd.setTheme === "function") {
+            window.jtd.setTheme(next);
+            moved = link.getAttribute("href") !== before;
+          } else {
+            moved = swap(next);
+          }
+          if (!moved) {
+            // It proved itself dead, so stop offering it rather than leaving a
+            // button that does nothing every time it is pressed.
+            each(function (b) { b.hidden = true; });
+            return;
+          }
+          theme = next;
+          try { localStorage.setItem("cs-theme", theme); } catch (e) {}
+          label();
+        });
+      });
+    });
+  })();
+</script>
+
+<style>
+  /* The way back. A reader who arrived on a guide from a search engine has no
+     route to the landing page without this, and no way to change theme. */
+  .cs-site-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .4rem .8rem;
+    padding: .5rem 1rem 1rem;
+    font-size: .75rem;
+    line-height: 1.4;
+  }
+
+  .cs-site-links a { text-decoration: none; }
+  .cs-site-links a:hover { text-decoration: underline; }
+
+  .cs-docs-theme-toggle {
+    font: inherit;
+    font-size: .72rem;
+    background: none;
+    border: 1px solid currentColor;
+    border-radius: 100px;
+    padding: .12rem .6rem;
+    cursor: pointer;
+    color: inherit;
+    opacity: .75;
+  }
+
+  .cs-docs-theme-toggle:hover { opacity: 1; }
+  .cs-docs-theme-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+</style>

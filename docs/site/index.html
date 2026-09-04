@@ -155,6 +155,10 @@
   .eyebrow{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12.5px;
     letter-spacing:.02em;color:var(--dim);border:1px solid var(--border2);background:var(--panel);
     padding:6px 12px;border-radius:999px;margin-bottom:20px;max-width:100%;line-height:1.4}
+  /* Keep the sentence whole and let the link wrap as a unit. */
+  .eyebrow{flex-wrap:wrap;row-gap:4px}
+  .eyebrow-txt{white-space:nowrap}
+  @media (max-width:420px){.eyebrow{font-size:11.5px}.eyebrow-txt{white-space:normal}}
   .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--accent2);box-shadow:0 0 10px var(--accent)}
   .eyebrow a{color:var(--accent2);text-decoration:underline;text-underline-offset:3px}
   .hero h1{font-size:clamp(34px,5.4vw,58px);font-weight:800;line-height:1.05;max-width:16ch}
@@ -165,11 +169,28 @@
   .uses li{color:var(--dim);font-size:14.5px;padding-left:18px;position:relative}
   .uses li::before{content:"";position:absolute;left:0;top:.55em;width:8px;height:8px;border-radius:2px;background:var(--accent)}
   .cta{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px;align-items:center}
+  /* One primary action, then the rest as links: four buttons at equal weight
+     is no recommendation at all, and at 390px they stacked 2x2. */
+  .cta-more{display:flex;flex-wrap:wrap;gap:6px 18px;margin:14px 0 0;font-size:14px}
+  .cmp-more{margin-top:18px}
+  /* `main :is(p,...) a` above is (0,1,3) — :is() takes its most specific
+     argument, `.feat p` — and .cta-more IS a <p> inside <main>, so a bare
+     `.cta-more a` at (0,1,1) loses to it and these render as full accent
+     underlined links: three of them competing with the one primary button.
+     Matched here at (0,1,3), and later in the sheet, so this one wins. */
+  main p.cta-more a{color:var(--dim);text-decoration:none;
+    border-bottom:1px solid var(--border2);padding-bottom:1px}
+  main p.cta-more a:hover{color:var(--txt);border-color:var(--accent)}
   .btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14.5px;
     padding:11px 16px;border-radius:11px;border:1px solid transparent;transition:.16s;cursor:pointer}
   .btn.primary{background:var(--accent);color:#fff;box-shadow:0 8px 24px -8px var(--glow)}
   .btn.primary:hover{background:var(--accent2);transform:translateY(-1px)}
   .btn.ghost{border-color:var(--border2);color:var(--txt);background:var(--panel)}
+  /* A .btn inside a <p> in <main> picks up the underline from
+     `main :is(p,...) a` (0,1,3); .btn is only (0,1,0) and sets no
+     text-decoration, so it would render underlined, unlike every other button
+     on the page. Matched at (0,1,3) and declared later, so this wins. */
+  main :is(p,li) a.btn{text-decoration:none}
   .btn.ghost:hover{border-color:var(--accent);background:var(--panel2)}
   .btn.tiny{font-size:13.5px;padding:9px 13px}
 
@@ -382,9 +403,27 @@
     display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;color:var(--faint);font-size:13px}
   .foot .legal .mono{font-family:var(--mono)}
 
-  .js .reveal{opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .6s ease}
+  /* Every element in a section used to land at the same instant, so a section
+     read as "a block appeared" rather than "a section arrived". One step of
+     stagger per sibling, capped so nothing waits longer than 4 steps.
+     Ported as plain custom properties because this page has no build step.
+
+     The transition lives on the selector that matches in BOTH states. A
+     transition is read from the after-change style, so declaring it only on
+     :not(.in) would mean the rule stops matching at the instant .in is added
+     and every element snaps in with no fade, rise or stagger. */
+  :root{--cs-reveal-stagger:70ms;--cs-reveal-rise:14px}
+  .js-reveal .reveal{transition:opacity .6s ease,transform .6s cubic-bezier(.2,.7,.3,1);
+    transition-delay:calc(var(--cs-reveal-i,0) * var(--cs-reveal-stagger))}
+  .js-reveal-arming .reveal{transition:none!important}
+  .js-reveal .reveal:not(.in){opacity:0;transform:translateY(var(--cs-reveal-rise))}
   .reveal.in{opacity:1;transform:none}
-  @media(prefers-reduced-motion:reduce){.js .reveal{opacity:1;transform:none;transition:none}}
+  /* !important, because the hiding rule above it is more specific: a reader who
+     turns reduced motion on after the page armed must still see the content. */
+  @media(prefers-reduced-motion:reduce){
+    .reveal{opacity:1!important;transform:none!important;transition:none!important;transition-delay:0s!important}}
+  /* A printed or PDF'd page is never scrolled. */
+  @media print{.reveal{opacity:1!important;transform:none!important}}
 </style>
 </head>
 <body>
@@ -405,8 +444,8 @@
     <nav class="links" id="navlinks" aria-label="Primary">
       <a href="#features">Features</a>
       <a href="#quickstart">Install</a>
+      <a href="comparison.html">Is it the right fit?</a>
       <a href="quickstart.html">Docs</a>
-      <a href="#comparison">Comparison</a>
       <a href="https://github.com/davidteren/current_scope" rel="noopener">GitHub</a>
       <a href="#showcase">Showcase</a>
       <a href="#status">Status</a>
@@ -437,7 +476,7 @@
 <!-- HERO -->
 <div class="hero"><div class="wrap herogrid">
   <div>
-    <span class="eyebrow"><span class="dot"></span> Beta · report-mode pilots welcome · <a href="#status">security roadmap</a></span>
+    <span class="eyebrow"><span class="dot"></span> <span class="eyebrow-txt">Beta &middot; report-mode pilots welcome &middot;</span> <a href="#status">security roadmap</a></span>
     <h1>Authorization as data you <span class="hl">edit in a&nbsp;UI</span>, not rules you hardcode.</h1>
     <p class="sub">Permissions come from your routes. A role is a row of ticked cells. One ambient <code>allowed_to?</code> answers the same question in controllers, views, and components.</p>
     <ul class="uses">
@@ -447,10 +486,13 @@
     </ul>
     <div class="cta">
       <a class="btn primary" href="#quickstart">Quickstart</a>
-      <a class="btn ghost" href="https://github.com/davidteren/current_scope" rel="noopener">Star on GitHub</a>
-      <a class="btn ghost" href="#showcase">View Showcase</a>
-      <a class="btn ghost" href="quickstart.html">Docs</a>
+      <a class="btn ghost" href="comparison.html">Is it the right fit?</a>
     </div>
+    <p class="cta-more">
+      <a href="quickstart.html">Docs</a>
+      <a href="#showcase">Showcase</a>
+      <a href="https://github.com/davidteren/current_scope" rel="noopener">GitHub</a>
+    </p>
     <div class="install">
       <span class="pmt">$</span>
       <span class="cmd" id="installcmd">bundle add <span class="s">current_scope</span></span>
@@ -461,7 +503,6 @@
     <p class="statusline" id="copystatus" aria-live="polite"></p>
     <div class="badges">
       <a href="https://rubygems.org/gems/current_scope" rel="noopener"><img src="https://img.shields.io/gem/v/current_scope" alt="RubyGems version"></a>
-      <a href="https://github.com/davidteren/current_scope" rel="noopener"><img src="https://img.shields.io/github/stars/davidteren/current_scope?style=flat" alt="GitHub stars"></a>
       <a href="https://github.com/davidteren/current_scope/actions/workflows/ci.yml" rel="noopener"><img src="https://github.com/davidteren/current_scope/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
       <a href="https://github.com/davidteren/current_scope/blob/main/MIT-LICENSE" rel="noopener"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
     </div>
@@ -805,6 +846,12 @@ Total: 457 would-be denials across 2 subject(s).</pre>
     </table>
   </div>
   <p class="cmp-note reveal">CurrentScope can sit beside a policy library if you want one. The engine stores the grants. A host policy can still ask <code>allowed_to?</code>. See the <a href="https://github.com/davidteren/current_scope/tree/main/.claude/skills/current-scope-migrate" rel="noopener">migration skill</a> for Pundit, CanCanCan, and Action Policy.</p>
+  <!-- The table above is the short answer. A reader deciding between six
+       libraries — Banken and Oso included — needs the page that also says when
+       to pick one of them, and what adoption costs. -->
+  <p class="cmp-more reveal">
+    <a class="btn ghost" href="comparison.html">Read the full comparison — including Banken and Oso, and when to choose them</a>
+  </p>
 </div></section>
 
 <!-- WHO -->
@@ -825,10 +872,16 @@ Total: 457 would-be denials across 2 subject(s).</pre>
       </ul>
     </div>
     <div class="card aud no">
+      <!-- Mirrors docs/site/comparison.md, which is the source of truth for
+           this list. Add a reason there first, then here. -->
       <div class="cardtag bad">Not a fit today</div>
       <h3>Pick something else, or wait</h3>
       <ul>
         <li>You want every permission change as a code review in git. Keep Pundit or Action Policy.</li>
+        <li>Your rules depend on the record's data or the time ("only under 10,000"). That is <a href="comparison.html">a different library</a>.</li>
+        <li>Something outside Rails needs the same answer. This is a Rails engine, so it can only speak for the Rails app.</li>
+        <li>You want the smallest possible dependency. This brings tables, a mounted UI, an audit ledger and a schema guard; Pundit is a convention and a few hundred lines.</li>
+        <li>You cannot put beta software into production. The last gate before 1.0 is one real host running report mode, then enforcing.</li>
         <li>You need a first-class React, Next, or Inertia client contract. That is still open (<a href="limitations.html">limitations</a>).</li>
         <li>You must flip <code>:enforce</code> on a live host this week, with no report-mode bake.</li>
         <li>You need rich ABAC beyond the SoD veto, or a multi-org IAM console.</li>
@@ -1189,14 +1242,82 @@ bin/rails server    <span class="tk-com"># http://localhost:3000</span></pre>
     });
   });
 
-  function revealAll(){document.querySelectorAll('.reveal').forEach(function(el){el.classList.add('in')})}
-  if('IntersectionObserver' in window){
+  // Index each .reveal within its own section, so siblings arrive in order and
+  // a later section does not inherit an earlier one's delay. Capped at 4 steps:
+  // past that the wait reads as lag, not choreography.
+  document.querySelectorAll('section, .hero').forEach(function(sec){
+    Array.prototype.slice.call(sec.querySelectorAll('.reveal')).forEach(function(el, i){
+      el.style.setProperty('--cs-reveal-i', Math.min(i, 4))
+    })
+  });
+
+  // Reveal-on-scroll, arranged so nothing can be permanently invisible.
+  //
+  // The page ships fully visible. Only when the reader scrolls for the first
+  // time do the sections still BELOW them get hidden and handed to the
+  // observer, which brings each one in as it arrives. So a client that never
+  // scrolls — a crawler, a print or PDF, a screenshot, an agent reading the
+  // site — sees the whole document, and a reader still gets the choreography
+  // for everything they have not reached yet.
+  //
+  // (Two earlier shapes were worse: revealing everything on a 2.6s timer meant
+  // the animation never played for anyone, and making that timer conditional
+  // meant a non-scrolling client could be left looking at empty sections.)
+  if('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches){
+    var armed=false;
     var io=new IntersectionObserver(function(en){
       en.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})
-    },{rootMargin:'0px 0px -8% 0px',threshold:.08});
-    document.querySelectorAll('.reveal').forEach(function(el){io.observe(el)});
-    setTimeout(revealAll,2600);
-  }else{revealAll()}
+    // threshold 0: any pixel counts. A threshold of .08 asks for 8% of the
+    // element's own box, which an element taller than the viewport can never
+    // satisfy, and there is no timer left to rescue it.
+    },{rootMargin:'0px 0px -8% 0px',threshold:0});
+
+    var arm=function(){
+      if(armed)return; armed=true;
+      var h=window.innerHeight||document.documentElement.clientHeight;
+      // Measure BEFORE hiding. The hiding rule carries translateY, so a rect
+      // read after the class is added reports every element 14px lower than it
+      // really is, and anything sitting in that last 14px of the viewport gets
+      // hidden out from under the reader.
+      var els=[].slice.call(document.querySelectorAll('.reveal'));
+      var above=els.map(function(el){return el.getBoundingClientRect().top < h});
+      // Hide instantly, not over 600ms: arming must not fade the page out
+      // under a reader who is already scrolling toward it.
+      document.documentElement.classList.add('js-reveal','js-reveal-arming');
+      els.forEach(function(el,i){
+        // Anything on screen or already passed stays put; only what is still
+        // ahead of the reader is hidden and animated.
+        if(above[i]){el.classList.add('in')}else{io.observe(el)}
+      });
+      // A net for anything the observer can never fire for. Its root is shrunk
+      // by 8% at the bottom, so an element lying entirely inside that band at
+      // maximum scroll never intersects, and the 2.6s timer that used to rescue
+      // such a case is gone. Nothing on the page sits there today; this makes
+      // sure adding something there cannot blank it.
+      var sweep;
+      addEventListener('scroll',function(){
+        clearTimeout(sweep);
+        sweep=setTimeout(function(){
+          var vh=window.innerHeight||document.documentElement.clientHeight;
+          // Only at the bottom, which is the only place the dead band exists.
+          // Sweeping on every pause would reveal elements 8% of a viewport
+          // earlier than the observer's rootMargin asks for, so the stagger
+          // would play before the section is properly on screen.
+          var doc=document.documentElement;
+          if(Math.ceil(vh+(window.scrollY||doc.scrollTop))<doc.scrollHeight-2)return;
+          document.querySelectorAll('.reveal:not(.in)').forEach(function(el){
+            if(el.getBoundingClientRect().top < vh){el.classList.add('in');io.unobserve(el)}
+          })
+        },150)
+      },{passive:true});
+
+      void document.documentElement.offsetHeight; // flush the hidden state
+      requestAnimationFrame(function(){
+        document.documentElement.classList.remove('js-reveal-arming')
+      })
+    };
+    addEventListener('scroll',arm,{passive:true,once:true});
+  }
 
   if(window.fetch){
     fetch('https://rubygems.org/api/v1/gems/current_scope.json')

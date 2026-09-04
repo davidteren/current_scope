@@ -187,16 +187,17 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
         });
 
         var verdict = mount.querySelector(".cs-fit-verdict");
+        // The disqualifiers render in their own list; matching the prose
+        // would also catch a library's cost line saying "still in beta".
+        var why = verdict ? Array.prototype.map.call(
+          verdict.querySelectorAll(".cs-fit-why li"),
+          function (li) { return li.textContent }) : [];
         results.push({
           answers: path,
           heading: verdict ? verdict.querySelector("h3").textContent : null,
           body: verdict ? verdict.textContent : null,
-          // The disqualifiers render in their own list; matching the prose
-          // would also catch a library's cost line saying "still in beta".
-          vetoed: !!(verdict && verdict.querySelector(".cs-fit-why")),
-          vetoNotes: verdict ? Array.prototype.map.call(
-            verdict.querySelectorAll(".cs-fit-why li"),
-            function (li) { return li.textContent }) : [],
+          vetoed: why.length > 0,
+          vetoNotes: why,
           tie: !!(verdict && /equally well/.test(verdict.textContent)),
           // One entry per "Worth a look" runner-up: whether its cost was stated.
           runnerUpsCosted: verdict ? Array.prototype.filter.call(

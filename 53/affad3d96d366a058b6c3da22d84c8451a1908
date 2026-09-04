@@ -1,0 +1,20 @@
+docs/site/comparison.md
+  s_240773ee81a9c0::t_24d2f8c1635f04 91,164,205,207
+  s_240773ee81a9c0::t_86c93a3e868ff1 351-353
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "53affad3d96d366a058b6c3da22d84c8451a1908",
+  "prompts": {},
+  "sessions": {
+    "s_240773ee81a9c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b30a1cc4-bb8a-4143-acae-92deba078818",
+        "model": "claude-opus-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

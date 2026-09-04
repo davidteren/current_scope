@@ -115,7 +115,6 @@ module CurrentScope
         false # no database to ask; do not claim a lockdown we cannot check
       end
 
-
       # True when rows of this table can load as some other class.
       def current_scope_inheritable_table?
         return false unless respond_to?(:has_attribute?) && respond_to?(:inheritance_column)

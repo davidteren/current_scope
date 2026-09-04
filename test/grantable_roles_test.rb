@@ -196,10 +196,13 @@ class GrantableRolesTest < ActiveSupport::TestCase
       "a row of a declaring class is in the table, whatever the class registry has seen"
   end
 
-  # A stored type is not always a constant name — store_full_sti_class = false
-  # shortens it, sti_name can be overridden — so the answer goes through Rails'
-  # own resolution rather than constantizing the string (#183).
-  test "the lockdown answer resolves a stored type the way Rails does" do
+  # What this pins is the direction the answer fails in, not a resolution
+  # mechanism. `current_scope_locked_down_everywhere?` builds its locked set from
+  # LOADED classes and asks whether any row names something outside it, so a type
+  # it cannot account for — unloaded, renamed, or never a class at all — falls
+  # outside and counts against the lockdown. That is the safe direction: an
+  # unrecognised row means "cannot claim a lockdown", never "locked down" (#183).
+  test "a type the locked set cannot account for is not evidence of a lockdown" do
     declare_grantable_roles(Document, [])
     Document.insert_all([ { title: "X", type: "NoSuchClass", created_at: Time.current,
                             updated_at: Time.current } ])

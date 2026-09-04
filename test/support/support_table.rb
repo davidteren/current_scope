@@ -15,10 +15,14 @@
 # ponytail: column NAMES are the drift signal; a type or index change still
 # needs `bin/rails db:test:prepare`.
 module SupportTable
-  def self.ensure(name, columns:, **options, &block)
+  def self.prepare(name, **options, &block)
     conn = ActiveRecord::Base.connection
-    if conn.table_exists?(name) && conn.columns(name).map(&:name).sort != columns.sort
-      conn.drop_table(name)
+    # Derived from the block, not restated by the caller: a list that drifted
+    # from the block would never match and drop the table on every boot, which
+    # is the race this module exists to close.
+    wanted = conn.build_create_table_definition(name, **options, &block).columns.map(&:name).sort
+    if conn.table_exists?(name) && conn.columns(name).map(&:name).sort != wanted
+      conn.drop_table(name, if_exists: true)
     end
     conn.create_table(name, if_not_exists: true, **options, &block)
   end

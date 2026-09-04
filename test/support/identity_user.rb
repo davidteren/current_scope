@@ -8,7 +8,7 @@ class IdentityUser < ActiveRecord::Base
   self.table_name = "current_scope_test_identity_users"
 end
 
-SupportTable.ensure(IdentityUser.table_name, columns: %w[id name email token]) do |t|
+SupportTable.prepare(IdentityUser.table_name) do |t|
   t.string :name
   t.string :email
   # A column the host has already unique-indexed, so the #158 boot check can

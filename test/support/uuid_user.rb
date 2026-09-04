@@ -20,6 +20,6 @@ class UuidUser < ActiveRecord::Base
   self.table_name = "current_scope_test_uuid_users"
 end
 
-SupportTable.ensure(UuidUser.table_name, columns: %w[id name], id: :string) do |t|
+SupportTable.prepare(UuidUser.table_name, id: :string) do |t|
   t.string :name
 end

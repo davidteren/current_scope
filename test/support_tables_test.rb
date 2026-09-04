@@ -1,59 +1,63 @@
 require "test_helper"
 
-# The load-time support tables (test/support/uuid_user.rb, identity_user.rb)
-# persist between runs and are shared by every test process on one database.
-# Non-transactional: this runs real DDL, which MySQL auto-commits.
+# SupportTable builds the load-time support tables (test/support/uuid_user.rb,
+# identity_user.rb), which persist between runs and are shared by every test
+# process on one database. Driven here on a throwaway probe table, so the
+# shared tables are never dropped by a test. Non-transactional: this runs real
+# DDL, which MySQL auto-commits.
 class SupportTablesTest < ActiveSupport::TestCase
   self.use_transactional_tests = false
 
-  UUID_SUPPORT = File.expand_path("support/uuid_user.rb", __dir__)
+  PROBE = "current_scope_test_probe"
 
   def connection = ActiveRecord::Base.connection
 
-  # Whatever a test did to the table, the next test (and the next process)
-  # gets the canonical one back, even when a rebuild failed half way.
-  teardown do
-    connection.drop_table(UuidUser.table_name, if_exists: true)
-    load UUID_SUPPORT
-    UuidUser.reset_column_information
+  def prepare_probe
+    SupportTable.prepare(PROBE, id: :string) { |t| t.string :name }
   end
 
-  test "a support table whose columns drifted is rebuilt on load" do
-    connection.add_column(UuidUser.table_name, :stale, :string)
-    UuidUser.reset_column_information
+  def probe_columns = connection.columns(PROBE).map(&:name).sort
 
-    load UUID_SUPPORT
-    UuidUser.reset_column_information
+  teardown { connection.drop_table(PROBE, if_exists: true) }
 
-    assert_equal %w[id name], connection.columns(UuidUser.table_name).map(&:name).sort,
+  test "a missing table is created with the block's columns" do
+    prepare_probe
+
+    assert_equal %w[id name], probe_columns
+  end
+
+  test "a table whose columns drifted is rebuilt" do
+    prepare_probe
+    connection.add_column(PROBE, :stale, :string)
+
+    prepare_probe
+
+    assert_equal %w[id name], probe_columns,
       "if_not_exists alone would have kept the stale column until db:test:prepare"
   end
 
   # Names, not count: a renamed column keeps the count and must still rebuild.
-  test "a support table whose column was renamed is rebuilt on load" do
-    connection.rename_column(UuidUser.table_name, :name, :label)
-    UuidUser.reset_column_information
+  test "a table whose column was renamed is rebuilt" do
+    prepare_probe
+    connection.rename_column(PROBE, :name, :label)
 
-    load UUID_SUPPORT
-    UuidUser.reset_column_information
+    prepare_probe
 
-    assert_equal %w[id name], connection.columns(UuidUser.table_name).map(&:name).sort
+    assert_equal %w[id name], probe_columns
   end
 
-  test "a support table that matches is left alone, rows included" do
-    UuidUser.where(id: "keep-me").delete_all # a killed earlier run may have left it
-    UuidUser.create!(id: "keep-me", name: "Kept")
+  test "a table that matches is left alone, rows included" do
+    prepare_probe
+    connection.execute("INSERT INTO #{connection.quote_table_name(PROBE)} (id, name) VALUES ('keep-me', 'Kept')")
 
-    load UUID_SUPPORT
+    prepare_probe
 
-    assert UuidUser.exists?("keep-me"),
+    assert_equal 1, connection.select_value("SELECT COUNT(*) FROM #{connection.quote_table_name(PROBE)}").to_i,
       "a matching table must never be dropped: another test process may be using it"
-  ensure
-    UuidUser.where(id: "keep-me").delete_all
   end
 
-  # The tables persist, so a test-env db:migrate would dump them into the
-  # tracked schema.rb unless the dumper is told to skip them.
+  # The real support tables persist, so a test-env db:migrate would dump them
+  # into the tracked schema.rb unless the dumper is told to skip them.
   test "the support tables never reach schema.rb" do
     assert connection.table_exists?(UuidUser.table_name), "positive control: there is a table to ignore"
     io = StringIO.new

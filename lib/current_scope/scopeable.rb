@@ -8,6 +8,11 @@ module CurrentScope
   # the engine rebuilds the registry on every to_prepare.
   module Scopeable
     extend ActiveSupport::Concern
+    # Which roles may be granted on this type (#183). Its own module, so a host
+    # can take the guard WITHOUT taking the picker registration: Scopeable is
+    # browse-only by design, and a type that should never appear in the picker
+    # may still want to say which roles belong on it.
+    include CurrentScope::GrantableRoles
 
     included do
       CurrentScope.register_scopeable(name) if name

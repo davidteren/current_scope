@@ -384,6 +384,37 @@ namespace :current_scope do
       end
     end
 
+    # A grant the row's own type would refuse if it were written today.
+    unjudgeable_grants = 0
+    grant_refused_by_declaration = lambda do |grant|
+      next false if grant.role.nil?
+      # An orphaned grant resolves to nothing (#90), so it is not one of the
+      # rows this section is about — and every other section here excludes it
+      # for the same reason. Counting it would inflate the total with grants
+      # that open nothing and tell the operator they "still resolve".
+      next false if grant.respond_to?(:orphaned_resource?) && grant.orphaned_resource?
+
+      # The model's own answer, so the scan and the gate cannot disagree about
+      # which class governs a grant. inert on a stale token: a type that no
+      # longer loads is #90's inert grant, not a #183 finding.
+      klass = grant.current_scope_governing_class(inert_on_error: true)
+      next false if klass.nil? || !klass.respond_to?(:current_scope_grants_role?)
+
+      !klass.current_scope_grants_role?(grant.role)
+    rescue StandardError => e
+      # SAY it, ONCE. This section is the only tool a host has for finding rows
+      # written before a declaration landed, so a swallowed error hides exactly
+      # what it exists to surface — but a systemic cause (a host predicate that
+      # raises) would otherwise print a line per row and bury the report the
+      # operator ran the task for. The rest are counted (#183).
+      unjudgeable_grants += 1
+      if unjudgeable_grants == 1
+        warn "[CurrentScope] could not judge grant ##{grant.id} against " \
+             "#{grant.resource_type} (#{e.class}: #{e.message}); " \
+             "it is reported as conforming"
+      end
+      false
+    end
     # Keyed on the question that was ASKED, record-lessness included: a
     # self-targeted denial and a record-less one share a target GID, and they
     # are answered by different arms of the resolver. Matching on the three-part
@@ -423,6 +454,12 @@ namespace :current_scope do
 
     dead_grants = []
     untargeted_grants = []
+    # #183: the declaration is a VALIDATION, so it judges a grant when the row
+    # is written and never again. A host that adds a declaration to close a
+    # widening has not touched the rows already in the table — and those are
+    # exactly the ones the feature was opened for. Name them here, where the
+    # other "this grant is not what you think" findings live.
+    nonconforming_grants = []
     begin
       CurrentScope::ScopedRoleAssignment.includes(role: :role_permissions)
                                         .in_batches(of: 500) do |relation|
@@ -437,6 +474,7 @@ namespace :current_scope do
           elsif CurrentScope::GrantDiagnosis.type_untargeted?(grant, verdict: verdict)
             untargeted_grants << grant
           end
+          nonconforming_grants << grant if grant_refused_by_declaration.call(grant)
         end
       end
     rescue ActiveRecord::ActiveRecordError => e
@@ -448,6 +486,10 @@ namespace :current_scope do
            "skipping the static grant sections."
       dead_grants = []
       untargeted_grants = []
+      nonconforming_grants = []
+      # And the count that speaks for that scan: the loop was abandoned, so a
+      # partial tally would describe a pass that did not finish (#183).
+      unjudgeable_grants = 0
     end
 
     # Same rescue the org_role_suffix lambda above needs, for the same reason: a
@@ -495,6 +537,7 @@ namespace :current_scope do
         outstanding.sum(&:denials) + unknown.sum(&:denials),
       "scoped grants that can never match" => dead_grants.count,
       "scoped grants worth checking" => untargeted_grants.count,
+      "scoped grants their type no longer accepts" => nonconforming_grants.count,
       "SoD actions that will RAISE (500, not grantable)" => preflight_rows.count,
       "SoD blind-spot denials (not grantable)" => blind_rows.count,
       "SoD actions that already RAISED (500, not grantable)" => initiator_rows.count
@@ -704,6 +747,22 @@ namespace :current_scope do
         puts
       end
       puts "Total: #{dead_grants.count} grant(s) that cannot match any gated action."
+    end
+
+    if unjudgeable_grants > 1
+      warn "[CurrentScope] #{unjudgeable_grants - 1} more grant(s) could not be judged " \
+           "against their type's declaration; all are reported as conforming."
+    end
+
+    unless nonconforming_grants.empty?
+      separate.call
+      puts "Scoped grants their type no longer accepts (#183):"
+      puts
+      nonconforming_grants.each { |grant| puts grant_line.call(grant) }
+      puts
+      puts "  These rows were written before their type declared its grantable"
+      puts "  roles, or before that declaration changed. The check runs on write,"
+      puts "  so they still resolve. Revoke the ones that should not stand."
     end
 
     unless untargeted_grants.empty?

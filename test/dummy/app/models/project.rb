@@ -7,6 +7,13 @@
 # about: it would make the veto measure the project's initiator instead of the
 # report's requester, silently.
 class Project < ApplicationRecord
+  # #183: the guard without the picker registration — a Project is a CONTAINER
+  # for Reports through the chain below, which is exactly the shape a per-record
+  # role must not be granted on by accident. The declaration itself is made by
+  # the tests, so the default (no declaration, everything grantable) is what the
+  # rest of the suite exercises.
+  include CurrentScope::GrantableRoles
+
   belongs_to :parent, class_name: "Project", optional: true
   has_many :children, class_name: "Project", foreign_key: :parent_id, dependent: :nullify
   # :nullify, so destroying a parent ORPHANS its reports rather than deleting

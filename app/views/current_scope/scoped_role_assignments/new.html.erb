@@ -21,18 +21,25 @@
     HTML `form:` attribute, which also lets the GET stay idempotent so the
     picker still works while impersonating (read-only), where a POST would 403.
 %>
+<%# turbo_action: advance — each step writes its picks into the URL, so Back
+    steps back through the cascade instead of leaving the picker and losing all
+    four picks, and a half-made selection can be bookmarked or shared. %>
 <%= form_with url: new_scoped_role_assignment_path, method: :get, id: "cs-cascade",
-      data: { turbo_frame: "cascade" }, class: "cs-picker" do %>
+      data: { turbo_frame: "cascade", turbo_action: "advance" }, class: "cs-picker" do %>
   <p>
     <%= label_tag :role_id, "Role" %>
+    <%# include_blank, or the browser preselects the first role while the server
+        has applied none — the type list would then contradict the role showing
+        beside it until the first autosubmit (#183). %>
     <%= select_tag :role_id,
-          options_from_collection_for_select(@roles, :id, :name, params[:role_id]),
+          options_from_collection_for_select(@roles, :id, :name, @selected_role&.id),
+          include_blank: "— choose a role —",
           data: { current_scope_autosubmit: true } %>
   </p>
   <% if @bulk_subjects.any? %>
     <p>
       <span class="cs-label" id="cs_bulk_subjects_label">Subjects</span>
-      <span class="cs-hint" aria-labelledby="cs_bulk_subjects_label">
+      <span class="cs-hint" role="group" aria-labelledby="cs_bulk_subjects_label">
         Granting to <strong><%= @bulk_subjects.size %></strong>:
         <%= @bulk_subjects.map { |s| current_scope_subject_label(s) }.to_sentence %>
       </span>
@@ -43,75 +50,241 @@
   <% else %>
     <p>
       <%= label_tag :subject_gid, "Subject" %>
+      <%# include_blank for the same reason as the role select: the browser
+          preselects the first subject while the server has applied none. %>
       <%= select_tag :subject_gid,
             options_for_select(@subjects.map { |s| [ current_scope_subject_label(s), s.to_gid.to_s ] },
-                               params[:subject_gid]),
+                               @subject_gid),
+            include_blank: "— choose a subject —",
             data: { current_scope_autosubmit: true } %>
     </p>
   <% end %>
 <% end %>
 
+<%# Most messages below carry role="status": a Turbo frame swap is not a
+    navigation, so nothing is announced otherwise, and one region around the
+    frame would hold the controls too and re-read the whole picker on every
+    pick. NOT the ones a select points at with aria-describedby — focus returns
+    to that select after the swap, so a live region there would be read once as
+    an insertion and again as the control's description. %>
 <turbo-frame id="cascade">
-  <% if @scopeable.empty? %>
-    <p class="cs-alert cs-picker-empty">
+  <%# Every sentence below that names the role runs only when a role IS chosen —
+      each flag the controller sets is computed from one. Reading the name once,
+      nil-safe, keeps that coupling in view instead of in six dereferences
+      (#183). %>
+  <% role_name = @selected_role&.name %>
+  <% if @missing_role %>
+    <p id="cs_role_missing" role="status" class="cs-alert cs-picker-empty">
+      <%# "not found", not "deleted": an id that never named a role reaches
+          here too, and the page cannot know which happened. %>
+      That role could not be found. Pick one from the list to go on.
+    </p>
+  <% end %>
+
+  <%# A refused deep link is explained wherever it happens, INCLUDING the states
+      below that render nothing else — the refusal is often why the picker has
+      no type on screen at all (#183). %>
+  <% if @types.refused_link && role_name %>
+    <p id="cs_resource_refused" role="status" class="cs-alert cs-picker-empty cs-resource-refused">
+      <%# Not "the linked …": the same params arrive when the record was picked
+          from the dropdown one step earlier (#183). %>
+      <%# The role half is dropped where no role can help: this paragraph
+          renders above the type state, and one of the two would be wrong. %>
+      <strong><%= current_scope_label(@types.refused_link) %></strong> is not in
+      the list: <strong><%= role_name %></strong> may not be granted on it.<%
+        %><% if @types.state == :none_accept_locked %><%
+          %><%# No advice at all: the message below says no type here takes any
+                role, so naming another type would contradict it. %><%
+        %><% elsif @types.refused_link_hopeless? %>
+      Pick a different resource type: no record of this one takes any role.<%
+        %><% else %>
+      Pick a different role, or a different record.<% end %>
+    </p>
+  <% end %>
+
+  <%# Anchors an unregistered deep-linked type across a change of record: the
+      type cannot be resolved from its name, only from a record. Outside the
+      case for the same reason the submit is: the states that render nothing
+      else are the ones an operator most needs to get back out of (#183). %>
+  <% if @types.anchor_gid %>
+    <%= hidden_field_tag :linked_gid, @types.anchor_gid, form: "cs-cascade" %>
+  <% end %>
+
+  <%# Two different empties (#183): nothing registered at all, and
+      everything registered withheld because it does not accept the chosen role.
+      Both give way to a deep link that DID resolve a type: a type reached by
+      link need not be registered, and throwing away a grantable target to say
+      "no type accepts this role" would be both a dead end and untrue. %>
+  <% case @types.state
+     when :none_accept %>
+    <p id="cs_types_none_accept" role="status" class="cs-alert cs-picker-empty cs-types-none-accept">
+      No resource type accepts <strong><%= role_name %></strong>. Each type here
+      takes only certain roles, and none of them takes this one. Pick a
+      different role.
+    </p>
+  <% when :none_accept_locked %>
+    <p id="cs_types_none_accept_locked" role="status" class="cs-alert cs-picker-empty cs-types-none-accept">
+      No resource type accepts any role. Every type here has been set to accept
+      none, so nothing can be granted until one of them is given the roles it
+      should take.
+    </p>
+  <% when :unregistered %>
+    <p id="cs_types_unregistered" role="status" class="cs-alert cs-picker-empty cs-types-unregistered">
       No pickable resource types yet. Add
       <code>include CurrentScope::Scopeable</code> to a host model to make its
       records selectable here.
     </p>
   <% else %>
-    <%
-      type_options = @scopeable.map { |model| [ model.model_name.human, model.name ] }
-      # A deep-linked type may not itself be Scopeable — keep it selectable.
-      if @resource_type && type_options.none? { |(_, name)| name == @resource_type.name }
-        type_options.unshift([ @resource_type.model_name.human, @resource_type.name ])
-      end
-    %>
+    <% if @types.all_withheld_locked? %>
+      <%# Every withheld type is a LOCKDOWN — an empty declaration. Telling the
+          operator to pick a different role would be a promise no role can
+          keep (#183). %>
+      <p id="cs_types_locked" class="cs-hint cs-types-withheld">
+        <%= pluralize(@types.withheld_count, "type") %> not listed. Each is set
+        to accept no roles at all, so no role will show
+        <%= @types.withheld_count == 1 ? "it" : "them" %>.
+      </p>
+    <% elsif @types.withheld? %>
+      <p id="cs_types_withheld" class="cs-hint cs-types-withheld">
+        <%= pluralize(@types.withheld_count, "type") %> not listed. Each takes
+        only certain roles, and <strong><%= role_name %></strong> is not one of
+        them. Pick a different role to see
+        <%= @types.withheld_count == 1 ? "it" : "them" %>.
+        <% if @types.locked_count.positive? %>
+          Of those, <%= @types.locked_count %>
+          <%= @types.locked_count == 1 ? "accepts" : "accept" %> no role at all,
+          whichever you pick.
+        <% end %>
+      </p>
+    <% end %>
     <p>
       <%= label_tag :resource_type, "Resource type" %>
       <%= select_tag :resource_type,
-            options_for_select(type_options, @resource_type&.name),
+            options_for_select(@types.options, @resource_type&.name),
             include_blank: "— choose a type —", form: "cs-cascade",
+            "aria-describedby": @types.hint_id,
             data: { current_scope_autosubmit: true } %>
     </p>
 
     <% if @resource_type %>
-      <% if @records.blank? && params[:q].blank? %>
-        <p class="cs-hint cs-picker-empty">
-          No <%= @resource_type.model_name.human.pluralize.downcase %> to pick from yet.
+      <%# The search box stays on an empty list only where searching reads past
+          the scanned window: with an indexed scope a grantable record can sit
+          past it, while the fallback scan would re-read the very rows the empty
+          list came from (#183). %>
+      <% if @step.offer_search? %>
+        <p>
+          <%= label_tag :q, "Search records" %>
+          <%= search_field_tag :q, @query, placeholder: "Filter by label",
+                form: "cs-cascade", data: { current_scope_autosubmit: true } %>
+        </p>
+      <% end %>
+      <%# The deep-linked record is excluded: it is prepended to the
+          options in the else branch, and skipping to the empty state would leave
+          a Grant button posting a record the page never shows (#183). %>
+      <% if @step.show_empty_state? %>
+        <%# The controller NAMES this state; the class a test selects and the
+            sentence an operator reads come from the same answer, so a copy edit
+            cannot leave the suite green with the wrong text (#183).
+            "looked at", never "none": the role filter runs over the scanned
+            rows, so a grantable record can sit past the window. %>
+        <p id="cs_<%= @step.records_state %>" role="status" class="cs-hint cs-picker-empty cs-<%= @step.records_state.to_s.dasherize %>">
+          <% case @step.records_state
+             when :records_locked %>
+            <%# The TYPE's own rule, which holds whether the table is full or
+                empty and needs no claim about rows the scan may not have read.
+                No subclass route promised: a locked LEAF has no subclasses. %>
+            <strong><%= @resource_type.model_name.human %></strong> accepts no
+            roles at all, so nothing here can be granted — apart from records of
+            a kind that sets its own.
+          <% when :records_refused_searchable %>
+            None of the <%= @resource_type.model_name.human.pluralize.downcase %>
+            <%# A locked type never reaches this state: it renders
+                :records_locked, where no search can help at all. %>
+            looked at accept <strong><%= role_name %></strong>. Search for one,
+            or pick a different role.
+          <% when :records_refused_unread %>
+            None of the <%= @resource_type.model_name.human.pluralize.downcase %>
+            read accept <strong><%= role_name %></strong>, and there are more
+            than this page reads. Pick a different role, or open the record you
+            want from its own page and grant it there.
+          <% when :records_refused %>
+            None of the <%= @resource_type.model_name.human.pluralize.downcase %>
+            looked at accept <strong><%= role_name %></strong>. Pick a different
+            role.
+          <%# EXPLICIT, not else: a state added without its sentence must render
+              nothing visible rather than borrowing this one under its own id,
+              where an id-only assertion would stay green (#183). %>
+          <% when :records_none %>
+            No <%= @resource_type.model_name.human.pluralize.downcase %> to pick from yet.
+          <% end %>
         </p>
       <% else %>
-        <% if @searchable %>
-          <p>
-            <%= label_tag :q, "Search records" %>
-            <%= search_field_tag :q, params[:q], placeholder: "Filter by label",
-                  form: "cs-cascade", data: { current_scope_autosubmit: true } %>
-          </p>
-        <% end %>
         <p>
           <%= label_tag :resource_gid, "Record" %>
-          <%
-            record_options = (@records || []).map { |record| [ current_scope_label(record), record.to_gid.to_s ] }
-            # Keep a deep-linked record selectable even if it fell outside the
-            # scanned window.
-            if @resource && record_options.none? { |(_, gid)| gid == @resource.to_gid.to_s }
-              record_options.unshift([ current_scope_label(@resource), @resource.to_gid.to_s ])
-            end
-          %>
+          <%# The step owns the LIST, and the Grant button is checked against
+              the same one, so it cannot post a record this select never showed
+              (#183). %>
+          <% record_options = @step.offered_records.map { |record| [ current_scope_label(record), record.to_gid.to_s ] } %>
           <%= select_tag :resource_gid,
-                options_for_select(record_options, params[:resource_gid] || @resource&.to_gid&.to_s),
+                options_for_select(record_options, @step.grantable_gid),
                 include_blank: "— choose a record —", form: "cs-cascade",
+                "aria-describedby": @step.hint_id,
                 data: { current_scope_autosubmit: true } %>
-          <% if @searchable && params[:q].present? %>
+          <% if @step.shortened? %>
+            <span id="cs_records_shortened" class="cs-hint">
+              Records that do not accept <strong><%= role_name %></strong> are
+              not listed.
+            </span>
+          <% end %>
+          <% if @step.search_state %>
             <%# Keyed off the raw SEARCH results, not record_options — a
-                deep-linked @resource is prepended to the options even when the
+                deep-linked record is prepended to the options even when the
                 query matched nothing, and must not fake a "matches shown". %>
-            <% if @records.blank? %>
-              <span class="cs-hint cs-picker-empty">
-                No records match “<%= params[:q] %>” — try a different search.
+            <% if @step.matches_shown? %>
+              <span id="cs_<%= @step.search_state %>" class="cs-hint cs-search-shown">
+                Showing up to <%= CurrentScope::ScopedRoleAssignmentsController::DISPLAY_LIMIT %> matches — refine the search to narrow.
+                <% if @step.search_state == :search_shown_withheld && role_name %>
+                  <%# No other hint on the page covers RECORDS the role filter
+                      took out of a list that still has matches (#183). %>
+                  Matches that do not accept <strong><%= role_name %></strong> are
+                  not listed.
+                <% end %>
               </span>
             <% else %>
-              <span class="cs-hint">
-                Showing up to <%= CurrentScope::ScopedRoleAssignmentsController::DISPLAY_LIMIT %> matches — refine the search to narrow.
+              <%# cs-picker-empty only where the picker IS empty: two of these
+                  states have a record selected and a Grant button beside them. %>
+              <span id="cs_<%= @step.search_state %>"
+                    class="cs-hint cs-<%= @step.search_state.to_s.dasherize %><%= " cs-picker-empty" unless @step.selected %>">
+                <% case @step.search_state
+                   when :search_locked %>
+                  <strong><%= @resource_type.model_name.human %></strong> accepts
+                  no roles at all, so nothing here can be granted, whatever the
+                  search finds.
+                <% when :search_refused_searchable %>
+                  <%# The matches READ all refuse, but the search stopped at its
+                      cap, so a narrower search can still turn one up. %>
+                  No match for “<%= @query %>” read so far accepts
+                  <strong><%= role_name %></strong> — narrow the search, or pick
+                  a different role.
+                <% when :search_refused %>
+                  <%# The search DID match — a different search is the one thing
+                      that cannot help. "read", because the fallback scan stops
+                      at its cap and cannot speak for the whole table. %>
+                  No match for “<%= @query %>” among the records read accepts
+                  <strong><%= role_name %></strong> — pick a different role.
+                <% when :search_refused_selected %>
+                  No match for “<%= @query %>” accepts
+                  <strong><%= role_name %></strong>.
+                  <strong><%= current_scope_label(@step.selected) %></strong>
+                  does, and is still selected.
+                <% when :search_none_selected %>
+                  No records match “<%= @query %>”.
+                  <strong><%= current_scope_label(@step.selected) %></strong>
+                  is still selected.
+                <%# EXPLICIT, for the same reason as the record states above. %>
+                <% when :search_none %>
+                  No records match “<%= @query %>” — try a different search.
+                <% end %>
               </span>
             <% end %>
           <% end %>
@@ -119,26 +292,46 @@
       <% end %>
     <% end %>
 
-    <p class="cs-picker-actions">
-      <%# No-JS / no-Turbo fallback: reload the cascade with the current picks. %>
-      <%= submit_tag "Show records", name: nil, form: "cs-cascade", class: "cs-picker-refresh" %>
-      <%# Grant only a complete selection. Every cascade control autosubmits, so
-          params mirror the live picks — the button never posts a stale value. %>
-      <% ready = params[:role_id].present? && params[:resource_gid].present? %>
-      <% if @bulk_subjects.any? %>
-        <% if ready %>
-          <%= button_to "Grant to #{@bulk_subjects.size} #{'subject'.pluralize(@bulk_subjects.size)}",
-                scoped_role_assignments_path, method: :post,
-                params: { role_id: params[:role_id], resource_gid: params[:resource_gid],
-                          subject_gids: @bulk_subjects.map { |s| s.to_gid.to_s } },
-                data: { turbo_frame: "_top" }, class: "cs-btn-primary" %>
-        <% end %>
-      <% elsif ready && params[:subject_gid].present? %>
-        <%= button_to "Grant scoped role", scoped_role_assignments_path, method: :post,
-              params: { role_id: params[:role_id], subject_gid: params[:subject_gid],
-                        resource_gid: params[:resource_gid] },
-              data: { turbo_frame: "_top" }, class: "cs-btn-primary" %>
-      <% end %>
-    </p>
   <% end %>
+  <%# Outside the branches on purpose: without JavaScript this submit is the
+      only way to re-run the cascade, and the state where every type withheld
+      the role is recoverable by changing the role — but only if the operator
+      can still submit (#183). %>
+  <div class="cs-picker-actions">
+    <%# No-JS / no-Turbo fallback: reload the cascade with the current picks. %>
+    <%# "Show records" only where a record list is what comes next; elsewhere it
+        re-runs the cascade with the picks as they stand. %>
+    <%= submit_tag(@resource_type ? "Show records" : "Update the list",
+                   name: nil, form: "cs-cascade", class: "cs-picker-refresh") %>
+    <%# Grant only a selection that is actually on offer. Every cascade control
+        autosubmits, but a resource_gid picked earlier survives a change of role
+        or type, so the controller hands us the gid the operator can SEE
+        selected (nil when the stale one is no longer listed). %>
+    <%# The RESOLVED role, not the param: a deleted id would otherwise post a
+        Grant that can only fail (#183). %>
+    <% ready = @selected_role.present? && @step.grantable_gid.present? %>
+    <% if @bulk_subjects.any? %>
+      <% if ready %>
+        <%= button_to "Grant to #{@bulk_subjects.size} #{'subject'.pluralize(@bulk_subjects.size)}",
+              scoped_role_assignments_path, method: :post,
+              params: { role_id: @selected_role.id, resource_gid: @step.grantable_gid,
+                        subject_gids: @bulk_subjects.map { |s| s.to_gid.to_s } },
+              data: { turbo_frame: "_top" }, class: "cs-btn-primary",
+              id: "cs_grant_scoped_role" %>
+      <% end %>
+    <% elsif ready && @subject_gid.blank? %>
+      <%# The picker explains a dozen narrowings; staying silent about the one
+          pick that is actually missing is the loudest omission of the lot —
+          and the blank subject option makes this a normal first visit. %>
+      <span id="cs_needs_subject" role="status" class="cs-hint">Choose a subject above to grant this.</span>
+    <% elsif @step.grantable_gid.present? && @selected_role.nil? %>
+      <span id="cs_needs_role" role="status" class="cs-hint">Choose a role above to grant this.</span>
+    <% elsif ready && @subject_gid.present? %>
+      <%= button_to "Grant scoped role", scoped_role_assignments_path, method: :post,
+            params: { role_id: @selected_role.id, subject_gid: @subject_gid,
+                      resource_gid: @step.grantable_gid },
+            data: { turbo_frame: "_top" }, class: "cs-btn-primary",
+            id: "cs_grant_scoped_role" %>
+    <% end %>
+  </div>
 </turbo-frame>

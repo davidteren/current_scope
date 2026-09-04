@@ -258,5 +258,74 @@ end
 
 This is **browse-only sugar** — it does *not* gate anything. The raw-GlobalID
 path still accepts **any** model as a scoped-role target whether or not it opts
-in; the mixin only decides what shows up in the dropdown. `current_scope_label`
+in, and once a record of such a type is linked the console will list that type's
+records too, so a full-access operator can browse a table you never registered;
+the mixin only decides what shows up in the dropdown unprompted. `current_scope_label`
 is a plain instance method, so your own definition always wins over the default.
+
+### Which roles may be granted on a type (#183)
+
+A role's permission bundle is written for one **shape** of record. When that
+record declares a `current_scope_parent`, a grant held on the CONTAINER resolves
+for every record inside it — so granting a per-record role on the container hands
+the subject that per-record surface across the whole container. One wrong pick in
+a dropdown, and by default nothing objects.
+
+A type can say what it accepts:
+
+```ruby
+class Workstream < ApplicationRecord
+  include CurrentScope::Scopeable
+  self.current_scope_grantable_roles = %w[Lead]
+end
+```
+
+- **Absent a declaration nothing changes**: every role stays grantable on every
+  type. Opting in is per type.
+- The rule is enforced on the **model**, so a seed, a rake task and a console
+  one-liner meet it as well as the management UI. It is a validation, so the
+  write paths that skip validations skip it too: `insert_all`, `upsert_all`,
+  `update_column` and `update_columns` write whatever they are given, and no
+  database constraint stands behind them. The picker narrows the type dropdown
+  to those that accept the chosen role, and says how many it withheld.
+- An **empty** declaration, `self.current_scope_grantable_roles = []`, means no
+  role may be granted on that type. It is an assignment rather than a DSL call
+  precisely so a computed empty list declares the lockdown instead of silently
+  reading the current value. Assigning **`nil`** is the opposite: it means no
+  declaration, so a list read from config with a missing key leaves the type as
+  it was rather than locking it. "As it was" means the accept-everything default
+  on a plain class, and the **parent's** declaration on a subclass, which is the
+  next bullet's inheritance rule: `SpecialInvoice.current_scope_grantable_roles
+  = nil` under a locked-down base inherits that lockdown. Mind the difference when you compute
+  the list: `ENV.fetch("CS_ROLES", "").split(",")` is `[]` with the variable
+  unset, which is a lockdown, and that is the fail-closed answer. Assign `nil`
+  when you mean "no declaration".
+- A subclass inherits its parent's declaration until it states its own, and an
+  **STI subclass** is governed by its own declaration even though the grant row
+  stores the base class's token. That needs the record: when the row it names is
+  gone, or its stored id is not a canonical key for the model, the check has
+  only the stored token to go on and judges the grant by the **base class**. One table therefore holds records with
+  different answers, so the picker keeps every class over an STI table in the
+  type dropdown and narrows the **record** list instead. How far the picker READS
+  is decided from `descendants`, which sees only loaded classes: in an
+  environment that does not eager-load, a declaring subclass nothing has
+  referenced yet can leave a grantable record past the display cut until the
+  next request, and production eager-loading closes it. What the picker SAYS is
+  decided from the rows instead, because a message that is wrong is worse than a
+  fetch that is narrow.
+- `CurrentScope::GrantableRoles` can be included on its own if you want the rule
+  without the picker registration.
+
+**Roles are matched by NAME**, and that is the trade a declaration written in
+code makes: role ids are per-database and cannot be named in a model file. So
+renaming a role stops the declarations that name it from matching, and a new role
+that reuses the name inherits its acceptance. If you rename a role, grep for its
+old name in your models, and run `bin/rails current_scope:report`: it lists the
+grants whose type would refuse them today, which is where a rename shows up.
+
+Adding a declaration does not rewrite or delete any grant already in the table.
+It does apply the next time such a row is **saved**, though: the check runs on
+every write, not only on create, so a pre-existing pairing the new declaration
+refuses will fail validation if host code saves that row again. That is
+deliberate. `assignment.update!(role: other_role)` has to meet the same rule as
+the grant that created it, or the console's gate would be one `update` wide.

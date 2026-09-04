@@ -7,6 +7,42 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Opt-in role-to-resource-type compatibility (#183).** Any role could be
+  granted on any resource type, and with parent-chain resolution an incompatible
+  pairing widens access silently: a role whose bundle covers one record's own
+  surface, granted on a CONTAINER that record declares as its
+  `current_scope_parent`, resolves for every record inside that container. One
+  wrong pick in a dropdown, and nothing objected.
+
+  A type may now declare what it accepts:
+
+  ```ruby
+  class Workstream < ApplicationRecord
+    include CurrentScope::Scopeable
+    self.current_scope_grantable_roles = %w[Lead]
+  end
+  ```
+
+  `ScopedRoleAssignment` refuses a pairing the type does not list, so a seed, a
+  rake task and a console one-liner meet the same rule as the management UI. The
+  picker chooses the role first, so it narrows the TYPE list to those that accept
+  it and says how many were withheld and why, rather than silently shortening a
+  dropdown.
+
+  The check is a validation, so it judges a grant when the row is written and
+  never again: the rows already in the table when a declaration lands are exactly
+  the ones the widening was noticed on. `bin/rails current_scope:report` now
+  lists the grants whose type would refuse them today, so a host can find and
+  revoke them.
+
+  **Absent a declaration nothing changes**: every role stays grantable on every
+  type, which is what every existing host has. The declaration lives on the
+  resource rather than on the role, because that is already where a host says how
+  a model participates (`current_scope_parent`, the searchable scope,
+  `Scopeable`); it needs no migration and no admin screen, and it is versioned in
+  the code review that introduces the pairing. `CurrentScope::GrantableRoles` is
+  includable on its own for a type that wants the rule without appearing in the
+  picker.
 - **Portable role-definition export/import (#156 v1).** YAML document of role
   names, descriptions, `full_access`, and permission keys, with diff, a confirm
   gate on production or a populated roles table, snapshot rollback, and ledger

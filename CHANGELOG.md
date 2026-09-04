@@ -71,6 +71,45 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pilots.
 
 ### Fixed
+- **Every grant write is audited, not just the console's (#182).** Rows written
+  through the model API — a seed, a rake task, a console one-liner — emitted no
+  ledger events, while the same change made through the management UI did. That
+  turns a recovery into an audit lie: after a role delete cascaded 187
+  revocations into the ledger, restoring all 187 through the seed task added no
+  rows, so anyone auditing later read the revocations, found no restoration, and
+  would reasonably conclude access was still gone.
+
+  `scoped_role.granted`, `scoped_role.revoked`, `org_role.removed` and
+  `role.deleted` are emitted from model callbacks now rather than from the
+  controllers, so every write path records the same row. Each carries
+  `details.attribution`, which says one thing and no more: `"actor"` when an
+  ambient identity existed (`Current.actor` answers `super || user`, so a
+  request, a job, an ambient user or a test helper all produce it), `"self"`
+  when none did, in which case the row is self-attributed to the record it is
+  about — the same shape `CurrentScope.grant!`'s bootstrap events already used.
+  The key is `attribution` rather than `source` because `details["source"]`
+  was already taken twice, by `grant!`'s `"bootstrap"` and by the file path on
+  `definitions.applied`.
+
+  The callbacks run INSIDE the transaction, so `config.audit = :strict` still
+  rolls a mutation back when its audit row cannot be written.
+
+  What is recorded from the model is creation and destruction of scoped grants,
+  and destruction of org-role assignments and of roles. Four write paths stay
+  silent, and the configuration guide tables them: a direct
+  `RoleAssignment.create!` or `#update!`, a direct `Role.create!`, and a direct
+  `Role#update!`. So a privilege change made by `update!` in a console or a
+  seed still leaves no row; use the management UI, `CurrentScope.grant!` or the
+  definitions document when a change has to be auditable.
+
+  Two of those are creations, and both are deliberate. A direct
+  `RoleAssignment.create!` records nothing, because `CurrentScope.grant!` is the
+  documented path and knows the from/to a callback cannot see. And
+  `role.created` stays in the controller, because it carries the role's initial
+  permission set, which is not yet persisted when an `after_create` callback
+  runs; moving it to `after_commit` would forfeit the `:strict` rollback every
+  other event keeps. A role created by a seed therefore leaves no `role.created`
+  row while its deletion leaves `role.deleted`.
 - **Four code comments stopped claiming `schema.rb` cannot carry a MySQL
   collation (#194).** It can: Rails dumps a per-column `collation:` whenever a
   column's collation differs from its table's, which is exactly what the #151

@@ -112,11 +112,59 @@ boundary**, and **`CurrentScope.grant!`** (including the rake task and seeds
 bootstrap path — self-attributed, `details.source = "bootstrap"`), and degrades
 gracefully (skip + warn once) if the events table isn't migrated; `:strict`
 **raises** on a missing events table so an audit-mandatory app never commits an
-unaudited change (the mutation rolls back). Direct `RoleAssignment` /
-`ScopedRoleAssignment` writes and the test helpers (`grant_role!` /
-`grant_scoped_role!`) are **not** recorded — use `grant!` for bootstrap
-paths that need a ledger trail. UI events stamp `request_id` from
-`ActionDispatch::RequestId` via the Context hook.
+unaudited change (the mutation rolls back).
+
+Since #182 the ledger no longer depends on which door a GRANT was created or
+destroyed through (updates are a separate matter — see the table below).
+`scoped_role.granted`, `scoped_role.revoked`, `org_role.removed` and
+`role.deleted` are emitted from model callbacks, so a seed, a rake task, a
+console one-liner and the `grant_scoped_role!` test helper all record what the
+management UI records. (`grant_role!` is a direct `RoleAssignment.create!`, and
+org-role creation is one of the two writes named below as still unrecorded.)
+Every event that CHANGES an authorization carries `details.attribution` —
+`org_role.assigned`, `org_role.changed`, `org_role.removed`, `role.created`,
+`role.updated`, `role.renamed`, `role.deleted`, `scoped_role.granted` and
+`scoped_role.revoked`. It is `"actor"` when an ambient identity existed
+(`Current.actor` answers `super || user`, so a request, a job, an ambient user
+or `with_current_user` in a test all produce it), `"self"` when none did, in
+which case the row is self-attributed to the record it is about.
+`CurrentScope.grant!`'s rows are self-attributed too, so they read `"self"`;
+what marks them as the bootstrap path is their separate `source: "bootstrap"`.
+
+It is `attribution` and not `source` because `details["source"]` was already
+taken, twice and for different things: `CurrentScope.grant!` writes
+`source: "bootstrap"`, and `definitions.applied` / `definitions.rolled_back`
+write the file path the document came from. Filter on `attribution` to isolate
+who was behind an authorization change; filter on `source` for neither.
+
+The OBSERVATION events carry no attribution and are not meant to:
+`impersonation.started` / `.stopped`, `sod.bypassed`, `access.would_deny`,
+`access.sod_blind_spot` and `access.sod_initiator_missing` record what happened
+at the gate rather than a change to a grant. The two definitions events are
+authorization changes and carry no `attribution` either — their actor is the
+one the document was applied with. Do not read an absent `attribution` as
+"not a human".
+
+What is recorded from the model is **creation and destruction of scoped
+grants**, and **destruction** of org-role assignments and of roles. Four write
+paths are still silent, and it is worth knowing which before you rely on the
+ledger:
+
+| Write | Recorded? |
+|---|---|
+| `ScopedRoleAssignment` create / destroy | yes, from the model |
+| `RoleAssignment` destroy, `Role` destroy | yes, from the model |
+| `RoleAssignment.create!` direct | no — `CurrentScope.grant!` is the documented path and carries the from/to a callback cannot see |
+| `RoleAssignment#update!(role:)` direct | no — same reason; a console re-grant leaves no trail |
+| `Role.create!` direct | no — `role.created` carries the initial permission set, which is not persisted when an `after_create` runs, and moving it to `after_commit` would forfeit the `:strict` rollback |
+| `Role#update!` direct (`full_access`, `permission_keys`) | no — `role.updated` / `role.renamed` are emitted by the console |
+
+So a privilege change made by `update!` in a console or a seed still leaves no
+row. Use the management UI, `CurrentScope.grant!` or the definitions document
+for changes that must be auditable.
+
+UI events stamp `request_id` from `ActionDispatch::RequestId` via the Context
+hook.
 
 > **Note on the `!`:** despite the bang, `Event.record!` only guarantees
 > raise-on-failure under `:strict` (and for a missing actor). In the default

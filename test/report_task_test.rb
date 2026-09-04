@@ -887,8 +887,12 @@ class ReportTaskTest < ActiveSupport::TestCase
 
     out = run_task
 
-    assert_match(/no longer accepts/, out)
-    assert_match(/Q3|Project##{project.id}/, out)
+    # Anchored on the section heading: the count line also says "no longer
+    # accepts", and the same grant is printed by the "can never match" section
+    # because projects#show is not a routed key here, so either match alone
+    # stayed green with this section silenced (validation findings, 2026-09-04).
+    assert_match(/Scoped grants their type no longer accepts \(#183\):\n\n[^\n]*(Q3|Project##{project.id})/, out,
+                 "the section has to list the grant, not only count it")
     assert CurrentScope::ScopedRoleAssignment.exists?(subject: @alice, resource: project),
            "the row is reported, not touched — revoking is the operator's call"
   end

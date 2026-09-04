@@ -168,6 +168,32 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
     resolver&.singleton_class&.remove_method(:collection_type?)
   end
 
+  # The same predicate, driven through the call site that uses it. The test
+  # above pins the two predicates; deleting the `unless unnameable_model?` guard
+  # at the call site left it green, and that guard is what keeps the key absent
+  # rather than nil (validation findings, 2026-09-04).
+  test "the would_deny row for a usable-but-unnameable type carries no model key (#196)" do
+    controller = AnonymousModelController.new
+    anonymous = AnonymousModelController.anonymous_model
+    resolver = CurrentScope.resolver
+    original = resolver.method(:collection_type?)
+    resolver.define_singleton_method(:collection_type?) do |type|
+      type.equal?(anonymous) || original.call(type)
+    end
+
+    CurrentScope::Current.set(user: @alice) do
+      controller.send(:record_would_deny_event, "anonymous_model#index", nil, anonymous)
+    end
+
+    event = CurrentScope::Event.where(event: "access.would_deny").last
+    assert_equal "anonymous_model#index", event.details["permission"]
+    assert_not event.details.key?("model"),
+      "absent, not nil: nil says the gate had no type, and the report would re-check " \
+      "on the stricter question with neither caveat nor marker"
+  ensure
+    resolver&.singleton_class&.remove_method(:collection_type?)
+  end
+
   test "a granted action in report mode is an ordinary allow — no report, no header" do
     CurrentScope.config.enforcement = :report
     assign(@alice, role("Member", "reports#index"))

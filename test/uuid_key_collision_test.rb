@@ -338,6 +338,49 @@ class UuidKeyCollisionTest < ActiveSupport::TestCase
     guard.singleton_class.send(:private, :mysql?)
   end
 
+  # The predicate every MySQL test in this file stubs around. A wrong answer
+  # here does not raise: `false` on a real MySQL host SKIPS check_collation! and
+  # leaves the #151 case-folding escalation live with no refusal, and the CI
+  # MySQL matrix boots fine when the check is skipped. So the answer itself is
+  # pinned (validation findings, 2026-09-04).
+  test "mysql_config? answers yes from the adapter key OR the adapter class" do
+    config = Struct.new(:adapter, :adapter_class)
+    klass = Struct.new(:name)
+    mysql2 = klass.new("ActiveRecord::ConnectionAdapters::Mysql2Adapter")
+    sqlite = klass.new("ActiveRecord::ConnectionAdapters::SQLite3Adapter")
+
+    assert CurrentScope.mysql_config?(config.new("mysql2", sqlite)), "the key alone is enough"
+    assert CurrentScope.mysql_config?(config.new("trilogy", nil))
+    assert CurrentScope.mysql_config?(config.new("custom", mysql2)),
+      "the class the key resolves to is enough when the key says nothing"
+    refute CurrentScope.mysql_config?(config.new("sqlite3", sqlite))
+    refute CurrentScope.mysql_config?(config.new("postgresql", nil))
+  end
+
+  test "mysql_config? still answers from the key when the adapter class fails to load" do
+    config = Object.new
+    config.define_singleton_method(:adapter) { "mysql2" }
+    config.define_singleton_method(:adapter_class) { raise LoadError, "cannot load such file -- mysql2" }
+
+    assert CurrentScope.mysql_config?(config),
+      "a LoadError is a ScriptError, not a StandardError; uncaught it boots the host into the load failure"
+  end
+
+  test "SchemaGuard.mysql? asks mysql_config? with the judged model's own pool config" do
+    asked = nil
+    original = CurrentScope.method(:mysql_config?)
+    CurrentScope.define_singleton_method(:mysql_config?) { |db_config| asked = db_config; true }
+    # A double, not a real model: under one adapter both grant models share a
+    # pool, so asking the wrong model would still hand back the same config.
+    own_config = Object.new
+    model = Struct.new(:connection_pool).new(Struct.new(:db_config).new(own_config))
+
+    assert CurrentScope::SchemaGuard.send(:mysql?, model)
+    assert_same own_config, asked, "the adapter question must follow the model being judged"
+  ensure
+    CurrentScope.define_singleton_method(:mysql_config?, original)
+  end
+
   # #193 review — the reason the model is passed in rather than assumed. A host
   # that puts the grant tables on a second database has to be told WHICH one
   # failed, and every other test here stubs RoleAssignment, so a regression that

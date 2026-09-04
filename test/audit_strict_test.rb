@@ -96,6 +96,25 @@ class AuditStrictModeTest < ActiveSupport::TestCase
     end
   end
 
+  # #182: the model callback is what makes :strict hold for a write that never
+  # goes through the console or CurrentScope.grant!. Paths 1 and 2 below call
+  # Event.record! themselves, so they stay red even if the callback swallowed
+  # its own failure; this one lets the callback do the recording.
+  test "strict rolls back a bare scoped grant when its callback's audit row fails" do
+    CurrentScope.config.audit = :strict
+    grantee = User.create!(name: "Grantee0")
+    record = Report.create!(title: "R", requested_by: @actor)
+    with_current_user(@actor) do
+      with_missing_events_table do
+        assert_no_difference -> { CurrentScope::ScopedRoleAssignment.count } do
+          assert_raises(ActiveRecord::StatementInvalid) do
+            CurrentScope::ScopedRoleAssignment.create!(subject: grantee, role: @role, resource: record)
+          end
+        end
+      end
+    end
+  end
+
   test "strict rolls back path 2 — a scoped role assignment" do
     CurrentScope.config.audit = :strict
     grantee = User.create!(name: "Grantee2")

@@ -133,7 +133,12 @@ CurrentScope.configure do |config|
   #   true    — record management-UI mutations, impersonation boundary events,
   #             and grant!/rake/seeds bootstrap grants; if the events table
   #             hasn't been migrated yet, degrade gracefully (skip + warn once).
-  #             Direct model writes and test helpers are not recorded.
+  #             Scoped grants, org-role removals and role deletions are
+  #             recorded from the model, so a seed or a rake task leaves the
+  #             same trail the console does (#182). Two creations still record
+  #             nothing: an org role written directly rather than through
+  #             CurrentScope.grant!, and a Role created outside the console.
+  #             docs/guides/configuration-reference.md says why.
   #   :strict — a missing events table RAISES (rolling the mutation back), so an
   #             audit-mandatory app never commits an unaudited change.
   # config.audit = true

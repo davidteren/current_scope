@@ -331,6 +331,359 @@ class ReportTaskTest < ActiveSupport::TestCase
     resolver&.singleton_class&.remove_method(:allow?)
   end
 
+  # --- #196: the report must ask the question the GATE asks ---
+  #
+  # CurrentScope::Guard fills `model:` from the controller's current_scope_model
+  # hook on every real request, and the resolver's record-less arm needs it to
+  # see a scoped grant at all. Re-asking without it asks a stricter question and
+  # calls a subject denied whom the gate admits. On the bake host that was 406
+  # of 696 rows, and the fix it implied was to grant a whole controller to
+  # everyone.
+
+  def would_deny_with_model(subject, permission, model_name)
+    CurrentScope::Event.create!(
+      event: "access.would_deny", subject: subject.to_gid.to_s, actor: subject.to_gid.to_s,
+      target: subject.to_gid.to_s, target_label: subject.name,
+      details: { "permission" => permission, "reason" => "no_grant",
+                 "record_less" => true, "model" => model_name }
+    )
+  end
+
+  test "a denial recorded with a model leaves the list once the scoped grant admits the subject" do
+    alice = User.create!(name: "Alice")
+    report = Report.create!(title: "Q3", requested_by: alice)
+    scope_grant(alice, role_with("reports#index"), report)
+    would_deny_with_model(alice, "reports#index", "Report")
+
+    output = run_task
+
+    assert_match(/nothing to act on|Every would-be denial/, output,
+      "the gate admits her through current_scope_model, so the report must agree")
+    assert_no_match(/reports#index/, output,
+      "a denial the gate would allow must not be listed as still ungranted")
+  end
+
+  test "the model does not blanket-allow: no scoped grant is still outstanding" do
+    alice = User.create!(name: "Alice")
+    Report.create!(title: "Q3", requested_by: alice)
+    would_deny_with_model(alice, "reports#index", "Report")
+
+    output = run_task
+
+    assert_match(/would-be denials STILL ungranted/, output,
+      "the grant is what opens the arm, not the model")
+    assert_match(/reports#index/, output)
+  end
+
+  test "the recorded model is the one passed back to the resolver" do
+    alice = User.create!(name: "Alice")
+    would_deny_with_model(alice, "reports#index", "Report")
+
+    asked = []
+    resolver = CurrentScope.resolver
+    original = resolver.method(:allow?)
+    resolver.define_singleton_method(:allow?) do |**kwargs|
+      asked << kwargs
+      original.call(**kwargs)
+    end
+
+    run_task
+
+    assert_equal 1, asked.size
+    assert_equal Report, asked.first[:model],
+      "the gate asked with this type, so the re-check must too"
+    assert_nil asked.first[:record], "and still record-less"
+  ensure
+    resolver&.singleton_class&.remove_method(:allow?)
+  end
+
+  test "a recorded model that no longer resolves is still asked, and a deny is unknown" do
+    alice = User.create!(name: "Alice")
+    would_deny_with_model(alice, "reports#index", "LongDeletedThing")
+
+    asked = []
+    resolver = CurrentScope.resolver
+    original = resolver.method(:allow?)
+    resolver.define_singleton_method(:allow?) do |**kwargs|
+      asked << kwargs
+      original.call(**kwargs)
+    end
+
+    output = run_task
+
+    assert_equal 1, asked.size, "ask anyway: an allow without the type is an allow with it"
+    assert_nil asked.first[:model], "and ask it the only way left, without one"
+    assert_match(/could not be re-checked/, output)
+    assert_match(/would-be denials STILL ungranted/, output,
+      "the DENY is the answer the missing type could have changed, so it is cannot-tell")
+    assert_match(/name a model class that no longer loads/, output,
+      "and this row has its own remedy: no grant can clear it, so say so")
+  ensure
+    resolver&.singleton_class&.remove_method(:allow?)
+  end
+
+  # The other half: a dead type name must not strand a subject the gate already
+  # allows. `model:` is read only by an allow arm, so an org-wide grant answers
+  # this with or without the type, and refusing to ask would leave the row on
+  # the grant-these list for ever, under a subject the same report labels as
+  # holding the role that clears it.
+  test "a dead model name does not strand a subject an org-wide grant already allows" do
+    alice = User.create!(name: "Alice")
+    role = CurrentScope::Role.create!(name: "Admin", full_access: true)
+    CurrentScope::RoleAssignment.create!(subject: alice, role: role)
+    would_deny_with_model(alice, "reports#index", "LongDeletedThing")
+
+    output = run_task
+
+    assert_no_match(/would-be denials STILL ungranted/, output,
+      "full_access answers this without needing the type at all")
+    assert_match(/nothing found in any category|Every would-be denial/, output)
+  end
+
+  test "a legacy row with no model is re-checked without one, and the report says so" do
+    alice = User.create!(name: "Alice")
+    report = Report.create!(title: "Q3", requested_by: alice)
+    # The grant the gate WOULD have seen through current_scope_model.
+    scope_grant(alice, role_with("reports#index"), report)
+    # Written before the field existed: no "model" key at all.
+    CurrentScope::Event.create!(
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name,
+      details: { "permission" => "reports#index", "reason" => "no_grant", "record_less" => true }
+    )
+
+    output = run_task
+
+    assert_match(/would-be denials STILL ungranted/, output,
+      "without a recorded type the record-less arm cannot fire — today's behaviour, unchanged")
+    assert_match(/recorded BEFORE this task stored the/, output,
+      "and the report must say which rows it cannot vouch for")
+    assert_match(/Do not grant on the strength of THIS line/, output,
+      "because the obvious reading of the list is the dangerous one")
+    assert_match(/\* = includes denial\(s\) re-checked WITHOUT the gate's model/, output,
+      "and the legend belongs beside the list, under a header that says grant these")
+  end
+
+  # A legacy row and a row that recorded no model are DIFFERENT: nil is
+  # knowledge, absent is not. Collapsing them would apply one row's caveat to
+  # the other, in the direction that hides it.
+  test "a row recording no model is not counted as a legacy row" do
+    alice = User.create!(name: "Alice")
+    CurrentScope::Event.create!(
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name,
+      details: { "permission" => "reports#index", "reason" => "no_grant",
+                 "record_less" => true, "model" => nil }
+    )
+
+    output = run_task
+
+    assert_match(/would-be denials STILL ungranted/, output)
+    assert_no_match(/recorded BEFORE this task stored the/, output,
+      "this row DID record the gate's answer: there was no model")
+  end
+
+  # #196 review — the mixed case, and the one that breaks the invariant the
+  # detail list is built on. A legacy row and a modern row can share a subject,
+  # permission and target and still belong in different buckets: the modern one
+  # re-checks WITH the type and is resolved, the legacy one cannot and stays
+  # outstanding. If the detail list keys on fewer things than the grouping does,
+  # it matches both ledger rows and prints a total the headline disagrees with.
+  # The caveat tells the operator to exercise the action again and read the
+  # fresh row. The ledger is append-only, so the fresh row is a NEW group and
+  # the old one cannot clear itself: without this the advice moves nothing, and
+  # the only thing that does is the org-wide grant #196 exists to prevent.
+  test "a legacy row is answered by a fresher row that carried the model" do
+    alice = User.create!(name: "Alice")
+    report = Report.create!(title: "Q3", requested_by: alice)
+    scope_grant(alice, role_with("reports#index"), report)
+    base = {
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name
+    }
+    CurrentScope::Event.create!(**base, created_at: 2.days.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true
+    })
+    CurrentScope::Event.create!(**base, created_at: 1.day.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true,
+      "model" => "Report"
+    })
+
+    output = run_task
+
+    assert_no_match(/would-be denials STILL ungranted/, output,
+      "the question was asked again with the type and came back granted")
+    assert_match(/predate the stored model and have since been/, output)
+    assert_match(/ASKED AGAIN/, output)
+  end
+
+  # The OLDEST shape: a row with neither a model key nor a record_less flag.
+  # Its record-lessness is inferred from the GIDs, and using the raw flag to
+  # decide supersession would leave exactly these rows carrying the caveat with
+  # no way to act on it (#196 review).
+  test "a row predating the record_less flag is superseded too" do
+    alice = User.create!(name: "Alice")
+    report = Report.create!(title: "Q3", requested_by: alice)
+    scope_grant(alice, role_with("reports#index"), report)
+    base = {
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name
+    }
+    # No record_less key AND no model key: the shape this file's own would_deny
+    # helper writes, and the oldest thing a ledger can hold.
+    CurrentScope::Event.create!(**base, created_at: 2.days.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant"
+    })
+    CurrentScope::Event.create!(**base, created_at: 1.day.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true,
+      "model" => "Report"
+    })
+
+    output = run_task
+
+    assert_no_match(/would-be denials STILL ungranted/, output,
+      "the same question was asked again with the type and came back granted")
+    assert_match(/ASKED AGAIN/, output)
+  end
+
+  # "Exercise the action AGAIN" means the answer has to be newer than the row it
+  # answers. During a rolling deploy an older new-format row would otherwise
+  # hide a later old-format denial, which is a real denial dropped off the list.
+  test "an OLDER model-bearing answer does not supersede a newer legacy row" do
+    alice = User.create!(name: "Alice")
+    report = Report.create!(title: "Q3", requested_by: alice)
+    scope_grant(alice, role_with("reports#index"), report)
+    base = {
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name
+    }
+    CurrentScope::Event.create!(**base, created_at: 2.days.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true,
+      "model" => "Report"
+    })
+    CurrentScope::Event.create!(**base, created_at: 1.day.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true
+    })
+
+    output = run_task
+
+    assert_match(/would-be denials STILL ungranted/, output,
+      "the legacy row is the LATER evidence; an older answer cannot speak for it")
+    assert_no_match(/ASKED AGAIN/, output)
+  end
+
+  # Two rows written in the same request share a created_at, so "newer" is
+  # (created_at, id): a strict comparison on the timestamp alone would refuse
+  # the answer and leave a stale denial standing (#196 review).
+  test "an answer recorded in the same instant still answers the legacy row" do
+    alice = User.create!(name: "Alice")
+    report = Report.create!(title: "Q3", requested_by: alice)
+    scope_grant(alice, role_with("reports#index"), report)
+    stamp = 1.day.ago
+    base = {
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name, created_at: stamp
+    }
+    CurrentScope::Event.create!(**base, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true
+    })
+    CurrentScope::Event.create!(**base, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true,
+      "model" => "Report"
+    })
+
+    output = run_task
+
+    assert_no_match(/would-be denials STILL ungranted/, output,
+      "the answer was written after the legacy row, to the row id if not the clock")
+    assert_match(/ASKED AGAIN/, output)
+  end
+
+  # current_scope_model can return different types for the same permission, and
+  # record-less rows all carry the subject as their target, so a granted answer
+  # for one type is no answer for another. If any model-bearing sibling is still
+  # denied, the legacy row stands.
+  test "a still-denied model-bearing sibling blocks supersession" do
+    alice = User.create!(name: "Alice")
+    report = Report.create!(title: "Q3", requested_by: alice)
+    scope_grant(alice, role_with("reports#index"), report)
+    base = {
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name
+    }
+    CurrentScope::Event.create!(**base, created_at: 3.days.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true
+    })
+    CurrentScope::Event.create!(**base, created_at: 2.days.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true,
+      "model" => "Report"
+    })
+    # A second type for the same permission, with no grant behind it.
+    CurrentScope::Event.create!(**base, created_at: 1.day.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true,
+      "model" => "Document"
+    })
+
+    output = run_task
+
+    assert_match(/would-be denials STILL ungranted/, output,
+      "one type is still refused, so the row that named no type is not answered")
+    assert_no_match(/ASKED AGAIN/, output)
+  end
+
+  # And when the fresher row is still DENIED there is nothing to supersede, so
+  # both rows stand. This is the case that pins the headline and the detail list
+  # on the same key: the grouping has five parts and the list must too.
+  test "a legacy row and a still-denied modern row are both counted, once each" do
+    alice = User.create!(name: "Alice")
+    base = {
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name
+    }
+    CurrentScope::Event.create!(**base, created_at: 2.days.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true
+    })
+    CurrentScope::Event.create!(**base, created_at: 1.day.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true,
+      "model" => "Report"
+    })
+
+    output = run_task
+
+    assert_match(/^\s+2\s+would-be denials STILL ungranted/, output,
+      "no grant exists, so neither row is answered")
+    assert_match(/Total: 2 outstanding would-be denial\(s\)/, output,
+      "the list below the headline must count the same denials the headline does")
+    assert_match(/reports#index \*/, output,
+      "and the line includes the legacy row, marked as the caveat says")
+  end
+
+  # #196 review — `model:` only changes the record-less arm, so a row that names
+  # a live record is answerable with or without one. Refusing to re-check it
+  # because the recorded type was since renamed would strand it as outstanding
+  # for ever, and no grant could clear it: the unreachable exit condition #190
+  # fixed, one layer down.
+  test "a record-bound denial is re-checked even when its recorded model is gone" do
+    alice = User.create!(name: "Alice")
+    report = Report.create!(title: "Q3", requested_by: alice)
+    role = CurrentScope::Role.create!(name: "Reader")
+    role.role_permissions.create!(permission_key: "reports#show")
+    CurrentScope::RoleAssignment.create!(subject: alice, role: role)
+    CurrentScope::Event.create!(
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: report.to_gid.to_s, target_label: report.title,
+      details: { "permission" => "reports#show", "reason" => "no_grant",
+                 "record_less" => false, "model" => "LongDeletedThing" }
+    )
+
+    output = run_task
+
+    assert_no_match(/could not be re-checked/, output,
+      "the record loads and the grant answers it; the dead type name is irrelevant here")
+    assert_match(/nothing to act on|Every would-be denial/, output,
+      "so the grant clears it and the loop can still reach zero")
+  end
+
   # #116 — the survey cannot see a request that never resolved a subject, and that
   # is the class that 403s FIRST after the flip. An operator reading "0
   # outstanding" must not read it as "ready".

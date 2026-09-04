@@ -73,6 +73,101 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
     assert_equal "no_grant", event.details["reason"]
   end
 
+  # #196 — the row has to carry the model the GATE decided with, or the #116
+  # report re-asks a stricter question: record-less with no type, which the
+  # resolver's record-less arm cannot answer, so every subject a scoped grant
+  # admits through current_scope_model reads as denied. On the bake host that
+  # was 406 of 696 rows, and the fix that reading implied was to grant a whole
+  # controller to everyone.
+  test "the would-be denial records the model the gate decided with (#196)" do
+    CurrentScope.config.enforcement = :report
+
+    get reports_url, headers: sign_in(@alice)
+
+    event = CurrentScope::Event.where(event: "access.would_deny").last
+    assert_equal "Report", event.details["model"],
+      "ReportsController declares current_scope_model = Report, and the gate used it"
+    assert_equal true, event.details["record_less"]
+  end
+
+  # The other half, and the one that would turn this fix into the same bug
+  # pointing the other way. With NO record hook the Guard passes NO_RECORD, the
+  # resolver's record-less arm never runs, and the declared type is inert. Store
+  # it anyway and the report would answer ALLOWED where the gate denies.
+  test "an inert model hook records no model, because the gate never used it (#196)" do
+    CurrentScope.config.enforcement = :report
+
+    get "/inert_model", headers: sign_in(@alice)
+
+    event = CurrentScope::Event.where(event: "access.would_deny").last
+    assert_equal "inert_model#index", event.details["permission"]
+    assert_nil event.details["model"],
+      "the model hook is inert without a record hook, so there is nothing to re-ask with"
+    assert event.details.key?("model"),
+      "and the key is still written: nil is knowledge, absent is a row from before this existed"
+  end
+
+  # A controller that mis-declares current_scope_model as a String. The row must
+  # still be recorded, and it must record nil: the resolver refuses a String
+  # too, so re-asking without a type reproduces the gate's answer.
+  test "a mis-declared model records no model and still records the row (#196)" do
+    CurrentScope.config.enforcement = :report
+
+    assert_difference -> { CurrentScope::Event.where(event: "access.would_deny").count }, 1 do
+      get "/invalid_model", headers: sign_in(@alice)
+    end
+
+    event = CurrentScope::Event.where(event: "access.would_deny").last
+    assert_equal "invalid_model#index", event.details["permission"]
+    assert_nil event.details["model"],
+      "a String is not a type the resolver would accept, so there is nothing to re-ask with"
+  end
+
+  # A hook returning a class the RESOLVER refuses is the third way to nil, and
+  # nil is right for it: the gate could not use that type either, so re-asking
+  # without one reproduces the gate's answer rather than asking a harder
+  # question.
+  test "a model the resolver would refuse records nil, not a name (#196)" do
+    CurrentScope.config.enforcement = :report
+
+    get "/anonymous_model", headers: sign_in(@alice)
+
+    event = CurrentScope::Event.where(event: "access.would_deny").last
+    assert_equal "anonymous_model#index", event.details["permission"]
+    assert event.details.key?("model"), "nil here is knowledge, so the key is written"
+    assert_nil event.details["model"]
+  end
+
+  # The one case that must record NOTHING rather than nil: a type the resolver
+  # accepts and the ledger cannot name. `collection_type?` is stubbed rather
+  # than fixtured, because the only real shape is an anonymous ActiveRecord
+  # class, and this gem's PolymorphicRegistry and GrantDiagnosis both walk
+  # descendants — a fixture like that failed GrantDiagnosisTest about one run in
+  # two (#196 review).
+  # A unit check, not a request: driving this through the gate would need an
+  # anonymous ActiveRecord class in the dummy app, and this gem's
+  # PolymorphicRegistry and GrantDiagnosis both walk descendants — a fixture
+  # like that failed GrantDiagnosisTest about one run in two. The predicate is
+  # what decides, so the predicate is what is asked.
+  test "a usable type the ledger cannot name records no model key at all (#196)" do
+    controller = AnonymousModelController.new
+    anonymous = AnonymousModelController.anonymous_model
+    resolver = CurrentScope.resolver
+    original = resolver.method(:collection_type?)
+    resolver.define_singleton_method(:collection_type?) do |type|
+      type.equal?(anonymous) || original.call(type)
+    end
+
+    assert controller.send(:unnameable_model?, nil, anonymous),
+      "absent, not nil: nil would say the gate had no type, and the row would then " \
+      "be re-checked on the stricter question with neither caveat nor marker"
+    assert_nil controller.send(:recordable_model_name, nil, anonymous)
+    assert_not controller.send(:unnameable_model?, CurrentScope::Guard::NO_RECORD, anonymous),
+      "with no record hook the gate never reached the arm that reads the type"
+  ensure
+    resolver&.singleton_class&.remove_method(:collection_type?)
+  end
+
   test "a granted action in report mode is an ordinary allow — no report, no header" do
     CurrentScope.config.enforcement = :report
     assign(@alice, role("Member", "reports#index"))

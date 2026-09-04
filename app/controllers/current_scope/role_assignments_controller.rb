@@ -63,14 +63,13 @@ module CurrentScope
         # assignment first inverted that order and could deadlock.
         lock_full_access_org_holders!
         assignment = RoleAssignment.lock.find(params[:id])
-        subject = resolve_subject(assignment)
-        role_name = assignment.role.name
 
         if last_full_access_org_assignment?(assignment)
           refused = true
         else
+          # org_role.removed comes from RoleAssignment's own callback (#182), so
+          # a seed or a rake task that destroys the row records it too.
           assignment.destroy!
-          Event.record!(event: "org_role.removed", target: subject || assignment, details: { role: role_name })
         end
       end
 
@@ -162,8 +161,8 @@ module CurrentScope
     def clear_org_role(subject, assignment, prior_role)
       return false unless assignment.persisted? # nothing to clear ⇒ no event
 
+      # The event is the model's (#182).
       assignment.destroy!
-      Event.record!(event: "org_role.removed", target: subject, details: { role: prior_role.name })
       true
     end
 
@@ -177,11 +176,16 @@ module CurrentScope
 
       # Atomicity comes from create's outer bulk transaction (see clear_org_role).
       assignment.update!(role: new_role)
+      # attribution on both, so every event in this family carries it
+      # and an auditor filtering on it cannot silently lose a whole class of
+      # change. The gate's own observation events are outside that family and
+      # deliberately carry none (#182 review).
       if prior_role.nil?
-        Event.record!(event: "org_role.assigned", target: subject, details: { role: new_role.name })
+        Event.record!(event: "org_role.assigned", target: subject,
+                      details: { role: new_role.name, attribution: "actor" })
       elsif prior_role.id != new_role.id
         Event.record!(event: "org_role.changed", target: subject,
-                      details: { from: prior_role.name, to: new_role.name })
+                      details: { from: prior_role.name, to: new_role.name, attribution: "actor" })
       end
       # same role re-set ⇒ no change ⇒ no event
       changed

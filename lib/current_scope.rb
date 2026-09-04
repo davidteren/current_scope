@@ -329,8 +329,12 @@ module  CurrentScope
     # Audit (#30): when the org role actually changes, records one
     # `org_role.assigned` / `org_role.changed` event, self-attributed to the
     # grantee with `details.source = "bootstrap"`. Same-role re-grants are a
-    # no-op event-wise. Direct model writes and TestHelpers do not go through
-    # this path and are not recorded (documented intentionally).
+    # no-op event-wise. A direct RoleAssignment write does not go through this
+    # path, so its CREATION is still not recorded here — but its removal is,
+    # from the model's own callback, and both scoped-grant directions are
+    # (#182). The asymmetry is deliberate: this method knows the from/to a
+    # callback cannot see, and emitting in both places would double every
+    # bootstrap.
     def grant!(subject, role: nil)
       role ||= begin
         seed_defaults!
@@ -346,7 +350,7 @@ module  CurrentScope
           Event.record!(
             event: "org_role.assigned",
             target: subject,
-            details: { role: role.name, source: "bootstrap" },
+            details: { role: role.name, source: "bootstrap", attribution: "self" },
             actor: subject,
             subject: subject
           )
@@ -354,7 +358,7 @@ module  CurrentScope
           Event.record!(
             event: "org_role.changed",
             target: subject,
-            details: { from: prior_role.name, to: role.name, source: "bootstrap" },
+            details: { from: prior_role.name, to: role.name, source: "bootstrap", attribution: "self" },
             actor: subject,
             subject: subject
           )
@@ -402,7 +406,43 @@ module  CurrentScope
     # answer differs per connection, and asking the wrong one produces a cast or
     # a collation the target server rejects.
     def mysql?(connection = ActiveRecord::Base.connection)
-      connection.adapter_name.match?(/mysql|trilogy|maria/i)
+      mysql_adapter?(connection.adapter_name)
+    end
+
+    # The same question WITHOUT leasing a connection (#193 review). Rails 8.1
+    # soft-deprecates `model.connection` and refuses it outright where
+    # permanent checkout is disallowed, and SchemaGuard asks this on every
+    # boot — before it can raise anything a host would find useful. A pool's
+    # db_config knows the adapter, so ask that instead. One regex, three call
+    # sites, all in this file: `mysql?` above and both names in `mysql_config?`
+    # below. Everything else — SchemaGuard, the repair task — goes through one
+    # of those two. A copy of the pattern also lives in the widening migration,
+    # and is meant to: a migration has to run standalone, without reaching into
+    # CurrentScope. Any copy beyond those is one too many.
+    def mysql_adapter?(name)
+      name.to_s.match?(/mysql|trilogy|maria/i)
+    end
+
+    # The same question of a POOL'S CONFIG, without leasing anything, asked both
+    # ways and answered yes if either says so (#194 review).
+    #
+    # `db_config.adapter` is the key from database.yml; `adapter_class.name` is
+    # the class that key resolves to, which is what `mysql?` above reads. They
+    # agree for every common adapter, and where they could not, the cost of
+    # disagreeing is a SKIPPED collation check — silent, with the #151
+    # case-folding escalation left live. So ask both and fail closed.
+    #
+    # ScriptError as well as StandardError: `adapter_class` re-raises LoadError
+    # when the adapter file exists and fails to load for an unrelated reason,
+    # and LoadError is a ScriptError. Uncaught, it would boot the host into that
+    # load failure instead of the refusal this whole guard exists to print.
+    def mysql_config?(db_config)
+      class_name = begin
+        db_config.adapter_class.name
+      rescue StandardError, ScriptError
+        nil
+      end
+      mysql_adapter?(db_config.adapter) || mysql_adapter?(class_name)
     end
 
     # #151, VALUE side. storable_key? asks whether the CLASS can be named by one

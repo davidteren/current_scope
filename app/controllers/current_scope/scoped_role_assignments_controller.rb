@@ -94,17 +94,11 @@ module CurrentScope
 
     def destroy
       assignment = ScopedRoleAssignment.find(params[:id])
-      # Resolve the subject through the canonical guard, else fall back to the
-      # assignment itself as the audit target — never the unrelated live record a
-      # non-canonical stored id would cast into (#151). Mirrors cascade_subject.
-      subject = assignment.current_scope_resolved_record("subject") || assignment
-      role = assignment.role
-
-      ScopedRoleAssignment.transaction do
-        assignment.destroy!
-        Event.record!(event: "scoped_role.revoked", target: subject,
-                      details: { role: role.name, resource: assignment_resource_label(assignment) })
-      end
+      # The event comes from ScopedRoleAssignment's own callback (#182), so a
+      # seed or a rake task that destroys a grant records the same row this
+      # console action does. The transaction stays: config.audit = :strict rolls
+      # the destroy back when its audit row cannot be written.
+      ScopedRoleAssignment.transaction { assignment.destroy! }
       redirect_to subjects_path, notice: "Scoped role revoked."
     rescue ActiveRecord::RecordNotFound
       redirect_to subjects_path, notice: "That scoped role was already revoked."
@@ -221,14 +215,11 @@ module CurrentScope
     # grant won the race). A RecordInvalid propagates to roll the whole bulk back.
     def grant_one(subject, resource, role)
       ScopedRoleAssignment.transaction(requires_new: true) do
+        # scoped_role.granted comes from the model's own callback (#182), which
+        # fires only on a real create — the same condition this used to test
+        # with previously_new_record?.
         assignment = ScopedRoleAssignment.find_or_create_by!(subject: subject, resource: resource, role: role)
-        if assignment.previously_new_record?
-          Event.record!(event: "scoped_role.granted", target: subject,
-                        details: { role: role.name, resource: helpers.current_scope_label(resource) })
-          true
-        else
-          false
-        end
+        assignment.previously_new_record?
       end
     rescue ActiveRecord::RecordNotUnique
       false # a concurrent grant slipped past the validation to the DB index — already done

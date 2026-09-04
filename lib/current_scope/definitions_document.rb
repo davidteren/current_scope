@@ -281,37 +281,86 @@ module CurrentScope
       committed = false
 
       begin
-        Role.transaction do
-          planned_fa = @roles.select(&:full_access).map(&:name)
-          FullAccessLock.lock_console_state!(planned_fa)
-          refuse_held_deletes!
-          if FullAccessLock.would_lose_held_full_access?(planned_fa)
-            raise LastHolderLock,
-                  "Refusing to apply: this document would leave zero org-wide full-access holders."
+        # The resolved actor becomes the AMBIENT one for the duration (#182
+        # review). This method takes an actor explicitly — ACTOR_ID on the rake
+        # path — and the model callbacks that now record role.deleted and each
+        # cascaded revocation read CurrentScope::Current.actor. Without this the
+        # document's own definitions.applied row names the operator while the
+        # deletions it caused are self-attributed, so the ledger cannot say who
+        # deleted the role.
+        #
+        # RAW attributes, not Current.set: the actor reader answers `super ||
+        # user`, and Object#with (which set uses) snapshots that FALLBACK and
+        # writes it back on exit, pinning whoever Current.user was as an
+        # explicit actor. Current itself names that hazard, and TestHelpers
+        # avoids it the same way this does.
+        # Only the two keys this touches are saved and put back. Restoring the
+        # whole hash would discard anything the import itself legitimately set
+        # along the way (#182 review).
+        previous_actor = CurrentScope::Current.attributes[:actor]
+        previous_user = CurrentScope::Current.attributes[:user]
+        # The ACTOR axis only, and the effective subject only when there is
+        # none. Swapping Current.user outright would hide a genuine
+        # impersonation session in every row this import causes, and would
+        # change what a host's own destroy callbacks see as the effective
+        # subject — far more than an audit fix needs (#182 review).
+        #
+        # KNOWN WRINKLE, named rather than papered over: a caller who passes an
+        # explicit `actor:` from a session with a DIFFERENT ambient user gets
+        # cascade rows whose actor and subject differ, which this ledger reads as
+        # impersonation, while the definitions.applied row pins both and does
+        # not. Both rows name the same operator, which is what matters for "who
+        # deleted this role"; the two disagree only about whether that operator
+        # was standing in for someone.
+        if actor
+          CurrentScope::Current.actor = actor
+          # `subject || actor`, not the actor: apply takes an effective subject
+          # too, and definitions.applied uses it. Installing the actor as the
+          # user would make the callback rows say the operator acted as
+          # themselves while that row says otherwise (#182 review).
+          if CurrentScope::Current.attributes[:user].nil?
+            CurrentScope::Current.user = subject || actor
           end
+        end
+        begin
+          Role.transaction do
+            planned_fa = @roles.select(&:full_access).map(&:name)
+            FullAccessLock.lock_console_state!(planned_fa)
+            refuse_held_deletes!
+            if FullAccessLock.would_lose_held_full_access?(planned_fa)
+              raise LastHolderLock,
+                    "Refusing to apply: this document would leave zero org-wide full-access holders."
+            end
 
-          # Set before the write, not after: File.write truncates first, so a
-          # write that dies part way through still has to be put back.
-          wrote_snapshot = true
-          write_snapshot(path)
-          persist_roles!
-          if CurrentScope.config.audit
-            Event.record!(
-              event: event,
-              target: CurrentScope::Event::DEFINITIONS_TARGET,
-              details: {
-                "snapshot" => path,
-                # The file this document came from. On a rolled_back row that is
-                # the snapshot the operator restored FROM, which is the question
-                # an audit reader asks. "snapshot" is always the undo point this
-                # operation wrote, for both events.
-                "source" => @source_path,
-                "diff" => changeset.to_s
-              }.compact,
-              actor: actor,
-              subject: subject || actor
-            )
+            # Set before the write, not after: File.write truncates first, so a
+            # write that dies part way through still has to be put back.
+            wrote_snapshot = true
+            write_snapshot(path)
+            persist_roles!
+            if CurrentScope.config.audit
+              Event.record!(
+                event: event,
+                target: CurrentScope::Event::DEFINITIONS_TARGET,
+                details: {
+                  "snapshot" => path,
+                  # The file this document came from. On a rolled_back row that is
+                  # the snapshot the operator restored FROM, which is the question
+                  # an audit reader asks. "snapshot" is always the undo point this
+                  # operation wrote, for both events.
+                  "source" => @source_path,
+                  "diff" => changeset.to_s
+                }.compact,
+                actor: actor,
+                subject: subject || actor
+              )
+            end
           end
+        ensure
+          # The RAW values, not the readers: #actor answers `super || user`, so
+          # reading it to write it back would pin the fallback as an explicit
+          # actor. Current itself names that hazard.
+          CurrentScope::Current.actor = previous_actor
+          CurrentScope::Current.user = previous_user
         end
         committed = true
       ensure

@@ -2,13 +2,11 @@
 
 > ## Last session handoff
 >
-> **What this is:** CurrentScope on main, Beta, with the 1.0 gate now
-> actually runnable.
-> **What we finished:** The rollout rehearsal could never be finished, because
-> the report counted history instead of what is still denied. It now reaches
-> zero (PR #184) and says what it cannot see (PR #185).
-> **What you do next:** Run report mode on a real app, then flip it to
-> enforce. That is the last gate before 1.0 (#116).
+> **What this is:** CurrentScope, a Rails authorization engine, on `main` at Beta.
+> **What we finished:** PR #202 fixes every P2 gap the validation of PRs #197
+> to #201 found; it is green with all review threads answered. The P3 items in
+> the findings note stay open.
+> **What you do next:** Merge PR #202, then PR #203 (this file and the two reports).
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >

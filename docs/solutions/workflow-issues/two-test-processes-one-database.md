@@ -29,6 +29,7 @@ related_components:
   - "test/support_tables_test.rb"
   - "test/dummy/config/environments/test.rb"
   - "test/dummy/config/database.yml"
+  - "docs/reviews/2026-09-04-validation-findings-pr197-201.md"
 tags:
   - load-time-ddl
   - shared-test-database
@@ -42,7 +43,6 @@ related_issues:
   - "#151 (merged as 820950d): introduced the load-time UUID subject table this entry is about"
   - "#202 (merged as a3695c2): the fix, `SupportTable.prepare`, and the one-process rule in AGENTS.md"
   - "#204 (open): the documented ceiling, a type-only or index-only change still needs `db:test:prepare`"
-  - "docs/reviews/2026-09-04-validation-findings-pr197-201.md: finding 1, where the transient was chased"
 ---
 
 # Two test processes, one database: the transient that was not a race
@@ -79,10 +79,10 @@ that touched either table after that point errored with `no such table`. How man
 depends on when the drop landed relative to where the seed placed those tests, which
 is why the original run saw 6 errors and nine reruns saw none.
 
-Reproduced twice (two unit runs overlapping; the unit suite with a system test file
-booting three seconds later): 1109 runs, 3 failures, 50 errors, line coverage 94.64%
-against a 95% floor. The reverse order was green. Eight CPU burners and sixteen seeds
-in isolation produced nothing, so contention was not the cause.
+Reproduced twice, two unit runs overlapping and the unit suite with a system test
+file booting three seconds later (Example 1). The reverse order was green. Eight CPU
+burners over three seeds, and sixteen seeds run idle, produced nothing, so contention
+was not the cause.
 
 ## Guidance
 
@@ -100,13 +100,14 @@ table. Four reviews flagged it independently within the same day.
 The middle path is `SupportTable.prepare` (`test/support/support_table.rb`): create
 the table when missing, rebuild it only when its column names no longer match the
 block, and never touch a table that matches. Two processes on a matching table cannot
-pull it out from under each other. Two processes on a drifted table both rebuild, which
-is the one-time cost of a branch switch and is what `drop_table(..., if_exists: true)`
-tolerates.
+pull it out from under each other. Two processes on a drifted table both rebuild, and
+the second can still drop what the first just recreated; `if_exists: true` only keeps
+the second drop from raising. That is the one-time cost of a branch switch, and the
+one-process rule (Rule 5) is what removes it.
 
 ### Rule 2: the drift signal comes from the block, not from a list beside it
 
-The first version took a `columns:` manifest next to the block. A manifest that
+The first version on the #202 branch (635d3ef) took a `columns:` manifest next to the block. A manifest that
 drifts from the block never matches, so the table is dropped on every boot, which is
 the exact race the helper exists to close, and no test would notice.
 
@@ -124,6 +125,13 @@ conn.create_table(name, if_not_exists: true, **options, &block)
 Rails 8.1, and it applies the primary key the same way, so `id: :string` yields
 `["id", "name"]` on all three adapters. Column names are the signal; a type-only or
 index-only change still needs `db:test:prepare`, and the file says so (#204).
+
+```ruby
+# before (635d3ef on the #202 branch; replaced by f5a69b7 before the squash to a3695c2)
+SupportTable.ensure(UuidUser.table_name, columns: %w[id name], id: :string) { |t| t.string :name }
+# after
+SupportTable.prepare(UuidUser.table_name, id: :string) { |t| t.string :name }
+```
 
 ### Rule 3: a table that persists must be hidden from the schema dumper
 
@@ -188,29 +196,18 @@ the two files that assumed otherwise had been that way since #151.
 
 ```
 1109 runs, 3669 assertions, 3 failures, 50 errors, 0 skips
+Line coverage: 94.64% (CI floor 95%)
 ActiveRecord::StatementInvalid: SQLite3::SQLException: no such table: current_scope_test_uuid_users
 ActiveRecord::StatementInvalid: Could not find table 'current_scope_test_identity_users'
 ```
 
 The three failures were tests expecting `CurrentScope::IdentitySetup::Halt` and
-getting `StatementInvalid`. The second process reported one
-`SQLite3::BusyException: database is locked` where the 5 s timeout expired while the
-full run held the write lock. That last one is the residual the process rule covers.
+getting `StatementInvalid`. In both reproductions the second process also reported one
+`SQLite3::BusyException: database is locked`, where the 5 s timeout expired while the
+full run held the write lock; it is not in the findings note's count. That one is the
+residual the process rule covers.
 
-### Example 2: the manifest that would have dropped the table every boot
-
-```ruby
-# before
-SupportTable.ensure(UuidUser.table_name, columns: %w[id name], id: :string) { |t| t.string :name }
-# after
-SupportTable.prepare(UuidUser.table_name, id: :string) { |t| t.string :name }
-```
-
-Add `t.string :email` to the block and forget `columns:`, and the old version rebuilt
-the table on every boot with no test going red. The new version cannot disagree with
-itself.
-
-### Example 3: the mutation that proves the rebuild
+### Example 2: the mutation that proves the rebuild
 
 Replace `conn.drop_table(name, if_exists: true)` with `nil` and run
 `test/support_tables_test.rb`: the drifted-column and renamed-column cases go red, the
@@ -218,9 +215,12 @@ matching-table case stays green. That pair is the whole contract.
 
 ## Related
 
-- `docs/solutions/workflow-issues/simplecov-reports-a-number-that-is-quietly-wrong.md`:
+- [A browser test reads the machine it runs on](a-browser-test-reads-the-machine.md):
+  the other environment the suite silently read, found by the same validation pass.
+- [SimpleCov reports a number that is quietly wrong](simplecov-reports-a-number-that-is-quietly-wrong.md):
   the same genre, a tool with one job printing a wrong number under a green suite.
-- `docs/solutions/workflow-issues/the-exit-condition-nobody-can-reach.md`: Rule 2
+- [The exit condition nobody can reach](the-exit-condition-nobody-can-reach.md): Rule 2
   there, assert the question your change controls, is why the rebuild is pinned by a
   mutation and not by reading the config value back.
-- `docs/reviews/2026-09-04-validation-findings-pr197-201.md`: finding 1, the chase.
+- [Validation findings for PRs #197 to #201](../../reviews/2026-09-04-validation-findings-pr197-201.md):
+  finding 1, the chase.

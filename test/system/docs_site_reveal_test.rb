@@ -32,19 +32,19 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
     # and fail against a page behaving exactly as designed.
     @page.command("Emulation.setEmulatedMedia", media: "screen",
                   features: [ { "name" => "prefers-reduced-motion", "value" => "no-preference" } ])
+    # The page loads three remote badge images and fetches rubygems.org for the
+    # version. None of them matter here, and `go_to` waits for the main frame to
+    # stop loading, then raises PendingConnectionsError on anything still
+    # outstanding, so on a runner that drops packets rather than refusing them
+    # every test paid the full 60s timeout in setup (validation findings,
+    # 2026-09-04). Abort them at the network layer instead: the page sees each
+    # as a failed request and carries on.
+    @page.network.blocklist = [ %r{\Ahttps?://} ]
     @page.go_to("file://#{LANDING}")
 
-    # Not wait_for_idle: the page fires a decorative cross-origin fetch to
-    # rubygems.org for the version badge, so on a runner with restricted egress
-    # every test would pay the full timeout before starting. Nothing here
-    # depends on that request. Wait for the document and the elements instead,
-    # and let a real browser error raise where it happens rather than swallowing
-    # it into a confusing assertion failure later.
-    # Not "complete": that waits for the load event, which is blocked by three
-    # remote badge images (shields.io, the CI badge). A runner with restricted
-    # egress would fail every test here in setup, which is the same coupling
-    # the note above avoids for the rubygems fetch. The reveal script sits at
-    # the end of <body>, so "interactive" is already past it.
+    # Not "complete" either: the reveal script sits at the end of <body>, so
+    # "interactive" is already past it, and waiting for the elements is what
+    # this setup actually needs.
     wait_until(timeout: 15, message: "the landing page never finished parsing") do
       @page.evaluate("document.readyState") != "loading" &&
         @page.evaluate("document.querySelectorAll('.reveal').length") > 0

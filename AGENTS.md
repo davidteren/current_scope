@@ -129,6 +129,12 @@ reviewer/planner.
   `RAILS_ENV=test bundle exec rake db:create db:migrate` (the engine's
   `bin/rails` runs ONE command per invocation — `db:test:prepare test` in one
   call fails; split them, as CI does).
+- **One test process per checkout.** Every process shares
+  `storage/test.sqlite3`, so a second `bin/rails test` or `test:system` started
+  while one runs contends for the same file (a `BusyException` past the 5s
+  timeout). Use a worktree for a parallel run: `test/dummy/storage/` is
+  gitignored, so a worktree starts with its own empty database (SQLite creates
+  it on the first run; MySQL/PostgreSQL need `db:create db:migrate` there first).
 - System tests (Capybara + cuprite, headless): `bin/rails test:system` — also
   CI-enforced. Regenerate README screenshots with
   `CAPTURE_SCREENSHOTS=1 RAILS_ENV=test bin/rails test test/system/screenshots_test.rb`.

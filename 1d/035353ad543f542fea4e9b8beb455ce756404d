@@ -1,0 +1,21 @@
+docs/solutions/workflow-issues/two-test-processes-one-database.md
+  s_92f671d71b11f8::t_c788fd44a09684 1-226
+docs/solutions/workflow-issues/a-browser-test-reads-the-machine.md
+  s_92f671d71b11f8::t_c788fd44a09684 1-195
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "1d035353ad543f542fea4e9b8beb455ce756404d",
+  "prompts": {},
+  "sessions": {
+    "s_92f671d71b11f8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "89b1e1cc-21c7-4a01-ba95-6d21be397c6d",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

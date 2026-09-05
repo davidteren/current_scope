@@ -130,9 +130,12 @@ and load nothing remote, so a shared blocklist would be a knob with one caller.
 `headless_chrome.rb` sizes `process_timeout: 90` and `timeout: 60` for a cold shared
 runner, and says why in the comment: 30 s was enough locally and was not on GitHub
 Actions (`Browser did not produce websocket url within 30 seconds`; the 30 s version
-is only in #201's pre-squash history). The harness already held the one launcher, so
-the change was made once. Any timeout tuned on a warm machine is an environment
-dependence in disguise.
+is only in #201's pre-squash history). There are two launchers, not one: the
+Capybara cuprite driver in `test/application_system_test_case.rb` starts Chrome for
+every other system test and still had `process_timeout: 30` when this entry was
+written; it is 90 s now. Any timeout tuned on a warm machine is an environment
+dependence in disguise, and it is wherever a browser is started, not only in the
+harness that happened to fail first.
 
 ### Rule 4: prove each pin by emulating the other value
 
@@ -163,6 +166,9 @@ pinning was four rounds of the same bug.
   test explicitly about that request.
 - Every "passes locally, fails on CI" report on a browser test: check the four
   inputs above before anything else.
+- Every place a browser is launched (`headless_chrome.rb`,
+  `application_system_test_case.rb`, any future driver): size it for the runner,
+  and size all of them when one changes.
 
 ## Examples
 

@@ -114,8 +114,10 @@ An aborted request is finished, not pending, so it cannot keep the frame loading
 the timeout, and the page sees a failed image or fetch and carries on.
 With the four remote requests black-holed on purpose, `go_to` returned in 0.08 s.
 
-Do not reach for `wait_for_idle` or `readyState == "complete"` to work around this;
-both wait on the same remote requests. Before #202 the reveal test waited on
+Do not reach for `wait_for_idle` or `readyState == "complete"` to work around this.
+`wait_for_idle` waits on every request, the fetch included; `complete` waits for the
+load event, which the three badge images block and the fetch does not. Neither is the
+wait that bites, which is inside `go_to`. Before #202 the reveal test waited on
 `readyState != "loading"` instead and its comment said it did not wait on the badges;
 the wait it could not opt out of was inside `go_to`. A comment describing what a
 library does is a claim: read the library. Ferrum 0.17.2: the wait is

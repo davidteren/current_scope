@@ -124,7 +124,10 @@ conn.create_table(name, if_not_exists: true, **options, &block)
 `build_create_table_definition` is the public method `create_table` itself uses on
 Rails 8.1, and it applies the primary key the same way, so `id: :string` yields
 `["id", "name"]` on all three adapters. Column names are the signal; a type-only or
-index-only change still needs `db:test:prepare`, and the file says so (#204).
+index-only change still needs `db:test:prepare`, and the file says so (#204). That
+command works even though the tables are excluded from `schema.rb` (Rule 3), because
+`db:test:load_schema` depends on `db:test:purge`: the database is emptied before the
+schema loads, and the next boot rebuilds the support tables from their blocks.
 
 ```ruby
 # before (635d3ef on the #202 branch; replaced by f5a69b7 before the squash to a3695c2)

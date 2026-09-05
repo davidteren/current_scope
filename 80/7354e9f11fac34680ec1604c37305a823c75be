@@ -1,0 +1,23 @@
+STATUS.md
+  s_92f671d71b11f8::t_bed7b2e469ef7a 9
+docs/reviews/2026-09-04-validation-brief-pr197-201.md
+  s_92f671d71b11f8::t_517d8ae98328e8 87
+docs/reviews/2026-09-04-validation-findings-pr197-201.md
+  s_92f671d71b11f8::t_82d3c2e030c9d0 149-150
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "807354e9f11fac34680ec1604c37305a823c75be",
+  "prompts": {},
+  "sessions": {
+    "s_92f671d71b11f8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "89b1e1cc-21c7-4a01-ba95-6d21be397c6d",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+test/application_system_test_case.rb
+  s_92f671d71b11f8::t_03a59397119ce7 12-14
+docs/solutions/workflow-issues/a-browser-test-reads-the-machine.md
+  s_92f671d71b11f8::t_03a59397119ce7 133-138,169-171
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "1198f6f14c7c9d293027e524b87ed9820704c3a6",
+  "prompts": {},
+  "sessions": {
+    "s_92f671d71b11f8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "89b1e1cc-21c7-4a01-ba95-6d21be397c6d",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

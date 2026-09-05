@@ -146,6 +146,8 @@ routed permission key.
 
 ### 9. Smaller items (P3)
 
+Tracked in [#204](https://github.com/davidteren/current_scope/issues/204), one checklist.
+
 - #200: a pre-existing grant a new declaration would refuse looks like ordinary
   live access in the console (`roles/members.html.erb:107`,
   `subjects/index.html.erb:91` label only orphaned rows). Only the rake report

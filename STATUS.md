@@ -6,7 +6,7 @@
 > **What we finished:** PR #202 fixes every P2 gap the validation of PRs #197
 > to #201 found; it is green with all review threads answered. The P3 items in
 > the findings note stay open.
-> **What you do next:** Merge PR #202, then the docs PR for `docs/validation-brief`.
+> **What you do next:** Merge PR #202, then PR #203 (this file and the two reports).
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >

@@ -84,7 +84,7 @@ suite does not see. Concretely:
   what it drives is a reconstruction, not what Jekyll ships. A break caused by
   the front matter, the theme layout or kramdown's handling of the raw HTML
   block would not be seen. Moving the script to `docs/site/assets/js/` would
-  let both load the same file. Deliberately not done here.
+  let both load the same file. Deliberately not done here; tracked in #204.
 - **The docs-site browser harnesses hand-reproduce just-the-docs v0.12.0's
   include structure** — which wrappers `nav_footer_custom.html` is rendered
   into, and the 800px breakpoint. `HeadlessChrome::THEME_WRITTEN_AGAINST`

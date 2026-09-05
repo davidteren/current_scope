@@ -1,0 +1,29 @@
+docs/solutions/workflow-issues/two-test-processes-one-database.md
+  s_92f671d71b11f8::t_3d337aeaa09523 32,205-208,218-220,222,225-226
+  s_92f671d71b11f8::t_0fcbcf12fc6b82 82-83,129,131-135,199,210
+  s_92f671d71b11f8::t_75d30bc5772531 103-106,110,130
+  s_92f671d71b11f8::t_974ded2aad0e46 84-85
+docs/solutions/workflow-issues/a-browser-test-reads-the-machine.md
+  s_92f671d71b11f8::t_1bb3a38aaa1b45 179-184
+  s_92f671d71b11f8::t_974ded2aad0e46 133-134
+  s_92f671d71b11f8::t_75d30bc5772531 2,63-73,113-114,121-122,132
+  s_92f671d71b11f8::t_3d337aeaa09523 30,192,194-200
+  s_92f671d71b11f8::t_eb0cb7bbe5fff6 41,74-80,101-102
+  s_92f671d71b11f8::t_0fcbcf12fc6b82 118-120,135,169,171,173-175,177,186-188
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "70c6615ac6cb73c82da90818a7500a8a8e3db6d9",
+  "prompts": {},
+  "sessions": {
+    "s_92f671d71b11f8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "89b1e1cc-21c7-4a01-ba95-6d21be397c6d",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

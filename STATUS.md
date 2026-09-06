@@ -4,8 +4,9 @@
 >
 > **What this is:** CurrentScope, a Rails authorization engine, on `main` at Beta.
 > **What we finished:** Re-read the miela_app bake report. 626 outstanding, all
-> starred. Three collection lines already allow. Eight admin lines are correct denials.
-> **What you do next:** Flip miela_app from `:report` to `:enforce` (U5). Do not
+> starred (re-checked without the model). Three collection lines already allow.
+> Nine admin lines are correct denials.
+> **What you do next:** Flip miela_app from `:report` to `:enforce`. Do not
 > grant the 626 (#116).
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
@@ -784,8 +785,9 @@ quickstart, production checklist) + tests T1–T4.
 > start now; nothing below blocks it.** Update (2026-08-25): it has started; a real
 > PostgreSQL host running `:report` gave a first reading of 696 outstanding after
 > #190 marked 350 moot (see #116). Update (2026-09-06): re-read on gem `main` is
-> 626 outstanding, every line starred. Three collection lines already allow when
-> asked with the model. Eight admin lines are correct Member denials. Do not grant
+> 626 outstanding, every line starred (re-checked without the model). Three
+> collection lines already allow when asked with the model. Nine admin lines are
+> correct Member denials. Do not grant
 > the 626. The leftover from the validation of #197 to #201 is one checklist,
 > #204. The readiness preflight (#187) would make
 > the flip more comfortable by giving one verdict instead of three signals to

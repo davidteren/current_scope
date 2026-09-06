@@ -3,10 +3,10 @@
 > ## Last session handoff
 >
 > **What this is:** CurrentScope, a Rails authorization engine, on `main` at Beta.
-> **What we finished:** PR #202 fixes every P2 gap the validation of PRs #197
-> to #201 found; it is green with all review threads answered. The P3 items in
-> the findings note stay open.
-> **What you do next:** Merge PR #202, then PR #203 (this file and the two reports).
+> **What we finished:** The validation of PRs #197 to #201 is shipped and merged:
+> the fixes (#202), the report (#203), and two learnings (#206). Small leftovers
+> are in #204.
+> **What you do next:** Start the real-host bake, the last gate before 1.0 (#116).
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >

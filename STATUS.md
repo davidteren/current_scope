@@ -3,8 +3,8 @@
 > ## Last session handoff
 >
 > **What this is:** CurrentScope, a Rails authorization engine, on `main` at Beta.
-> **What we finished:** Re-read miela_app. The 626 leftover is twelve permission
-> lines, not a grant list.
+> **What we finished:** Re-read miela_app, the real bake host. The 626 leftover
+> is twelve permission lines, not a grant list.
 > **What you do next:** Flip miela_app to `:enforce` without granting those 626
 > (#116).
 >

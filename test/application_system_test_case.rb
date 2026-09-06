@@ -9,7 +9,9 @@ Capybara.register_driver(:cuprite_headless) do |app|
     app,
     window_size: [ 1280, 900 ],
     headless: true,
-    process_timeout: 30,
+    # Sized for a cold shared CI runner, like test/system/support/headless_chrome.rb:
+    # 30s was enough locally and was not on GitHub Actions.
+    process_timeout: 90,
     browser_options: { "no-sandbox" => nil }
   )
 end

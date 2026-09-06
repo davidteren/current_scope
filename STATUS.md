@@ -3,10 +3,10 @@
 > ## Last session handoff
 >
 > **What this is:** CurrentScope, a Rails authorization engine, on `main` at Beta.
-> **What we finished:** The validation of PRs #197 to #201 is merged: fixes (#202),
-> two reports (#203), two learnings (#206).
-> **What you do next:** Finish the real-host bake: grant what `current_scope:report`
-> still lists, then flip to `:enforce`, the last gate before 1.0 (#116).
+> **What we finished:** Re-read the miela_app bake report. 626 outstanding, all
+> starred. Three collection lines already allow. Eight admin lines are correct denials.
+> **What you do next:** Flip miela_app from `:report` to `:enforce` (U5). Do not
+> grant the 626 (#116).
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >
@@ -783,8 +783,11 @@ quickstart, production checklist) + tests T1–T4.
 > the report reaches zero (#184) and names its blind spot (#185). **The bake can
 > start now; nothing below blocks it.** Update (2026-08-25): it has started; a real
 > PostgreSQL host running `:report` gave a first reading of 696 outstanding after
-> #190 marked 350 moot (see #116). The small leftovers from the validation of
-> #197 to #201 are one checklist, #204. The readiness preflight (#187) would make
+> #190 marked 350 moot (see #116). Update (2026-09-06): re-read on gem `main` is
+> 626 outstanding, every line starred. Three collection lines already allow when
+> asked with the model. Eight admin lines are correct Member denials. Do not grant
+> the 626. The leftover from the validation of #197 to #201 is one checklist,
+> #204. The readiness preflight (#187) would make
 > the flip more comfortable by giving one verdict instead of three signals to
 > assemble, and the banner inventory (8+ places, incl. `current_scope.gemspec:14`)
 > is needed only for the release PR that follows a successful bake.

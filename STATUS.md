@@ -783,11 +783,13 @@ quickstart, production checklist) + tests T1–T4.
 > the report can reach zero (#184) and names its blind spot (#185). **The bake can
 > start now; nothing below blocks it.** Update (2026-08-25): it has started; a real
 > PostgreSQL host running `:report` gave a first reading of 696 outstanding after
-> #190 marked 350 moot (see #116). Update (2026-09-06): re-read at gem `bfca556`
-> is 626 outstanding, every line starred (re-checked without the model). Those
-> 626 are twelve permission lines: three collection lines already allow when
-> asked with the model; nine are correct Member denials. Do not grant the 626.
-> This bake accepts that leftover instead of waiting for a zero report. The
+> #190 marked 350 moot (see #116). Update (2026-09-06): re-read at the #206
+> merge, miela_app's gem pin (`bfca556`), is 626 outstanding, every line starred
+> (re-checked without the model). Those 626 are twelve permission lines: three
+> collection lines already allow when asked with the model; nine are correct
+> Member denials. Do not grant the 626. This bake accepts that leftover instead
+> of waiting for a zero report. The sign-in-before-gate fix (miela_app#758,
+> PR #761) is already merged, so that runbook precondition is closed. The
 > leftover from the validation of #197 to #201 is one checklist,
 > #204. The readiness preflight (#187) would make
 > the flip more comfortable by giving one verdict instead of three signals to

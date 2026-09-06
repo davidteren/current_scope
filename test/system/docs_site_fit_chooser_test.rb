@@ -187,13 +187,23 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
         });
 
         var verdict = mount.querySelector(".cs-fit-verdict");
+        // The disqualifiers render in their own list; matching the prose
+        // would also catch a library's cost line saying "still in beta".
+        var why = verdict ? Array.prototype.map.call(
+          verdict.querySelectorAll(".cs-fit-why li"),
+          function (li) { return li.textContent }) : [];
         results.push({
           answers: path,
           heading: verdict ? verdict.querySelector("h3").textContent : null,
           body: verdict ? verdict.textContent : null,
-          // The disqualifiers render in their own list; matching the prose
-          // would also catch a library's cost line saying "still in beta".
-          vetoed: !!(verdict && verdict.querySelector(".cs-fit-why"))
+          vetoed: why.length > 0,
+          vetoNotes: why,
+          tie: !!(verdict && /equally well/.test(verdict.textContent)),
+          // One entry per "Worth a look" runner-up: whether its cost was stated.
+          runnerUpsCosted: verdict ? Array.prototype.filter.call(
+            verdict.querySelectorAll("p"),
+            function (p) { return p.textContent.indexOf("Worth a look") === 0 })
+            .map(function (p) { var em = p.querySelector("em"); return !!(em && em.textContent.trim()) }) : []
         });
       }
       return results;
@@ -329,6 +339,58 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
                  "these readers asked for a role screen, per-record grants and an audit " \
                  "trail, ruled CurrentScope out, and were handed something else with no " \
                  "word that their answers had described the library they just excluded"
+  end
+
+  # The four behaviours below were described by the PR that added them and
+  # pinned by nothing: silencing each left this file green (validation
+  # findings, 2026-09-04).
+
+  test "a tie is shown as a tie, with the cost of every library in it" do
+    ties = every_path.select { |r| r["tie"] }
+    # Guarded so the per-tie checks below cannot pass over an empty set.
+    refute_empty ties, "no answer path tied, so nothing below was checked; either ties are " \
+                       "being broken by declaration order or the scoring changed so that " \
+                       "no two libraries tie any more"
+    ties.each do |r|
+      assert_includes r["heading"].to_s, " or ", "a tie has to name every library in it: #{r['answers']}"
+      # As many cost lines as tied libraries: a three-way tie missing one of its
+      # three would still have two.
+      winners = r["heading"].to_s.split(/, | or /).length
+      costs = r["body"].to_s.scan("What you give up with").length
+      assert_equal winners, costs, "a tie owes one cost per library it names: #{r['answers']}"
+    end
+  end
+
+  test "a named verdict still lists the vetoes that shaped it" do
+    told = every_path.select { |r| r["heading"].to_s.strip != "None of these" && r["vetoNotes"].any? }
+    refute_empty told, "no named verdict shows the reader why a library was ruled out, so a " \
+                       "reader who excluded CurrentScope is never told that they did"
+  end
+
+  test "a runner-up states its cost like the winner does" do
+    costed = every_path.flat_map { |r| r["runnerUpsCosted"] }
+    refute_empty costed, "no answer path names a runner-up"
+    assert costed.all?, "a runner-up was recommended with no cost line; naming only the " \
+                        "upside is the flattering kind this page exists to avoid"
+  end
+
+  # The beta veto asks about this project's maturity, not the reader's app, so
+  # a library that can only win once it fires is not reachable on merit. That
+  # is the exact shape of the Pundit domination bug: Action Policy scored at
+  # least as well on every option, so Pundit was a sole winner only after the
+  # beta veto removed Action Policy.
+  test "every library is a sole winner on some path that did not need the beta veto" do
+    offered = every_path.map { |r| r["heading"].to_s.strip }.uniq.reject { |h| h.include?(" or ") || h == "None of these" }
+    beta = ->(r) { r["vetoNotes"].any? { |n| n =~ /1\.0 or later/ } }
+    # Guarded, because this filter is prose-matched: if the beta note is ever
+    # reworded the reject below would drop nothing and the test would pass for
+    # every library, including a dominated one.
+    refute_empty every_path.select(&beta), "the beta veto never fired, so the on-merit filter is a no-op"
+    on_merit = every_path.reject(&beta).map { |r| r["heading"].to_s.strip }
+    dominated = offered.reject { |name| on_merit.include?(name) }
+    assert_empty dominated,
+                 "these libraries win only when this project's own beta veto removes a " \
+                 "competitor, so no answer about the reader's app can reach them"
   end
 
   # There is no aria-live region: each new question is announced by taking

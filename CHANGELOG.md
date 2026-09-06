@@ -131,10 +131,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   rolls a mutation back when its audit row cannot be written.
 
   What is recorded from the model is creation and destruction of scoped grants,
-  and destruction of org-role assignments and of roles. Four write paths stay
+  and destruction of org-role assignments and of roles. Five write paths stay
   silent, and the configuration guide tables them: a direct
-  `RoleAssignment.create!` or `#update!`, a direct `Role.create!`, and a direct
-  `Role#update!`. So a privilege change made by `update!` in a console or a
+  `ScopedRoleAssignment#update!`, a direct `RoleAssignment.create!` or
+  `#update!`, a direct `Role.create!`, and a direct `Role#update!`. So a privilege change made by `update!` in a console or a
   seed still leaves no row; use the management UI, `CurrentScope.grant!` or the
   definitions document when a change has to be auditable.
 

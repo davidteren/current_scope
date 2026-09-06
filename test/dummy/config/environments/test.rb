@@ -50,4 +50,12 @@ Rails.application.configure do
 
   # Raise error when a before_action's only/except options reference missing actions.
   config.action_controller.raise_on_missing_callback_actions = true
+
+  # The load-time support tables (test/support/support_table.rb) persist in
+  # storage/test.sqlite3 between runs, so a test-env `db:migrate`, the command
+  # AGENTS.md prescribes, would otherwise dump them into the tracked
+  # db/schema.rb.
+  config.after_initialize do
+    ActiveRecord::SchemaDumper.ignore_tables |= [ /\Acurrent_scope_test_/ ]
+  end
 end

@@ -134,8 +134,8 @@ namespace :current_scope do
     end
   end
 
-  desc "Summarize would-be denials recorded in report mode into a starter role grid. " \
-       "Usage: bin/rails current_scope:report"
+  desc "Summarize would-be denials recorded in report mode: what each subject was refused " \
+       "and still needs. It creates no roles. Usage: bin/rails current_scope:report"
   task report: :environment do
     # The subject's current org-wide role, when resolvable — the grid reads
     # differently if someone already holds a role that just doesn't tick these

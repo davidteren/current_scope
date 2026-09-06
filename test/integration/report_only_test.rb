@@ -25,6 +25,20 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
   end
 
   def sign_in(user) = { "X-User-Id" => user.id.to_s }
+
+  # The resolver accepts `anonymous` for the duration of the block. Stubbed
+  # rather than fixtured: the only real shape is an anonymous ActiveRecord
+  # class, and PolymorphicRegistry and GrantDiagnosis both walk descendants.
+  def with_anonymous_collection_type(anonymous)
+    resolver = CurrentScope.resolver
+    original = resolver.method(:collection_type?)
+    resolver.define_singleton_method(:collection_type?) do |type|
+      type.equal?(anonymous) || original.call(type)
+    end
+    yield
+  ensure
+    resolver.singleton_class.remove_method(:collection_type?)
+  end
   def assign(user, role) = CurrentScope::RoleAssignment.create!(subject: user, role: role)
 
   def role(name, *keys, full_access: false)
@@ -139,33 +153,41 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
   end
 
   # The one case that must record NOTHING rather than nil: a type the resolver
-  # accepts and the ledger cannot name. `collection_type?` is stubbed rather
-  # than fixtured, because the only real shape is an anonymous ActiveRecord
-  # class, and this gem's PolymorphicRegistry and GrantDiagnosis both walk
-  # descendants — a fixture like that failed GrantDiagnosisTest about one run in
-  # two (#196 review).
-  # A unit check, not a request: driving this through the gate would need an
-  # anonymous ActiveRecord class in the dummy app, and this gem's
-  # PolymorphicRegistry and GrantDiagnosis both walk descendants — a fixture
-  # like that failed GrantDiagnosisTest about one run in two. The predicate is
-  # what decides, so the predicate is what is asked.
+  # accepts and the ledger cannot name. A unit check, not a request (see
+  # with_anonymous_collection_type for why the type is stubbed, not fixtured):
+  # the predicate is what decides, so the predicate is what is asked (#196
+  # review).
   test "a usable type the ledger cannot name records no model key at all (#196)" do
     controller = AnonymousModelController.new
     anonymous = AnonymousModelController.anonymous_model
-    resolver = CurrentScope.resolver
-    original = resolver.method(:collection_type?)
-    resolver.define_singleton_method(:collection_type?) do |type|
-      type.equal?(anonymous) || original.call(type)
+    with_anonymous_collection_type(anonymous) do
+      assert controller.send(:unnameable_model?, nil, anonymous),
+        "absent, not nil: nil would say the gate had no type, and the row would then " \
+        "be re-checked on the stricter question with neither caveat nor marker"
+      assert_nil controller.send(:recordable_model_name, nil, anonymous)
+      assert_not controller.send(:unnameable_model?, CurrentScope::Guard::NO_RECORD, anonymous),
+        "with no record hook the gate never reached the arm that reads the type"
+    end
+  end
+
+  # The same predicate, driven through the call site that uses it. The test
+  # above pins the two predicates; deleting the `unless unnameable_model?` guard
+  # at the call site left it green, and that guard is what keeps the key absent
+  # rather than nil (validation findings, 2026-09-04).
+  test "the would_deny row for a usable-but-unnameable type carries no model key (#196)" do
+    controller = AnonymousModelController.new
+    anonymous = AnonymousModelController.anonymous_model
+    with_anonymous_collection_type(anonymous) do
+      CurrentScope::Current.set(user: @alice) do
+        controller.send(:record_would_deny_event, "anonymous_model#index", nil, anonymous)
+      end
     end
 
-    assert controller.send(:unnameable_model?, nil, anonymous),
-      "absent, not nil: nil would say the gate had no type, and the row would then " \
-      "be re-checked on the stricter question with neither caveat nor marker"
-    assert_nil controller.send(:recordable_model_name, nil, anonymous)
-    assert_not controller.send(:unnameable_model?, CurrentScope::Guard::NO_RECORD, anonymous),
-      "with no record hook the gate never reached the arm that reads the type"
-  ensure
-    resolver&.singleton_class&.remove_method(:collection_type?)
+    event = CurrentScope::Event.where(event: "access.would_deny").last
+    assert_equal "anonymous_model#index", event.details["permission"]
+    assert_not event.details.key?("model"),
+      "absent, not nil: nil says the gate had no type, and the report would re-check " \
+      "on the stricter question with neither caveat nor marker"
   end
 
   test "a granted action in report mode is an ordinary allow — no report, no header" do

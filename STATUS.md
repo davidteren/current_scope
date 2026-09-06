@@ -3,12 +3,10 @@
 > ## Last session handoff
 >
 > **What this is:** CurrentScope, a Rails authorization engine, on `main` at Beta.
-> **What we finished:** Re-read miela_app at gem `bfca556`. 626 outstanding, all
-> starred (re-checked without the model). Those 626 are twelve permission lines:
-> three collection lines already allow when asked with the model; nine are
-> correct Member denials.
-> **What you do next:** Flip miela_app from `:report` to `:enforce`. Do not
-> grant the 626. This bake accepts the starred leftover (#116).
+> **What we finished:** Re-read miela_app. The 626 leftover is twelve permission
+> lines, not a grant list.
+> **What you do next:** Flip miela_app to `:enforce` without granting those 626
+> (#116).
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >

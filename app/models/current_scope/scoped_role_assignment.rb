@@ -168,6 +168,11 @@ module CurrentScope
     def role_grantable_on_resource_type
       return if role.nil? || resource_type.blank?
 
+      # A caller may stage permission_keys outside ActiveRecord's dirty tracking.
+      # Read the locked stored role separately: validation must neither discard
+      # that draft nor let it disguise an incompatible persisted permission set.
+      checked_role = role.persisted? ? Role.lock.find(role.id) : role
+
       # This resolves the RECORD (one find_by when the association is not
       # loaded) before it can know whether any declaration exists. Skipping that
       # for hosts who declared nothing would need a cheap "nobody declared"
@@ -179,11 +184,16 @@ module CurrentScope
 
       klass = current_scope_governing_class
       return if klass.nil? || !klass.respond_to?(:current_scope_grants_role?)
-      return if klass.current_scope_grants_role?(role)
+      return if klass.current_scope_grants_role?(checked_role)
 
       # Read through respond_to? and Array(): the type joins this gate by
       # answering current_scope_grants_role? alone, which a host may compute
       # without holding a list at all (#183).
+      unless klass.try(:current_scope_grantable_permissions).nil?
+        errors.add(:role, "cannot be granted on #{klass.name}: use a permission bundle within its permission ceiling, without full access")
+        return
+      end
+
       declared = klass.try(:current_scope_grantable_roles)
       allowed = Array(declared)
       accepts = if declared.nil?

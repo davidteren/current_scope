@@ -4,7 +4,7 @@
 
 <div class="cs-toolbar">
   <span class="cs-spacer"></span>
-  <%= link_to "New role", new_role_path, class: "cs-btn cs-btn-primary" %>
+  <%= link_to "New role", new_role_path, class: "cs-btn cs-btn-primary", id: "cs_new_role" if CurrentScope.can_manage?(:create_role, role: CurrentScope::Role.new) %>
 </div>
 
 <div class="cs-card cs-card--flush">
@@ -16,7 +16,7 @@
     <% @roles.each do |role| %>
       <tr>
         <td>
-          <%= link_to role.name, edit_role_path(role) %>
+          <%= link_to_if CurrentScope.can_manage?(:update_role, role: role), role.name, edit_role_path(role), id: "cs_edit_role_#{role.id}" %>
           <% if role.description.present? %>
             <div class="cs-subtle"><%= role.description %></div>
           <% end %>
@@ -43,7 +43,8 @@
             end
           %>
           <%= button_to "Delete", role_path(role), method: :delete,
-                class: "cs-btn cs-btn-danger",
+                class: "cs-btn cs-btn-danger", id: "cs_delete_role_#{role.id}",
+                disabled: !CurrentScope.can_manage?(:destroy_role, role: role),
                 form: { data: { cs_confirm: delete_prompt } },
                 aria: { label: "Delete role #{role.name}" },
                 data: { turbo_confirm: delete_prompt } %>

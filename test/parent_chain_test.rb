@@ -61,7 +61,7 @@ class ParentChainTest < ActiveSupport::TestCase
     assert_empty CurrentScope::ParentChain.ancestors_for(orphan)
   end
 
-  test "an unsaved record and a Class both walk to nothing" do
+  test "a draft without a parent and a Class both walk to nothing" do
     assert_empty CurrentScope::ParentChain.ancestors_for(Report.new(title: "x", requested_by: @requester))
     assert_empty CurrentScope::ParentChain.ancestors_for(Report)
   end

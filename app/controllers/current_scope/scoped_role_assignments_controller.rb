@@ -81,7 +81,13 @@ module CurrentScope
       # concurrent-duplicate race without poisoning the outer transaction, while
       # a genuine RecordInvalid rolls the entire batch back.
       ScopedRoleAssignment.transaction do
-        subjects.each { |subject| granted += 1 if grant_one(subject, resource, role) }
+        FullAccessLock.lock_console_state!
+        role.lock!
+        subjects.each do |subject|
+          subject.lock!
+          authorize_management!(:assign_scoped_role, role: role, target: subject)
+          granted += 1 if grant_one(subject, resource, role)
+        end
       end
 
       redirect_to subjects_path, notice: grant_notice(granted, subjects.size)
@@ -98,7 +104,14 @@ module CurrentScope
       # seed or a rake task that destroys a grant records the same row this
       # console action does. The transaction stays: config.audit = :strict rolls
       # the destroy back when its audit row cannot be written.
-      ScopedRoleAssignment.transaction { assignment.destroy! }
+      ScopedRoleAssignment.transaction do
+        FullAccessLock.lock_console_state!
+        assignment.lock!
+        assignment.role&.lock!
+        authorize_management!(:revoke_scoped_role, role: assignment.role,
+          target: assignment.current_scope_resolved_record("subject"))
+        assignment.destroy!
+      end
       redirect_to subjects_path, notice: "Scoped role revoked."
     rescue ActiveRecord::RecordNotFound
       redirect_to subjects_path, notice: "That scoped role was already revoked."

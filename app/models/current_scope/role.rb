@@ -20,6 +20,7 @@ module CurrentScope
     # after_destroy runs, permission_keys reads empty and the row would say the
     # deletion removed nothing. Declared above that association so it runs first
     # (#182 review).
+    before_destroy :lock_for_destroy, prepend: true
     before_destroy :snapshot_for_audit
     after_destroy :record_role_deleted
 
@@ -29,8 +30,13 @@ module CurrentScope
 
     validates :name, presence: true, uniqueness: true
     validate :permission_keys_in_catalog
+    before_validation :lock_for_scoped_compatibility
+    validate :held_scoped_grants_remain_compatible
 
     after_save :persist_permission_keys
+    after_save :reset_cached_permissions
+    after_destroy :reset_cached_permissions
+    after_rollback :reset_cached_permissions
 
     # The grid diff computed by the last save:
     # { added: [...], removed: [...], rejected: [...] }. Empty arrays on a no-op
@@ -42,7 +48,11 @@ module CurrentScope
     attr_reader :permission_keys_change
 
     def grants?(permission_key)
-      role_permissions.exists?(permission_key: permission_key)
+      if role_permissions.loaded?
+        role_permissions.any? { |entry| entry.permission_key == permission_key.to_s }
+      else
+        role_permissions.exists?(permission_key: permission_key)
+      end
     end
 
     def permission_keys
@@ -87,6 +97,34 @@ module CurrentScope
 
     private
 
+    def lock_for_destroy
+      FullAccessLock.lock_console_state!
+    end
+
+    def lock_for_scoped_compatibility
+      self.class.where(id: id).lock.load if persisted?
+    end
+
+    def held_scoped_grants_remain_compatible
+      return unless persisted?
+      return unless full_access_changed? || !@pending_permission_keys.nil?
+
+      scoped_role_assignments.find_in_batches do |assignments|
+        ScopedRoleAssignment.preload_resolvable_resources!(assignments)
+        incompatible = assignments.find do |assignment|
+          klass = assignment.current_scope_governing_class
+          klass.respond_to?(:current_scope_grantable_permissions) &&
+            !klass.current_scope_grantable_permissions.nil? &&
+            !klass.current_scope_grants_role?(self)
+        end
+        next unless incompatible
+
+        klass = incompatible.current_scope_governing_class
+        errors.add(:permission_keys, "cannot change while this role has scoped grants on #{klass.name}; remove incompatible grants first")
+        break
+      end
+    end
+
     def permission_keys_in_catalog
       return if @pending_permission_keys.nil? || @scrub_permission_keys
 
@@ -119,9 +157,16 @@ module CurrentScope
 
       role_permissions.delete_all
       role_permissions.insert_all(staged.map { |k| { permission_key: k } }) if staged.any?
+      role_permissions.reset
       @pending_permission_keys = nil
       @scrub_permission_keys = false
     end
+
+    def reset_cached_permissions
+      role_permissions.reset
+      CurrentScope::Current.reset_org_role_cache
+    end
+
     def snapshot_for_audit
       return unless CurrentScope.config.audit
 

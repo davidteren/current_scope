@@ -21,12 +21,15 @@ module CurrentScope
 
     def new
       @role = Role.new
+      authorize_management!(:create_role, role: @role)
     end
 
     def create
       @role = Role.new(role_params)
       saved = false
       Role.transaction do
+        FullAccessLock.lock_console_state!
+        authorize_management!(:create_role, role: @role)
         saved = @role.save
         # Fold the initial permission set into the create event — no separate
         # grid-diff event for a brand-new role.
@@ -47,6 +50,7 @@ module CurrentScope
 
     def edit
       @role = Role.find(params[:id])
+      authorize_management!(:update_role, role: @role)
     end
 
     # Who holds this role — the role-side complement to the subjects page. Org-wide
@@ -104,6 +108,10 @@ module CurrentScope
         # of two FA roles cannot invert lock order (roles first, then assignments).
         lock_full_access_console_state!
         @role = Role.lock.find(params[:id])
+        authorize_management!(:update_role, role: @role)
+        candidate = Role.find(@role.id)
+        candidate.assign_attributes(permitted)
+        authorize_management!(:update_role, role: candidate)
 
         if demoting_would_lock_console?(@role, permitted)
           refused = true
@@ -133,6 +141,7 @@ module CurrentScope
       Role.transaction do
         lock_full_access_console_state!
         role = Role.lock.find(params[:id])
+        authorize_management!(:destroy_role, role: role)
 
         if would_lock_console_by_removing_role?(role)
           refused = true
@@ -163,7 +172,7 @@ module CurrentScope
 
     def assign_grantable_roles_declared
       @grantable_roles_declared =
-        CurrentScope.grantable_roles_resources.any? { |klass| klass.try(:current_scope_declares_roles_anywhere?) }
+        CurrentScope.grantable_roles_resources.any? { |klass| ([ klass ] + Array(klass.try(:descendants))).any? { |type| !type.try(:current_scope_grantable_roles).nil? } }
     end
 
 

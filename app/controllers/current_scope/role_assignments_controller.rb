@@ -25,12 +25,26 @@ module CurrentScope
       RoleAssignment.transaction do
         lock_full_access_org_holders!
 
+        subjects.each do |subject|
+          subject.lock!
+          previous = RoleAssignment.lock.find_by(subject: subject)&.role
+          previous&.lock!
+          authorize_management!(:revoke_role, role: previous, target: subject) if previous || clearing
+          unless clearing
+            proposed = Role.lock.find(params.expect(:role_id))
+            authorize_management!(:assign_role, role: proposed, target: subject)
+          end
+        end
+
         if would_remove_last_full_access_holders?(subjects, clearing: clearing)
           refused = true
         else
           subjects.each do |subject|
-            assignment = RoleAssignment.find_or_initialize_by(subject: subject)
+            subject.lock!
+            assignment = RoleAssignment.lock.find_or_initialize_by(subject: subject)
             prior_role = assignment.role # nil for a brand-new assignment
+            prior_role&.lock!
+            authorize_management!(:revoke_role, role: prior_role, target: subject) if prior_role || clearing
             did = clearing ? clear_org_role(subject, assignment, prior_role) : set_org_role(subject, assignment, prior_role)
             changed += 1 if did
           end
@@ -63,6 +77,8 @@ module CurrentScope
         # assignment first inverted that order and could deadlock.
         lock_full_access_org_holders!
         assignment = RoleAssignment.lock.find(params[:id])
+        assignment.role&.lock!
+        authorize_management!(:revoke_role, role: assignment.role, target: resolve_subject(assignment))
 
         if last_full_access_org_assignment?(assignment)
           refused = true
@@ -139,9 +155,7 @@ module CurrentScope
     # transaction. Prefer locking by id after a join pluck — FOR UPDATE with
     # joins is adapter-fragile.
     def lock_full_access_org_holders!
-      Role.where(full_access: true).lock.load
-      ids = full_access_org_assignments.pluck(:id)
-      RoleAssignment.where(id: ids).lock.load if ids.any?
+      FullAccessLock.lock_console_state!
     end
 
     def same_subject?(assignment, subject)
@@ -171,7 +185,8 @@ module CurrentScope
     def set_org_role(subject, assignment, prior_role)
       # Fetch the new role as its own object so `prior_role` (already loaded via
       # the association) isn't mistaken for it after the update.
-      new_role = Role.find(params.expect(:role_id))
+      new_role = Role.lock.find(params.expect(:role_id))
+      authorize_management!(:assign_role, role: new_role, target: subject)
       changed = prior_role.nil? || prior_role.id != new_role.id
 
       # Atomicity comes from create's outer bulk transaction (see clear_org_role).

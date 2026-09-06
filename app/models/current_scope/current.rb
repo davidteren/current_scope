@@ -28,8 +28,8 @@ module CurrentScope
     # permission-gated elements calls the gate N times, each otherwise re-running
     # the same `RoleAssignment.find_by(subject:)`; caching it here collapses that
     # to one query. Request/job-scoped like everything on CurrentAttributes, so
-    # it never leaks across requests, and invalidated on any org-role write (see
-    # RoleAssignment) so a grant-then-check within one request is never stale.
+    # it never leaks across requests, and invalidated on role, permission, or assignment writes and rollbacks so
+    # a grant-then-check within one request is never stale.
     attribute :org_role_cache
 
     # Set by a labeling lookup that swallowed a registry ConfigurationError so the

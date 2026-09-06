@@ -11,6 +11,26 @@ class RoleEditingSystemTest < ApplicationSystemTestCase
     sign_in(@owner)
   end
 
+  test "delegated administrator creates a role while full access stays unavailable" do
+    prior = CurrentScope.config.management_authorizer
+    CurrentScope.config.management_authorizer = ->(subject, action:, role: nil, target: nil) do
+      subject == @owner && (!role || !role.full_access?)
+    end
+    visit "/current_scope/roles"
+    assert_selector "#cs_delete_role_#{CurrentScope::Role.find_by!(name: 'Owner').id}[disabled]"
+    click_link "cs_new_role"
+    assert_selector "#role_full_access[disabled]"
+    fill_in "role_name", with: "Delegated custom role"
+    click_button "Create role"
+    assert_selector "#role_name[value='Delegated custom role']"
+    assert_selector "#role_full_access[disabled]"
+    visit "/current_scope/roles/#{CurrentScope::Role.find_by!(name: 'Owner').id}/edit"
+    assert_equal 403, page.status_code
+    assert_selector "#cs_management_denied", text: "This action is not permitted"
+  ensure
+    CurrentScope.config.management_authorizer = prior
+  end
+
   test "the full-access label states the non-cascade carve-out, on both forms" do
     # Asserted in a real browser, not by reading the ERB: the claim is about what
     # an operator SEES before ticking a box that no longer means what it used to.

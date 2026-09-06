@@ -37,6 +37,19 @@ module CurrentScope
     end
 
     class_methods do
+      # Permission declarations and name declarations combine by intersection.
+      # A permission ceiling permits new role names without changing host code.
+      def current_scope_grantable_permissions=(keys)
+        @current_scope_grantable_permissions = keys.nil? ? nil : Array(keys).map(&:to_s).reject(&:blank?).uniq.freeze
+      end
+
+      def current_scope_grantable_permissions
+        return @current_scope_grantable_permissions unless @current_scope_grantable_permissions.nil?
+        return superclass.current_scope_grantable_permissions if superclass.respond_to?(:current_scope_grantable_permissions)
+
+        nil
+      end
+
       # A SETTER, not an overloaded reader (#183). A combined
       # `current_scope_grantable_roles(*names)` cannot tell
       # `current_scope_grantable_roles(*computed)` with an empty `computed` from
@@ -96,10 +109,10 @@ module CurrentScope
       # something false to the operator, which is worth a query. The guide names
       # the development-console gap this leaves.
       def current_scope_declares_roles_anywhere?
-        return true unless current_scope_grantable_roles.nil?
+        return true unless current_scope_grantable_roles.nil? && current_scope_grantable_permissions.nil?
         return false unless respond_to?(:descendants)
 
-        descendants.any? { |sub| !sub.try(:current_scope_grantable_roles).nil? }
+        descendants.any? { |sub| !sub.try(:current_scope_grantable_roles).nil? || !sub.try(:current_scope_grantable_permissions).nil? }
       end
 
       # Locked all the way DOWN: this type declares an empty list and nothing
@@ -127,7 +140,7 @@ module CurrentScope
       # declaration" means stays where the other two predicates live (#183
       # review).
       def current_scope_locked_down?
-        current_scope_grantable_roles&.empty? || false
+        current_scope_grantable_roles&.empty? || current_scope_grantable_permissions&.empty? || false
       end
 
       # THE rule, in one place, so the gate and the console cannot drift. nil
@@ -155,6 +168,14 @@ module CurrentScope
       def current_scope_grants_role?(role)
         raise ArgumentError, "current_scope_grants_role? needs a role; nil is not one" if role.nil?
 
+        ceiling = current_scope_grantable_permissions
+        unless ceiling.nil?
+          role = CurrentScope::Role.find_by(name: role.to_s) if role.is_a?(String) || role.is_a?(Symbol)
+          return false unless role.respond_to?(:permission_keys) && role.respond_to?(:full_access?)
+          keys = role.permission_keys
+          return false if role.full_access? || ceiling.empty? || (keys - ceiling).any?
+        end
+
         allowed = current_scope_grantable_roles
         return true if allowed.nil?
 
@@ -179,7 +200,7 @@ module CurrentScope
           # contract. The reader walks to the superclass, so a descendant of a
           # locked class reads [] rather than nil today; saying empty? here
           # keeps that a fact about the data rather than a coincidence.
-          .select { |klass| klass.try(:current_scope_grantable_roles)&.empty? }
+          .select { |klass| klass.try(:current_scope_locked_down?) }
           .map { |klass| klass.try(:sti_name) }
           .compact
       end

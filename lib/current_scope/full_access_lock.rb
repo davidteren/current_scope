@@ -5,14 +5,17 @@ module CurrentScope
     module_function
 
     # Serialize demote/delete/apply against concurrent last-holder removal.
-    # Lock FA role rows and their org-wide holder assignments by id (FOR UPDATE
+    # Lock all role rows, then full-access holder assignments by id (FOR UPDATE
     # + join is adapter-fragile). Pass the role names a definitions document
     # plans to make full_access: a role the document PROMOTES is not full_access
     # yet, so the queries below cannot see it or its holders. Ordered by id, so
     # two concurrent applies take the rows in the same order. Call only inside a
     # transaction.
     def lock_console_state!(planned_fa_names = [])
-      Role.where(full_access: true).or(Role.where(name: planned_fa_names)).order(:id).lock.load
+      # Console writes are rare and the role set is small. Locking the whole
+      # set first prevents inversions between target roles, subjects, and
+      # assignment cascades. All console mutation paths use this order.
+      Role.order(:id).lock.load
       ids = RoleAssignment.joins(:role)
         .where(current_scope_roles: { full_access: true })
         .pluck(:id)

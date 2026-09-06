@@ -448,3 +448,71 @@ names which of Pundit, Action Policy, CanCanCan, Banken or Oso to read next.
 
 The gem is available as open source under the terms of the
 [MIT License](https://opensource.org/licenses/MIT).
+
+### Delegate role administration
+
+The console requires full access by default. Hosts can set
+`config.management_authorizer` to a callable with this signature:
+
+```ruby
+config.management_authorizer = ->(subject, action:, role: nil, target: nil) do
+  MyRoleAdministration.allowed?(subject, action: action, role: role, target: target)
+end
+```
+
+The callback must return literal `true` to allow the operation. It replaces the
+default, so the host must explicitly permit its full-access owners. The public
+`CurrentScope.can_manage?(:access, subject: user)` helper uses the same policy.
+Every console request requires `:access`. Writes also require `:create_role`,
+`:update_role`, `:destroy_role`, `:assign_role`, `:revoke_role`,
+`:assign_scoped_role`, or `:revoke_scoped_role`. An edit checks the stored role
+and a separate proposed role before saving. Assignment operations pass the
+recipient as `target`; replacing an org role also checks revocation of the old
+role. Bulk operations roll back in full if any target is refused. A role delete
+passes the role, so the host policy must consider its holders when necessary.
+
+The host policy must enforce its permission ceiling and protect Owner roles and
+users. Console access alone is not permission to perform a write. These checks
+apply to the console; trusted Ruby grant and model APIs remain available to host
+code. The impersonation mutation guard and last-full-access-holder guard remain
+in force.
+
+### Allow custom scoped bundles
+
+A resource can accept roles by permission content rather than fixed names:
+
+```ruby
+include CurrentScope::GrantableRoles # Scopeable includes this too
+self.current_scope_grantable_permissions = %w[reports#index reports#show]
+```
+
+A role qualifies when every permission key is in this ceiling and full access
+is off. An empty role bundle is inert, so removing all permissions remains valid. Administrators can thus create new role names
+without changing this declaration. An empty ceiling accepts no roles. A nil
+ceiling inherits the parent declaration, or leaves the existing default in
+force. If a name list is also declared, both restrictions apply. Remove the name
+list when migrating to permission-based eligibility.
+
+The picker and assignment validation use the same predicate. Editing a role
+with existing scoped grants must preserve each resource's permission ceiling;
+remove incompatible grants before changing that bundle. These write validations
+do not repair old data or restrict unchecked SQL writes.
+
+A draft record can inherit scoped permissions from its persisted parent before
+validation. It cannot match a direct scoped grant, even if an id was assigned
+in memory. Unsaved or destroyed parents terminate the chain. The child initiator
+veto and the prohibition on cascading full access remain in force.
+
+Org-role permission bundles are loaded once per subject in a request or job.
+Normal role, permission, and assignment saves, destroys, and rollbacks clear this
+cache, so later checks in the same operation see the current database state.
+Direct SQL and callback-skipping writes must explicitly call
+`CurrentScope::Current.reset_org_role_cache` before checking permissions again.
+
+Console mutations lock all role rows in ID order before assignments and subjects.
+This serializes role administration to prevent deadlocks between grants,
+revocations, and role deletion cascades. It trades concurrent administration
+throughput for predictable locking; ordinary authorization reads are unaffected.
+Scoped assignment validation reads the locked stored role separately, preserving
+any unsaved role edits held by the caller. Permission-based resource declarations
+also accept an existing role name through `current_scope_grants_role?`.

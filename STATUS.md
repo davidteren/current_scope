@@ -2,11 +2,11 @@
 
 > ## Last session handoff
 >
-> **What this is:** CurrentScope, a Rails authorization engine, on `main` at Beta.
-> **What we finished:** Re-read miela_app, the real bake host. The 626 leftover
-> is twelve permission lines, not a grant list.
-> **What you do next:** Flip miela_app to `:enforce` without granting those 626
-> (#116).
+> **What this is:** Miela uses editable roles for business and resource access.
+> **What we finished:** Admins can manage roles within their own permission limits.
+> **What you do next:** Review the paired local app and gem branches before release.
+>
+> Local implementation (7 September 2026): `feat/delegated-role-administration` adds host-controlled role management and resource permission ceilings. Miela uses it on `fix/editable-role-integration` to enforce editable business bundles. The paired branches have not been published or deployed.
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >

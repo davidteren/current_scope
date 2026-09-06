@@ -181,10 +181,10 @@ module CurrentScope
       end
 
       # The ancestors a scoped grant may be matched against, nearest parent
-      # first, root last. Empty for an unopted model, a class, or an unsaved
-      # record — all three are "nothing to walk", not an error.
+      # first, root last. A draft may have persisted parents. A class, destroyed
+      # record, or model without a declaration has no ancestors to match.
       def ancestors_for(record)
-        return [] unless record.respond_to?(:new_record?) && record.persisted?
+        return [] unless record.respond_to?(:new_record?) && !record.destroyed?
 
         unless declared?(record.class)
           reject_method_form!(record.class)

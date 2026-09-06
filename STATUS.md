@@ -3,10 +3,10 @@
 > ## Last session handoff
 >
 > **What this is:** CurrentScope, a Rails authorization engine, on `main` at Beta.
-> **What we finished:** The validation of PRs #197 to #201 is shipped and merged:
-> the fixes (#202), the report (#203), and two learnings (#206). Small leftovers
-> are in #204.
-> **What you do next:** Start the real-host bake, the last gate before 1.0 (#116).
+> **What we finished:** The validation of PRs #197 to #201 is merged: fixes (#202),
+> two reports (#203), two learnings (#206).
+> **What you do next:** Finish the real-host bake: grant what `current_scope:report`
+> still lists, then flip to `:enforce`, the last gate before 1.0 (#116).
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >
@@ -781,7 +781,10 @@ quickstart, production checklist) + tests T1–T4.
 > (`docs/plans/2026-08-23-001-feat-portable-role-assignments-plan.md`), whose
 > KTD-6 is open against #182. The GA bake stays #116, and its tooling now works:
 > the report reaches zero (#184) and names its blind spot (#185). **The bake can
-> start now; nothing below blocks it.** The readiness preflight (#187) would make
+> start now; nothing below blocks it.** Update (2026-08-25): it has started; a real
+> PostgreSQL host running `:report` gave a first reading of 696 outstanding after
+> #190 marked 350 moot (see #116). The small leftovers from the validation of
+> #197 to #201 are one checklist, #204. The readiness preflight (#187) would make
 > the flip more comfortable by giving one verdict instead of three signals to
 > assemble, and the banner inventory (8+ places, incl. `current_scope.gemspec:14`)
 > is needed only for the release PR that follows a successful bake.

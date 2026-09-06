@@ -3,11 +3,12 @@
 > ## Last session handoff
 >
 > **What this is:** CurrentScope, a Rails authorization engine, on `main` at Beta.
-> **What we finished:** Re-read the miela_app bake report. 626 outstanding, all
-> starred (re-checked without the model). Three collection lines already allow.
-> Nine admin lines are correct denials.
+> **What we finished:** Re-read miela_app at gem `bfca556`. 626 outstanding, all
+> starred (re-checked without the model). Those 626 are twelve permission lines:
+> three collection lines already allow when asked with the model; nine are
+> correct Member denials.
 > **What you do next:** Flip miela_app from `:report` to `:enforce`. Do not
-> grant the 626 (#116).
+> grant the 626. This bake accepts the starred leftover (#116).
 >
 > ### Historical — PR #153 review fixes (2026-08-12)
 >
@@ -781,14 +782,15 @@ quickstart, production checklist) + tests T1–T4.
 > **Now (2026-08-23):** the five-issue batch is finished, and #156 v2 has a plan
 > (`docs/plans/2026-08-23-001-feat-portable-role-assignments-plan.md`), whose
 > KTD-6 is open against #182. The GA bake stays #116, and its tooling now works:
-> the report reaches zero (#184) and names its blind spot (#185). **The bake can
+> the report can reach zero (#184) and names its blind spot (#185). **The bake can
 > start now; nothing below blocks it.** Update (2026-08-25): it has started; a real
 > PostgreSQL host running `:report` gave a first reading of 696 outstanding after
-> #190 marked 350 moot (see #116). Update (2026-09-06): re-read on gem `main` is
-> 626 outstanding, every line starred (re-checked without the model). Three
-> collection lines already allow when asked with the model. Nine admin lines are
-> correct Member denials. Do not grant
-> the 626. The leftover from the validation of #197 to #201 is one checklist,
+> #190 marked 350 moot (see #116). Update (2026-09-06): re-read at gem `bfca556`
+> is 626 outstanding, every line starred (re-checked without the model). Those
+> 626 are twelve permission lines: three collection lines already allow when
+> asked with the model; nine are correct Member denials. Do not grant the 626.
+> This bake accepts that leftover instead of waiting for a zero report. The
+> leftover from the validation of #197 to #201 is one checklist,
 > #204. The readiness preflight (#187) would make
 > the flip more comfortable by giving one verdict instead of three signals to
 > assemble, and the banner inventory (8+ places, incl. `current_scope.gemspec:14`)
@@ -798,9 +800,11 @@ quickstart, production checklist) + tests T1–T4.
 > **#116**, Wave 3):
 >
 > 1. **The real-host bake.** One real app runs `config.enforcement = :report`,
->    reads the gaps back with `rails current_scope:report`, then flips to
->    `:enforce`. Everything proven so far is the showcase and the six
->    `current_scope_test_scenarios` apps — the banner should outlive one real
+>    reads `rails current_scope:report`, and flips to `:enforce`. Leftover
+>    starred rows that already allow with the model, and correct Member
+>    denials, are not grant targets. Do not grant the 626 on miela_app.
+>    Everything proven so far is the showcase and the six
+>    `current_scope_test_scenarios` apps. The banner should outlive one real
 >    adoption.
 > 2. **The GA release** — remove the Beta banner + badge, update this file, and
 >    cut 1.0.

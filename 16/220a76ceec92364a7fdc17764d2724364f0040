@@ -1,0 +1,72 @@
+README.md
+  h_e8a5bb9272fa34 451-518
+STATUS.md
+  h_e8a5bb9272fa34 5-9
+app/controllers/current_scope/application_controller.rb
+  h_e8a5bb9272fa34 5,17,25-29,32-34,42-44,54,56-57,83
+app/controllers/current_scope/role_assignments_controller.rb
+  h_e8a5bb9272fa34 28-38,43-44,46-47,80-81,158,188-189
+app/controllers/current_scope/roles_controller.rb
+  h_e8a5bb9272fa34 24,31-32,53,111-114,144,175
+app/controllers/current_scope/scoped_role_assignments_controller.rb
+  h_e8a5bb9272fa34 84-90,107-114
+app/models/current_scope/current.rb
+  h_e8a5bb9272fa34 31-32
+app/models/current_scope/role.rb
+  h_e8a5bb9272fa34 23,33-34,37-39,51-55,100-127,160,164-169
+app/models/current_scope/role_assignment.rb
+  h_e8a5bb9272fa34 61,64
+app/models/current_scope/role_permission.rb
+  h_e8a5bb9272fa34 8-18
+app/models/current_scope/scoped_role_assignment.rb
+  h_e8a5bb9272fa34 171-175,187,192-196
+app/views/current_scope/roles/edit.html.erb
+  h_e8a5bb9272fa34 29-30
+app/views/current_scope/roles/index.html.erb
+  h_e8a5bb9272fa34 7,19,46-47
+app/views/current_scope/roles/new.html.erb
+  h_e8a5bb9272fa34 15-16
+app/views/current_scope/shared/access_denied.html.erb
+  h_e8a5bb9272fa34 17-24,36
+docs/guides/checking-permissions.md
+  h_e8a5bb9272fa34 332-357
+lib/current_scope.rb
+  h_e8a5bb9272fa34 82-92
+lib/current_scope/configuration.rb
+  h_e8a5bb9272fa34 518-519
+lib/current_scope/full_access_lock.rb
+  h_e8a5bb9272fa34 8,15-18
+lib/current_scope/grantable_roles.rb
+  h_e8a5bb9272fa34 40-52,112,115,143,171-178,203
+lib/current_scope/parent_chain.rb
+  h_e8a5bb9272fa34 184-185,187
+lib/current_scope/resolver.rb
+  h_e8a5bb9272fa34 46-78,99,127,252-259,292,488-489,491-492,494-497,499,502,504,506
+test/integration/delegated_management_test.rb
+  h_e8a5bb9272fa34 1-74
+test/integration/management_lock_order_test.rb
+  h_e8a5bb9272fa34 1-85
+test/models/permission_scoped_roles_test.rb
+  h_e8a5bb9272fa34 1-78
+test/parent_chain_test.rb
+  h_e8a5bb9272fa34 64
+test/parent_scoped_grant_test.rb
+  h_e8a5bb9272fa34 47-72
+test/resolver_allowed_subjects_test.rb
+  h_e8a5bb9272fa34 1-129
+test/resolver_memoization_test.rb
+  h_e8a5bb9272fa34 65-159
+test/system/role_editing_test.rb
+  h_e8a5bb9272fa34 14-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "16220a76ceec92364a7fdc17764d2724364f0040",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

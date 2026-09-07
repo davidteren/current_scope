@@ -444,85 +444,21 @@ names which of Pundit, Action Policy, CanCanCan, Banken or Oso to read next.
   vs dry-effects vs explicit passing, and what this gem borrows from Action
   Policy.
 
+## Editable role administration
+
+Hosts can delegate console administration through `management_authorizer` and
+set `current_scope_grantable_permissions` on resource types. This lets an
+administrator create business roles without a code change, while the host
+policy controls who can change or assign them.
+
+See [Management authorization](docs/guides/configuration-reference.md#management-authorization)
+for the callback, action names, recipient context, and transaction lock order.
+See [Resource permission ceilings](docs/guides/configuration-reference.md#resource-permission-ceilings)
+for bundle eligibility and validation, and
+[Batch authorization](docs/guides/configuration-reference.md#batch-authorization-for-one-record)
+for checking several subjects against one record.
+
 ## License
 
 The gem is available as open source under the terms of the
 [MIT License](https://opensource.org/licenses/MIT).
-
-### Delegate role administration
-
-The console requires full access by default. Hosts can set
-`config.management_authorizer` to a callable with this signature:
-
-```ruby
-config.management_authorizer = ->(subject, action:, role: nil, target: nil) do
-  MyRoleAdministration.allowed?(subject, action: action, role: role, target: target)
-end
-```
-
-The callback must return literal `true` to allow the operation. It replaces the
-default, so the host must explicitly permit its full-access owners. The public
-`CurrentScope.can_manage?(:access, subject: user)` helper uses the same policy.
-Every console request requires `:access`. Writes also require `:create_role`,
-`:update_role`, `:destroy_role`, `:assign_role`, `:revoke_role`,
-`:assign_scoped_role`, or `:revoke_scoped_role`. An edit checks the stored role
-and a separate proposed role before saving. Assignment operations pass the
-recipient as `target`; replacing an org role also checks revocation of the old
-role. Bulk operations roll back in full if any target is refused. A role delete
-passes the role, so the host policy must consider its holders when necessary.
-
-After console entry is allowed, a refused create proposal keeps the submitted
-name, description, and full-access choice on the HTML new-role form. A refused
-update keeps the HTML editor and its submitted values when the stored role is
-editable. Both forms explain the refusal and return 403 with the
-`management_denied` reason. Entry and stored-role denials still show the denial
-page, and non-HTML denials remain bodyless. New roles receive their permission
-grid after creation.
-
-The host policy must enforce its permission ceiling and protect Owner roles and
-users. Console access alone is not permission to perform a write. These checks
-apply to the console; trusted Ruby grant and model APIs remain available to host
-code. The impersonation mutation guard and last-full-access-holder guard remain
-in force.
-
-### Allow custom scoped bundles
-
-A resource can accept roles by permission content rather than fixed names:
-
-```ruby
-include CurrentScope::GrantableRoles # Scopeable includes this too
-self.current_scope_grantable_permissions = %w[reports#index reports#show]
-```
-
-A role qualifies when every permission key is in this ceiling and full access
-is off. An empty role bundle is inert, so removing all permissions remains valid. Administrators can thus create new role names
-without changing this declaration. An empty ceiling accepts no roles. A nil
-ceiling inherits the parent declaration, or leaves the existing default in
-force. If a name list is also declared, both restrictions apply. Remove the name
-list when migrating to permission-based eligibility.
-
-The picker and assignment validation use the same predicate. Editing a role
-with existing scoped grants must preserve each resource's permission ceiling;
-remove incompatible grants before changing that bundle. These write validations
-do not repair old data or restrict unchecked SQL writes.
-
-A draft record can inherit scoped permissions from its persisted parent before
-validation. It cannot match a direct scoped grant, even if an id was assigned
-in memory. Unsaved or destroyed parents terminate the chain. The child initiator
-veto and the prohibition on cascading full access remain in force.
-
-Org-role permission bundles are loaded once per subject in a request or job.
-Normal role, permission, and assignment saves, destroys, and rollbacks clear this
-cache, so later checks in the same operation see the current database state.
-Direct SQL and callback-skipping writes must explicitly call
-`CurrentScope::Current.reset_org_role_cache` before checking permissions again.
-
-Grant operations lock recipients in a stable order before roles and assignments,
-matching host transactions that update a recipient before creating a grant.
-All console mutations lock role rows in ID order before assignment rows.
-This serializes role administration; ordinary authorization reads are unaffected.
-Direct permission-row saves check existing resource ceilings under the same
-parent-role lock used by scoped grant validation.
-Scoped assignment validation reads the locked stored role separately, preserving
-any unsaved role edits held by the caller. Permission-based resource declarations
-also accept an existing role name through `current_scope_grants_role?`.

@@ -122,6 +122,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pilots.
 
 ### Fixed
+- **Delegation checks and query reuse (#209).** Invalid management-authorizer
+  configuration raises even when no subject is signed in. Bulk role grants
+  reuse their locked proposed role, role lists preload permission bundles, and
+  batch checks reuse the shared separation-of-duties bypass decision.
 - **Every grant write is audited, not just the console's (#182).** Rows written
   through the model API — a seed, a rake task, a console one-liner — emitted no
   ledger events, while the same change made through the management UI did. That

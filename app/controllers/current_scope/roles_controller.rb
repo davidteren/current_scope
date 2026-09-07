@@ -15,8 +15,8 @@ module CurrentScope
     before_action :assign_grantable_roles_declared, only: %i[edit update]
 
     def index
-      # Includes for delete-confirm holder counts (cascade warning).
-      @roles = Role.order(:name).includes(:role_assignments, :scoped_role_assignments)
+      # Preload bundles for management checks and holder counts for cascade warnings.
+      @roles = Role.order(:name).includes(:role_permissions, :role_assignments, :scoped_role_assignments)
     end
 
     def new

@@ -290,6 +290,19 @@ remove or correct them. See
 [Scopeable models](checking-permissions.md#scopeable-models) for the name-based
 declaration and resource picker.
 
+A draft record can inherit scoped permissions from its persisted parent before
+validation. It cannot match a direct scoped grant, even if an id was assigned
+in memory. Unsaved or destroyed parents terminate the chain. The child initiator
+veto and the prohibition on cascading full access remain in force.
+
+## Organization-role permission cache
+
+Org-role permission bundles are loaded once per subject in a request or job.
+Normal role, permission, and assignment saves, destroys, and rollbacks clear this
+cache, so later resolver checks in the same operation see the current database
+state. Direct SQL and callback-skipping writes must explicitly call
+`CurrentScope::Current.reset_org_role_cache` before checking permissions again.
+
 ## Batch authorization for one record
 
 **`CurrentScope.resolver.allowed_subjects`** answers the same record-bound

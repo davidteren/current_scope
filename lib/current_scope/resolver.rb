@@ -50,8 +50,14 @@ module CurrentScope
       raise ArgumentError, "allowed_subjects requires a record instance" unless record.is_a?(ActiveRecord::Base)
 
       candidates = subjects.to_a.compact.uniq
+      bypass_decision = nil
       decisions = candidates.to_h do |subject|
-        [ subject, sod_decision(subject: subject, actor: actor, permission: permission, record: record) ]
+        decision = sod_decision(subject: subject, actor: actor, permission: permission, record: record) do |initiator|
+          # Every conflict concerns this record's initiator. Reuse only within
+          # this batch; the next call must check the live bypass grant again.
+          bypass_decision ||= sod_bypassed?(record: record, initiator: initiator) ? :bypass : :veto
+        end
+        [ subject, decision ]
       end
       allowed = candidates.select { |subject| decisions[subject] == :bypass }
       remaining = candidates.reject { |subject| decisions[subject].in?([ :veto, :bypass ]) }
@@ -349,6 +355,8 @@ module CurrentScope
       conflict = initiator == subject ||
         (CurrentScope.config.sod_identity == :either && actor != subject && initiator == actor)
       return :none unless conflict
+
+      return yield(initiator) if block_given?
 
       sod_bypassed?(record: record, initiator: initiator) ? :bypass : :veto
     end

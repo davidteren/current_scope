@@ -6,7 +6,7 @@
 **What we finished:** Admins can manage roles within their own permission limits.\
 **What you do next:** Review the paired app and gem changes before release.
 
-The gem branch `feat/delegated-role-administration` adds host-controlled role management and resource permission ceilings. Miela uses it on the integration branch `fix/editable-role-integration` to enforce editable business bundles. Review and deployment are separate steps.
+[PR #209 — editable role administration](https://github.com/davidteren/current_scope/pull/209) adds host-controlled role management and resource permission ceilings for the paired Miela integration. Review and deployment are separate steps.
 
 > ### Historical — PR #153 review fixes (2026-08-12)
 >

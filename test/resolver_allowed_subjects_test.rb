@@ -110,6 +110,65 @@ class ResolverAllowedSubjectsTest < ActiveSupport::TestCase
     CurrentScope.config.allow_sod_bypass = original
   end
 
+  test "shared actor scoped bypass queries stay constant and refresh between batches" do
+    original = CurrentScope.config.allow_sod_bypass
+    CurrentScope.config.allow_sod_bypass = true
+    role = CurrentScope::Role.create!(name: "Scoped breaker")
+    role.role_permissions.create!(permission_key: "reports#bypass_sod")
+    grant = CurrentScope::ScopedRoleAssignment.create!(subject: @requester, role: role, resource: @report)
+    @report.define_singleton_method(:current_scope_sod_bypassed?) { true }
+    candidates = [ @requester, @reviewer, @other ] + 5.times.map { |index| User.create!(name: "Candidate #{index}") }
+    check = ->(subjects) { @resolver.allowed_subjects(subjects: subjects, permission: "reports#approve", record: @report, actor: @requester) }
+    # Warm the existing org-role memo equally for both measurements.
+    @resolver.org_role(@requester)
+    baseline = query_count { CurrentScope::Role.uncached { assert_equal [ @reviewer ], check.call([ @reviewer ]) } }
+    scaled = query_count { CurrentScope::Role.uncached { assert_equal candidates, check.call(candidates) } }
+
+    assert_equal baseline, scaled
+    assert_equal candidates.select { |subject| @resolver.allow?(subject: subject, permission: "reports#approve", record: @report, actor: @requester) }, check.call(candidates)
+
+    grant.destroy!
+    assert_empty check.call(candidates)
+    # A parent's bypass permission must never lift a child's veto.
+    CurrentScope::ScopedRoleAssignment.create!(subject: @requester, role: role, resource: @project)
+    assert_empty check.call(candidates)
+  ensure
+    CurrentScope.config.allow_sod_bypass = original
+  end
+
+  test "batch bypass keeps scalar opt-in configuration and identity decisions" do
+    original = CurrentScope.config.allow_sod_bypass
+    original_permission = CurrentScope.config.sod_bypass_permission
+    CurrentScope.config.allow_sod_bypass = true
+    role = CurrentScope::Role.create!(name: "Scoped breaker")
+    role.role_permissions.create!(permission_key: "reports#bypass_sod")
+    CurrentScope::ScopedRoleAssignment.create!(subject: @requester, role: role, resource: @report)
+    candidates = [ @requester, @reviewer, @other ]
+    check = -> { @resolver.allowed_subjects(subjects: candidates, permission: "reports#approve", record: @report, actor: @requester) }
+
+    [ true, false ].each do |opt_in|
+      @report.define_singleton_method(:current_scope_sod_bypassed?) { opt_in }
+      [ :subject, :either ].each do |identity|
+        CurrentScope.config.sod_identity = identity
+        expected = candidates.select { |subject| @resolver.allow?(subject: subject, permission: "reports#approve", record: @report, actor: @requester) }
+        assert_equal expected, check.call
+      end
+    end
+    @report.singleton_class.send(:undef_method, :current_scope_sod_bypassed?)
+    assert_empty check.call
+
+    CurrentScope.config.sod_bypass_permission = "approve"
+    assert_raises(CurrentScope::ConfigurationError) { check.call }
+    CurrentScope.config.sod_bypass_permission = original_permission
+    @report.requested_by = nil
+    assert_empty check.call
+    @report.singleton_class.send(:undef_method, :current_scope_initiator)
+    assert_raises(CurrentScope::ConfigurationError) { check.call }
+  ensure
+    CurrentScope.config.allow_sod_bypass = original
+    CurrentScope.config.sod_bypass_permission = original_permission
+  end
+
   test "batch API rejects recordless requests explicitly" do
     [ nil, Report ].each do |record|
       assert_raises(ArgumentError) { @resolver.allowed_subjects(subjects: [ @reviewer ], permission: "reports#index", record: record) }

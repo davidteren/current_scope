@@ -32,18 +32,16 @@ module CurrentScope
           subject_class.lock.find(subject.id)
         end
         lock_full_access_org_holders!
+        proposed = Role.includes(:role_permissions).lock.find(params.expect(:role_id)) unless clearing
 
         subjects.each do |subject|
           previous = RoleAssignment.lock.find_by(subject: subject)&.role
           previous&.lock!
           authorize_management!(:revoke_role, role: previous, target: subject) if previous || clearing
-          unless clearing
-            proposed = Role.lock.find(params.expect(:role_id))
-            authorize_management!(:assign_role, role: proposed, target: subject)
-          end
+          authorize_management!(:assign_role, role: proposed, target: subject) unless clearing
         end
 
-        if would_remove_last_full_access_holders?(subjects, clearing: clearing)
+        if would_remove_last_full_access_holders?(subjects, proposed: proposed)
           refused = true
         else
           subjects.each do |subject|
@@ -51,7 +49,7 @@ module CurrentScope
             prior_role = assignment.role # nil for a brand-new assignment
             prior_role&.lock!
             authorize_management!(:revoke_role, role: prior_role, target: subject) if prior_role || clearing
-            did = clearing ? clear_org_role(subject, assignment, prior_role) : set_org_role(subject, assignment, prior_role)
+            did = clearing ? clear_org_role(subject, assignment, prior_role) : set_org_role(subject, assignment, prior_role, proposed)
             changed += 1 if did
           end
         end
@@ -134,17 +132,14 @@ module CurrentScope
 
     # True when applying clear (or reassign to a non-full_access role) to these
     # subjects would leave zero full_access org holders.
-    def would_remove_last_full_access_holders?(subjects, clearing:)
+    def would_remove_last_full_access_holders?(subjects, proposed:)
       holders = full_access_org_assignments.to_a
       return false if holders.empty?
 
       affected_ids = holders.select { |a| subjects.any? { |s| same_subject?(a, s) } }.map(&:id)
       return false if affected_ids.empty?
 
-      unless clearing
-        new_role = Role.find_by(id: params[:role_id])
-        return false if new_role&.full_access?
-      end
+      return false if proposed&.full_access?
 
       remaining = holders.reject { |a| affected_ids.include?(a.id) }
       remaining.empty?
@@ -186,10 +181,7 @@ module CurrentScope
 
     # Returns true when the subject's role actually changed, false on a no-op
     # re-set to the same role.
-    def set_org_role(subject, assignment, prior_role)
-      # Fetch the new role as its own object so `prior_role` (already loaded via
-      # the association) isn't mistaken for it after the update.
-      new_role = Role.lock.find(params.expect(:role_id))
+    def set_org_role(subject, assignment, prior_role, new_role)
       authorize_management!(:assign_role, role: new_role, target: subject)
       changed = prior_role.nil? || prior_role.id != new_role.id
 

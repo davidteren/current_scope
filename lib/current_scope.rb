@@ -84,10 +84,12 @@ module  CurrentScope
     # Console policy is separate from grantable application permissions.
     # A configured callback must explicitly permit full-access subjects too.
     def can_manage?(action = :access, subject: CurrentScope::Current.user, role: nil, target: nil)
-      return false unless subject
       authorizer = config.management_authorizer
+      unless authorizer.nil? || authorizer.respond_to?(:call)
+        raise ConfigurationError, "management_authorizer must respond to call"
+      end
+      return false unless subject
       return resolver.full_access?(subject) if authorizer.nil?
-      raise ConfigurationError, "management_authorizer must respond to call" unless authorizer.respond_to?(:call)
 
       authorizer.call(subject, action: action, role: role, target: target) == true
     end

@@ -251,6 +251,35 @@ class PermissionScopedRolesTest < ActiveSupport::TestCase
     Project.singleton_class.send(:remove_method, :current_scope_grants_role?) if custom_rule
   end
 
+  test "a fitting bundle with an unlisted name explains the name restriction" do
+    declare_grantable_roles(Project, [ "Named viewer" ])
+    grant = CurrentScope::ScopedRoleAssignment.new(subject: @user, resource: @report, role: @role)
+    assert_not grant.valid?
+    assert_includes grant.errors[:role].first, "it accepts Named viewer"
+    assert_not_includes grant.errors[:role].first, "permission ceiling"
+
+    @role.update!(permission_keys: [ "reports#approve" ])
+    assert_not grant.valid?
+    assert_includes grant.errors[:role].first, "permission ceiling"
+  end
+
+  test "a name refusal explains the fresh bundle rather than cached or staged keys" do
+    declare_grantable_roles(Project, [ "Named viewer" ])
+    @role.update!(permission_keys: [ "reports#approve" ])
+    ActiveRecord::Base.cache do
+      assert_equal [ "reports#approve" ], @role.permission_keys
+      ActiveRecord::Base.uncached(dirties: false) do
+        CurrentScope::Role.find(@role.id).update!(permission_keys: [ "reports#show" ])
+      end
+      @role.permission_keys = [ "reports#approve" ]
+      grant = CurrentScope::ScopedRoleAssignment.new(subject: @user, resource: @report, role: @role)
+      assert_not grant.valid?
+      assert_includes grant.errors[:role].first, "it accepts Named viewer"
+      assert_not_includes grant.errors[:role].first, "permission ceiling"
+      assert_equal [ "reports#approve" ], @role.permission_keys
+    end
+  end
+
   private
 
   def assert_demotion_checks_stored_permissions(loaded:)

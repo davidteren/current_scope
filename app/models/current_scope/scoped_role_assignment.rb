@@ -196,7 +196,11 @@ module CurrentScope
       # Read through respond_to? and Array(): the type joins this gate by
       # answering current_scope_grants_role? alone, which a host may compute
       # without holding a list at all (#183).
-      unless klass.try(:current_scope_grantable_permissions).nil?
+      # A fitting bundle may have failed only the name restriction. Use fresh
+      # keys for this explanation too; duck-typed hosts may not expose the helper.
+      if !klass.try(:current_scope_grantable_permissions).nil? &&
+          (!klass.respond_to?(:current_scope_grants_role_permissions?) ||
+            !Role.uncached { klass.current_scope_grants_role_permissions?(checked_role) })
         errors.add(:role, "cannot be granted on #{klass.name}: use a permission bundle within its permission ceiling, without full access")
         return
       end

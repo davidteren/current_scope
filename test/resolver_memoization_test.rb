@@ -110,6 +110,53 @@ class ResolverMemoizationTest < ActiveSupport::TestCase
     assert_not @resolver.full_access?(@alice)
   end
 
+  test "moving a loaded permission stops granting it from the source role" do
+    source = role("Source", "reports#index")
+    destination = role("Destination")
+    permission = source.role_permissions.load.first
+    destination.role_permissions.load
+
+    permission.update!(role: destination)
+
+    assert_not source.grants?("reports#index")
+    assert_empty source.permission_keys
+    assert destination.grants?("reports#index")
+    assert_equal [ "reports#index" ], destination.permission_keys
+  end
+
+  test "rolling back a loaded permission move restores the source grant" do
+    source = role("Source", "reports#index")
+    destination = role("Destination")
+    permission = source.role_permissions.load.first
+    destination.role_permissions.load
+
+    CurrentScope::RolePermission.transaction(requires_new: true) do
+      permission.update!(role: destination)
+      assert_empty source.permission_keys
+      assert_not source.grants?("reports#index")
+      assert destination.grants?("reports#index")
+      raise ActiveRecord::Rollback
+    end
+
+    assert source.grants?("reports#index")
+    assert_equal [ "reports#index" ], source.permission_keys
+    assert_not destination.grants?("reports#index")
+    assert_empty destination.permission_keys
+  end
+
+  test "an unsaved permission move preserves the stored grant and caller draft" do
+    source = role("Source", "reports#index")
+    destination = role("Destination")
+    permission = source.role_permissions.load.first
+    permission.role = destination
+
+    assert source.grants?("reports#index")
+    assert_equal [ "reports#index" ], source.permission_keys
+    assert_not destination.grants?("reports#index")
+    assert_same destination, permission.role
+    assert permission.role_id_changed?
+  end
+
   test "rolled back full access and role deletion cannot leave a cached decision" do
     held = role("Reader", "reports#index")
     assign(@alice, held)

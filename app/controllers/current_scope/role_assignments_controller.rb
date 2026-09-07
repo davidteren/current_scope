@@ -78,13 +78,9 @@ module CurrentScope
     def destroy
       refused = false
       RoleAssignment.transaction do
-        # Lock FA state BEFORE the target assignment so order matches create/
-        # role demote/delete (FA roles → FA holders → target row). Locking the
-        # assignment first inverted that order and could deadlock.
-        lock_full_access_org_holders!
-        assignment = RoleAssignment.lock.find(params[:id])
+        assignment, subject = lock_assignment_for_revocation(RoleAssignment)
         assignment.role&.lock!
-        authorize_management!(:revoke_role, role: assignment.role, target: resolve_subject(assignment))
+        authorize_management!(:revoke_role, role: assignment.role, target: subject)
 
         if last_full_access_org_assignment?(assignment)
           refused = true
@@ -104,6 +100,8 @@ module CurrentScope
       end
 
       redirect_back_or_to subjects_path, notice: "Org-wide role removed."
+    rescue ActiveRecord::StaleObjectError
+      redirect_back_or_to subjects_path, alert: "That assignment changed. Reload the page and retry."
     rescue ActiveRecord::RecordNotFound
       redirect_back_or_to subjects_path, notice: "That org-wide role was already removed."
     end

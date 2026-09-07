@@ -145,10 +145,13 @@ module CurrentScope
       comparison
     end
 
-    # The preload is safe only while its rows still represent saved data.
+    # The preload is safe only while its rows still represent saved data for
+    # this role; a saved move can leave a clean row in the source collection.
     # Do not discard the caller's drafts when a stored lookup is required.
     def stored_permissions_loaded?
-      role_permissions.loaded? && role_permissions.all? { |entry| entry.persisted? && !entry.changed? }
+      role_permissions.loaded? && role_permissions.all? do |entry|
+        entry.persisted? && !entry.changed? && entry.role_id == id
+      end
     end
 
     def stored_permission_keys

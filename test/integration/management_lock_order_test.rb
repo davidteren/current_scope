@@ -30,7 +30,7 @@ class ManagementLockOrderTest < ActionDispatch::IntegrationTest
     locks = Thread.current[:management_lock_observation]
     if subject_first
       assert_equal [ "User", false, false, true ], locks.shift,
-        "grant writes must lock recipients before roles, matching host subject updates"
+        "assignment writes must lock recipients before roles, matching host subject updates"
     end
     assert_equal [ "CurrentScope::Role", true, true, true ], locks.first,
       "role locks must precede assignment locks"
@@ -48,7 +48,7 @@ class ManagementLockOrderTest < ActionDispatch::IntegrationTest
       assert_response :redirect
     end
     org = CurrentScope::RoleAssignment.find_by!(subject: @member)
-    observe_locks do
+    observe_locks(subject_first: true) do
       delete current_scope.role_assignment_url(org), headers: headers
       assert_response :redirect
     end
@@ -57,7 +57,7 @@ class ManagementLockOrderTest < ActionDispatch::IntegrationTest
       assert_response :redirect
     end
     scoped = CurrentScope::ScopedRoleAssignment.find_by!(subject: @member)
-    observe_locks do
+    observe_locks(subject_first: true) do
       delete current_scope.scoped_role_assignment_url(scoped), headers: headers
       assert_response :redirect
     end

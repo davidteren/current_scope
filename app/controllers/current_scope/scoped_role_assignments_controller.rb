@@ -106,20 +106,20 @@ module CurrentScope
     end
 
     def destroy
-      assignment = ScopedRoleAssignment.find(params[:id])
       # The event comes from ScopedRoleAssignment's own callback (#182), so a
       # seed or a rake task that destroys a grant records the same row this
       # console action does. The transaction stays: config.audit = :strict rolls
       # the destroy back when its audit row cannot be written.
       ScopedRoleAssignment.transaction do
-        FullAccessLock.lock_console_state!
-        assignment.lock!
+        assignment, subject = lock_assignment_for_revocation(ScopedRoleAssignment)
         assignment.role&.lock!
         authorize_management!(:revoke_scoped_role, role: assignment.role,
-          target: assignment.current_scope_resolved_record("subject"))
+          target: subject)
         assignment.destroy!
       end
       redirect_to subjects_path, notice: "Scoped role revoked."
+    rescue ActiveRecord::StaleObjectError
+      redirect_to subjects_path, alert: "That assignment changed. Reload the page and retry."
     rescue ActiveRecord::RecordNotFound
       redirect_to subjects_path, notice: "That scoped role was already revoked."
     end

@@ -61,6 +61,33 @@ module CurrentScope
       @subject_class ||= CurrentScope.config.subject_class.constantize
     end
 
+    # Match create's recipient → full-access state → assignment lock order.
+    # Resolve through the checked reader before querying, so a legacy key cannot
+    # cast to a different recipient. A fresh query tolerates unsaved host load
+    # defaults and supplies the policy with the state protected by the row lock.
+    def lock_assignment_for_revocation(assignment_class)
+      assignment_class.uncached do
+        located = assignment_class.find(params[:id])
+        identity = [ located.subject_type, located.subject_id ]
+        subject = located.current_scope_resolved_record("subject")
+        if subject
+          klass = CurrentScope.polymorphic_class(located.subject_type, inert_on_error: true)
+          subject = klass.lock.find_by(klass.primary_key => located.subject_id)
+        end
+
+        FullAccessLock.lock_console_state!
+        assignment = assignment_class.lock.find(located.id)
+        # Never acquire a different recipient lock after locking roles. Refuse
+        # a retargeted assignment, or an orphan that became live in the meantime.
+        if identity != [ assignment.subject_type, assignment.subject_id ] ||
+            (subject.nil? && assignment.current_scope_resolved_record("subject"))
+          raise ActiveRecord::StaleObjectError.new(assignment, "revoke")
+        end
+        assignment.association(:subject).target = subject
+        [ assignment, subject ]
+      end
+    end
+
     # The submitted subject GIDs for a bulk-or-single action: the multi-select
     # subject_gids[] when present, else the single subject_gid. Raw strings —
     # pass through locate_subjects to resolve and enforce the subject boundary.

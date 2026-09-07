@@ -102,11 +102,17 @@ module CurrentScope
     # Checks the proposed bundle without writing it. Join-row writes use the
     # same ceiling check as permission_keys= while holding the parent role lock.
     def incompatible_scoped_resource_class
+      # Every grant of the same governing class asks the same bundle question.
+      # Keep this local to one fresh scan; no result survives another validation.
+      checked_classes = {}
       # A cached collection can miss a grant created through another role instance.
       scoped_role_assignments.where(nil).find_in_batches do |assignments|
         ScopedRoleAssignment.preload_resolvable_resources!(assignments)
         assignments.each do |assignment|
           klass = assignment.current_scope_governing_class
+          next if checked_classes[klass]
+
+          checked_classes[klass] = true
           if klass.respond_to?(:current_scope_grantable_permissions) &&
               !klass.current_scope_grantable_permissions.nil? &&
               !klass.current_scope_grants_role?(self)
@@ -140,6 +146,13 @@ module CurrentScope
     def held_scoped_grants_remain_compatible
       return unless persisted?
       return unless full_access_changed? || !@pending_permission_keys.nil?
+      # The console submits the whole bundle even when nothing changed. Compare
+      # uncached rows under the role lock; an association or SQL cache may be stale. Keep
+      # checking renames because a ceiling can also restrict eligible names.
+      if !full_access_changed? && !name_changed? &&
+          @pending_permission_keys.sort == self.class.uncached { role_permissions.where(nil).pluck(:permission_key).sort }
+        return
+      end
 
       klass = incompatible_scoped_resource_class
       if klass

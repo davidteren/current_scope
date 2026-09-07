@@ -22,7 +22,7 @@ module CurrentScope
       # every reader below expects a string. Rails answers nil for it today
       # rather than raising, so this states the expectation rather than fixing a
       # live break (#183).
-      @selected_role = Role.find_by(id: scalar_param(:role_id)) if params[:role_id].present?
+      @selected_role = Role.includes(:role_permissions).find_by(id: scalar_param(:role_id)) if params[:role_id].present?
       # A deleted role in a stale bookmark reads as "no role chosen" everywhere
       # downstream, which would show every type and every record with no hint
       # and a Grant button that can only fail on POST (#183).

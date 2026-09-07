@@ -168,11 +168,6 @@ module CurrentScope
     def role_grantable_on_resource_type
       return if role.nil? || resource_type.blank?
 
-      # A caller may stage permission_keys outside ActiveRecord's dirty tracking.
-      # Read the locked stored role separately: validation must neither discard
-      # that draft nor let it disguise an incompatible persisted permission set.
-      checked_role = role.persisted? ? Role.lock.find(role.id) : role
-
       # This resolves the RECORD (one find_by when the association is not
       # loaded) before it can know whether any declaration exists. Skipping that
       # for hosts who declared nothing would need a cheap "nobody declared"
@@ -184,6 +179,17 @@ module CurrentScope
 
       klass = current_scope_governing_class
       return if klass.nil? || !klass.respond_to?(:current_scope_grants_role?)
+      # Only the module's default predicate is unconditional without declarations.
+      # A host override can impose a rule without exposing either declaration.
+      if klass.method(:current_scope_grants_role?).owner == GrantableRoles::ClassMethods &&
+          klass.current_scope_grantable_roles.nil? && klass.current_scope_grantable_permissions.nil?
+        return
+      end
+
+      # A caller may stage permission_keys outside ActiveRecord's dirty tracking.
+      # Read the locked stored role separately: validation must neither discard
+      # that draft nor let it disguise an incompatible persisted permission set.
+      checked_role = role.persisted? ? Role.lock.find(role.id) : role
       return if klass.current_scope_grants_role?(checked_role)
 
       # Read through respond_to? and Array(): the type joins this gate by

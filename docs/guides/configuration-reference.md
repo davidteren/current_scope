@@ -7,7 +7,9 @@
 Everything lives in `config/initializers/current_scope.rb` (created by the
 install generator): the `user_method`, the `subject_class`, `sod_actions`,
 `excluded_controllers` (keep infrastructure out of the grid), and
-`parent_controller` (what the management UI inherits from). The three
+`parent_controller` (what the management UI inherits from).
+`management_authorizer` optionally replaces the management console's default
+full-access policy. The three
 impersonation knobs — `actor_method`, `allow_mutations_while_impersonating`,
 and `sod_identity` — are grouped in their own block and covered under
 [Impersonation](impersonation.md); they layer in that order, so
@@ -172,6 +174,130 @@ hook.
 > `true` mode a missing events table is a warn-once no-op, and under `false`
 > every call silently returns `nil` — so a mutation-wrapping transaction does
 > **not** roll back on a failed audit write unless you opt into `:strict`.
+
+## Management authorization
+
+**`config.management_authorizer`** defaults to `nil`: only subjects with an
+organization-wide `full_access` role can enter or change the console. Set a
+callable to delegate role administration under a host policy. It receives the
+effective subject as its positional argument and `action:`, `role:` and
+`target:` keywords. Only literal `true` permits the operation. A configured
+callback also decides for full-access subjects; they do not bypass it.
+
+```ruby
+CurrentScope.configure do |config|
+  config.management_authorizer = lambda do |subject, action:, role:, target:|
+    RoleAdministration.allowed?(subject, action: action, role: role, target: target)
+  end
+end
+
+CurrentScope.can_manage?(:update_role, subject: editor, role: proposed_role)
+CurrentScope.can_manage?(:assign_scoped_role, subject: editor, role: reviewer_role,
+                        target: recipient)
+```
+
+`RoleAdministration` in this example is a host-defined policy. The engine does
+not impose an administrator tier, a held-permission ceiling, or protected
+recipient rules; the host must implement those requirements in its callback.
+The callback does not replace application permissions or the impersonation
+mutation gate. The console retains its last-full-access-holder protections.
+
+| Action | Decision context |
+|---|---|
+| `:access` | Console entry; `role` and `target` are `nil`. |
+| `:create_role`, `:update_role`, `:destroy_role` | The role being created, edited or deleted; `target` is `nil`. |
+| `:assign_role`, `:revoke_role` | The organization-wide role and recipient. Clearing an absent assignment can supply `role: nil`. |
+| `:assign_scoped_role`, `:revoke_scoped_role` | The scoped role and recipient. |
+
+For scoped operations, `target` is the **recipient**, not the resource. The
+callback receives no resource keyword. This API supports role- and
+recipient-based delegation; it cannot express resource-specific console
+administration rules. Resource-type compatibility is a separate declaration,
+described below.
+
+**Keep the callback a pure predicate.** It can run several times for one
+request, including when rendering controls. Role updates check both the saved
+role and a candidate carrying submitted attributes and permission keys. The
+full-access checkbox checks a separate candidate with `full_access = true`,
+even when the user has not selected it. Existing-role candidates keep their
+persisted identity. Do not save candidates, emit audit events or consume a
+quota from this callback; an authorization question is not a completed write.
+`role` and `target` can be `nil`, including for unavailable assignment subjects.
+
+**`CurrentScope.can_manage?`** accepts
+`(action = :access, subject: CurrentScope::Current.user, role: nil, target: nil)`
+and returns a boolean without performing the operation. A missing subject is
+denied. With no callback it checks the subject's full-access role; otherwise it
+calls the configured predicate. A non-callable setting raises
+`CurrentScope::ConfigurationError` when checked. A configured-policy denial
+uses `AccessDenied#reason == :management_denied`; the default policy uses
+`:not_full_access`. `enforcement = :report` does not relax either policy.
+Direct model writes and `CurrentScope.grant!` do not call this management
+predicate; host write paths must authorize their own callers.
+
+Bulk console grants lock recipients before role and assignment rows. The
+recipient order is lexical by `[subject.class.base_class.name, subject.id.to_s]`,
+so an integer id of `10` precedes `2`. Host transactions that lock several
+recipients and then grant roles should use the same order to avoid lock cycles.
+
+## Resource permission ceilings
+
+**`current_scope_grantable_permissions`** limits the permission keys a role may
+carry when granted on a resource type. Include `CurrentScope::Scopeable` for
+picker support, or `CurrentScope::GrantableRoles` for the rule without browsing:
+
+```ruby
+class Project < ApplicationRecord
+  include CurrentScope::Scopeable
+  self.current_scope_grantable_permissions = %w[projects#show projects#update]
+end
+```
+
+A non-full-access role whose entire bundle is within this ceiling can be
+granted on a Project, including a newly created or renamed role. The declaration
+does not grant any permission by itself. Keys normalize to unique nonblank
+strings. A subclass inherits the declaration unless it supplies its own;
+`nil` means inherit, or no ceiling when no ancestor declares one. `[]` refuses
+every role. A nonempty ceiling accepts an empty role bundle, but always refuses
+`full_access` roles. If `current_scope_grantable_roles` also lists allowed role
+names, the role must satisfy both declarations.
+
+Scoped-assignment validation checks the saved bundle for an existing role and
+the proposed bundle for a new role before it is saved. Role bundle edits and
+direct role-permission writes also reject changes that exceed the ceilings of
+existing scoped holders. These are model validations, not database
+constraints. Adding a declaration does not rewrite or revoke existing grants;
+use `bin/rails current_scope:report` to identify incompatible assignments and
+remove or correct them. See
+[Scopeable models](checking-permissions.md#scopeable-models) for the name-based
+declaration and resource picker.
+
+## Batch authorization for one record
+
+**`CurrentScope.resolver.allowed_subjects`** answers the same record-bound
+permission question for several subjects:
+
+```ruby
+approvers = CurrentScope.resolver.allowed_subjects(
+  subjects: candidates, permission: "projects#approve", record: project
+)
+```
+
+The signature is `(subjects:, permission:, record:, actor: nil, cascade: true)`.
+Supply an ActiveRecord record instance; a class or `nil` raises `ArgumentError`.
+The returned array preserves input order, removes nil entries and duplicates,
+and contains only allowed subjects. It checks organization-wide, direct scoped
+and inherited grants using the same separation-of-duties decision as `allow?`.
+An ancestor's full-access flag alone does not grant access to a child; its role
+must explicitly contain the requested key. `cascade: false` skips ancestor
+grants while retaining organization-wide and direct grants.
+
+An explicit `actor:` supplies the same real actor for every candidate's
+separation-of-duties check; without it each candidate is evaluated as itself.
+The method queries current grants on each call and keeps no authorization
+snapshot. It does not add host account-status or workflow rules: filter those
+candidates in the host policy. Collection questions still use `allow?` or
+`scope_for`; they are not this method's input shape.
 
 ## Dev diagnostics
 

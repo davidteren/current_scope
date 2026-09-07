@@ -7,6 +7,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Delegated role administration.** `config.management_authorizer` lets a host
+  decide console entry and role or assignment operations through a pure
+  callback. `CurrentScope.can_manage?` exposes the same decision to host code.
+  Configured-policy refusals use the `management_denied` reason; without the
+  callback, the organization-wide full-access requirement remains unchanged.
+  The callback receives the role and recipient, not the scoped resource.
+- **Permission ceilings for scoped roles.** Resource types can declare
+  `current_scope_grantable_permissions` so editable role names remain flexible
+  while their bundles stay within the type's allowed keys. Existing name
+  restrictions combine with the ceiling. Scoped grants and incompatible edits
+  to held role bundles are rejected by model validation.
+- **Batch authorization for one record.** `Resolver#allowed_subjects` returns
+  allowed candidate subjects in input order using the same grant and
+  separation-of-duties rules as individual checks, without per-subject grant
+  lookups or a retained authorization snapshot.
 - **Opt-in role-to-resource-type compatibility (#183).** Any role could be
   granted on any resource type, and with parent-chain resolution an incompatible
   pairing widens access silently: a role whose bundle covers one record's own

@@ -49,7 +49,9 @@ module  CurrentScope
   #                         an instance, an abstract class — not a concrete AR
   #                         class). Same cell, different fix, so a different label.
   #   :impersonation_gate — a mutation while impersonating, which is read-only
-  #   :not_full_access    — the engine's management UI, which only full_access enters
+  #   :not_full_access    — the default management policy requires full_access
+  #   :management_denied  — the configured management authorizer refused entry
+  #                         or the requested role/assignment operation
   #
   # Every denial in the gem raises this and lands in current_scope_denied, so a
   # denial cannot exist that forgets its reason. (:sod_bypassed is the one

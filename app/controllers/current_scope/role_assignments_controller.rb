@@ -42,7 +42,7 @@ module CurrentScope
           refused = true
         else
           subjects.each do |subject|
-              assignment = RoleAssignment.lock.find_or_initialize_by(subject: subject)
+            assignment = RoleAssignment.lock.find_or_initialize_by(subject: subject)
             prior_role = assignment.role # nil for a brand-new assignment
             prior_role&.lock!
             authorize_management!(:revoke_role, role: prior_role, target: subject) if prior_role || clearing

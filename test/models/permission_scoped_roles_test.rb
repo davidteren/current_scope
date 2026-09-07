@@ -120,4 +120,81 @@ class PermissionScopedRolesTest < ActiveSupport::TestCase
     assert_not @role.update(full_access: true)
     assert_not @role.reload.full_access?
   end
+
+  test "undeclared resources do not reread the already loaded role on grant validation" do
+    Project.current_scope_grantable_permissions = nil
+    grant = CurrentScope::ScopedRoleAssignment.new(subject: @user, resource: @report, role: @role)
+    queries = capture_selects { assert grant.valid? }
+
+    assert_empty queries.grep(/FROM ["`]current_scope_roles["`]/), queries.join("\n")
+  end
+
+  test "an unchanged submitted bundle does not scan scoped grants" do
+    CurrentScope::ScopedRoleAssignment.create!(subject: @user, resource: @report, role: @role)
+    queries = capture_selects { assert @role.update(permission_keys: [ "reports#show" ]) }
+
+    assert_empty queries.grep(/FROM ["`]current_scope_scoped_role_assignments["`]/), queries.join("\n")
+    assert_equal [ "reports#show" ], @role.reload.permission_keys
+
+    @role.role_permissions.load
+    CurrentScope::Role.find(@role.id).update!(permission_keys: [ "reports#index" ])
+    queries = capture_selects { assert @role.update(permission_keys: [ "reports#show" ]) }
+    assert queries.any? { |sql| sql.match?(/FROM ["`]current_scope_scoped_role_assignments["`]/) },
+      "the stale loaded bundle must not turn a real change into a no-op"
+    assert_equal [ "reports#show" ], @role.reload.permission_keys
+  end
+
+  test "full access demotion checks one permission bundle per governing class" do
+    Project.current_scope_grantable_permissions = nil
+    @role.update!(full_access: true)
+    CurrentScope::ScopedRoleAssignment.create!(subject: @user, resource: @report, role: @role)
+    counts = []
+    2.times do |iteration|
+      if iteration == 1
+        Project.current_scope_grantable_permissions = nil
+        8.times do |i|
+          resource = Project.create!(name: "Additional #{i}")
+          CurrentScope::ScopedRoleAssignment.create!(subject: @user, resource: resource, role: @role)
+        end
+      end
+      Project.current_scope_grantable_permissions = [ "reports#show" ]
+      candidate = CurrentScope::Role.find(@role.id)
+      candidate.full_access = false
+      queries = capture_selects { assert candidate.valid? }
+      counts << queries.count { |sql| sql.include?("current_scope_role_permissions") }
+    end
+    assert_equal counts.first, counts.last, "bundle SELECTs grew from #{counts.first} to #{counts.last}"
+  end
+
+  test "a cached old bundle cannot bypass the ceiling after persisted permissions change" do
+    ActiveRecord::Base.cache do
+      assert_equal [ "reports#show" ], @role.role_permissions.where(nil).pluck(:permission_key)
+      # Real writes with Rails' cache-preserving mode reproduce the stale read
+      # left by a writer in another process, without mocking database results.
+      ActiveRecord::Base.uncached(dirties: false) do
+        Project.current_scope_grantable_permissions = [ "reports#index" ]
+        fresh_role = CurrentScope::Role.find(@role.id)
+        fresh_role.update!(permission_keys: [ "reports#index" ])
+        CurrentScope::ScopedRoleAssignment.create!(subject: @user, resource: @report, role: fresh_role)
+      end
+      assert_equal [ "reports#show" ], @role.role_permissions.where(nil).pluck(:permission_key),
+        "precondition: the old permission SELECT remains cached"
+      assert_equal [ "reports#index" ], ActiveRecord::Base.uncached { CurrentScope::Role.find(@role.id).permission_keys }
+
+      assert_not @role.update(permission_keys: [ "reports#show" ]),
+        "a cached old bundle must not classify a forbidden widening as a no-op"
+      assert_equal [ "reports#index" ], @role.reload.permission_keys
+    end
+  end
+
+  private
+
+  def capture_selects
+    queries = []
+    watcher = ->(*, payload) { queries << payload[:sql] if payload[:sql].match?(/\ASELECT/i) }
+    ActiveRecord::Base.uncached do
+      ActiveSupport::Notifications.subscribed(watcher, "sql.active_record") { yield }
+    end
+    queries
+  end
 end

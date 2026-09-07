@@ -144,7 +144,8 @@ Denials raise `CurrentScope::AccessDenied` with stable accessors for branded
 | `model_undeclared` | a record-less deny that a scoped grant would have opened, had the controller declared `current_scope_model` |
 | `model_invalid` | `current_scope_model` was declared but returned something other than a concrete ActiveRecord class |
 | `impersonation_gate` | a mutation while impersonating, which is read-only |
-| `not_full_access` | the management UI, which only full-access subjects enter |
+| `not_full_access` | the default management policy requires an organization-wide full-access role |
+| `management_denied` | the configured management authorizer refused entry or the requested role/assignment operation |
 
 Guard and MutationGuard denials route through one method
 (`current_scope_denied`), so by default a refusal on a Guard-wrapped controller
@@ -154,9 +155,11 @@ host `rescue_from CurrentScope::AccessDenied` registered after the include
 example in this section). A **host** denial is a
 bodyless `403` by default — the reason header is the signal, and the gem won't
 render into your app's response contract. The engine's own management UI is the
-exception: it overrides the body seam to render a short page saying a full-access
-role is required, because the person reading that one is an admin looking at a
-browser.
+exception: it overrides the body seam to explain either the default full-access
+requirement or a refusal by the configured management policy. A refused role-edit
+proposal retains the submitted form with an error. See
+[Management authorization](configuration-reference.md#management-authorization)
+for the callback contract; it does not disable the impersonation mutation gate.
 
 The engine also registers `CurrentScope::AccessDenied → :forbidden` in
 `ActionDispatch` rescue responses (only if the host has not already mapped that

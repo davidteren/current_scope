@@ -48,7 +48,7 @@ module CurrentScope
     attr_reader :permission_keys_change
 
     def grants?(permission_key)
-      if role_permissions.loaded?
+      if stored_permissions_loaded?
         role_permissions.any? { |entry| entry.permission_key == permission_key.to_s }
       else
         role_permissions.exists?(permission_key: permission_key)
@@ -56,7 +56,11 @@ module CurrentScope
     end
 
     def permission_keys
-      @pending_permission_keys || role_permissions.pluck(:permission_key)
+      return @pending_permission_keys unless @pending_permission_keys.nil?
+      # Scoped validation must see the bundle that a new role will autosave.
+      return role_permissions.map(&:permission_key) if new_record?
+
+      stored_permission_keys
     end
 
     # Stages a replacement permission set. STRICT: a key that isn't in the
@@ -114,6 +118,16 @@ module CurrentScope
 
     private
 
+    # The preload is safe only while its rows still represent saved data.
+    # Do not discard the caller's drafts when a stored lookup is required.
+    def stored_permissions_loaded?
+      role_permissions.loaded? && role_permissions.all? { |entry| entry.persisted? && !entry.changed? }
+    end
+
+    def stored_permission_keys
+      stored_permissions_loaded? ? role_permissions.pluck(:permission_key) : role_permissions.where(nil).pluck(:permission_key)
+    end
+
     def lock_for_destroy
       FullAccessLock.lock_console_state!
     end
@@ -149,7 +163,7 @@ module CurrentScope
       return if @pending_permission_keys.nil?
 
       # Capture the prior keys BEFORE delete_all so the diff survives the swap.
-      previous = role_permissions.pluck(:permission_key)
+      previous = stored_permission_keys
       # Defense in depth: on the strict path validation already proved every key
       # is in the catalog, so this filter is a no-op. It is what the scrub path
       # relies on, and it means no future code path that skips validations
@@ -182,7 +196,7 @@ module CurrentScope
       # without saving it, and a destroy removes what is in the table. The row
       # must describe what the deletion actually took away (#182 review).
       @audit_snapshot = { name: name, full_access: full_access?,
-                          permission_keys: role_permissions.pluck(:permission_key) }
+                          permission_keys: stored_permission_keys }
     end
 
     # What the deletion REMOVED, not just its name: role.created and

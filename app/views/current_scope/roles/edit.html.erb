@@ -26,7 +26,10 @@
   </p>
   <p>
     <%= f.label :full_access do %>
-      <% full_access_candidate = @role.dup; full_access_candidate.permission_keys = @role.permission_keys; full_access_candidate.full_access = true %>
+      <% full_access_candidate = CurrentScope::Role.find(@role.id)
+         full_access_candidate.assign_attributes(@role.attributes)
+         full_access_candidate.permission_keys = @role.permission_keys
+         full_access_candidate.full_access = true %>
       <%= f.check_box :full_access, disabled: !CurrentScope.can_manage?(:update_role, role: full_access_candidate) %> Full access — every permission, present and future. Does not cascade to child records through current_scope_parent.
       (the grid below is ignored while this is on)
     <% end %>

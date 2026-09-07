@@ -75,6 +75,33 @@ class ResolverMemoizationTest < ActiveSupport::TestCase
     ActiveSupport::Notifications.unsubscribe(subscriber) if subscriber
   end
 
+  test "building a permission on a cached role grants nothing until save" do
+    assign(@alice, role("Reader", "reports#index"))
+    held = @resolver.org_role(@alice)
+    permission = held.role_permissions.build(permission_key: "reports#show")
+
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#show")
+    assert_equal [ "reports#index" ], held.permission_keys
+    assert permission.new_record?
+    permission.save!
+    assert @resolver.allow?(subject: @alice, permission: "reports#show")
+  end
+
+  test "unsaved join edits neither grant nor revoke persisted permissions" do
+    assign(@alice, role("Reader", "reports#index"))
+    held = @resolver.org_role(@alice)
+    permission = held.role_permissions.first
+    permission.permission_key = "reports#show"
+
+    assert @resolver.allow?(subject: @alice, permission: "reports#index")
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#show")
+    assert_equal [ "reports#index" ], held.permission_keys
+    assert_equal "reports#show", permission.permission_key
+    held.permission_keys = [ "reports#approve" ]
+    assert_equal [ "reports#approve" ], held.permission_keys, "the explicit role-editor draft remains available"
+    assert_not held.grants?("reports#approve")
+  end
+
   test "role full access changes invalidate the request cache" do
     held = role("Owner", full_access: true)
     assign(@alice, held)

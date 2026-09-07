@@ -1,13 +1,13 @@
 # STATUS
 
-> ## Last session handoff
->
-> **What this is:** Miela uses editable roles for business and resource access.
-> **What we finished:** Admins can manage roles within their own permission limits.
-> **What you do next:** Review the paired local app and gem branches before release.
->
-> Local implementation (7 September 2026): `feat/delegated-role-administration` adds host-controlled role management and resource permission ceilings. Miela uses it on `fix/editable-role-integration` to enforce editable business bundles. The paired branches have not been published or deployed.
->
+## Last session handoff
+
+**What this is:** Miela and CurrentScope provide editable business and resource roles.\
+**What we finished:** Admins can manage roles within their own permission limits.\
+**What you do next:** Review the paired app and gem changes before release.
+
+The gem branch `feat/delegated-role-administration` adds host-controlled role management and resource permission ceilings. Miela uses it on the integration branch `fix/editable-role-integration` to enforce editable business bundles. Review and deployment are separate steps.
+
 > ### Historical — PR #153 review fixes (2026-08-12)
 >
 > **Worktree state:** committed and pushed on `fix/uuid-subject-collision` (the

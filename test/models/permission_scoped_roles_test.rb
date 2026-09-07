@@ -34,6 +34,17 @@ class PermissionScopedRolesTest < ActiveSupport::TestCase
     assert_equal "Staged name", @role.name
   end
 
+  test "new roles cannot autosave an out-of-ceiling join through a scoped grant" do
+    draft = CurrentScope::Role.new(name: "Unsaved approver")
+    draft.role_permissions.build(permission_key: "reports#approve")
+    grant = CurrentScope::ScopedRoleAssignment.new(subject: @user, resource: @report, role: draft)
+
+    assert_not grant.save
+    assert_not CurrentScope::Role.exists?(name: "Unsaved approver")
+    assert_equal [ "reports#approve" ], draft.permission_keys
+    assert_not draft.grants?("reports#approve")
+  end
+
   test "permission eligibility accepts existing role names and rejects missing names" do
     assert Project.current_scope_grants_role?(@role.name)
     assert_not Project.current_scope_grants_role?("Missing role")

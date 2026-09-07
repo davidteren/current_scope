@@ -30,6 +30,21 @@ class DelegatedManagementTest < ActionDispatch::IntegrationTest
     assert_equal "Renamed", role.reload.name
   end
 
+  test "full access checkbox and update preserve the role identity passed to policy" do
+    CurrentScope.config.management_authorizer = ->(subject, action:, role: nil, **) do
+      subject == @admin && (action == :access ||
+        (action == :update_role && role&.persisted? && role.id == @role.id))
+    end
+    get current_scope.edit_role_url(@role), headers: headers
+    assert_response :success
+    assert_select "#role_full_access:not([disabled])", count: 1
+    assert_not @role.reload.full_access?
+
+    patch current_scope.role_url(@role), params: { role: { full_access: true, permission_keys: [ "reports#index" ] } }, headers: headers
+    assert_response :redirect
+    assert @role.reload.full_access?
+  end
+
   test "forged candidate cannot exceed the permission ceiling" do
     patch current_scope.role_url(@role), params: { role: { permission_keys: [ "reports#approve" ] } }, headers: headers
     assert_response :forbidden

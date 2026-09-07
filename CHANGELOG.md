@@ -122,6 +122,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pilots.
 
 ### Fixed
+- Role creation now returns a create-only administrator to the role list with
+  the success notice, while administrators who can edit still reach the editor.
+- Disabled role-deletion controls now explain the administration-permission
+  limit through a visible, accessible hint.
 - Role validation now reports an invalid role when its stored row was deleted,
   while preserving the caller's unsaved role edits.
 - Bulk reassignment avoids duplicate prior-role fetches while retaining fresh

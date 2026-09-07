@@ -31,6 +31,7 @@
         <td>
           <%= link_to "Members", members_role_path(role), class: "cs-btn" %>
           <%
+            deletion_allowed = CurrentScope.can_manage?(:destroy_role, role: role)
             org_n = role.role_assignments.size
             scoped_n = role.scoped_role_assignments.size
             parts = []
@@ -44,10 +45,13 @@
           %>
           <%= button_to "Delete", role_path(role), method: :delete,
                 class: "cs-btn cs-btn-danger", id: "cs_delete_role_#{role.id}",
-                disabled: !CurrentScope.can_manage?(:destroy_role, role: role),
+                disabled: !deletion_allowed,
                 form: { data: { cs_confirm: delete_prompt } },
-                aria: { label: "Delete role #{role.name}" },
+                aria: { label: "Delete role #{role.name}", describedby: (deletion_allowed ? nil : "cs_delete_role_#{role.id}_limit") },
                 data: { turbo_confirm: delete_prompt } %>
+          <% unless deletion_allowed %>
+            <p id="cs_delete_role_<%= role.id %>_limit" class="cs-hint">Your administration permissions do not allow deletion of this role.</p>
+          <% end %>
         </td>
       </tr>
     <% end %>

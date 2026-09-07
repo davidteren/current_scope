@@ -25,9 +25,24 @@ class DelegatedManagementTest < ActionDispatch::IntegrationTest
     post current_scope.roles_url, params: { role: { name: "Custom", permission_keys: [ "reports#index" ] } }, headers: headers
     assert_response :redirect
     role = CurrentScope::Role.find_by!(name: "Custom")
+    assert_redirected_to current_scope.edit_role_url(role)
     patch current_scope.role_url(role), params: { role: { name: "Renamed", permission_keys: [ "reports#index" ] } }, headers: headers
     assert_response :redirect
     assert_equal "Renamed", role.reload.name
+  end
+
+  test "a create-only administrator sees the successful result without edit access" do
+    @allowed_actions = %i[access create_role]
+    assert_difference("CurrentScope::Role.count", 1) do
+      post current_scope.roles_url,
+        params: { role: { name: "Create only", permission_keys: [ "reports#index" ] } }, headers: headers
+    end
+    role = CurrentScope::Role.find_by!(name: "Create only")
+    follow_redirect!(headers: headers)
+    assert_response :success
+    assert_select ".cs-flash--notice", text: "Role created."
+    assert_includes response.body, role.name
+    assert_select "#cs_edit_role_#{role.id}", count: 0
   end
 
   test "full access checkbox and update preserve the role identity passed to policy" do

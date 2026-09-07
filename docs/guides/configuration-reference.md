@@ -319,8 +319,9 @@ Supply an ActiveRecord record instance; a class or `nil` raises `ArgumentError`.
 The returned array preserves input order, removes nil entries and duplicates,
 and contains only allowed subjects. It checks organization-wide, direct scoped
 and inherited grants using the same separation-of-duties decision as `allow?`.
-An ancestor's full-access flag alone does not grant access to a child; its role
-must explicitly contain the requested key. `cascade: false` skips ancestor
+A scoped full-access role on an ancestor never grants access to a child, even
+when its bundle explicitly contains the requested key. An inherited grant
+requires a non-full-access role with that key. `cascade: false` skips ancestor
 grants while retaining organization-wide and direct grants.
 
 An explicit `actor:` supplies the same real actor for every candidate's

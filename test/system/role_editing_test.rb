@@ -17,7 +17,10 @@ class RoleEditingSystemTest < ApplicationSystemTestCase
       subject == @owner && (!role || !role.full_access?)
     end
     visit "/current_scope/roles"
-    assert_selector "#cs_delete_role_#{CurrentScope::Role.find_by!(name: 'Owner').id}[disabled]"
+    owner_role = CurrentScope::Role.find_by!(name: "Owner")
+    assert_selector "#cs_delete_role_#{owner_role.id}[disabled][aria-describedby='cs_delete_role_#{owner_role.id}_limit']"
+    assert_selector "#cs_delete_role_#{owner_role.id}_limit",
+      text: "Your administration permissions do not allow deletion of this role."
     click_link "cs_new_role"
     assert_selector "#role_full_access[disabled]"
     fill_in "role_name", with: "Delegated custom role"
@@ -27,6 +30,23 @@ class RoleEditingSystemTest < ApplicationSystemTestCase
     visit "/current_scope/roles/#{CurrentScope::Role.find_by!(name: 'Owner').id}/edit"
     assert_equal 403, page.status_code
     assert_selector "#cs_management_denied", text: "This action is not permitted"
+  ensure
+    CurrentScope.config.management_authorizer = prior
+  end
+
+  test "a create-only administrator lands on the role list with a success notice" do
+    prior = CurrentScope.config.management_authorizer
+    CurrentScope.config.management_authorizer = ->(subject, action:, role: nil, **) do
+      subject == @owner && %i[access create_role].include?(action) && (!role || !role.full_access?)
+    end
+    visit "/current_scope/roles/new"
+    fill_in "role_name", with: "Create-only browser role"
+    click_button "Create role"
+
+    assert_selector ".cs-flash--notice", text: "Role created."
+    assert_current_path "/current_scope/roles"
+    assert_text "Create-only browser role"
+    assert CurrentScope::Role.exists?(name: "Create-only browser role")
   ensure
     CurrentScope.config.management_authorizer = prior
   end

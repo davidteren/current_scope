@@ -45,7 +45,8 @@ module CurrentScope
       end
 
       if saved
-        redirect_to edit_role_path(@role), notice: "Role created."
+        destination = CurrentScope.can_manage?(:update_role, role: @role) ? edit_role_path(@role) : roles_path
+        redirect_to destination, notice: "Role created."
       else
         render_role_form(:new, status: :unprocessable_entity)
       end

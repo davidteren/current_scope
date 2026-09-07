@@ -22,6 +22,7 @@ module CurrentScope
     def new
       @role = Role.new
       authorize_management!(:create_role, role: @role)
+      render_role_form(:new)
     end
 
     def create
@@ -44,13 +45,14 @@ module CurrentScope
       if saved
         redirect_to edit_role_path(@role), notice: "Role created."
       else
-        render :new, status: :unprocessable_entity
+        render_role_form(:new, status: :unprocessable_entity)
       end
     end
 
     def edit
       @role = Role.find(params[:id])
       authorize_management!(:update_role, role: @role)
+      render_role_form(:edit)
     end
 
     # Who holds this role — the role-side complement to the subjects page. Org-wide
@@ -109,9 +111,10 @@ module CurrentScope
         lock_full_access_console_state!
         @role = Role.lock.find(params[:id])
         authorize_management!(:update_role, role: @role)
-        candidate = Role.find(@role.id)
-        candidate.assign_attributes(permitted)
-        authorize_management!(:update_role, role: candidate)
+        @role_update_candidate = Role.find(@role.id)
+        @role_update_candidate.assign_attributes(permitted)
+        authorize_management!(:update_role, role: @role_update_candidate)
+        @role_update_candidate = nil
 
         if demoting_would_lock_console?(@role, permitted)
           refused = true
@@ -131,7 +134,7 @@ module CurrentScope
       if saved
         redirect_to roles_path, notice: "Role updated."
       else
-        render :edit, status: :unprocessable_entity
+        render_role_form(:edit, status: :unprocessable_entity)
       end
     end
 
@@ -169,6 +172,26 @@ module CurrentScope
     end
 
     private
+
+    def render_role_form(template, status: :ok)
+      candidate = @role.persisted? ? Role.find(@role.id) : @role.dup
+      candidate.assign_attributes(@role.attributes) if @role.persisted?
+      candidate.permission_keys = @role.permission_keys
+      candidate.full_access = true
+      action = @role.persisted? ? :update_role : :create_role
+      @full_access_allowed = CurrentScope.can_manage?(action, role: candidate)
+      render template, status: status
+    end
+
+    def current_scope_render_denied(reason = nil)
+      # Only a refused proposal keeps the editor. The stored-role check runs
+      # before this candidate exists; entry and stored-role denials stay closed.
+      return super unless reason == :management_denied && @role_update_candidate && request.format.html?
+
+      @role = @role_update_candidate
+      @role.errors.add(:base, "This change is outside your administration permissions or permission limit. Correct the role details or selected permissions and try again.")
+      render_role_form(:edit, status: :forbidden)
+    end
 
     def assign_grantable_roles_declared
       @grantable_roles_declared =

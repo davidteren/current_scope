@@ -106,4 +106,18 @@ class PermissionScopedRolesTest < ActiveSupport::TestCase
     assert_equal source.id, permission.reload.role_id
     assert_equal [ "reports#show" ], @role.reload.permission_keys
   end
+  test "fresh scoped grants block permission edits after the association was loaded" do
+    @role.scoped_role_assignments.load
+    CurrentScope::ScopedRoleAssignment.create!(subject: @user, resource: @report, role: CurrentScope::Role.find(@role.id))
+    assert_not @role.update(permission_keys: [ "reports#approve" ])
+    assert_equal [ "reports#show" ], @role.reload.permission_keys
+    assert_not CurrentScope.allowed?("reports#approve", subject: @user, record: @report)
+  end
+
+  test "fresh scoped grants block full access promotion after the association was loaded" do
+    @role.scoped_role_assignments.load
+    CurrentScope::ScopedRoleAssignment.create!(subject: @user, resource: @report, role: CurrentScope::Role.find(@role.id))
+    assert_not @role.update(full_access: true)
+    assert_not @role.reload.full_access?
+  end
 end

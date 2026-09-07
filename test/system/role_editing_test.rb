@@ -94,4 +94,32 @@ class RoleEditingSystemTest < ApplicationSystemTestCase
       assert_includes keys, key
     end
   end
+  test "a refused bundle edit keeps the draft and can be corrected" do
+    prior = CurrentScope.config.management_authorizer
+    CurrentScope.config.management_authorizer = ->(subject, action:, role: nil, **) do
+      subject == @owner && (!role || (!role.full_access? && (role.permission_keys - [ "reports#index" ]).empty?))
+    end
+    role = CurrentScope::Role.create!(name: "Limited reader", permission_keys: [ "reports#index" ])
+    visit "/current_scope/roles/#{role.id}/edit"
+    fill_in "role_name", with: "Revised reader"
+    fill_in "role_description", with: "Read reports for the team."
+    check "perm_reports_approve"
+    click_button "Save role"
+
+    assert_selector "#cs_role_errors", text: "permission limit"
+    assert_field "role_name", with: "Revised reader"
+    assert_field "role_description", with: "Read reports for the team."
+    assert_checked_field "perm_reports_approve"
+    assert_equal "Limited reader", role.reload.name
+    assert_equal [ "reports#index" ], role.permission_keys
+
+    uncheck "perm_reports_approve"
+    click_button "Save role"
+    assert_selector "#cs_new_role"
+    assert_equal "Revised reader", role.reload.name
+    assert_equal "Read reports for the team.", role.description
+    assert_equal [ "reports#index" ], role.permission_keys
+  ensure
+    CurrentScope.config.management_authorizer = prior
+  end
 end

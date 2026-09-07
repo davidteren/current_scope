@@ -45,12 +45,15 @@ class DelegatedManagementTest < ActionDispatch::IntegrationTest
     assert @role.reload.full_access?
   end
 
-  test "forged candidate cannot exceed the permission ceiling" do
-    patch current_scope.role_url(@role), params: { role: { permission_keys: [ "reports#approve" ] } }, headers: headers
+  test "a refused candidate preserves the edit form without exceeding the permission ceiling" do
+    patch current_scope.role_url(@role), params: { role: { name: "Draft name", description: "Draft description", permission_keys: [ "reports#approve" ] } }, headers: headers
     assert_response :forbidden
     assert_equal [ "reports#index" ], @role.reload.permission_keys
     assert_equal "management_denied", response.headers["X-Current-Scope-Reason"]
-    assert_select "#cs_management_denied", text: "This action is not permitted"
+    assert_select "#cs_role_errors", text: /permission limit/
+    assert_select "#role_name[value=?]", "Draft name"
+    assert_select "#role_description", text: "Draft description"
+    assert_select "#perm_reports_approve[checked]"
     assert_includes response.body, "permission limit"
     assert_not_includes response.body, "This area needs a full-access role"
   end
@@ -59,6 +62,17 @@ class DelegatedManagementTest < ActionDispatch::IntegrationTest
     patch current_scope.role_url(@protected), params: { role: { name: "Editable now", full_access: false, permission_keys: [ "reports#index" ] } }, headers: headers
     assert_response :forbidden
     assert @protected.reload.full_access?
+    assert_select "#cs_management_denied"
+    assert_select "#role_name", count: 0
+  end
+
+  test "a non-HTML candidate refusal stays bodyless with the denial reason" do
+    patch current_scope.role_url(@role), params: { role: { permission_keys: [ "reports#approve" ] } },
+      headers: headers.merge("Accept" => "application/json")
+    assert_response :forbidden
+    assert_equal "management_denied", response.headers["X-Current-Scope-Reason"]
+    assert_empty response.body
+    assert_equal [ "reports#index" ], @role.reload.permission_keys
   end
 
   test "deletion and assignment cannot affect protected bundles" do

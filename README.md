@@ -471,6 +471,11 @@ recipient as `target`; replacing an org role also checks revocation of the old
 role. Bulk operations roll back in full if any target is refused. A role delete
 passes the role, so the host policy must consider its holders when necessary.
 
+If the stored role is editable but its proposed changes are refused, the HTML
+editor keeps the submitted values and explains the refusal. The response remains
+403 with the `management_denied` reason. Denied access to the stored role still
+shows the denial page, and non-HTML denials remain bodyless.
+
 The host policy must enforce its permission ceiling and protect Owner roles and
 users. Console access alone is not permission to perform a write. These checks
 apply to the console; trusted Ruby grant and model APIs remain available to host

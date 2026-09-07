@@ -102,7 +102,8 @@ module CurrentScope
     # Checks the proposed bundle without writing it. Join-row writes use the
     # same ceiling check as permission_keys= while holding the parent role lock.
     def incompatible_scoped_resource_class
-      scoped_role_assignments.find_in_batches do |assignments|
+      # A cached collection can miss a grant created through another role instance.
+      scoped_role_assignments.where(nil).find_in_batches do |assignments|
         ScopedRoleAssignment.preload_resolvable_resources!(assignments)
         assignments.each do |assignment|
           klass = assignment.current_scope_governing_class

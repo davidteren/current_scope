@@ -1,0 +1,34 @@
+README.md
+  h_e8a5bb9272fa34 512-517
+app/controllers/current_scope/role_assignments_controller.rb
+  h_e8a5bb9272fa34 26-28,45
+app/controllers/current_scope/scoped_role_assignments_controller.rb
+  h_e8a5bb9272fa34 84-86
+app/models/current_scope/role.rb
+  h_e8a5bb9272fa34 98-114,129-130
+app/models/current_scope/role_permission.rb
+  h_e8a5bb9272fa34 9-10,17-26
+lib/current_scope/full_access_lock.rb
+  h_e8a5bb9272fa34 16-17
+lib/current_scope/resolver.rb
+  h_e8a5bb9272fa34 76-77
+test/integration/delegated_management_test.rb
+  h_e8a5bb9272fa34 10-11,13-14,77-119
+test/integration/host_grant_concurrency_test.rb
+  h_e8a5bb9272fa34 1-77
+test/integration/management_lock_order_test.rb
+  h_e8a5bb9272fa34 27,31-34,36-38,46,55
+test/models/permission_scoped_roles_test.rb
+  h_e8a5bb9272fa34 78-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "741497e439a9a50e06bfbd98a4f03701ecca51c8",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

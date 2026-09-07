@@ -1,0 +1,28 @@
+README.md
+  h_e8a5bb9272fa34 474-478
+app/controllers/current_scope/roles_controller.rb
+  h_e8a5bb9272fa34 25,48,55,114-117,137,176-195
+app/models/current_scope/role.rb
+  h_e8a5bb9272fa34 105-106
+app/views/current_scope/roles/edit.html.erb
+  h_e8a5bb9272fa34 7,29-30,35-38
+app/views/current_scope/roles/new.html.erb
+  h_e8a5bb9272fa34 5,15-16,19-21
+test/integration/delegated_management_test.rb
+  h_e8a5bb9272fa34 48-49,53-56,65-75
+test/models/permission_scoped_roles_test.rb
+  h_e8a5bb9272fa34 109-122
+test/system/role_editing_test.rb
+  h_e8a5bb9272fa34 97-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "065e8d386c7a9595ceda5b61bf2a3ea28251da84",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

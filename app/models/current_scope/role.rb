@@ -105,6 +105,7 @@ module CurrentScope
       # Every grant of the same governing class asks the same bundle question.
       # Keep this local to one fresh scan; no result survives another validation.
       checked_classes = {}
+      comparison_role = nil
       # A cached collection can miss a grant created through another role instance.
       scoped_role_assignments.where(nil).find_in_batches do |assignments|
         ScopedRoleAssignment.preload_resolvable_resources!(assignments)
@@ -113,17 +114,28 @@ module CurrentScope
           next if checked_classes[klass]
 
           checked_classes[klass] = true
-          if klass.respond_to?(:current_scope_grantable_permissions) &&
-              !klass.current_scope_grantable_permissions.nil? &&
-              !klass.current_scope_grants_role?(self)
-            return klass
-          end
+          next unless klass.respond_to?(:current_scope_grantable_permissions) &&
+            !klass.current_scope_grantable_permissions.nil?
+
+          comparison_role ||= role_for_scoped_compatibility
+          return klass unless klass.current_scope_grants_role?(comparison_role)
         end
       end
       nil
     end
 
     private
+
+    # Explicit bundles describe the proposed write. Otherwise compare stored
+    # permissions with the caller's proposed attributes on a separate object;
+    # validation must neither trust nor discard the caller's loaded join drafts.
+    def role_for_scoped_compatibility
+      return self unless @pending_permission_keys.nil?
+
+      comparison = self.class.instantiate(attributes)
+      comparison.permission_keys = self.class.uncached { role_permissions.where(nil).pluck(:permission_key) }
+      comparison
+    end
 
     # The preload is safe only while its rows still represent saved data.
     # Do not discard the caller's drafts when a stored lookup is required.

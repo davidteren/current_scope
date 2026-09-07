@@ -187,7 +187,79 @@ class PermissionScopedRolesTest < ActiveSupport::TestCase
     end
   end
 
+  test "scoped grant validation refuses a widened bundle despite a cached safe permission read" do
+    ActiveRecord::Base.cache do
+      assert_equal [ "reports#show" ], @role.permission_keys
+      ActiveRecord::Base.uncached(dirties: false) do
+        CurrentScope::Role.find(@role.id).update!(permission_keys: [ "reports#approve" ])
+      end
+      assert_equal [ "reports#show" ], @role.permission_keys, "precondition: the safe bundle remains cached"
+      @role.permission_keys = [ "reports#index" ]
+      grant = CurrentScope::ScopedRoleAssignment.new(subject: @user, resource: @report, role: @role)
+
+      assert_not grant.save, "a fresh locked role must not use stale cached permissions"
+      assert_equal [ "reports#index" ], @role.permission_keys, "validation preserves the caller draft"
+      assert_not CurrentScope::ScopedRoleAssignment.exists?(subject: @user, resource: @report, role: @role)
+    end
+  end
+
+  test "direct permission creation accepts a narrowed bundle despite cached old siblings" do
+    @role.update!(permission_keys: [ "reports#show", "reports#approve" ])
+    ActiveRecord::Base.cache do
+      old_keys = @role.role_permissions.where.not(id: nil).pluck(:permission_key)
+      assert_includes old_keys, "reports#approve"
+      ActiveRecord::Base.uncached(dirties: false) do
+        fresh_role = CurrentScope::Role.find(@role.id)
+        fresh_role.update!(permission_keys: [ "reports#show" ])
+        CurrentScope::ScopedRoleAssignment.create!(subject: @user, resource: @report, role: fresh_role)
+      end
+      assert_equal old_keys, @role.role_permissions.where.not(id: nil).pluck(:permission_key),
+        "precondition: removed permissions remain in the cached sibling query"
+      added = @role.role_permissions.build(permission_key: "reports#index")
+
+      assert added.save, added.errors.full_messages.join(", ")
+      assert_equal [ "reports#index", "reports#show" ], @role.reload.permission_keys.sort
+    end
+  end
+
+  test "full access demotion cannot use stale loaded permissions" do
+    assert_demotion_checks_stored_permissions(loaded: true)
+  end
+
+  test "full access demotion cannot use stale SQL cached permissions" do
+    assert_demotion_checks_stored_permissions(loaded: false)
+  end
+
   private
+
+  def assert_demotion_checks_stored_permissions(loaded:)
+    Project.current_scope_grantable_permissions = nil
+    @role.update!(full_access: true)
+    CurrentScope::ScopedRoleAssignment.create!(subject: @user, resource: @report, role: @role)
+    ActiveRecord::Base.cache do
+      candidate = CurrentScope::Role.find(@role.id)
+      candidate.role_permissions.load if loaded
+      assert_equal [ "reports#show" ], candidate.permission_keys
+      ActiveRecord::Base.uncached(dirties: false) do
+        CurrentScope::Role.find(@role.id).update!(permission_keys: [ "reports#approve" ])
+      end
+      Project.current_scope_grantable_permissions = [ "reports#show", "reports#index" ]
+      candidate.full_access = false
+
+      assert_not candidate.save, "demotion must check persisted permissions, not a stale caller bundle"
+      assert @role.reload.full_access?
+      assert_equal [ "reports#approve" ], @role.permission_keys
+      if loaded
+        assert candidate.role_permissions.loaded?, "the caller's loaded association remains intact"
+        assert_equal [ "reports#show" ], candidate.role_permissions.map(&:permission_key)
+      else
+        draft = candidate.role_permissions.build(permission_key: "reports#index")
+        assert_not candidate.valid?
+        assert_includes candidate.role_permissions.target, draft
+        assert draft.new_record?, "the caller's join draft must not be persisted or discarded"
+      end
+    end
+  end
 
   def capture_selects
     queries = []

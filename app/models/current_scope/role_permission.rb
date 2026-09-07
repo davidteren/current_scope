@@ -18,7 +18,8 @@ module CurrentScope
       return unless role&.persisted?
 
       candidate = Role.lock.find(role.id)
-      keys = candidate.role_permissions.where.not(id: id).pluck(:permission_key)
+      # The parent lock does not invalidate an earlier cached sibling query.
+      keys = self.class.uncached { candidate.role_permissions.where.not(id: id).pluck(:permission_key) }
       candidate.permission_keys = keys + [ permission_key ]
       klass = candidate.incompatible_scoped_resource_class
       errors.add(:permission_key, "exceeds the permission ceiling for #{klass.name}") if klass

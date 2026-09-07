@@ -536,12 +536,11 @@ module CurrentScope
     # invariant that a grant on X must not act on Y. Anything that is not
     # literally nil-or-a-Class is not a record-less target and gets no say here.
     #
-    # Consequence, deliberate: an UNPERSISTED instance (Report.new) is not
-    # record-less by this test, and scoped_grant? needs persisted? — so it is
-    # denied, while the class form is allowed. That asymmetry is only reachable
-    # by gating a collection action with Model.new instead of the documented nil,
-    # and it fails CLOSED (a 403 the host sees immediately), which is the safe
-    # direction to be wrong in.
+    # An unpersisted instance (Report.new) is not record-less and cannot hold
+    # a direct scoped grant. It can still receive permission from a persisted
+    # parent or an organization-wide role through the other decision paths.
+    # A draft must not stand in for the documented nil-or-Class collection
+    # target: this record-less path never grants it unrelated scoped access.
     #
     # Binds by TYPE (#50). The target names no record, but the controller can
     # name the type its collection lists via current_scope_model (record when

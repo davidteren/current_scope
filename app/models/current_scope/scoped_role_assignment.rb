@@ -190,7 +190,8 @@ module CurrentScope
       # Read the locked stored role separately: validation must neither discard
       # that draft nor let it disguise an incompatible persisted permission set.
       checked_role = role.persisted? ? Role.lock.find(role.id) : role
-      return if klass.current_scope_grants_role?(checked_role)
+      # The row lock bypasses SQL cache only for the role row, not its bundle.
+      return if Role.uncached { klass.current_scope_grants_role?(checked_role) }
 
       # Read through respond_to? and Array(): the type joins this gate by
       # answering current_scope_grants_role? alone, which a host may compute

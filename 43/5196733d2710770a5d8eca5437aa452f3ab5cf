@@ -1,0 +1,24 @@
+CHANGELOG.md
+  h_e8a5bb9272fa34 125-127
+app/models/current_scope/scoped_role_assignment.rb
+  h_e8a5bb9272fa34 208-213
+docs/guides/configuration-reference.md
+  h_e8a5bb9272fa34 250-255
+lib/tasks/current_scope_tasks.rake
+  h_e8a5bb9272fa34 992-993
+test/definitions_task_test.rb
+  h_e8a5bb9272fa34 101-128
+test/models/permission_scoped_roles_test.rb
+  h_e8a5bb9272fa34 87-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "435196733d2710770a5d8eca5437aa452f3ab5cf",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

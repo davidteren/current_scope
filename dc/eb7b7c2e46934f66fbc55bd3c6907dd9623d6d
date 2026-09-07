@@ -1,0 +1,22 @@
+app/models/current_scope/role.rb
+  h_e8a5bb9272fa34 108,117-121,129-139
+app/models/current_scope/role_permission.rb
+  h_e8a5bb9272fa34 21-22
+app/models/current_scope/scoped_role_assignment.rb
+  h_e8a5bb9272fa34 193-194
+lib/current_scope/resolver.rb
+  h_e8a5bb9272fa34 539-543
+test/models/permission_scoped_roles_test.rb
+  h_e8a5bb9272fa34 190-232,235-263
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "dceb7b7c2e46934f66fbc55bd3c6907dd9623d6d",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

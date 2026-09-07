@@ -515,6 +515,8 @@ module CurrentScope
       @gating_tripwire = mode
     end
 
+    attr_accessor :management_authorizer
+
     def initialize
       @user_method = :current_user
       @actor_method = nil

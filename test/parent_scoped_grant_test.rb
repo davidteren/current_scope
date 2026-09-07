@@ -44,6 +44,32 @@ class ParentScopedGrantTest < ActiveSupport::TestCase
     assert_equal [ true, nil ], decide(@lead, "reports#approve", @report)
   end
 
+  test "a persisted parent grant opens an unsaved child before validation" do
+    scope_grant(@lead, role("Draft approver", "reports#approve"), @project)
+    draft = Report.new(title: "Draft", project: @project, requested_by: @requester)
+
+    assert_equal [ true, nil ], decide(@lead, "reports#approve", draft)
+    draft.project = @other_project
+    assert_equal [ false, :no_grant ], decide(@lead, "reports#approve", draft)
+  end
+
+  test "an unsaved child cannot match a direct grant even with an assigned id" do
+    scope_grant(@lead, role("Direct approver", "reports#approve"), @report)
+    draft = Report.new(id: @report.id, title: "Draft", requested_by: @requester)
+
+    assert_equal [ false, :no_grant ], decide(@lead, "reports#approve", draft)
+    draft.id = nil
+    assert_equal [ false, :no_grant ], decide(@lead, "reports#approve", draft)
+  end
+
+  test "a draft still enforces the child initiator veto" do
+    with_sod_actions("approve") do
+      scope_grant(@lead, role("Draft lead", "reports#approve"), @project)
+      draft = Report.new(project: @project, requested_by: @lead)
+      assert_equal [ false, :sod_veto ], decide(@lead, "reports#approve", draft)
+    end
+  end
+
   test "a grant on a SIBLING parent opens nothing on this child" do
     scope_grant(@lead, role("Lead", "reports#approve"), @other_project)
 

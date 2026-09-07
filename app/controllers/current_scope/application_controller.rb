@@ -2,7 +2,7 @@ module CurrentScope
   # Inherits from the host's controller (config.parent_controller) so the
   # host's authentication — and its Context before_action — run first.
   # The management UI is the place permissions are granted, so it cannot be
-  # gated by grantable permissions: only full_access subjects get in.
+  # gated by grantable permissions. A separate host policy controls entry.
   class ApplicationController < CurrentScope.config.parent_controller.constantize
     # The read-only-while-impersonating gate, installed directly (not via Guard):
     # this controller SKIPS the permission check, and mutations here — role,
@@ -14,31 +14,24 @@ module CurrentScope
     layout "current_scope/application"
 
     # The engine's controllers are excluded from the grantable catalog; they
-    # answer to require_full_access! instead of the host's Guard gate.
+    # answer to the management policy instead of the host's Guard gate.
     skip_before_action :current_scope_check!, raise: false
 
     before_action :require_full_access!
 
     private
 
-    # Raises rather than rendering, so the engine's front door lands in the same
-    # current_scope_denied path as every other denial and gets the reason header
-    # for free. It used to `head :forbidden` here — the one denial in the gem
-    # that sat outside that machinery, and so the one with no reason and no body
-    # (#23). MutationGuard's rescue_from catches this from a before_action.
-    #
-    # Who is denied is unchanged: the full_access? check is byte-for-byte what
-    # it was. Only how the refusal is surfaced changed.
     def require_full_access!
-      return if CurrentScope.resolver.full_access?(CurrentScope::Current.user)
+      authorize_management!(:access)
+    end
+
+    def authorize_management!(action, role: nil, target: nil)
+      return if CurrentScope.can_manage?(action, role: role, target: target)
 
       key = "#{controller_path}##{action_name}"
-      raise CurrentScope::AccessDenied.new(
-        key,
-        reason: :not_full_access,
-        permission: key,
-        subject: CurrentScope::Current.user
-      )
+      raise CurrentScope::AccessDenied.new(key,
+        reason: CurrentScope.config.management_authorizer ? :management_denied : :not_full_access,
+        permission: key, subject: CurrentScope::Current.user)
     end
 
     # The engine's UI is the one place a rendered denial belongs: the admin is
@@ -46,13 +39,9 @@ module CurrentScope
     # in?". Overrides ONLY the body — the reason header is still written by
     # current_scope_denied, which stays the single place that knows about it.
     #
-    # ONLY for :not_full_access. This concern rescues EVERY AccessDenied raised
-    # in this controller, and the other one that fires here is the impersonation
-    # gate — whose subject usually DOES have full access and is refused for an
-    # entirely different reason. Telling them they need a full-access role is a
-    # confidently wrong answer, which is worse than the blank page this fix
-    # replaces. Every other reason falls through to the bodyless default, i.e.
-    # exactly what it did before this change.
+    # Entry denials and delegated-policy denials each get an honest message.
+    # Impersonation denials still use the shared host response, because they
+    # describe a separate restriction.
     #
     # HTML only: the page is a full HTML document, so a client that asked for
     # anything else gets the bodyless 403 rather than markup under a content
@@ -62,13 +51,41 @@ module CurrentScope
     # subject cannot open. Offering them reads as "you're in" and then refuses
     # every click.
     def current_scope_render_denied(reason = nil)
-      return super unless reason == :not_full_access && request.format.html?
+      return super unless [ :not_full_access, :management_denied ].include?(reason) && request.format.html?
 
-      render "current_scope/shared/access_denied", status: :forbidden, layout: false
+      render "current_scope/shared/access_denied", status: :forbidden, layout: false,
+        locals: { management_denied: reason == :management_denied }
     end
 
     def subject_class
       @subject_class ||= CurrentScope.config.subject_class.constantize
+    end
+
+    # Match create's recipient → full-access state → assignment lock order.
+    # Resolve through the checked reader before querying, so a legacy key cannot
+    # cast to a different recipient. A fresh query tolerates unsaved host load
+    # defaults and supplies the policy with the state protected by the row lock.
+    def lock_assignment_for_revocation(assignment_class)
+      assignment_class.uncached do
+        located = assignment_class.find(params[:id])
+        identity = [ located.subject_type, located.subject_id ]
+        subject = located.current_scope_resolved_record("subject")
+        if subject
+          klass = CurrentScope.polymorphic_class(located.subject_type, inert_on_error: true)
+          subject = klass.lock.find_by(klass.primary_key => located.subject_id)
+        end
+
+        FullAccessLock.lock_console_state!
+        assignment = assignment_class.lock.find(located.id)
+        # Never acquire a different recipient lock after locking roles. Refuse
+        # a retargeted assignment, or an orphan that became live in the meantime.
+        if identity != [ assignment.subject_type, assignment.subject_id ] ||
+            (subject.nil? && assignment.current_scope_resolved_record("subject"))
+          raise ActiveRecord::StaleObjectError.new(assignment, "revoke")
+        end
+        assignment.association(:subject).target = subject
+        [ assignment, subject ]
+      end
     end
 
     # The submitted subject GIDs for a bulk-or-single action: the multi-select
@@ -90,7 +107,7 @@ module CurrentScope
         record if record.is_a?(subject_class)
       rescue ActiveRecord::RecordNotFound, NameError
         nil
-      end.uniq # duplicate subject_gids[] must count once (notice + audit accuracy)
+      end.uniq.sort_by { |subject| [ subject.class.base_class.name, subject.id.to_s ] }
     end
   end
 end

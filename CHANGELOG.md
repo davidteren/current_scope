@@ -7,6 +7,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Delegated role administration.** `config.management_authorizer` lets a host
+  decide console entry and role or assignment operations through a pure
+  callback. `CurrentScope.can_manage?` exposes the same decision to host code.
+  Configured-policy refusals use the `management_denied` reason; without the
+  callback, the organization-wide full-access requirement remains unchanged.
+  The callback receives the role and recipient, not the scoped resource.
+- **Permission ceilings for scoped roles.** Resource types can declare
+  `current_scope_grantable_permissions` so editable role names remain flexible
+  while their bundles stay within the type's allowed keys. Existing name
+  restrictions combine with the ceiling. Scoped grants and incompatible edits
+  to held role bundles are rejected by model validation.
+- **Batch authorization for one record.** `Resolver#allowed_subjects` returns
+  allowed candidate subjects in input order using the same grant and
+  separation-of-duties rules as individual checks, without per-subject grant
+  lookups or a retained authorization snapshot.
 - **Opt-in role-to-resource-type compatibility (#183).** Any role could be
   granted on any resource type, and with parent-chain resolution an incompatible
   pairing widens access silently: a role whose bundle covers one record's own
@@ -107,6 +122,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pilots.
 
 ### Fixed
+
+- Report scoped permission validation failures from role-definition import and rollback as actionable command errors while preserving the transaction and undo snapshot.
+- Explain that an empty resource permission ceiling accepts no scoped roles.
+- Role creation now returns a create-only administrator to the role list with
+  the success notice, while administrators who can edit still reach the editor.
+- Disabled role-deletion controls now explain the administration-permission
+  limit through a visible, accessible hint.
+- Role validation now reports an invalid role when its stored row was deleted,
+  while preserving the caller's unsaved role edits.
+- Bulk reassignment avoids duplicate prior-role fetches while retaining fresh
+  role and permission reads in both authorization phases.
+- **Delegation checks and query reuse (#209).** Invalid management-authorizer
+  configuration raises even when no subject is signed in. Bulk role grants
+  reuse their locked proposed role, role lists preload permission bundles, and
+  batch checks reuse the shared separation-of-duties bypass decision.
 - **Every grant write is audited, not just the console's (#182).** Rows written
   through the model API — a seed, a rake task, a console one-liner — emitted no
   ledger events, while the same change made through the management UI did. That

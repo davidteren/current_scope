@@ -186,6 +186,15 @@ class CollectionScopeGateTest < ActiveSupport::TestCase
     assert_not @resolver.allow?(subject: @alice, permission: "reports#index", record: Object)
   end
 
+  test "a non-ActiveRecord resource claiming to be persisted denies without raising" do
+    scope_grant(@alice, role("Editor", "reports#index"), @other)
+    malformed_record = Object.new
+    def malformed_record.persisted? = true
+
+    assert_equal [ false, :no_grant ],
+      @resolver.decide(subject: @alice, permission: "reports#index", record: malformed_record)
+  end
+
   test "resolver purity: model: is a parameter, never state" do
     scope_grant(@alice, role("Editor", "reports#index"), @report)
 

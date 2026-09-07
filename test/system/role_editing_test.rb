@@ -11,6 +11,46 @@ class RoleEditingSystemTest < ApplicationSystemTestCase
     sign_in(@owner)
   end
 
+  test "delegated administrator creates a role while full access stays unavailable" do
+    prior = CurrentScope.config.management_authorizer
+    CurrentScope.config.management_authorizer = ->(subject, action:, role: nil, target: nil) do
+      subject == @owner && (!role || !role.full_access?)
+    end
+    visit "/current_scope/roles"
+    owner_role = CurrentScope::Role.find_by!(name: "Owner")
+    assert_selector "#cs_delete_role_#{owner_role.id}[disabled][aria-describedby='cs_delete_role_#{owner_role.id}_limit']"
+    assert_selector "#cs_delete_role_#{owner_role.id}_limit",
+      text: "Your administration permissions do not allow deletion of this role."
+    click_link "cs_new_role"
+    assert_selector "#role_full_access[disabled]"
+    fill_in "role_name", with: "Delegated custom role"
+    click_button "Create role"
+    assert_selector "#role_name[value='Delegated custom role']"
+    assert_selector "#role_full_access[disabled]"
+    visit "/current_scope/roles/#{CurrentScope::Role.find_by!(name: 'Owner').id}/edit"
+    assert_equal 403, page.status_code
+    assert_selector "#cs_management_denied", text: "This action is not permitted"
+  ensure
+    CurrentScope.config.management_authorizer = prior
+  end
+
+  test "a create-only administrator lands on the role list with a success notice" do
+    prior = CurrentScope.config.management_authorizer
+    CurrentScope.config.management_authorizer = ->(subject, action:, role: nil, **) do
+      subject == @owner && %i[access create_role].include?(action) && (!role || !role.full_access?)
+    end
+    visit "/current_scope/roles/new"
+    fill_in "role_name", with: "Create-only browser role"
+    click_button "Create role"
+
+    assert_selector ".cs-flash--notice", text: "Role created."
+    assert_current_path "/current_scope/roles"
+    assert_text "Create-only browser role"
+    assert CurrentScope::Role.exists?(name: "Create-only browser role")
+  ensure
+    CurrentScope.config.management_authorizer = prior
+  end
+
   test "the full-access label states the non-cascade carve-out, on both forms" do
     # Asserted in a real browser, not by reading the ERB: the claim is about what
     # an operator SEES before ticking a box that no longer means what it used to.
@@ -73,5 +113,59 @@ class RoleEditingSystemTest < ApplicationSystemTestCase
        documents#edit documents#update documents#destroy].each do |key|
       assert_includes keys, key
     end
+  end
+  test "a refused bundle edit keeps the draft and can be corrected" do
+    prior = CurrentScope.config.management_authorizer
+    CurrentScope.config.management_authorizer = ->(subject, action:, role: nil, **) do
+      subject == @owner && (!role || (!role.full_access? && (role.permission_keys - [ "reports#index" ]).empty?))
+    end
+    role = CurrentScope::Role.create!(name: "Limited reader", permission_keys: [ "reports#index" ])
+    visit "/current_scope/roles/#{role.id}/edit"
+    fill_in "role_name", with: "Revised reader"
+    fill_in "role_description", with: "Read reports for the team."
+    check "perm_reports_approve"
+    click_button "Save role"
+
+    assert_selector "#cs_role_errors", text: "permission limit"
+    assert_field "role_name", with: "Revised reader"
+    assert_field "role_description", with: "Read reports for the team."
+    assert_checked_field "perm_reports_approve"
+    assert_equal "Limited reader", role.reload.name
+    assert_equal [ "reports#index" ], role.permission_keys
+
+    uncheck "perm_reports_approve"
+    click_button "Save role"
+    assert_selector "#cs_new_role"
+    assert_equal "Revised reader", role.reload.name
+    assert_equal "Read reports for the team.", role.description
+    assert_equal [ "reports#index" ], role.permission_keys
+  ensure
+    CurrentScope.config.management_authorizer = prior
+  end
+
+  test "a refused role creation keeps its draft and can be corrected" do
+    prior = CurrentScope.config.management_authorizer
+    CurrentScope.config.management_authorizer = ->(subject, action:, role: nil, **) do
+      subject == @owner && (!role || (!role.full_access? && role.name != "New team reader"))
+    end
+    visit "/current_scope/roles/new"
+    fill_in "role_name", with: "New team reader"
+    fill_in "role_description", with: "Read reports for the team."
+    click_button "Create role"
+
+    assert_selector "#cs_role_errors", text: "permission limit"
+    assert_field "role_name", with: "New team reader"
+    assert_field "role_description", with: "Read reports for the team."
+    assert_unchecked_field "role_full_access", disabled: true
+    assert_not CurrentScope::Role.exists?(name: "New team reader")
+
+    fill_in "role_name", with: "Corrected team reader"
+    click_button "Create role"
+    assert_field "role_name", with: "Corrected team reader"
+    role = CurrentScope::Role.find_by!(name: "Corrected team reader")
+    assert_equal "Read reports for the team.", role.description
+    assert_empty role.permission_keys
+  ensure
+    CurrentScope.config.management_authorizer = prior
   end
 end

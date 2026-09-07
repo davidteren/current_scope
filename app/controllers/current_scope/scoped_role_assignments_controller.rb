@@ -22,7 +22,7 @@ module CurrentScope
       # every reader below expects a string. Rails answers nil for it today
       # rather than raising, so this states the expectation rather than fixing a
       # live break (#183).
-      @selected_role = Role.find_by(id: scalar_param(:role_id)) if params[:role_id].present?
+      @selected_role = Role.includes(:role_permissions).find_by(id: scalar_param(:role_id)) if params[:role_id].present?
       # A deleted role in a stale bookmark reads as "no role chosen" everywhere
       # downstream, which would show every type and every record with no hint
       # and a Grant button that can only fail on POST (#183).
@@ -81,7 +81,20 @@ module CurrentScope
       # concurrent-duplicate race without poisoning the outer transaction, while
       # a genuine RecordInvalid rolls the entire batch back.
       ScopedRoleAssignment.transaction do
-        subjects.each { |subject| granted += 1 if grant_one(subject, resource, role) }
+        # Host transactions can update recipients before granting access.
+        # Take these locks first, in stable order, then roles and assignments.
+        # Host load callbacks may leave defaults unsaved, so lock a fresh query
+        # result instead of calling lock! on the located object. Use that
+        # result for policy checks so changes before the lock are not missed.
+        subjects = subjects.sort_by { |subject| [ subject.class.base_class.name, subject.id.to_s ] }.map do |subject|
+          subject_class.lock.find(subject.id)
+        end
+        FullAccessLock.lock_console_state!
+        role.lock!
+        subjects.each do |subject|
+          authorize_management!(:assign_scoped_role, role: role, target: subject)
+          granted += 1 if grant_one(subject, resource, role)
+        end
       end
 
       redirect_to subjects_path, notice: grant_notice(granted, subjects.size)
@@ -93,13 +106,20 @@ module CurrentScope
     end
 
     def destroy
-      assignment = ScopedRoleAssignment.find(params[:id])
       # The event comes from ScopedRoleAssignment's own callback (#182), so a
       # seed or a rake task that destroys a grant records the same row this
       # console action does. The transaction stays: config.audit = :strict rolls
       # the destroy back when its audit row cannot be written.
-      ScopedRoleAssignment.transaction { assignment.destroy! }
+      ScopedRoleAssignment.transaction do
+        assignment, subject = lock_assignment_for_revocation(ScopedRoleAssignment)
+        assignment.role&.lock!
+        authorize_management!(:revoke_scoped_role, role: assignment.role,
+          target: subject)
+        assignment.destroy!
+      end
       redirect_to subjects_path, notice: "Scoped role revoked."
+    rescue ActiveRecord::StaleObjectError
+      redirect_to subjects_path, alert: "That assignment changed. Reload the page and retry."
     rescue ActiveRecord::RecordNotFound
       redirect_to subjects_path, notice: "That scoped role was already revoked."
     end

@@ -15,18 +15,24 @@ module CurrentScope
     before_action :assign_grantable_roles_declared, only: %i[edit update]
 
     def index
-      # Includes for delete-confirm holder counts (cascade warning).
-      @roles = Role.order(:name).includes(:role_assignments, :scoped_role_assignments)
+      # Preload bundles for management checks and holder counts for cascade warnings.
+      @roles = Role.order(:name).includes(:role_permissions, :role_assignments, :scoped_role_assignments)
     end
 
     def new
       @role = Role.new
+      authorize_management!(:create_role, role: @role)
+      render_role_form(:new)
     end
 
     def create
       @role = Role.new(role_params)
       saved = false
       Role.transaction do
+        FullAccessLock.lock_console_state!
+        @role_candidate = @role
+        authorize_management!(:create_role, role: @role_candidate)
+        @role_candidate = nil
         saved = @role.save
         # Fold the initial permission set into the create event — no separate
         # grid-diff event for a brand-new role.
@@ -39,14 +45,17 @@ module CurrentScope
       end
 
       if saved
-        redirect_to edit_role_path(@role), notice: "Role created."
+        destination = CurrentScope.can_manage?(:update_role, role: @role) ? edit_role_path(@role) : roles_path
+        redirect_to destination, notice: "Role created."
       else
-        render :new, status: :unprocessable_entity
+        render_role_form(:new, status: :unprocessable_entity)
       end
     end
 
     def edit
       @role = Role.find(params[:id])
+      authorize_management!(:update_role, role: @role)
+      render_role_form(:edit)
     end
 
     # Who holds this role — the role-side complement to the subjects page. Org-wide
@@ -104,6 +113,11 @@ module CurrentScope
         # of two FA roles cannot invert lock order (roles first, then assignments).
         lock_full_access_console_state!
         @role = Role.lock.find(params[:id])
+        authorize_management!(:update_role, role: @role)
+        @role_candidate = Role.find(@role.id)
+        @role_candidate.assign_attributes(permitted)
+        authorize_management!(:update_role, role: @role_candidate)
+        @role_candidate = nil
 
         if demoting_would_lock_console?(@role, permitted)
           refused = true
@@ -123,7 +137,7 @@ module CurrentScope
       if saved
         redirect_to roles_path, notice: "Role updated."
       else
-        render :edit, status: :unprocessable_entity
+        render_role_form(:edit, status: :unprocessable_entity)
       end
     end
 
@@ -133,6 +147,7 @@ module CurrentScope
       Role.transaction do
         lock_full_access_console_state!
         role = Role.lock.find(params[:id])
+        authorize_management!(:destroy_role, role: role)
 
         if would_lock_console_by_removing_role?(role)
           refused = true
@@ -161,9 +176,29 @@ module CurrentScope
 
     private
 
+    def render_role_form(template, status: :ok)
+      candidate = @role.persisted? ? Role.find(@role.id) : @role.dup
+      candidate.assign_attributes(@role.attributes) if @role.persisted?
+      candidate.permission_keys = @role.permission_keys
+      candidate.full_access = true
+      action = @role.persisted? ? :update_role : :create_role
+      @full_access_allowed = CurrentScope.can_manage?(action, role: candidate)
+      render template, status: status
+    end
+
+    def current_scope_render_denied(reason = nil)
+      # Only a refused proposal keeps the form. Entry and stored-role checks
+      # run before this candidate exists, so their denials stay closed.
+      return super unless reason == :management_denied && @role_candidate && request.format.html?
+
+      @role = @role_candidate
+      @role.errors.add(:base, "This change is outside your administration permissions or permission limit. Correct the role details or selected permissions and try again.")
+      render_role_form(@role.persisted? ? :edit : :new, status: :forbidden)
+    end
+
     def assign_grantable_roles_declared
       @grantable_roles_declared =
-        CurrentScope.grantable_roles_resources.any? { |klass| klass.try(:current_scope_declares_roles_anywhere?) }
+        CurrentScope.grantable_roles_resources.any? { |klass| ([ klass ] + Array(klass.try(:descendants))).any? { |type| !type.try(:current_scope_grantable_roles).nil? } }
     end
 
 

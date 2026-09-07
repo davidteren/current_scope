@@ -49,7 +49,9 @@ module  CurrentScope
   #                         an instance, an abstract class — not a concrete AR
   #                         class). Same cell, different fix, so a different label.
   #   :impersonation_gate — a mutation while impersonating, which is read-only
-  #   :not_full_access    — the engine's management UI, which only full_access enters
+  #   :not_full_access    — the default management policy requires full_access
+  #   :management_denied  — the configured management authorizer refused entry
+  #                         or the requested role/assignment operation
   #
   # Every denial in the gem raises this and lands in current_scope_denied, so a
   # denial cannot exist that forgets its reason. (:sod_bypassed is the one
@@ -79,6 +81,19 @@ module  CurrentScope
   KEY_LIMIT = 64
 
   class << self
+    # Console policy is separate from grantable application permissions.
+    # A configured callback must explicitly permit full-access subjects too.
+    def can_manage?(action = :access, subject: CurrentScope::Current.user, role: nil, target: nil)
+      authorizer = config.management_authorizer
+      unless authorizer.nil? || authorizer.respond_to?(:call)
+        raise ConfigurationError, "management_authorizer must respond to call"
+      end
+      return false unless subject
+      return resolver.full_access?(subject) if authorizer.nil?
+
+      authorizer.call(subject, action: action, role: role, target: target) == true
+    end
+
     def config
       @config ||= Configuration.new
     end

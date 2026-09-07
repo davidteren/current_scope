@@ -43,6 +43,46 @@ module CurrentScope
              cascade: cascade).first
     end
 
+    # Batch the same record-bound decision across candidate subjects. The result
+    # preserves input order. The caller supplies one record; collection checks
+    # continue to use allow?/scope_for. No authorization snapshot is retained.
+    def allowed_subjects(subjects:, permission:, record:, actor: nil, cascade: true)
+      raise ArgumentError, "allowed_subjects requires a record instance" unless record.is_a?(ActiveRecord::Base)
+
+      candidates = subjects.to_a.compact.uniq
+      bypass_decision = nil
+      decisions = candidates.to_h do |subject|
+        decision = sod_decision(subject: subject, actor: actor, permission: permission, record: record) do |initiator|
+          # Every conflict concerns this record's initiator. Reuse only within
+          # this batch; the next call must check the live bypass grant again.
+          bypass_decision ||= sod_bypassed?(record: record, initiator: initiator) ? :bypass : :veto
+        end
+        [ subject, decision ]
+      end
+      allowed = candidates.select { |subject| decisions[subject] == :bypass }
+      remaining = candidates.reject { |subject| decisions[subject].in?([ :veto, :bypass ]) }
+      return allowed if remaining.empty?
+
+      org_grants = RoleAssignment.where(subject: remaining).includes(role: :role_permissions)
+      roles_by_subject = org_grants.to_h { |grant| [ [ grant.subject_type, grant.subject_id.to_s ], grant.role ] }
+      allowed.concat(remaining.select { |subject| role_grants?(roles_by_subject[subject_key(subject)], permission) })
+      remaining -= allowed
+
+      unless remaining.empty?
+        direct = direct_scoped_grants(permission: permission, record: record).where(subject: remaining)
+        direct_keys = direct.distinct.pluck(:subject_type, :subject_id).map { |type, id| [ type, id.to_s ] }.to_set
+        allowed.concat(remaining.select { |subject| direct_keys.include?(subject_key(subject)) })
+        remaining -= allowed
+      end
+      if cascade && remaining.any?
+        inherited = ancestor_scoped_grants(permission: permission, record: record).where(subject: remaining)
+        inherited_keys = inherited.distinct.pluck(:subject_type, :subject_id).map { |type, id| [ type, id.to_s ] }.to_set
+        allowed.concat(remaining.select { |subject| inherited_keys.include?(subject_key(subject)) })
+      end
+      allowed_keys = allowed.map { |subject| subject_key(subject) }.to_set
+      candidates.select { |subject| allowed_keys.include?(subject_key(subject)) }
+    end
+
     # Internal decision: returns [allowed_bool, reason_or_nil]. The reason is a
     # machine-readable cause the Guard surfaces: :sod_veto / :no_grant on a
     # denial, and :sod_bypassed on the one AUDITED allow (break-glass). Ordinary
@@ -63,8 +103,7 @@ module CurrentScope
       end
 
       role = org_role(subject)
-      return [ true, nil ] if role&.full_access?
-      return [ true, nil ] if role&.grants?(permission)
+      return [ true, nil ] if role_grants?(role, permission)
       return [ true, nil ] if scoped_grant?(subject: subject, permission: permission, record: record,
                                             cascade: cascade)
       return [ true, nil ] if record_less_scoped_grant?(subject: subject, permission: permission, record: record, model: model)
@@ -92,7 +131,7 @@ module CurrentScope
     # decision function over its inputs.
     def org_role(subject)
       CurrentScope::Current.memoized_org_role(subject) do
-        RoleAssignment.find_by(subject: subject)&.role
+        RoleAssignment.includes(role: :role_permissions).find_by(subject: subject)&.role
       end
     end
 
@@ -217,6 +256,14 @@ module CurrentScope
 
     private
 
+    def subject_key(subject)
+      [ subject.class.polymorphic_name, subject.id.to_s ]
+    end
+
+    def role_grants?(role, permission)
+      role&.full_access? || role&.grants?(permission)
+    end
+
     # Role ids that satisfy `permission`: full_access (grants everything) or an
     # explicit grant of the key. The one place "does this role grant it?" is
     # expressed for scoped grants. Including full_access is only safe while no
@@ -249,7 +296,7 @@ module CurrentScope
     # satisfies every key. That is the `resource:` bound scoped_grant? applies
     # and the record-less branch cannot.
     #
-    # The #108 ancestor arms (ancestor_scoped_grant?, ancestor_scope_for) DO bind
+    # The #108 ancestor arms (ancestor_scoped_grants, ancestor_scope_for) DO bind
     # to specific ancestor records, so they are here for the second reason: a
     # scoped full_access grant on a root record must not open every permission on
     # every descendant. Same escalation as above, one hop removed.
@@ -308,6 +355,8 @@ module CurrentScope
       conflict = initiator == subject ||
         (CurrentScope.config.sod_identity == :either && actor != subject && initiator == actor)
       return :none unless conflict
+
+      return yield(initiator) if block_given?
 
       sod_bypassed?(record: record, initiator: initiator) ? :bypass : :veto
     end
@@ -445,28 +494,25 @@ module CurrentScope
     end
 
     def scoped_grant?(subject:, permission:, record:, cascade: true)
-      # `record` may be a class (allowed_to?(:create, Report)) — classes can't
-      # hold scoped grants, only persisted records can.
-      return false unless record.respond_to?(:new_record?) && record.persisted?
-
-      return true if ScopedRoleAssignment
-                       .where(subject: subject, resource: record, role_id: roles_granting(permission))
-                       .exists?
-
+      return true if direct_scoped_grants(permission: permission, record: record).where(subject: subject).exists?
       return false unless cascade
 
-      ancestor_scoped_grant?(subject: subject, permission: permission, record: record)
+      ancestor_scoped_grants(permission: permission, record: record).where(subject: subject).exists?
     end
 
-    # The #108 fallback. Empty ancestors (no declaration, the default) means one
-    # extra no-op call and the same answer as before.
-    def ancestor_scoped_grant?(subject:, permission:, record:)
-      ancestors = ParentChain.ancestors_for(record)
-      return false if ancestors.empty?
+    # Scalar and batch checks share these exact grant relations. A draft can
+    # inherit from persisted parents, but can never match a direct nil-ID grant.
+    def direct_scoped_grants(permission:, record:)
+      return ScopedRoleAssignment.none unless record.is_a?(ActiveRecord::Base) && record.persisted?
 
-      ScopedRoleAssignment
-        .where(subject: subject, resource: ancestors, role_id: roles_ticking(permission))
-        .exists?
+      ScopedRoleAssignment.where(resource: record, role_id: roles_granting(permission))
+    end
+
+    def ancestor_scoped_grants(permission:, record:)
+      ancestors = ParentChain.ancestors_for(record)
+      return ScopedRoleAssignment.none if ancestors.empty?
+
+      ScopedRoleAssignment.where(resource: ancestors, role_id: roles_ticking(permission))
     end
 
     # A record-less target is allowed in one of two ways (#19, #65):
@@ -498,12 +544,11 @@ module CurrentScope
     # invariant that a grant on X must not act on Y. Anything that is not
     # literally nil-or-a-Class is not a record-less target and gets no say here.
     #
-    # Consequence, deliberate: an UNPERSISTED instance (Report.new) is not
-    # record-less by this test, and scoped_grant? needs persisted? — so it is
-    # denied, while the class form is allowed. That asymmetry is only reachable
-    # by gating a collection action with Model.new instead of the documented nil,
-    # and it fails CLOSED (a 403 the host sees immediately), which is the safe
-    # direction to be wrong in.
+    # An unpersisted instance (Report.new) is not record-less and cannot hold
+    # a direct scoped grant. It can still receive permission from a persisted
+    # parent or an organization-wide role through the other decision paths.
+    # A draft must not stand in for the documented nil-or-Class collection
+    # target: this record-less path never grants it unrelated scoped access.
     #
     # Binds by TYPE (#50). The target names no record, but the controller can
     # name the type its collection lists via current_scope_model (record when

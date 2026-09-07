@@ -1,13 +1,13 @@
 # STATUS
 
-> ## Last session handoff
->
-> **What this is:** CurrentScope, a Rails authorization engine, on `main` at Beta.
-> **What we finished:** Re-read miela_app, the real bake host. The 626 leftover
-> is twelve permission lines, not a grant list.
-> **What you do next:** Flip miela_app to `:enforce` without granting those 626
-> (#116).
->
+## Last session handoff
+
+**What this is:** Miela and CurrentScope provide editable business and resource roles.\
+**What we finished:** Admins can manage roles within their own permission limits.\
+**What you do next:** Review the paired app and gem changes before release.
+
+[PR #209 — editable role administration](https://github.com/davidteren/current_scope/pull/209) adds host-controlled role management and resource permission ceilings for the paired Miela integration. Review and deployment are separate steps.
+
 > ### Historical — PR #153 review fixes (2026-08-12)
 >
 > **Worktree state:** committed and pushed on `fix/uuid-subject-collision` (the

@@ -62,6 +62,175 @@ class ResolverMemoizationTest < ActiveSupport::TestCase
     assert_not @resolver.allow?(subject: @alice, permission: "reports#index")
   end
 
+  test "org permission checks load the bundle once across many records" do
+    assign(@alice, role("Reader", "reports#show"))
+    reports = Array.new(20) { |i| Report.create!(title: "Report #{i}", requested_by: @bob) }
+    queries = []
+    subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+      queries << payload[:sql] if payload[:name] != "SCHEMA" && payload[:sql].include?("current_scope_role_permissions")
+    end
+    reports.each { |report| assert @resolver.allow?(subject: @alice, permission: "reports#show", record: report) }
+    assert_equal 1, queries.size, "one preload must replace per-record permission queries"
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber) if subscriber
+  end
+
+  test "building a permission on a cached role grants nothing until save" do
+    assign(@alice, role("Reader", "reports#index"))
+    held = @resolver.org_role(@alice)
+    permission = held.role_permissions.build(permission_key: "reports#show")
+
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#show")
+    assert_equal [ "reports#index" ], held.permission_keys
+    assert permission.new_record?
+    permission.save!
+    assert @resolver.allow?(subject: @alice, permission: "reports#show")
+  end
+
+  test "unsaved join edits neither grant nor revoke persisted permissions" do
+    assign(@alice, role("Reader", "reports#index"))
+    held = @resolver.org_role(@alice)
+    permission = held.role_permissions.first
+    permission.permission_key = "reports#show"
+
+    assert @resolver.allow?(subject: @alice, permission: "reports#index")
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#show")
+    assert_equal [ "reports#index" ], held.permission_keys
+    assert_equal "reports#show", permission.permission_key
+    held.permission_keys = [ "reports#approve" ]
+    assert_equal [ "reports#approve" ], held.permission_keys, "the explicit role-editor draft remains available"
+    assert_not held.grants?("reports#approve")
+  end
+
+  test "role full access changes invalidate the request cache" do
+    held = role("Owner", full_access: true)
+    assign(@alice, held)
+    assert @resolver.full_access?(@alice)
+    held.update!(full_access: false)
+    assert_not @resolver.full_access?(@alice)
+  end
+
+  test "moving a loaded permission stops granting it from the source role" do
+    source = role("Source", "reports#index")
+    destination = role("Destination")
+    permission = source.role_permissions.load.first
+    destination.role_permissions.load
+
+    permission.update!(role: destination)
+
+    assert_not source.grants?("reports#index")
+    assert_empty source.permission_keys
+    assert destination.grants?("reports#index")
+    assert_equal [ "reports#index" ], destination.permission_keys
+  end
+
+  test "rolling back a loaded permission move restores the source grant" do
+    source = role("Source", "reports#index")
+    destination = role("Destination")
+    permission = source.role_permissions.load.first
+    destination.role_permissions.load
+
+    CurrentScope::RolePermission.transaction(requires_new: true) do
+      permission.update!(role: destination)
+      assert_empty source.permission_keys
+      assert_not source.grants?("reports#index")
+      assert destination.grants?("reports#index")
+      raise ActiveRecord::Rollback
+    end
+
+    assert source.grants?("reports#index")
+    assert_equal [ "reports#index" ], source.permission_keys
+    assert_not destination.grants?("reports#index")
+    assert_empty destination.permission_keys
+  end
+
+  test "an unsaved permission move preserves the stored grant and caller draft" do
+    source = role("Source", "reports#index")
+    destination = role("Destination")
+    permission = source.role_permissions.load.first
+    permission.role = destination
+
+    assert source.grants?("reports#index")
+    assert_equal [ "reports#index" ], source.permission_keys
+    assert_not destination.grants?("reports#index")
+    assert_same destination, permission.role
+    assert permission.role_id_changed?
+  end
+
+  test "rolled back full access and role deletion cannot leave a cached decision" do
+    held = role("Reader", "reports#index")
+    assign(@alice, held)
+    CurrentScope::Role.transaction(requires_new: true) do
+      held.update!(full_access: true)
+      assert @resolver.full_access?(@alice)
+      raise ActiveRecord::Rollback
+    end
+    assert_not @resolver.full_access?(@alice)
+    CurrentScope::Role.transaction(requires_new: true) do
+      CurrentScope::Role.find(held.id).destroy!
+      assert_not @resolver.allow?(subject: @alice, permission: "reports#index")
+      raise ActiveRecord::Rollback
+    end
+    assert @resolver.allow?(subject: @alice, permission: "reports#index")
+  end
+
+  test "direct permission key changes invalidate cached permissions" do
+    held = role("Reader", "reports#index")
+    assign(@alice, held)
+    assert @resolver.allow?(subject: @alice, permission: "reports#index")
+    held.role_permissions.first.update!(permission_key: "reports#show")
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index")
+    assert @resolver.allow?(subject: @alice, permission: "reports#show")
+  end
+
+  test "permission edits and rollback invalidate the request cache" do
+    held = role("Reader", "reports#index")
+    assign(@alice, held)
+    assert @resolver.allow?(subject: @alice, permission: "reports#index")
+    held.update!(permission_keys: [])
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index")
+    CurrentScope::Role.transaction(requires_new: true) do
+      held.update!(permission_keys: [ "reports#index" ])
+      assert @resolver.allow?(subject: @alice, permission: "reports#index")
+      raise ActiveRecord::Rollback
+    end
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index")
+  end
+
+  test "direct permission writes and rollback refresh loaded grants" do
+    held = role("Reader")
+    assign(@alice, held)
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index")
+    permission = held.role_permissions.create!(permission_key: "reports#index")
+    assert @resolver.allow?(subject: @alice, permission: "reports#index")
+    CurrentScope::RolePermission.transaction(requires_new: true) do
+      permission.destroy!
+      assert_not @resolver.allow?(subject: @alice, permission: "reports#index")
+      raise ActiveRecord::Rollback
+    end
+    assert @resolver.allow?(subject: @alice, permission: "reports#index")
+    CurrentScope::RolePermission.find(permission.id).destroy!
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index")
+  end
+
+  test "a rolled back org assignment does not remain cached" do
+    held = role("Reader", "reports#index")
+    CurrentScope::RoleAssignment.transaction(requires_new: true) do
+      assign(@alice, held)
+      assert @resolver.allow?(subject: @alice, permission: "reports#index")
+      raise ActiveRecord::Rollback
+    end
+    assert_not @resolver.allow?(subject: @alice, permission: "reports#index")
+  end
+
+  test "replacing a preloaded role bundle updates the same role object" do
+    held = role("Reader", "reports#index")
+    held.role_permissions.load
+    held.update!(permission_keys: [ "reports#show" ])
+    assert_not held.grants?("reports#index")
+    assert held.grants?("reports#show")
+  end
+
   test "the memo is keyed by subject" do
     assign(@alice, role("A", "reports#index"))
     assign(@bob, role("B", "reports#show"))

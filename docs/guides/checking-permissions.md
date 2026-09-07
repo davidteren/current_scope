@@ -322,6 +322,11 @@ renaming a role stops the declarations that name it from matching, and a new rol
 that reuses the name inherits its acceptance. If you rename a role, grep for its
 old name in your models, and run `bin/rails current_scope:report`: it lists the
 grants whose type would refuse them today, which is where a rename shows up.
+A rename is allowed through both the model API and the console, including when
+the console submits an unchanged permission bundle. Existing grants remain in
+place. Later bundle edits must stay within their resource permission ceilings;
+the old name list does not prevent a safe bundle edit. A custom host
+`current_scope_grants_role?` override still controls compatibility checks.
 
 Adding a declaration does not rewrite or delete any grant already in the table.
 It does apply the next time such a row is **saved**, though: the check runs on
@@ -329,3 +334,29 @@ every write, not only on create, so a pre-existing pairing the new declaration
 refuses will fail validation if host code saves that row again. That is
 deliberate. `assignment.update!(role: other_role)` has to meet the same rule as
 the grant that created it, or the console's gate would be one `update` wide.
+
+
+## Checking several subjects for one record
+
+Use the resolver's batch method to build an approver picker without one grant
+query per candidate:
+
+```ruby
+approvers = CurrentScope.resolver.allowed_subjects(
+  subjects: User.active,
+  permission: "reports#approve",
+  record: report
+)
+```
+
+The method returns an array in candidate order. It uses the same separation-of-duties
+check and scoped-grant relations as `allow?`. A persisted record or a draft with
+persisted parents is supported. A nil record or model class raises `ArgumentError`;
+use `allow?` and `scope_for` for collection decisions. Each call reads current grants
+and retains no batch cache.
+
+An optional `actor:` applies to every candidate. Omit it when listing independent
+approvers. If one candidate is the effective user in an impersonated session, check
+that candidate with its real actor separately. Host ownership, active-user, and
+workflow rules remain the host policy's responsibility. `cascade: false` excludes
+ancestor grants, as it does for `allow?`.

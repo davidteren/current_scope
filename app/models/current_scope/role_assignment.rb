@@ -58,15 +58,10 @@ module CurrentScope
     end
     private :one_org_role_per_subject
 
-    # Bust the per-request org-role memo (CurrentScope::Current) whenever an
-    # assignment changes, so a grant/clear and a later gate check in the SAME
-    # request never disagree. after_save/after_destroy fire inside the
-    # transaction, so this is correct under transactional tests too. The role's
-    # own permission edits don't route through here, but they can't change which
-    # role a subject holds — only the role_permissions, which the memo doesn't
-    # cache (org_role caches the role object, whose grants? reads live).
+    # Grant changes and transaction rollback must invalidate cached role data.
     after_save    { CurrentScope::Current.reset_org_role_cache }
     after_destroy { CurrentScope::Current.reset_org_role_cache }
+    after_rollback { CurrentScope::Current.reset_org_role_cache }
     private
 
     def record_org_role_removed

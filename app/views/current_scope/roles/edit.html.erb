@@ -4,7 +4,7 @@
 
 <%= form_with model: @role do |f| %>
   <% if @role.errors.any? %>
-    <p class="cs-alert" role="alert"><%= @role.errors.full_messages.to_sentence %></p>
+    <p id="cs_role_errors" class="cs-alert" role="alert"><%= @role.errors.full_messages.to_sentence %></p>
   <% end %>
 
   <p><%= f.label :name %> <%= f.text_field :name %></p>
@@ -26,10 +26,15 @@
   </p>
   <p>
     <%= f.label :full_access do %>
-      <%= f.check_box :full_access %> Full access — every permission, present and future. Does not cascade to child records through current_scope_parent.
+      <%= f.check_box :full_access, disabled: !@full_access_allowed,
+            "aria-describedby": (@full_access_allowed ? nil : "cs_full_access_limit") %> Full access — every permission, present and future. Does not cascade to child records through current_scope_parent.
       (the grid below is ignored while this is on)
     <% end %>
   </p>
+
+  <% unless @full_access_allowed %>
+    <p id="cs_full_access_limit" class="cs-hint">Your administration permissions do not allow full access for this role.</p>
+  <% end %>
 
   <h2>Permission grid</h2>
   <%# The injected break-glass action's bare name (nil when break-glass is

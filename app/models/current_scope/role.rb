@@ -20,6 +20,7 @@ module CurrentScope
     # after_destroy runs, permission_keys reads empty and the row would say the
     # deletion removed nothing. Declared above that association so it runs first
     # (#182 review).
+    before_destroy :lock_for_destroy, prepend: true
     before_destroy :snapshot_for_audit
     after_destroy :record_role_deleted
 
@@ -29,8 +30,13 @@ module CurrentScope
 
     validates :name, presence: true, uniqueness: true
     validate :permission_keys_in_catalog
+    before_validation :lock_for_scoped_compatibility
+    validate :held_scoped_grants_remain_compatible
 
     after_save :persist_permission_keys
+    after_save :reset_cached_permissions
+    after_destroy :reset_cached_permissions
+    after_rollback :reset_cached_permissions
 
     # The grid diff computed by the last save:
     # { added: [...], removed: [...], rejected: [...] }. Empty arrays on a no-op
@@ -42,11 +48,19 @@ module CurrentScope
     attr_reader :permission_keys_change
 
     def grants?(permission_key)
-      role_permissions.exists?(permission_key: permission_key)
+      if stored_permissions_loaded?
+        role_permissions.any? { |entry| entry.permission_key == permission_key.to_s }
+      else
+        role_permissions.exists?(permission_key: permission_key)
+      end
     end
 
     def permission_keys
-      @pending_permission_keys || role_permissions.pluck(:permission_key)
+      return @pending_permission_keys unless @pending_permission_keys.nil?
+      # Scoped validation must see the bundle that a new role will autosave.
+      return role_permissions.map(&:permission_key) if new_record?
+
+      stored_permission_keys
     end
 
     # Stages a replacement permission set. STRICT: a key that isn't in the
@@ -85,7 +99,89 @@ module CurrentScope
       super
     end
 
+    # Checks the proposed bundle without writing it. Join-row writes use the
+    # same ceiling check as permission_keys= while holding the parent role lock.
+    def incompatible_scoped_resource_class
+      # Every grant of the same governing class asks the same bundle question.
+      # Keep this local to one fresh scan; no result survives another validation.
+      checked_classes = {}
+      comparison_role = nil
+      # A cached collection can miss a grant created through another role instance.
+      scoped_role_assignments.where(nil).find_in_batches do |assignments|
+        ScopedRoleAssignment.preload_resolvable_resources!(assignments)
+        assignments.each do |assignment|
+          klass = assignment.current_scope_governing_class
+          next if checked_classes[klass]
+
+          checked_classes[klass] = true
+          next unless klass.respond_to?(:current_scope_grantable_permissions) &&
+            !klass.current_scope_grantable_permissions.nil?
+
+          comparison_role ||= role_for_scoped_compatibility
+          predicate = klass.method(:current_scope_grants_role?)
+          # The default name list controls assignment writes, not role renames.
+          # Preserve custom predicates, including hosts without GrantableRoles.
+          allowed = if predicate.owner == GrantableRoles::ClassMethods
+            klass.current_scope_grants_role_permissions?(comparison_role)
+          else
+            predicate.call(comparison_role)
+          end
+          return klass unless allowed
+        end
+      end
+      nil
+    end
+
     private
+
+    # Explicit bundles describe the proposed write. Otherwise compare stored
+    # permissions with the caller's proposed attributes on a separate object;
+    # validation must neither trust nor discard the caller's loaded join drafts.
+    def role_for_scoped_compatibility
+      return self unless @pending_permission_keys.nil?
+
+      comparison = self.class.instantiate(attributes)
+      comparison.permission_keys = self.class.uncached { role_permissions.where(nil).pluck(:permission_key) }
+      comparison
+    end
+
+    # The preload is safe only while its rows still represent saved data for
+    # this role; a saved move can leave a clean row in the source collection.
+    # Do not discard the caller's drafts when a stored lookup is required.
+    def stored_permissions_loaded?
+      role_permissions.loaded? && role_permissions.all? do |entry|
+        entry.persisted? && !entry.changed? && entry.role_id == id
+      end
+    end
+
+    def stored_permission_keys
+      stored_permissions_loaded? ? role_permissions.pluck(:permission_key) : role_permissions.where(nil).pluck(:permission_key)
+    end
+
+    def lock_for_destroy
+      FullAccessLock.lock_console_state!
+    end
+
+    def lock_for_scoped_compatibility
+      self.class.where(id: id).lock.load if persisted?
+    end
+
+    def held_scoped_grants_remain_compatible
+      return unless persisted?
+      return unless full_access_changed? || !@pending_permission_keys.nil?
+      # The console submits the whole bundle even when nothing changed. Compare
+      # uncached rows under the role lock; an association or SQL cache may be stale.
+      # A rename alone follows the documented warning, not permission validation.
+      if !full_access_changed? &&
+          @pending_permission_keys.sort == self.class.uncached { role_permissions.where(nil).pluck(:permission_key).sort }
+        return
+      end
+
+      klass = incompatible_scoped_resource_class
+      if klass
+        errors.add(:permission_keys, "cannot change while this role has scoped grants on #{klass.name}; remove incompatible grants first")
+      end
+    end
 
     def permission_keys_in_catalog
       return if @pending_permission_keys.nil? || @scrub_permission_keys
@@ -104,7 +200,7 @@ module CurrentScope
       return if @pending_permission_keys.nil?
 
       # Capture the prior keys BEFORE delete_all so the diff survives the swap.
-      previous = role_permissions.pluck(:permission_key)
+      previous = stored_permission_keys
       # Defense in depth: on the strict path validation already proved every key
       # is in the catalog, so this filter is a no-op. It is what the scrub path
       # relies on, and it means no future code path that skips validations
@@ -119,9 +215,16 @@ module CurrentScope
 
       role_permissions.delete_all
       role_permissions.insert_all(staged.map { |k| { permission_key: k } }) if staged.any?
+      role_permissions.reset
       @pending_permission_keys = nil
       @scrub_permission_keys = false
     end
+
+    def reset_cached_permissions
+      role_permissions.reset
+      CurrentScope::Current.reset_org_role_cache
+    end
+
     def snapshot_for_audit
       return unless CurrentScope.config.audit
 
@@ -130,7 +233,7 @@ module CurrentScope
       # without saving it, and a destroy removes what is in the table. The row
       # must describe what the deletion actually took away (#182 review).
       @audit_snapshot = { name: name, full_access: full_access?,
-                          permission_keys: role_permissions.pluck(:permission_key) }
+                          permission_keys: stored_permission_keys }
     end
 
     # What the deletion REMOVED, not just its name: role.created and

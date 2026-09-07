@@ -444,6 +444,20 @@ names which of Pundit, Action Policy, CanCanCan, Banken or Oso to read next.
   vs dry-effects vs explicit passing, and what this gem borrows from Action
   Policy.
 
+## Editable role administration
+
+Hosts can delegate console administration through `management_authorizer` and
+set `current_scope_grantable_permissions` on resource types. This lets an
+administrator create business roles without a code change, while the host
+policy controls who can change or assign them.
+
+See [Management authorization](docs/guides/configuration-reference.md#management-authorization)
+for the callback, action names, recipient context, and transaction lock order.
+See [Resource permission ceilings](docs/guides/configuration-reference.md#resource-permission-ceilings)
+for bundle eligibility and validation, and
+[Batch authorization](docs/guides/configuration-reference.md#batch-authorization-for-one-record)
+for checking several subjects against one record.
+
 ## License
 
 The gem is available as open source under the terms of the

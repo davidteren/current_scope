@@ -23,15 +23,31 @@ module CurrentScope
       changed = 0
       refused = false
       RoleAssignment.transaction do
+        # Host transactions can update recipients before granting access.
+        # Take these locks first, in stable order, then roles and assignments.
+        # Host load callbacks may leave defaults unsaved, so lock a fresh query
+        # result instead of calling lock! on the located object. Use that
+        # result for policy checks so changes before the lock are not missed.
+        subjects = subjects.sort_by { |subject| [ subject.class.base_class.name, subject.id.to_s ] }.map do |subject|
+          subject_class.lock.find(subject.id)
+        end
         lock_full_access_org_holders!
+        proposed = Role.includes(:role_permissions).lock.find(params.expect(:role_id)) unless clearing
 
-        if would_remove_last_full_access_holders?(subjects, clearing: clearing)
+        subjects.each do |subject|
+          previous = locked_role_for(RoleAssignment.lock.find_by(subject: subject))
+          authorize_management!(:revoke_role, role: previous, target: subject) if previous || clearing
+          authorize_management!(:assign_role, role: proposed, target: subject) unless clearing
+        end
+
+        if would_remove_last_full_access_holders?(subjects, proposed: proposed)
           refused = true
         else
           subjects.each do |subject|
-            assignment = RoleAssignment.find_or_initialize_by(subject: subject)
-            prior_role = assignment.role # nil for a brand-new assignment
-            did = clearing ? clear_org_role(subject, assignment, prior_role) : set_org_role(subject, assignment, prior_role)
+            assignment = RoleAssignment.lock.find_or_initialize_by(subject: subject)
+            prior_role = locked_role_for(assignment) # nil for a brand-new assignment
+            authorize_management!(:revoke_role, role: prior_role, target: subject) if prior_role || clearing
+            did = clearing ? clear_org_role(subject, assignment, prior_role) : set_org_role(subject, assignment, prior_role, proposed)
             changed += 1 if did
           end
         end
@@ -58,11 +74,9 @@ module CurrentScope
     def destroy
       refused = false
       RoleAssignment.transaction do
-        # Lock FA state BEFORE the target assignment so order matches create/
-        # role demote/delete (FA roles → FA holders → target row). Locking the
-        # assignment first inverted that order and could deadlock.
-        lock_full_access_org_holders!
-        assignment = RoleAssignment.lock.find(params[:id])
+        assignment, subject = lock_assignment_for_revocation(RoleAssignment)
+        assignment.role&.lock!
+        authorize_management!(:revoke_role, role: assignment.role, target: subject)
 
         if last_full_access_org_assignment?(assignment)
           refused = true
@@ -82,11 +96,21 @@ module CurrentScope
       end
 
       redirect_back_or_to subjects_path, notice: "Org-wide role removed."
+    rescue ActiveRecord::StaleObjectError
+      redirect_back_or_to subjects_path, alert: "That assignment changed. Reload the page and retry."
     rescue ActiveRecord::RecordNotFound
       redirect_back_or_to subjects_path, notice: "That org-wide role was already removed."
     end
 
     private
+
+    # Each policy phase reads fresh stored role data. Fetch under the lock once,
+    # rather than loading the association and immediately reloading it with lock!.
+    def locked_role_for(assignment)
+      return unless assignment&.role_id
+
+      Role.uncached { Role.includes(:role_permissions).lock.find(assignment.role_id) }
+    end
 
     # The grantee, or nil when the subject was deleted or its type no longer
     # resolves (an orphaned assignment) — the ledger row then targets the
@@ -114,17 +138,14 @@ module CurrentScope
 
     # True when applying clear (or reassign to a non-full_access role) to these
     # subjects would leave zero full_access org holders.
-    def would_remove_last_full_access_holders?(subjects, clearing:)
+    def would_remove_last_full_access_holders?(subjects, proposed:)
       holders = full_access_org_assignments.to_a
       return false if holders.empty?
 
       affected_ids = holders.select { |a| subjects.any? { |s| same_subject?(a, s) } }.map(&:id)
       return false if affected_ids.empty?
 
-      unless clearing
-        new_role = Role.find_by(id: params[:role_id])
-        return false if new_role&.full_access?
-      end
+      return false if proposed&.full_access?
 
       remaining = holders.reject { |a| affected_ids.include?(a.id) }
       remaining.empty?
@@ -139,9 +160,7 @@ module CurrentScope
     # transaction. Prefer locking by id after a join pluck — FOR UPDATE with
     # joins is adapter-fragile.
     def lock_full_access_org_holders!
-      Role.where(full_access: true).lock.load
-      ids = full_access_org_assignments.pluck(:id)
-      RoleAssignment.where(id: ids).lock.load if ids.any?
+      FullAccessLock.lock_console_state!
     end
 
     def same_subject?(assignment, subject)
@@ -168,10 +187,8 @@ module CurrentScope
 
     # Returns true when the subject's role actually changed, false on a no-op
     # re-set to the same role.
-    def set_org_role(subject, assignment, prior_role)
-      # Fetch the new role as its own object so `prior_role` (already loaded via
-      # the association) isn't mistaken for it after the update.
-      new_role = Role.find(params.expect(:role_id))
+    def set_org_role(subject, assignment, prior_role, new_role)
+      authorize_management!(:assign_role, role: new_role, target: subject)
       changed = prior_role.nil? || prior_role.id != new_role.id
 
       # Atomicity comes from create's outer bulk transaction (see clear_org_role).

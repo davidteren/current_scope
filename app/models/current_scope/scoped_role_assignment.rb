@@ -179,11 +179,41 @@ module CurrentScope
 
       klass = current_scope_governing_class
       return if klass.nil? || !klass.respond_to?(:current_scope_grants_role?)
-      return if klass.current_scope_grants_role?(role)
+      # Only the module's default predicate is unconditional without declarations.
+      # A host override can impose a rule without exposing either declaration.
+      if klass.method(:current_scope_grants_role?).owner == GrantableRoles::ClassMethods &&
+          klass.current_scope_grantable_roles.nil? && klass.current_scope_grantable_permissions.nil?
+        return
+      end
+
+      # A caller may stage permission_keys outside ActiveRecord's dirty tracking.
+      # Read the locked stored role separately: validation must neither discard
+      # that draft nor let it disguise an incompatible persisted permission set.
+      checked_role = role.persisted? ? Role.lock.find_by(id: role.id) : role
+      unless checked_role
+        errors.add(:role, :invalid)
+        return
+      end
+      # The row lock bypasses SQL cache only for the role row, not its bundle.
+      return if Role.uncached { klass.current_scope_grants_role?(checked_role) }
 
       # Read through respond_to? and Array(): the type joins this gate by
       # answering current_scope_grants_role? alone, which a host may compute
       # without holding a list at all (#183).
+      # A fitting bundle may have failed only the name restriction. Use fresh
+      # keys for this explanation too; duck-typed hosts may not expose the helper.
+      if !klass.try(:current_scope_grantable_permissions).nil? &&
+          (!klass.respond_to?(:current_scope_grants_role_permissions?) ||
+            !Role.uncached { klass.current_scope_grants_role_permissions?(checked_role) })
+        explanation = if Array(klass.current_scope_grantable_permissions).empty?
+          "its permission ceiling accepts no scoped roles"
+        else
+          "use a permission bundle within its permission ceiling, without full access"
+        end
+        errors.add(:role, "cannot be granted on #{klass.name}: #{explanation}")
+        return
+      end
+
       declared = klass.try(:current_scope_grantable_roles)
       allowed = Array(declared)
       accepts = if declared.nil?

@@ -14,6 +14,14 @@
 </head>
 <body>
   <main class="cs-card cs-denied">
+    <% if local_assigns[:management_denied] %>
+      <h1 id="cs_management_denied">This action is not permitted</h1>
+      <p>The requested action is outside your administration permissions. A role
+        or person can be protected, or a permission bundle can exceed your
+        permission limit.</p>
+      <p class="cs-hint">Return to the previous page and choose a permitted
+        role or permission bundle. Ask an owner if this change is required.</p>
+    <% else %>
     <h1>This area needs a full-access role</h1>
     <p>
       The authorization console is where roles and permissions are granted, so it
@@ -25,6 +33,7 @@
       full-access role. If nobody has one yet, it's granted from the console or a
       rake task — see the CurrentScope README's bootstrap section.
     </p>
+    <% end %>
   </main>
 </body>
 </html>

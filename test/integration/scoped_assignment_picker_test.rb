@@ -1287,4 +1287,34 @@ class ScopedAssignmentPickerTest < ActionDispatch::IntegrationTest
     assert_select "input[type=submit]"
     assert_select "select[name=resource_gid] option", text: "No-JS Folder"
   end
+
+  test "permission ceiling picker reads the selected bundle once as candidates grow" do
+    original = Folder.current_scope_grantable_permissions
+    Folder.current_scope_grantable_permissions = [ "reports#show" ]
+    @member_role.update!(permission_keys: [ "reports#show" ])
+    Folder.create!(name: "First")
+    counts = []
+    with_scopeable_resources([ Folder ]) do
+      2.times do |iteration|
+        8.times { |i| Folder.create!(name: "Extra #{i}") } if iteration == 1
+        queries = []
+        watcher = lambda do |*, payload|
+          sql = payload[:sql]
+          queries << sql if sql.match?(/\ASELECT/i) && sql.include?("current_scope_role_permissions")
+        end
+        ActiveRecord::Base.uncached do
+          ActiveSupport::Notifications.subscribed(watcher, "sql.active_record") do
+            get current_scope.new_scoped_role_assignment_path(role_id: @member_role.id, resource_type: "Folder"),
+              headers: as(@owner)
+          end
+        end
+        assert_response :success
+        assert_select "select[name=resource_gid] option[value]:not([value=\"\"])", count: iteration == 0 ? 1 : 9
+        counts << queries.size
+      end
+    end
+    assert_equal counts.first, counts.last, "permission SELECTs grew from #{counts.first} to #{counts.last}"
+  ensure
+    Folder.current_scope_grantable_permissions = original
+  end
 end

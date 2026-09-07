@@ -28,6 +28,24 @@ class ManagementQueryGrowthTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "existing recipients use one fresh prior role and bundle read per policy phase" do
+    previous = CurrentScope::Role.create!(name: "Previous query role", permission_keys: [ "reports#index" ])
+    single = [ User.create!(name: "Existing single recipient") ]
+    batch = 5.times.map { |index| User.create!(name: "Existing batch recipient #{index}") }
+    (single + batch).each { |recipient| CurrentScope::RoleAssignment.create!(subject: recipient, role: previous) }
+
+    small_count = role_selects_for_assignment(single)
+    large_count = role_selects_for_assignment(batch)
+
+    # Each extra recipient needs fresh role and bundle reads in both phases.
+    # A separate association fetch followed by lock! adds redundant role reads.
+    assert_operator large_count - small_count, :<=, 4 * (batch.size - single.size)
+    assert_equal 6, CurrentScope::RoleAssignment.where(role: @role).count
+    (single + batch).each do |recipient|
+      assert_equal 2, @assign_targets.count(recipient.id)
+    end
+  end
+
   test "permission reads on the roles list do not grow with role count" do
     small_count = permission_selects_for_index
     5.times do |index|

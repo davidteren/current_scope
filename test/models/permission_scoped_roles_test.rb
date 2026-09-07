@@ -11,6 +11,28 @@ class PermissionScopedRolesTest < ActiveSupport::TestCase
 
   teardown { Project.current_scope_grantable_permissions = @original if Project.respond_to?(:current_scope_grantable_permissions=) }
 
+  %i[scoped_grant permission].each do |kind|
+    test "a deleted role makes #{kind} invalid without discarding its draft" do
+      held_role = CurrentScope::Role.find(@role.id)
+      held_role.permission_keys = [ "reports#approve" ]
+      held_role.name = "Unsaved name"
+      record = if kind == :scoped_grant
+        CurrentScope::ScopedRoleAssignment.new(subject: @user, resource: @report, role: held_role)
+      else
+        CurrentScope::RolePermission.new(role: held_role, permission_key: "reports#index")
+      end
+      CurrentScope::Role.find(@role.id).destroy!
+
+      assert_not record.valid?
+      assert record.errors.of_kind?(:role, :invalid)
+      assert_not record.save
+      assert_raises(ActiveRecord::RecordInvalid) { record.save! }
+      assert_not record.persisted?
+      assert_equal [ "reports#approve" ], held_role.permission_keys
+      assert_equal "Unsaved name", held_role.name
+    end
+  end
+
   test "custom role names work through scoped assignment and resolver" do
     CurrentScope::ScopedRoleAssignment.create!(subject: @user, resource: @report, role: @role)
     assert CurrentScope.allowed?("reports#show", subject: @user, record: @report)

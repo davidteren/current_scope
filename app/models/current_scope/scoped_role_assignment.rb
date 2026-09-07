@@ -189,7 +189,11 @@ module CurrentScope
       # A caller may stage permission_keys outside ActiveRecord's dirty tracking.
       # Read the locked stored role separately: validation must neither discard
       # that draft nor let it disguise an incompatible persisted permission set.
-      checked_role = role.persisted? ? Role.lock.find(role.id) : role
+      checked_role = role.persisted? ? Role.lock.find_by(id: role.id) : role
+      unless checked_role
+        errors.add(:role, :invalid)
+        return
+      end
       # The row lock bypasses SQL cache only for the role row, not its bundle.
       return if Role.uncached { klass.current_scope_grants_role?(checked_role) }
 

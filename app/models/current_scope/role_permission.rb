@@ -17,7 +17,11 @@ module CurrentScope
     def scoped_permissions_remain_compatible
       return unless role&.persisted?
 
-      candidate = Role.lock.find(role.id)
+      candidate = Role.lock.find_by(id: role.id)
+      unless candidate
+        errors.add(:role, :invalid)
+        return
+      end
       # The parent lock does not invalidate an earlier cached sibling query.
       keys = self.class.uncached { candidate.role_permissions.where.not(id: id).pluck(:permission_key) }
       candidate.permission_keys = keys + [ permission_key ]

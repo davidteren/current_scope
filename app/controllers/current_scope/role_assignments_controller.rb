@@ -35,8 +35,7 @@ module CurrentScope
         proposed = Role.includes(:role_permissions).lock.find(params.expect(:role_id)) unless clearing
 
         subjects.each do |subject|
-          previous = RoleAssignment.lock.find_by(subject: subject)&.role
-          previous&.lock!
+          previous = locked_role_for(RoleAssignment.lock.find_by(subject: subject))
           authorize_management!(:revoke_role, role: previous, target: subject) if previous || clearing
           authorize_management!(:assign_role, role: proposed, target: subject) unless clearing
         end
@@ -46,8 +45,7 @@ module CurrentScope
         else
           subjects.each do |subject|
             assignment = RoleAssignment.lock.find_or_initialize_by(subject: subject)
-            prior_role = assignment.role # nil for a brand-new assignment
-            prior_role&.lock!
+            prior_role = locked_role_for(assignment) # nil for a brand-new assignment
             authorize_management!(:revoke_role, role: prior_role, target: subject) if prior_role || clearing
             did = clearing ? clear_org_role(subject, assignment, prior_role) : set_org_role(subject, assignment, prior_role, proposed)
             changed += 1 if did
@@ -105,6 +103,14 @@ module CurrentScope
     end
 
     private
+
+    # Each policy phase reads fresh stored role data. Fetch under the lock once,
+    # rather than loading the association and immediately reloading it with lock!.
+    def locked_role_for(assignment)
+      return unless assignment&.role_id
+
+      Role.uncached { Role.includes(:role_permissions).lock.find(assignment.role_id) }
+    end
 
     # The grantee, or nil when the subject was deleted or its type no longer
     # resolves (an orphaned assignment) — the ledger row then targets the

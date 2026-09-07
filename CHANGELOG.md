@@ -122,6 +122,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pilots.
 
 ### Fixed
+- Role validation now reports an invalid role when its stored row was deleted,
+  while preserving the caller's unsaved role edits.
+- Bulk reassignment avoids duplicate prior-role fetches while retaining fresh
+  role and permission reads in both authorization phases.
 - **Delegation checks and query reuse (#209).** Invalid management-authorizer
   configuration raises even when no subject is signed in. Bulk role grants
   reuse their locked proposed role, role lists preload permission bundles, and

@@ -1,0 +1,20 @@
+app/controllers/current_scope/role_assignments_controller.rb
+  h_e8a5bb9272fa34 28-33
+app/controllers/current_scope/scoped_role_assignments_controller.rb
+  h_e8a5bb9272fa34 86-91
+test/integration/host_grant_concurrency_test.rb
+  h_e8a5bb9272fa34 29-33,73
+test/integration/subject_locking_test.rb
+  h_e8a5bb9272fa34 1-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "b5e7eb9a38964d6f5568ff57cf9de23161065570",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

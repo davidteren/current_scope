@@ -39,6 +39,7 @@ class ManagementQueryGrowthTest < ActionDispatch::IntegrationTest
 
     # Each extra recipient needs fresh role and bundle reads in both phases.
     # A separate association fetch followed by lock! adds redundant role reads.
+    assert_operator small_count, :>, 0
     assert_operator large_count - small_count, :<=, 4 * (batch.size - single.size)
     assert_equal 6, CurrentScope::RoleAssignment.where(role: @role).count
     (single + batch).each do |recipient|

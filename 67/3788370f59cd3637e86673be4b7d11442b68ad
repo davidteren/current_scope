@@ -1,0 +1,24 @@
+app/models/current_scope/role.rb
+  h_e8a5bb9272fa34 121-129,170-172
+docs/guides/checking-permissions.md
+  h_e8a5bb9272fa34 325-329
+docs/guides/configuration-reference.md
+  h_e8a5bb9272fa34 263-267
+lib/current_scope/grantable_roles.rb
+  h_e8a5bb9272fa34 171-175,177,189-202
+test/integration/role_grid_test.rb
+  h_e8a5bb9272fa34 27-46
+test/models/permission_scoped_roles_test.rb
+  h_e8a5bb9272fa34 233-253
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "673788370f59cd3637e86673be4b7d11442b68ad",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,32 @@
+CHANGELOG.md
+  h_e8a5bb9272fa34 10-24
+app/controllers/current_scope/role_assignments_controller.rb
+  h_e8a5bb9272fa34 45
+app/controllers/current_scope/scoped_role_assignments_controller.rb
+  h_e8a5bb9272fa34 25
+app/models/current_scope/role.rb
+  h_e8a5bb9272fa34 105-107,113-115,149-155
+app/models/current_scope/scoped_role_assignment.rb
+  h_e8a5bb9272fa34 182-192
+docs/guides/configuration-reference.md
+  h_e8a5bb9272fa34 10-12,178-301
+docs/guides/impersonation.md
+  h_e8a5bb9272fa34 147-148,158-162
+lib/current_scope.rb
+  h_e8a5bb9272fa34 52-54
+test/integration/scoped_assignment_picker_test.rb
+  h_e8a5bb9272fa34 1290-1319
+test/models/permission_scoped_roles_test.rb
+  h_e8a5bb9272fa34 123-199
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "750156b380d0fc5960eceb66ed61a7567878a507",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

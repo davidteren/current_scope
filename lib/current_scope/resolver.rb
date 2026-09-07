@@ -503,7 +503,7 @@ module CurrentScope
     # Scalar and batch checks share these exact grant relations. A draft can
     # inherit from persisted parents, but can never match a direct nil-ID grant.
     def direct_scoped_grants(permission:, record:)
-      return ScopedRoleAssignment.none unless record.respond_to?(:persisted?) && record.persisted?
+      return ScopedRoleAssignment.none unless record.is_a?(ActiveRecord::Base) && record.persisted?
 
       ScopedRoleAssignment.where(resource: record, role_id: roles_granting(permission))
     end

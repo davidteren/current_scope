@@ -471,10 +471,13 @@ recipient as `target`; replacing an org role also checks revocation of the old
 role. Bulk operations roll back in full if any target is refused. A role delete
 passes the role, so the host policy must consider its holders when necessary.
 
-If the stored role is editable but its proposed changes are refused, the HTML
-editor keeps the submitted values and explains the refusal. The response remains
-403 with the `management_denied` reason. Denied access to the stored role still
-shows the denial page, and non-HTML denials remain bodyless.
+After console entry is allowed, a refused create proposal keeps the submitted
+name, description, and full-access choice on the HTML new-role form. A refused
+update keeps the HTML editor and its submitted values when the stored role is
+editable. Both forms explain the refusal and return 403 with the
+`management_denied` reason. Entry and stored-role denials still show the denial
+page, and non-HTML denials remain bodyless. New roles receive their permission
+grid after creation.
 
 The host policy must enforce its permission ceiling and protect Owner roles and
 users. Console access alone is not permission to perform a write. These checks

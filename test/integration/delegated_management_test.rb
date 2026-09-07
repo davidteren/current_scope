@@ -58,6 +58,36 @@ class DelegatedManagementTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, "This area needs a full-access role"
   end
 
+  test "a refused create preserves its draft only for HTML after console entry" do
+    original = CurrentScope.config.management_authorizer
+    CurrentScope.config.management_authorizer = ->(subject, action:, role: nil, **options) do
+      original.call(subject, action: action, role: role, **options) && role&.name != "New draft"
+    end
+    submitted = { role: { name: "New draft", description: "Draft description", full_access: false } }
+    assert_no_difference("CurrentScope::Role.count") do
+      post current_scope.roles_url, params: submitted, headers: headers
+    end
+    assert_response :forbidden
+    assert_equal "management_denied", response.headers["X-Current-Scope-Reason"]
+    assert_select "#cs_role_errors", text: /permission limit/
+    assert_select "#role_name[value=?]", "New draft"
+    assert_select "#role_description", text: "Draft description"
+    assert_select "#role_full_access:not([checked])"
+    assert_select "form[action=?]", current_scope.roles_path
+
+    post current_scope.roles_url, params: submitted, headers: headers.merge("Accept" => "application/json")
+    assert_response :forbidden
+    assert_equal "management_denied", response.headers["X-Current-Scope-Reason"]
+    assert_empty response.body
+
+    @allowed_actions.delete(:access)
+    post current_scope.roles_url, params: submitted, headers: headers
+    assert_response :forbidden
+    assert_select "#cs_management_denied"
+    assert_select "#role_name", count: 0
+    assert_not CurrentScope::Role.exists?(name: "New draft")
+  end
+
   test "a protected old bundle cannot be replaced by an allowed candidate" do
     patch current_scope.role_url(@protected), params: { role: { name: "Editable now", full_access: false, permission_keys: [ "reports#index" ] } }, headers: headers
     assert_response :forbidden

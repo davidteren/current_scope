@@ -122,4 +122,30 @@ class RoleEditingSystemTest < ApplicationSystemTestCase
   ensure
     CurrentScope.config.management_authorizer = prior
   end
+
+  test "a refused role creation keeps its draft and can be corrected" do
+    prior = CurrentScope.config.management_authorizer
+    CurrentScope.config.management_authorizer = ->(subject, action:, role: nil, **) do
+      subject == @owner && (!role || (!role.full_access? && role.name != "New team reader"))
+    end
+    visit "/current_scope/roles/new"
+    fill_in "role_name", with: "New team reader"
+    fill_in "role_description", with: "Read reports for the team."
+    click_button "Create role"
+
+    assert_selector "#cs_role_errors", text: "permission limit"
+    assert_field "role_name", with: "New team reader"
+    assert_field "role_description", with: "Read reports for the team."
+    assert_unchecked_field "role_full_access", disabled: true
+    assert_not CurrentScope::Role.exists?(name: "New team reader")
+
+    fill_in "role_name", with: "Corrected team reader"
+    click_button "Create role"
+    assert_field "role_name", with: "Corrected team reader"
+    role = CurrentScope::Role.find_by!(name: "Corrected team reader")
+    assert_equal "Read reports for the team.", role.description
+    assert_empty role.permission_keys
+  ensure
+    CurrentScope.config.management_authorizer = prior
+  end
 end

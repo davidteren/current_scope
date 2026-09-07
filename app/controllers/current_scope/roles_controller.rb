@@ -30,7 +30,9 @@ module CurrentScope
       saved = false
       Role.transaction do
         FullAccessLock.lock_console_state!
-        authorize_management!(:create_role, role: @role)
+        @role_candidate = @role
+        authorize_management!(:create_role, role: @role_candidate)
+        @role_candidate = nil
         saved = @role.save
         # Fold the initial permission set into the create event — no separate
         # grid-diff event for a brand-new role.
@@ -111,10 +113,10 @@ module CurrentScope
         lock_full_access_console_state!
         @role = Role.lock.find(params[:id])
         authorize_management!(:update_role, role: @role)
-        @role_update_candidate = Role.find(@role.id)
-        @role_update_candidate.assign_attributes(permitted)
-        authorize_management!(:update_role, role: @role_update_candidate)
-        @role_update_candidate = nil
+        @role_candidate = Role.find(@role.id)
+        @role_candidate.assign_attributes(permitted)
+        authorize_management!(:update_role, role: @role_candidate)
+        @role_candidate = nil
 
         if demoting_would_lock_console?(@role, permitted)
           refused = true
@@ -184,13 +186,13 @@ module CurrentScope
     end
 
     def current_scope_render_denied(reason = nil)
-      # Only a refused proposal keeps the editor. The stored-role check runs
-      # before this candidate exists; entry and stored-role denials stay closed.
-      return super unless reason == :management_denied && @role_update_candidate && request.format.html?
+      # Only a refused proposal keeps the form. Entry and stored-role checks
+      # run before this candidate exists, so their denials stay closed.
+      return super unless reason == :management_denied && @role_candidate && request.format.html?
 
-      @role = @role_update_candidate
+      @role = @role_candidate
       @role.errors.add(:base, "This change is outside your administration permissions or permission limit. Correct the role details or selected permissions and try again.")
-      render_role_form(:edit, status: :forbidden)
+      render_role_form(@role.persisted? ? :edit : :new, status: :forbidden)
     end
 
     def assign_grantable_roles_declared

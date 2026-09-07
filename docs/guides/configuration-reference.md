@@ -240,6 +240,20 @@ recipient order is lexical by `[subject.class.base_class.name, subject.id.to_s]`
 so an integer id of `10` precedes `2`. Host transactions that lock several
 recipients and then grant roles should use the same order to avoid lock cycles.
 
+Role saves and direct permission-row writes lock the affected role. In a host
+transaction that changes several roles, lock all affected roles in ascending
+database `id` order before the first write; do not use name or input order.
+For example, use `CurrentScope::Role.where(id: role_ids).order(:id).lock.load`
+inside the transaction, after any recipient locks. A permission-row write
+counts as a write to its parent role for this ordering rule.
+
+Role deletion, definition import, and console mutations lock the entire role
+set in that same order. If a host transaction combines those operations with
+direct role or permission writes, acquire the entire role set first with
+`CurrentScope::Role.order(:id).lock.load`, after any recipient locks. Taking
+one role lock first and then requesting lower role ids can deadlock with a
+concurrent console write on databases with row locking.
+
 ## Resource permission ceilings
 
 **`current_scope_grantable_permissions`** limits the permission keys a role may

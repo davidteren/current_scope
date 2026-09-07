@@ -205,7 +205,12 @@ module CurrentScope
       if !klass.try(:current_scope_grantable_permissions).nil? &&
           (!klass.respond_to?(:current_scope_grants_role_permissions?) ||
             !Role.uncached { klass.current_scope_grants_role_permissions?(checked_role) })
-        errors.add(:role, "cannot be granted on #{klass.name}: use a permission bundle within its permission ceiling, without full access")
+        explanation = if Array(klass.current_scope_grantable_permissions).empty?
+          "its permission ceiling accepts no scoped roles"
+        else
+          "use a permission bundle within its permission ceiling, without full access"
+        end
+        errors.add(:role, "cannot be granted on #{klass.name}: #{explanation}")
         return
       end
 

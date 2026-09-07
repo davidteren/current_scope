@@ -98,6 +98,34 @@ class DefinitionsTaskTest < ActiveSupport::TestCase
     assert_match(/FILE is required/, error.message)
   end
 
+  test "import reports a scoped permission ceiling refusal and preserves the undo point" do
+    previous_ceiling = Project.current_scope_grantable_permissions
+    Project.current_scope_grantable_permissions = [ "reports#index" ]
+    project = Project.create!(name: "Restricted project")
+    CurrentScope::ScopedRoleAssignment.create!(subject: @user, resource: project, role: @editor)
+    ENV["FILE"] = @file
+    invoke("current_scope:definitions:export")
+    document = CurrentScope::DefinitionsDocument.parse(@file)
+    edited = document.roles.map do |role|
+      role.name == "Editor" ? role.with(permission_keys: [ "reports#index", "reports#approve" ]) : role
+    end
+    File.write(@file, CurrentScope::DefinitionsDocument.new(edited).to_yaml)
+    undo = "#{@file}.pre.yml"
+    File.write(undo, "previous undo point")
+    ENV["CONFIRM"] = "1"
+    ENV["ACTOR_ID"] = @user.id.to_s
+
+    assert_no_difference -> { CurrentScope::Event.count } do
+      error = assert_raises(SystemExit) { invoke("current_scope:definitions:import") }
+      assert_not error.success?
+      assert_match(/remove incompatible grants first/i, error.message)
+    end
+    assert_equal [ "reports#index" ], @editor.reload.permission_keys
+    assert_equal "previous undo point", File.read(undo)
+  ensure
+    Project.current_scope_grantable_permissions = previous_ceiling
+  end
+
   test "import with CONFIRM applies and writes a snapshot beside FILE" do
     ENV["FILE"] = @file
     invoke("current_scope:definitions:export")

@@ -247,6 +247,12 @@ For example, use `CurrentScope::Role.where(id: role_ids).order(:id).lock.load`
 inside the transaction, after any recipient locks. A permission-row write
 counts as a write to its parent role for this ordering rule.
 
+Compatibility validation can also acquire these role locks during `valid?` on
+`Role`, `RolePermission`, or `ScopedRoleAssignment`, even when no save follows.
+Inside an open host transaction, the database retains the locks until that
+transaction ends. Apply the same lock order before validation, and keep the
+transaction short; do not treat `valid?` as a lock-free preview.
+
 Role deletion, definition import, and console mutations lock the entire role
 set in that same order. If a host transaction combines those operations with
 direct role or permission writes, acquire the entire role set first with

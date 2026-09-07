@@ -122,6 +122,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pilots.
 
 ### Fixed
+
+- Report scoped permission validation failures from role-definition import and rollback as actionable command errors while preserving the transaction and undo snapshot.
+- Explain that an empty resource permission ceiling accepts no scoped roles.
 - Role creation now returns a create-only administrator to the role list with
   the success notice, while administrators who can edit still reach the editor.
 - Disabled role-deletion controls now explain the administration-permission

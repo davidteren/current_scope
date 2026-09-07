@@ -84,6 +84,14 @@ class PermissionScopedRolesTest < ActiveSupport::TestCase
     assert Project.current_scope_locked_down?
   end
 
+  test "an empty permission ceiling explains that no scoped role is accepted" do
+    Project.current_scope_grantable_permissions = []
+    grant = CurrentScope::ScopedRoleAssignment.new(subject: @user, resource: @report, role: @role)
+
+    assert_not grant.save
+    assert_includes grant.errors.full_messages.to_sentence, "its permission ceiling accepts no scoped roles"
+  end
+
   test "mixed and full access bundles are refused" do
     [ { permission_keys: [ "reports#show", "reports#approve" ] }, { full_access: true } ].each do |attributes|
       @role.update!(attributes)

@@ -989,7 +989,8 @@ namespace :current_scope do
       )
       puts rolling_back ? "Rolled back role definitions from #{path}." : "Applied role definitions from #{path}."
       puts "Undo point written to #{undo_path}."
-    rescue CurrentScope::DefinitionsDocument::Error, CurrentScope::ConfigurationError => e
+    rescue CurrentScope::DefinitionsDocument::Error, CurrentScope::ConfigurationError,
+           ActiveRecord::RecordInvalid => e
       abort e.message
     end
 

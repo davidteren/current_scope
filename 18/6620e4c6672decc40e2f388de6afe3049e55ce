@@ -1,0 +1,24 @@
+CHANGELOG.md
+  h_e8a5bb9272fa34 125-128
+app/controllers/current_scope/role_assignments_controller.rb
+  h_e8a5bb9272fa34 38,48,107-114
+app/models/current_scope/role_permission.rb
+  h_e8a5bb9272fa34 20-24
+app/models/current_scope/scoped_role_assignment.rb
+  h_e8a5bb9272fa34 192-196
+test/integration/management_query_growth_test.rb
+  h_e8a5bb9272fa34 31-48
+test/models/permission_scoped_roles_test.rb
+  h_e8a5bb9272fa34 14-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "186620e4c6672decc40e2f388de6afe3049e55ce",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

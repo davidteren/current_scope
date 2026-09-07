@@ -1,0 +1,24 @@
+STATUS.md
+  h_e8a5bb9272fa34 3-10
+app/models/current_scope/role.rb
+  h_e8a5bb9272fa34 51,59-63,121-130,166,199
+app/views/current_scope/roles/edit.html.erb
+  h_e8a5bb9272fa34 29-32
+test/integration/delegated_management_test.rb
+  h_e8a5bb9272fa34 33-47
+test/models/permission_scoped_roles_test.rb
+  h_e8a5bb9272fa34 37-47
+test/resolver_memoization_test.rb
+  h_e8a5bb9272fa34 78-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "e69c80aacbfc9c16c1faa65aba31586f13b1a56b",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

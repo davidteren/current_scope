@@ -1,0 +1,26 @@
+app/controllers/current_scope/application_controller.rb
+  h_e8a5bb9272fa34 64-90
+app/controllers/current_scope/role_assignments_controller.rb
+  h_e8a5bb9272fa34 81,83,103-104
+app/controllers/current_scope/scoped_role_assignments_controller.rb
+  h_e8a5bb9272fa34 114,117,121-122
+app/models/current_scope/role.rb
+  h_e8a5bb9272fa34 148-149,152-154
+test/integration/management_lock_order_test.rb
+  h_e8a5bb9272fa34 33,51,60
+test/integration/subject_revocation_locking_test.rb
+  h_e8a5bb9272fa34 1-206
+test/resolver_memoization_test.rb
+  h_e8a5bb9272fa34 113-159
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "0b8e277c41b6a6f9986fd9936b7c8e02fe0379a3",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

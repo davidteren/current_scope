@@ -73,7 +73,8 @@ module CurrentScope
         inherited_keys = inherited.distinct.pluck(:subject_type, :subject_id).map { |type, id| [ type, id.to_s ] }.to_set
         allowed.concat(remaining.select { |subject| inherited_keys.include?(subject_key(subject)) })
       end
-      candidates.select { |subject| allowed.include?(subject) }
+      allowed_keys = allowed.map { |subject| subject_key(subject) }.to_set
+      candidates.select { |subject| allowed_keys.include?(subject_key(subject)) }
     end
 
     # Internal decision: returns [allowed_bool, reason_or_nil]. The reason is a

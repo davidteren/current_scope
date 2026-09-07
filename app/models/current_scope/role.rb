@@ -95,6 +95,23 @@ module CurrentScope
       super
     end
 
+    # Checks the proposed bundle without writing it. Join-row writes use the
+    # same ceiling check as permission_keys= while holding the parent role lock.
+    def incompatible_scoped_resource_class
+      scoped_role_assignments.find_in_batches do |assignments|
+        ScopedRoleAssignment.preload_resolvable_resources!(assignments)
+        assignments.each do |assignment|
+          klass = assignment.current_scope_governing_class
+          if klass.respond_to?(:current_scope_grantable_permissions) &&
+              !klass.current_scope_grantable_permissions.nil? &&
+              !klass.current_scope_grants_role?(self)
+            return klass
+          end
+        end
+      end
+      nil
+    end
+
     private
 
     def lock_for_destroy
@@ -109,19 +126,9 @@ module CurrentScope
       return unless persisted?
       return unless full_access_changed? || !@pending_permission_keys.nil?
 
-      scoped_role_assignments.find_in_batches do |assignments|
-        ScopedRoleAssignment.preload_resolvable_resources!(assignments)
-        incompatible = assignments.find do |assignment|
-          klass = assignment.current_scope_governing_class
-          klass.respond_to?(:current_scope_grantable_permissions) &&
-            !klass.current_scope_grantable_permissions.nil? &&
-            !klass.current_scope_grants_role?(self)
-        end
-        next unless incompatible
-
-        klass = incompatible.current_scope_governing_class
+      klass = incompatible_scoped_resource_class
+      if klass
         errors.add(:permission_keys, "cannot change while this role has scoped grants on #{klass.name}; remove incompatible grants first")
-        break
       end
     end
 

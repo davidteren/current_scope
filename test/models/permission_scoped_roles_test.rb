@@ -75,4 +75,24 @@ class PermissionScopedRolesTest < ActiveSupport::TestCase
     assert_not @role.reload.full_access?
     assert @role.update(name: "Renamed viewer", permission_keys: [ "reports#index", "reports#show" ])
   end
+  test "direct permission creation and replacement cannot widen a scoped grant" do
+    CurrentScope::ScopedRoleAssignment.create!(subject: @user, resource: @report, role: @role)
+    added = @role.role_permissions.build(permission_key: "reports#approve")
+    assert_not added.save
+    assert_equal [ "reports#show" ], @role.reload.permission_keys
+    permission = @role.role_permissions.first
+    assert_not permission.update(permission_key: "reports#approve")
+    assert_equal "reports#show", permission.reload.permission_key
+    assert_not CurrentScope.allowed?("reports#approve", subject: @user, record: @report)
+    assert @role.role_permissions.create!(permission_key: "reports#index").persisted?
+  end
+
+  test "moving a permission checks the destination role ceiling atomically" do
+    CurrentScope::ScopedRoleAssignment.create!(subject: @user, resource: @report, role: @role)
+    source = CurrentScope::Role.create!(name: "Approver", permission_keys: [ "reports#approve" ])
+    permission = source.role_permissions.first
+    assert_not permission.update(role: @role)
+    assert_equal source.id, permission.reload.role_id
+    assert_equal [ "reports#show" ], @role.reload.permission_keys
+  end
 end

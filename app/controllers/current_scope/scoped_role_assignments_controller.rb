@@ -81,10 +81,12 @@ module CurrentScope
       # concurrent-duplicate race without poisoning the outer transaction, while
       # a genuine RecordInvalid rolls the entire batch back.
       ScopedRoleAssignment.transaction do
+        # Host transactions can update recipients before granting access.
+        # Take these locks first, in stable order, then roles and assignments.
+        subjects.sort_by { |subject| [ subject.class.base_class.name, subject.id.to_s ] }.each(&:lock!)
         FullAccessLock.lock_console_state!
         role.lock!
         subjects.each do |subject|
-          subject.lock!
           authorize_management!(:assign_scoped_role, role: role, target: subject)
           granted += 1 if grant_one(subject, resource, role)
         end

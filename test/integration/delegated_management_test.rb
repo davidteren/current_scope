@@ -7,8 +7,11 @@ class DelegatedManagementTest < ActionDispatch::IntegrationTest
     @role = CurrentScope::Role.create!(name: "Editable", permission_keys: [ "reports#index" ])
     @protected = CurrentScope::Role.create!(name: "Protected", full_access: true)
     @original_authorizer = CurrentScope.config.respond_to?(:management_authorizer) ? CurrentScope.config.management_authorizer : nil
+    @management_calls = []
+    @allowed_actions = %i[access create_role update_role destroy_role assign_role revoke_role assign_scoped_role revoke_scoped_role]
     CurrentScope.config.management_authorizer = ->(subject, action:, role: nil, target: nil) do
-      subject == @admin && (!role || (!role.full_access? && (role.permission_keys - [ "reports#index" ]).empty?)) && target != @admin
+      @management_calls << [ action, role&.name, role&.permission_keys, target ]
+      @allowed_actions.include?(action) && subject == @admin && (!role || (!role.full_access? && (role.permission_keys - [ "reports#index" ]).empty?)) && target != @admin
     end
   end
 
@@ -70,5 +73,48 @@ class DelegatedManagementTest < ActionDispatch::IntegrationTest
     post current_scope.role_assignments_url, params: { subject_gids: [ @member.to_gid.to_s, @admin.to_gid.to_s ], role_id: @role.id }, headers: headers
     assert_response :forbidden
     assert_equal 0, CurrentScope::RoleAssignment.where(role: @role).count
+  end
+  test "each write requires its specific management action" do
+    project = Project.create!(name: "Project")
+    expect_action(:create_role) do
+      post current_scope.roles_url, params: { role: { name: "Action role", permission_keys: [ "reports#index" ] } }, headers: headers
+    end
+    role = CurrentScope::Role.find_by!(name: "Action role")
+    expect_action(:update_role) do
+      patch current_scope.role_url(role), params: { role: { name: "Changed action role", permission_keys: [] } }, headers: headers
+    end
+    updates = @management_calls.select { |call| call.first == :update_role }
+    assert_includes updates.map { |call| call[1..2] }, [ "Action role", [ "reports#index" ] ]
+    assert_includes updates.map { |call| call[1..2] }, [ "Changed action role", [] ]
+    expect_action(:assign_role) do
+      post current_scope.role_assignments_url, params: { subject_gid: @member.to_gid.to_s, role_id: role.id }, headers: headers
+    end
+    expect_action(:revoke_role) do
+      post current_scope.role_assignments_url, params: { subject_gid: @member.to_gid.to_s, role_id: @role.id }, headers: headers
+    end
+    assert_equal @role, CurrentScope::RoleAssignment.find_by!(subject: @member).role
+    org = CurrentScope::RoleAssignment.find_by!(subject: @member)
+    expect_action(:revoke_role) { delete current_scope.role_assignment_url(org), headers: headers }
+    expect_action(:assign_scoped_role) do
+      post current_scope.scoped_role_assignments_url, params: { subject_gid: @member.to_gid.to_s, resource_gid: project.to_gid.to_s, role_id: @role.id }, headers: headers
+    end
+    scoped = CurrentScope::ScopedRoleAssignment.find_by!(subject: @member)
+    expect_action(:revoke_scoped_role) { delete current_scope.scoped_role_assignment_url(scoped), headers: headers }
+    expect_action(:destroy_role) { delete current_scope.role_url(role), headers: headers }
+  end
+
+  private
+
+  def expect_action(action)
+    @allowed_actions.delete(action)
+    @management_calls.clear
+    yield
+    assert_response :forbidden
+    assert_includes @management_calls.map(&:first), action
+    @allowed_actions << action
+    @management_calls.clear
+    yield
+    assert_response :redirect
+    assert_includes @management_calls.map(&:first), action
   end
 end

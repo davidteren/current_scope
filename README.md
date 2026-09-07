@@ -509,10 +509,12 @@ cache, so later checks in the same operation see the current database state.
 Direct SQL and callback-skipping writes must explicitly call
 `CurrentScope::Current.reset_org_role_cache` before checking permissions again.
 
-Console mutations lock all role rows in ID order before assignments and subjects.
-This serializes role administration to prevent deadlocks between grants,
-revocations, and role deletion cascades. It trades concurrent administration
-throughput for predictable locking; ordinary authorization reads are unaffected.
+Grant operations lock recipients in a stable order before roles and assignments,
+matching host transactions that update a recipient before creating a grant.
+All console mutations lock role rows in ID order before assignment rows.
+This serializes role administration; ordinary authorization reads are unaffected.
+Direct permission-row saves check existing resource ceilings under the same
+parent-role lock used by scoped grant validation.
 Scoped assignment validation reads the locked stored role separately, preserving
 any unsaved role edits held by the caller. Permission-based resource declarations
 also accept an existing role name through `current_scope_grants_role?`.

@@ -13,8 +13,8 @@ module CurrentScope
     # transaction.
     def lock_console_state!(planned_fa_names = [])
       # Console writes are rare and the role set is small. Locking the whole
-      # set first prevents inversions between target roles, subjects, and
-      # assignment cascades. All console mutation paths use this order.
+      # set before assignments prevents inversions in assignment cascades.
+      # Grant controllers lock their recipient rows before entering this method.
       Role.order(:id).lock.load
       ids = RoleAssignment.joins(:role)
         .where(current_scope_roles: { full_access: true })

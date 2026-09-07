@@ -23,10 +23,12 @@ module CurrentScope
       changed = 0
       refused = false
       RoleAssignment.transaction do
+        # Host transactions can update recipients before granting access.
+        # Take these locks first, in stable order, then roles and assignments.
+        subjects.sort_by { |subject| [ subject.class.base_class.name, subject.id.to_s ] }.each(&:lock!)
         lock_full_access_org_holders!
 
         subjects.each do |subject|
-          subject.lock!
           previous = RoleAssignment.lock.find_by(subject: subject)&.role
           previous&.lock!
           authorize_management!(:revoke_role, role: previous, target: subject) if previous || clearing
@@ -40,8 +42,7 @@ module CurrentScope
           refused = true
         else
           subjects.each do |subject|
-            subject.lock!
-            assignment = RoleAssignment.lock.find_or_initialize_by(subject: subject)
+              assignment = RoleAssignment.lock.find_or_initialize_by(subject: subject)
             prior_role = assignment.role # nil for a brand-new assignment
             prior_role&.lock!
             authorize_management!(:revoke_role, role: prior_role, target: subject) if prior_role || clearing

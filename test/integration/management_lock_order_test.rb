@@ -24,12 +24,18 @@ class ManagementLockOrderTest < ActionDispatch::IntegrationTest
 
   teardown { Thread.current[:management_lock_observation] = nil }
 
-  def observe_locks
+  def observe_locks(subject_first: false)
     Thread.current[:management_lock_observation] = []
     yield
     locks = Thread.current[:management_lock_observation]
+    if subject_first
+      assert_equal [ "User", false, false, true ], locks.shift,
+        "grant writes must lock recipients before roles, matching host subject updates"
+    end
     assert_equal [ "CurrentScope::Role", true, true, true ], locks.first,
-      "every console mutation must first lock all roles in order inside its transaction"
+      "role locks must precede assignment locks"
+    assert_not locks.drop(1).any? { |lock| lock.first == "User" },
+      "no recipient lock may follow role locks"
   ensure
     Thread.current[:management_lock_observation] = nil
   end
@@ -37,7 +43,7 @@ class ManagementLockOrderTest < ActionDispatch::IntegrationTest
   def headers = { "X-User-Id" => @owner.id.to_s }
 
   test "org and scoped assignment paths take the same first lock" do
-    observe_locks do
+    observe_locks(subject_first: true) do
       post current_scope.role_assignments_url, params: { subject_gid: @member.to_gid.to_s, role_id: @role.id }, headers: headers
       assert_response :redirect
     end
@@ -46,7 +52,7 @@ class ManagementLockOrderTest < ActionDispatch::IntegrationTest
       delete current_scope.role_assignment_url(org), headers: headers
       assert_response :redirect
     end
-    observe_locks do
+    observe_locks(subject_first: true) do
       post current_scope.scoped_role_assignments_url, params: { subject_gid: @member.to_gid.to_s, role_id: @role.id, resource_gid: @project.to_gid.to_s }, headers: headers
       assert_response :redirect
     end

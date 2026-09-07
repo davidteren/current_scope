@@ -1,0 +1,24 @@
+CHANGELOG.md
+  h_e8a5bb9272fa34 125-128
+app/controllers/current_scope/roles_controller.rb
+  h_e8a5bb9272fa34 48-49
+app/views/current_scope/roles/index.html.erb
+  h_e8a5bb9272fa34 34,48,50,52-54
+docs/guides/configuration-reference.md
+  h_e8a5bb9272fa34 322-324
+test/integration/delegated_management_test.rb
+  h_e8a5bb9272fa34 28,34-47
+test/system/role_editing_test.rb
+  h_e8a5bb9272fa34 20-23,37-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "44c57bf5a7a76820aebb6b0d4513c2a5348868a9",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

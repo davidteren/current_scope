@@ -26,6 +26,11 @@ class HostGrantConcurrencyTest < ActionDispatch::IntegrationTest
   test "host recipient updates and console scoped grants finish without deadlock" do
     skip "requires PostgreSQL row locks" unless ActiveRecord::Base.connection.adapter_name == "PostgreSQL"
 
+    original_ceiling = Project.current_scope_grantable_permissions
+    # A declared ceiling makes the host grant lock its role for validation.
+    # Undeclared resources intentionally skip that unnecessary role query.
+    Project.current_scope_grantable_permissions = [ "reports#show" ]
+    ceiling_configured = true
     owner = User.create!(name: "Concurrent owner")
     member = User.create!(name: "Concurrent member")
     project = Project.create!(name: "Concurrent project")
@@ -65,6 +70,7 @@ class HostGrantConcurrencyTest < ActionDispatch::IntegrationTest
   ensure
     Array(threads).each { |thread| thread.kill if thread.alive? }
     Array(threads).each(&:join)
+    Project.current_scope_grantable_permissions = original_ceiling if ceiling_configured
     if owner
       targets = [ owner, member, role, owner_role ].compact.map { |record| record.to_gid.to_s }
       CurrentScope::Event.where(target: targets).delete_all

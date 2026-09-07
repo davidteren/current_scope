@@ -25,7 +25,12 @@ module CurrentScope
       RoleAssignment.transaction do
         # Host transactions can update recipients before granting access.
         # Take these locks first, in stable order, then roles and assignments.
-        subjects.sort_by { |subject| [ subject.class.base_class.name, subject.id.to_s ] }.each(&:lock!)
+        # Host load callbacks may leave defaults unsaved, so lock a fresh query
+        # result instead of calling lock! on the located object. Use that
+        # result for policy checks so changes before the lock are not missed.
+        subjects = subjects.sort_by { |subject| [ subject.class.base_class.name, subject.id.to_s ] }.map do |subject|
+          subject_class.lock.find(subject.id)
+        end
         lock_full_access_org_holders!
 
         subjects.each do |subject|

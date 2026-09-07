@@ -168,13 +168,13 @@ module CurrentScope
       def current_scope_grants_role?(role)
         raise ArgumentError, "current_scope_grants_role? needs a role; nil is not one" if role.nil?
 
-        ceiling = current_scope_grantable_permissions
-        unless ceiling.nil?
-          role = CurrentScope::Role.find_by(name: role.to_s) if role.is_a?(String) || role.is_a?(Symbol)
-          return false unless role.respond_to?(:permission_keys) && role.respond_to?(:full_access?)
-          keys = role.permission_keys
-          return false if role.full_access? || ceiling.empty? || (keys - ceiling).any?
+        # Retain the saved name for the admission check after a name lookup.
+        # Some adapters match the lookup with a case-insensitive collation.
+        if !current_scope_grantable_permissions.nil? && (role.is_a?(String) || role.is_a?(Symbol))
+          role = CurrentScope::Role.find_by(name: role.to_s)
+          return false if role.nil?
         end
+        return false unless current_scope_grants_role_permissions?(role)
 
         allowed = current_scope_grantable_roles
         return true if allowed.nil?
@@ -184,6 +184,20 @@ module CurrentScope
         # by name is the first thing to try (#183).
         name = role.respond_to?(:name) ? role.name : role.to_s
         name.present? && allowed.include?(name)
+      end
+
+      # Permission compatibility for an existing scoped holder. Name admission
+      # remains separate: renaming does not rewrite or revoke existing grants.
+      def current_scope_grants_role_permissions?(role)
+        raise ArgumentError, "current_scope_grants_role_permissions? needs a role; nil is not one" if role.nil?
+
+        ceiling = current_scope_grantable_permissions
+        return true if ceiling.nil?
+
+        role = CurrentScope::Role.find_by(name: role.to_s) if role.is_a?(String) || role.is_a?(Symbol)
+        return false unless role.respond_to?(:permission_keys) && role.respond_to?(:full_access?)
+
+        !role.full_access? && !ceiling.empty? && (role.permission_keys - ceiling).empty?
       end
 
       private

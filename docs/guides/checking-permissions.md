@@ -322,6 +322,11 @@ renaming a role stops the declarations that name it from matching, and a new rol
 that reuses the name inherits its acceptance. If you rename a role, grep for its
 old name in your models, and run `bin/rails current_scope:report`: it lists the
 grants whose type would refuse them today, which is where a rename shows up.
+A rename is allowed through both the model API and the console, including when
+the console submits an unchanged permission bundle. Existing grants remain in
+place. Later bundle edits must stay within their resource permission ceilings;
+the old name list does not prevent a safe bundle edit. A custom host
+`current_scope_grants_role?` override still controls compatibility checks.
 
 Adding a declaration does not rewrite or delete any grant already in the table.
 It does apply the next time such a row is **saved**, though: the check runs on

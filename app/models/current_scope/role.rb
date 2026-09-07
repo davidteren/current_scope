@@ -118,7 +118,15 @@ module CurrentScope
             !klass.current_scope_grantable_permissions.nil?
 
           comparison_role ||= role_for_scoped_compatibility
-          return klass unless klass.current_scope_grants_role?(comparison_role)
+          predicate = klass.method(:current_scope_grants_role?)
+          # The default name list controls assignment writes, not role renames.
+          # Preserve custom predicates, including hosts without GrantableRoles.
+          allowed = if predicate.owner == GrantableRoles::ClassMethods
+            klass.current_scope_grants_role_permissions?(comparison_role)
+          else
+            predicate.call(comparison_role)
+          end
+          return klass unless allowed
         end
       end
       nil
@@ -159,9 +167,9 @@ module CurrentScope
       return unless persisted?
       return unless full_access_changed? || !@pending_permission_keys.nil?
       # The console submits the whole bundle even when nothing changed. Compare
-      # uncached rows under the role lock; an association or SQL cache may be stale. Keep
-      # checking renames because a ceiling can also restrict eligible names.
-      if !full_access_changed? && !name_changed? &&
+      # uncached rows under the role lock; an association or SQL cache may be stale.
+      # A rename alone follows the documented warning, not permission validation.
+      if !full_access_changed? &&
           @pending_permission_keys.sort == self.class.uncached { role_permissions.where(nil).pluck(:permission_key).sort }
         return
       end

@@ -230,6 +230,27 @@ class PermissionScopedRolesTest < ActiveSupport::TestCase
     assert_demotion_checks_stored_permissions(loaded: false)
   end
 
+  test "renaming a held role preserves name admission rules without blocking safe bundle edits" do
+    declare_grantable_roles(Project, [ @role.name ])
+    grant = CurrentScope::ScopedRoleAssignment.create!(subject: @user, resource: @report, role: @role)
+    assert @role.update(name: "First rename")
+    assert @role.update(name: "Console rename", permission_keys: [ "reports#show" ]), @role.errors.full_messages.join(", ")
+    assert CurrentScope::ScopedRoleAssignment.exists?(grant.id)
+    assert_not grant.reload.valid?, "saving a scoped assignment still checks its role name"
+    assert @role.update(permission_keys: [ "reports#index" ]), @role.errors.full_messages.join(", ")
+    assert @role.role_permissions.create!(permission_key: "reports#show").persisted?
+    assert_not @role.update(permission_keys: [ "reports#approve" ])
+    assert_equal [ "reports#index", "reports#show" ], @role.reload.permission_keys.sort
+    assert_not @role.update(full_access: true)
+    @role.reload
+
+    Project.define_singleton_method(:current_scope_grants_role?) { |_role| false }
+    custom_rule = true
+    assert_not @role.update(permission_keys: [ "reports#show" ]), "a host override remains authoritative"
+  ensure
+    Project.singleton_class.send(:remove_method, :current_scope_grants_role?) if custom_rule
+  end
+
   private
 
   def assert_demotion_checks_stored_permissions(loaded:)

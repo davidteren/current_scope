@@ -24,6 +24,26 @@ class RoleGridTest < ActionDispatch::IntegrationTest
     assert_select "#cs_role_rename_hint"
   end
 
+  test "the console permits a held role rename with its unchanged permission group" do
+    original = Project.current_scope_grantable_permissions
+    Project.current_scope_grantable_permissions = [ "reports#index", "reports#show" ]
+    declare_grantable_roles(Project, [ @role.name ])
+    @role.update!(permission_keys: [ "reports#index", "reports#show" ])
+    project = Project.create!(name: "Renamed role project")
+    grant = CurrentScope::ScopedRoleAssignment.create!(subject: @owner, role: @role, resource: project)
+
+    patch current_scope.role_url(@role), headers: as(@owner),
+      params: { role: { name: "Renamed editor", full_access: "0", permission_groups: [ "reports:read" ] } }
+
+    assert_redirected_to current_scope.roles_path
+    assert_equal "Renamed editor", @role.reload.name
+    assert_equal [ "reports#index", "reports#show" ], @role.permission_keys.sort
+    assert CurrentScope::ScopedRoleAssignment.exists?(grant.id)
+    assert_not grant.reload.valid?
+  ensure
+    Project.current_scope_grantable_permissions = original
+  end
+
   # A rename that fails validation re-renders this form, which is the worst
   # place to lose the warning about what renaming does (#183).
   test "the rename warning survives a failed rename" do

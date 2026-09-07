@@ -260,7 +260,11 @@ strings. A subclass inherits the declaration unless it supplies its own;
 `nil` means inherit, or no ceiling when no ancestor declares one. `[]` refuses
 every role. A nonempty ceiling accepts an empty role bundle, but always refuses
 `full_access` roles. If `current_scope_grantable_roles` also lists allowed role
-names, the role must satisfy both declarations.
+names, a scoped assignment write must satisfy both declarations. For existing
+holders, `current_scope_grants_role_permissions?(role)` checks the permission
+ceiling alone; the default name list does not block a role rename or safe bundle
+edit. Hosts that override `current_scope_grants_role?` retain their custom
+compatibility rule.
 
 Scoped-assignment validation checks the saved bundle for an existing role and
 the proposed bundle for a new role before it is saved. Role bundle edits and

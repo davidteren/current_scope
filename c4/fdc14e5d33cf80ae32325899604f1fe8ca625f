@@ -1,0 +1,23 @@
+docs/site/assets/css/cs-identity.css
+  s_d9d6309a76b6a2::t_7db62364cfd3f0 1-106
+docs/site/favicon.svg
+  s_d9d6309a76b6a2::t_52cafdf8af2358 2-6
+docs/site/assets/og-grid-164.svg
+  s_d9d6309a76b6a2::t_6ef693e3414d24 1-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "c4fdc14e5d33cf80ae32325899604f1fe8ca625f",
+  "prompts": {},
+  "sessions": {
+    "s_d9d6309a76b6a2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a08252-3ada-74c3-b349-e110d0211974",
+        "model": "unknown"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CurrentScope: Authorization as data you edit in a UI, for Rails</title>
 <meta name="description" content="CurrentScope is a mountable Rails engine: permissions auto-derived from your routes, roles as editable data, per-record scoped roles, a separation-of-duties veto, and one ambient context that makes allowed_to? work identically in controllers, views, and components.">
-<meta name="theme-color" content="#080a10" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#071412" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f2f7f5" media="(prefers-color-scheme: light)">
 <link rel="canonical" href="https://davidteren.github.io/current_scope/">
 <meta name="color-scheme" content="dark light">
 <script>
@@ -18,10 +18,13 @@
   }
 })();
 </script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Recursive:wght@360;480;640;800;1000&display=swap" rel="stylesheet">
 
 <!-- icons -->
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="mask-icon" href="favicon.svg" color="#4d7cfe">
+<link rel="mask-icon" href="favicon.svg" color="#2ec9a8">
 <link rel="apple-touch-icon" href="favicon.svg">
 
 <!-- Open Graph -->
@@ -30,7 +33,7 @@
 <meta property="og:title" content="CurrentScope: Authorization as data you edit in a UI">
 <meta property="og:description" content="A mountable Rails engine. Permissions auto-derived from routes, roles as editable data, scoped roles, a separation-of-duties veto, and one ambient context so allowed_to? works everywhere.">
 <meta property="og:url" content="https://davidteren.github.io/current_scope/">
-<meta property="og:image" content="https://davidteren.github.io/current_scope/assets/og.png">
+<meta property="og:image" content="https://davidteren.github.io/current_scope/assets/og-grid-164.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="CurrentScope: authorization as data you edit in a UI, not rules you hardcode and redeploy.">
@@ -40,7 +43,7 @@
 <meta name="twitter:site" content="@davidteren">
 <meta name="twitter:title" content="CurrentScope: Authorization as data you edit in a UI">
 <meta name="twitter:description" content="A mountable Rails engine. Permissions from routes, roles as editable data, scoped roles, an SoD veto, and one ambient allowed_to?.">
-<meta name="twitter:image" content="https://davidteren.github.io/current_scope/assets/og.png">
+<meta name="twitter:image" content="https://davidteren.github.io/current_scope/assets/og-grid-164.png">
 
 <!-- SEO structured data -->
 <script type="application/ld+json">
@@ -60,32 +63,35 @@
 </script>
 
 <style>
+  /* Direction A: the live grid. Seed current_scope-permission-grid-2026-09-08, hue 164. */
   :root{
-    --bg:#080a10; --bg2:#0b0f18; --panel:#0f1420; --panel2:#131a28;
-    --border:#1c2434; --border2:#2a3446; --hair:#141b28;
-    --txt:#e8ebf2; --dim:#98a1b3; --faint:#8b93a4;
-    --accent:#4d7cfe; --accent2:#6b93ff; --glow:rgba(77,124,254,.55);
-    --allow:#34d399; --deny:#f2555a; --amber:#ffd479;
-    --tk-key:#c58fff; --tk-str:#7ee0a0; --tk-com:#5f6b80; --tk-meth:#6b93ff;
-    --tk-const:#ffd479; --tk-sym:#4dd0e1; --tk-punct:#8b93a4;
-    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    --mono:ui-monospace,"SF Mono","JetBrains Mono","Fira Code",Menlo,Consolas,monospace;
-    --maxw:1120px; --r:14px;
-    --shadow:0 1px 0 rgba(255,255,255,.02) inset, 0 20px 50px -20px rgba(0,0,0,.7);
-    --am-side:#12151c; --am-main:#16181f; --am-ink:#e8ebf2; --am-muted:#98a1b3;
-    --am-line:#2a3140; --am-wash:rgba(77,124,254,.22); --am-on:#fff;
+    --bg:#071412; --bg2:#0c1c19; --panel:#10241f; --panel2:#14302a;
+    --border:#1c3a33; --border2:#2a5348; --hair:#14302a;
+    --txt:#e7f6f1; --dim:#8eada4; --faint:#7a9a91;
+    --accent:#2ec9a8; --accent2:#4fd4b6; --glow:rgba(46,201,168,.45);
+    --on-accent:#04241c;
+    --allow:#2fbf8a; --deny:#e24b4f; --amber:#e0b35a;
+    --tk-key:#7ee0c4; --tk-str:#7ee0a0; --tk-com:#5f7a72; --tk-meth:#4fd4b6;
+    --tk-const:#e0b35a; --tk-sym:#4dd0e1; --tk-punct:#8eada4;
+    --sans:"Recursive",ui-sans-serif,system-ui,sans-serif;
+    --mono:"Recursive",ui-monospace,monospace;
+    --maxw:1120px; --r:8px;
+    --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 20px 50px -20px rgba(0,0,0,.7);
+    --am-side:#0c1c19; --am-main:#10241f; --am-ink:#e7f6f1; --am-muted:#8eada4;
+    --am-line:#1c3a33; --am-wash:rgba(46,201,168,.22); --am-on:#04241c;
   }
   :root[data-theme="light"]{
-    --bg:#f7f8fb; --bg2:#ffffff; --panel:#ffffff; --panel2:#f2f4f9;
-    --border:#e3e7ef; --border2:#d3d9e6; --hair:#eef1f6;
-    --txt:#111826; --dim:#4d5666; --faint:#5c6578;
-    --accent:#2f5fe0; --accent2:#3f6fee; --glow:rgba(47,95,224,.35);
-    --allow:#0f9d63; --deny:#d23b41; --amber:#a5720a;
-    --tk-key:#7c3aed; --tk-str:#0a7d43; --tk-com:#8a93a6; --tk-meth:#2f5fe0;
-    --tk-const:#9a6a05; --tk-sym:#0e7490; --tk-punct:#6b7488;
-    --shadow:0 1px 2px rgba(20,30,50,.06), 0 24px 48px -28px rgba(20,30,50,.28);
-    --am-side:#eef1f6; --am-main:#f7f8fb; --am-ink:#1a2030; --am-muted:#4d5666;
-    --am-line:#d3d9e6; --am-wash:rgba(47,95,224,.14); --am-on:#fff;
+    --bg:#f2f7f5; --bg2:#ffffff; --panel:#ffffff; --panel2:#e7f1ed;
+    --border:#c5d8d1; --border2:#a9c4ba; --hair:#dceae4;
+    --txt:#10221c; --dim:#3f5c54; --faint:#5a746c;
+    --accent:#0d7a66; --accent2:#0f8d76; --glow:rgba(13,122,102,.28);
+    --on-accent:#f3fffb;
+    --allow:#0b8a5c; --deny:#c43338; --amber:#a5720a;
+    --tk-key:#0d7a66; --tk-str:#0a7d43; --tk-com:#8a93a6; --tk-meth:#0d7a66;
+    --tk-const:#9a6a05; --tk-sym:#0e7490; --tk-punct:#5a746c;
+    --shadow:0 1px 2px rgba(16,34,28,.06), 0 24px 48px -28px rgba(16,34,28,.22);
+    --am-side:#e7f1ed; --am-main:#f2f7f5; --am-ink:#10221c; --am-muted:#3f5c54;
+    --am-line:#c5d8d1; --am-wash:rgba(13,122,102,.14); --am-on:#f3fffb;
   }
 
   *{box-sizing:border-box}
@@ -116,14 +122,15 @@
     background:radial-gradient(circle,var(--glow),transparent 62%);opacity:.5;filter:blur(20px)}
   .bgfx .grid{position:absolute;inset:0;
     background-image:linear-gradient(var(--hair) 1px,transparent 1px),linear-gradient(90deg,var(--hair) 1px,transparent 1px);
-    background-size:52px 52px; -webkit-mask-image:radial-gradient(circle at 70% 12%,#000,transparent 68%);
+    background-size:28px 28px; -webkit-mask-image:radial-gradient(circle at 70% 12%,#000,transparent 68%);
     mask-image:radial-gradient(circle at 70% 12%,#000,transparent 68%); opacity:.6}
 
   /* ---- header ---- */
   header{position:sticky;top:0;z-index:50;backdrop-filter:blur(12px);overflow:visible;
     background:color-mix(in srgb,var(--bg) 72%,transparent);border-bottom:1px solid var(--border)}
   .nav{display:flex;align-items:center;gap:16px;height:62px}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;letter-spacing:-.01em}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;letter-spacing:-.01em;color:var(--txt)}
+  .brand svg{color:var(--accent)}
   .brand svg{display:block}
   .nav .links{display:flex;gap:18px;margin-left:10px;flex-wrap:wrap}
   .nav .links a{color:var(--dim);font-size:14px;font-weight:500;transition:color .15s}
@@ -183,7 +190,7 @@
   main p.cta-more a:hover{color:var(--txt);border-color:var(--accent)}
   .btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14.5px;
     padding:11px 16px;border-radius:11px;border:1px solid transparent;transition:.16s;cursor:pointer}
-  .btn.primary{background:var(--accent);color:#fff;box-shadow:0 8px 24px -8px var(--glow)}
+  .btn.primary{background:var(--accent);color:var(--on-accent);box-shadow:0 8px 24px -8px var(--glow)}
   .btn.primary:hover{background:var(--accent2);transform:translateY(-1px)}
   .btn.ghost{border-color:var(--border2);color:var(--txt);background:var(--panel)}
   /* A .btn inside a <p> in <main> picks up the underline from
@@ -219,6 +226,7 @@
     box-shadow:var(--shadow);overflow:hidden;display:grid;grid-template-columns:148px 1fr;min-height:420px;color:var(--am-ink)}
   .am-side{background:var(--am-side);border-right:1px solid var(--am-line);padding:16px 12px;display:flex;flex-direction:column;gap:6px}
   .am-brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;margin:0 4px 14px}
+  .am-brand svg{color:var(--accent)}
   .am-nav{display:flex;flex-direction:column;gap:4px}
   .am-nav span{display:block;padding:8px 10px;border-radius:7px;font-size:13px;color:var(--am-muted)}
   .am-nav .on{background:var(--am-wash);color:var(--am-ink);font-weight:600}
@@ -333,7 +341,7 @@
   .term .bar{display:flex;align-items:center;gap:7px;padding:10px 13px;border-bottom:1px solid #1c2434;background:#12151c;color:#8b93a4}
   .term .bar i{width:10px;height:10px;border-radius:50%;background:#2a3140;display:block}
   .term pre{border:0;background:transparent;color:#c9d2e0;font-size:13px}
-  .term .ok{color:#7ee0a0} .term .warn{color:#ffd479} .term .hi{color:#6b93ff}
+  .term .ok{color:#7ee0a0} .term .warn{color:#ffd479} .term .hi{color:var(--accent2)}
 
   .tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
   .tab{font-family:var(--mono);font-size:13px;color:var(--dim);background:var(--panel);
@@ -434,10 +442,10 @@
   <div class="wrap nav">
     <a class="brand" href="#top" aria-label="CurrentScope home">
       <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
-        <rect x="3" y="3" width="11" height="11" rx="2.5" fill="#6b93ff"/>
-        <rect x="18" y="3" width="11" height="11" rx="2.5" fill="#4d7cfe" opacity=".28"/>
-        <rect x="3" y="18" width="11" height="11" rx="2.5" fill="#4d7cfe" opacity=".28"/>
-        <rect x="18" y="18" width="11" height="11" rx="2.5" fill="#4d7cfe" opacity=".55"/>
+        <rect x="3" y="3" width="11" height="11" rx="2.5" fill="currentColor"/>
+        <rect x="18" y="3" width="11" height="11" rx="2.5" fill="currentColor" opacity=".28"/>
+        <rect x="3" y="18" width="11" height="11" rx="2.5" fill="currentColor" opacity=".28"/>
+        <rect x="18" y="18" width="11" height="11" rx="2.5" fill="currentColor" opacity=".55"/>
       </svg>
       CurrentScope
     </a>
@@ -514,10 +522,10 @@
       <aside class="am-side">
         <div class="am-brand">
           <svg width="16" height="16" viewBox="0 0 32 32" aria-hidden="true">
-            <rect x="3" y="3" width="11" height="11" rx="2.5" fill="#6b93ff"/>
-            <rect x="18" y="3" width="11" height="11" rx="2.5" fill="#4d7cfe" opacity=".28"/>
-            <rect x="3" y="18" width="11" height="11" rx="2.5" fill="#4d7cfe" opacity=".28"/>
-            <rect x="18" y="18" width="11" height="11" rx="2.5" fill="#4d7cfe" opacity=".55"/>
+            <rect x="3" y="3" width="11" height="11" rx="2.5" fill="currentColor"/>
+            <rect x="18" y="3" width="11" height="11" rx="2.5" fill="currentColor" opacity=".28"/>
+            <rect x="3" y="18" width="11" height="11" rx="2.5" fill="currentColor" opacity=".28"/>
+            <rect x="18" y="18" width="11" height="11" rx="2.5" fill="currentColor" opacity=".55"/>
           </svg>
           CurrentScope
         </div>
@@ -1077,10 +1085,10 @@ bin/rails server    <span class="tk-com"># http://localhost:3000</span></pre>
   <div class="about">
     <a class="brand" href="#top" aria-label="CurrentScope">
       <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
-        <rect x="3" y="3" width="11" height="11" rx="2.5" fill="#6b93ff"/>
-        <rect x="18" y="3" width="11" height="11" rx="2.5" fill="#4d7cfe" opacity=".28"/>
-        <rect x="3" y="18" width="11" height="11" rx="2.5" fill="#4d7cfe" opacity=".28"/>
-        <rect x="18" y="18" width="11" height="11" rx="2.5" fill="#4d7cfe" opacity=".55"/>
+        <rect x="3" y="3" width="11" height="11" rx="2.5" fill="currentColor"/>
+        <rect x="18" y="3" width="11" height="11" rx="2.5" fill="currentColor" opacity=".28"/>
+        <rect x="3" y="18" width="11" height="11" rx="2.5" fill="currentColor" opacity=".28"/>
+        <rect x="18" y="18" width="11" height="11" rx="2.5" fill="currentColor" opacity=".55"/>
       </svg>
       CurrentScope
     </a>

@@ -1,0 +1,106 @@
+/* CurrentScope public site identity — direction A, the live grid.
+   Seed: current_scope-permission-grid-2026-09-08
+   SHA-256[:8]=65cd0b84 → hue 164 (teal). Do not regenerate at runtime. */
+:root,
+html[data-theme="dark"] {
+  --cs-bg: #071412;
+  --cs-bg2: #0c1c19;
+  --cs-panel: #10241f;
+  --cs-ink: #e7f6f1;
+  --cs-muted: #8eada4;
+  --cs-line: #1c3a33;
+  --cs-accent: #2ec9a8;
+  --cs-accent-ink: #04241c;
+  --cs-allow: #2fbf8a;
+  --cs-deny: #e24b4f;
+  --cs-font: "Recursive", ui-sans-serif, system-ui, sans-serif;
+}
+
+html[data-theme="light"] {
+  --cs-bg: #f2f7f5;
+  --cs-bg2: #ffffff;
+  --cs-panel: #ffffff;
+  --cs-ink: #10221c;
+  --cs-muted: #3f5c54;
+  --cs-line: #c5d8d1;
+  --cs-accent: #0d7a66;
+  --cs-accent-ink: #f3fffb;
+  --cs-allow: #0b8a5c;
+  --cs-deny: #c43338;
+}
+
+/* Overlay just-the-docs so the guides share the landing page's identity.
+   Loaded after the theme stylesheet from head_custom.html. */
+.side-bar,
+.main-header {
+  background-color: var(--cs-panel);
+  border-color: var(--cs-line);
+}
+body {
+  background-color: var(--cs-bg);
+  color: var(--cs-ink);
+  font-family: var(--cs-font);
+}
+.site-title,
+.site-title:hover {
+  color: var(--cs-ink);
+  font-family: var(--cs-font);
+  font-weight: 800;
+}
+.site-title::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 12px;
+  vertical-align: 1px;
+  background: var(--cs-accent);
+  box-shadow:
+    10px 0 color-mix(in srgb, var(--cs-accent) 30%, transparent),
+    0 10px color-mix(in srgb, var(--cs-accent) 30%, transparent),
+    10px 10px color-mix(in srgb, var(--cs-accent) 60%, transparent);
+}
+a,
+.nav-list .nav-list-item .nav-list-link {
+  color: var(--cs-muted);
+}
+a:hover,
+.nav-list .nav-list-item .nav-list-link:hover {
+  color: var(--cs-ink);
+}
+.nav-list .nav-list-item .nav-list-link.active {
+  color: var(--cs-ink);
+  background-image: linear-gradient(var(--cs-accent), var(--cs-accent));
+  background-size: 4px 100%;
+  font-weight: 700;
+}
+.main-content h1,
+.main-content h2,
+.main-content h3,
+.main-content h4 {
+  font-family: var(--cs-font);
+  color: var(--cs-ink);
+  letter-spacing: -0.02em;
+}
+.main-content {
+  color: var(--cs-ink);
+}
+div.highlighter-rouge,
+pre,
+code,
+.highlight {
+  background-color: var(--cs-bg2);
+  border-color: var(--cs-line);
+}
+.cs-site-links a { color: var(--cs-muted); }
+.cs-docs-theme-toggle {
+  color: var(--cs-ink);
+  border-color: var(--cs-line);
+}
+.cs-docs-theme-toggle:hover {
+  border-color: var(--cs-accent);
+}
+.search-input {
+  background-color: var(--cs-bg2);
+  color: var(--cs-ink);
+}

@@ -45,6 +45,13 @@ aux_links:
   GitHub: https://github.com/davidteren/current_scope
   RubyGems: https://rubygems.org/gems/current_scope
 
+# Large-image cards on every docs page. The raster is a new filename so
+# platforms that cached assets/og.png do not keep serving the old cobalt art.
+logo: /assets/og-grid-164.png
+twitter:
+  username: davidteren
+  card: summary_large_image
+
 # All Markdown pages get the theme layout; index.html (no front matter) is
 # static passthrough and unaffected.
 defaults:
@@ -52,3 +59,4 @@ defaults:
       path: ""
     values:
       layout: default
+      image: /assets/og-grid-164.png

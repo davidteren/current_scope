@@ -1,0 +1,27 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#071412"/>
+  <g stroke="#14302a" stroke-width="1">
+    <path d="M0 90 H1200 M0 180 H1200 M0 270 H1200 M0 360 H1200 M0 450 H1200 M0 540 H1200"/>
+    <path d="M90 0 V630 M300 0 V630 M510 0 V630 M720 0 V630 M930 0 V630 M1140 0 V630"/>
+  </g>
+  <g transform="translate(80,74)">
+    <rect x="0"  y="0"  width="26" height="26" rx="4" fill="#2ec9a8"/>
+    <rect x="34" y="0"  width="26" height="26" rx="4" fill="#2ec9a8" opacity="0.28"/>
+    <rect x="0"  y="34" width="26" height="26" rx="4" fill="#2ec9a8" opacity="0.28"/>
+    <rect x="34" y="34" width="26" height="26" rx="4" fill="#2ec9a8" opacity="0.55"/>
+    <text x="82" y="42" font-family="Recursive, Helvetica Neue, Arial, sans-serif" font-size="34" font-weight="700" fill="#e7f6f1">CurrentScope</text>
+  </g>
+  <text x="80" y="270" font-family="Recursive, Helvetica Neue, Arial, sans-serif" font-size="64" font-weight="800" fill="#e7f6f1" letter-spacing="-1.5">Authorization as data</text>
+  <text x="80" y="348" font-family="Recursive, Helvetica Neue, Arial, sans-serif" font-size="64" font-weight="800" fill="#e7f6f1" letter-spacing="-1.5">you edit in a UI, not rules</text>
+  <text x="80" y="426" font-family="Recursive, Helvetica Neue, Arial, sans-serif" font-size="64" font-weight="800" fill="#e7f6f1" letter-spacing="-1.5">you hardcode.</text>
+  <text x="82" y="490" font-family="Recursive, ui-monospace, monospace" font-size="24" fill="#8eada4">A mountable Rails engine. allowed_to? works everywhere.</text>
+  <g transform="translate(80,530)">
+    <rect x="0"   y="0" width="34" height="34" rx="6" fill="#2ec9a8"/>
+    <rect x="44"  y="0" width="34" height="34" rx="6" fill="#2ec9a8"/>
+    <rect x="88"  y="0" width="34" height="34" rx="6" fill="#10241f" stroke="#1c3a33"/>
+    <rect x="132" y="0" width="34" height="34" rx="6" fill="#2ec9a8"/>
+    <rect x="176" y="0" width="34" height="34" rx="6" fill="#10241f" stroke="#1c3a33"/>
+    <rect x="220" y="0" width="34" height="34" rx="6" fill="#10241f" stroke="#1c3a33"/>
+  </g>
+  <text x="1120" y="590" text-anchor="end" font-family="Recursive, ui-monospace, monospace" font-size="20" fill="#7a9a91">gem "current_scope"</text>
+</svg>

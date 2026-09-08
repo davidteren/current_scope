@@ -58,6 +58,10 @@
       theme = {{ site.color_scheme | jsonify }};
     }
 
+    // data-theme (not the engine's data-cs-theme) drives the shared identity
+    // overlay. just-the-docs still themes by swapping its stylesheet.
+    document.documentElement.setAttribute("data-theme", theme === "light" ? "light" : "dark");
+
     document.addEventListener("DOMContentLoaded", function () {
       // querySelectorAll, not querySelector: just-the-docs renders
       // nav_footer_custom.html TWICE, once in components/sidebar.html inside
@@ -111,6 +115,7 @@
             return;
           }
           theme = next;
+          document.documentElement.setAttribute("data-theme", theme);
           try { localStorage.setItem("cs-theme", theme); } catch (e) {}
           label();
         });
@@ -118,6 +123,10 @@
     });
   })();
 </script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Recursive:wght@360;480;640;800;1000&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ '/assets/css/cs-identity.css' | relative_url }}?v=grid164">
 
 <style>
   /* The way back. A reader who arrived on a guide from a search engine has no

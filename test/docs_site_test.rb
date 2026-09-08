@@ -269,4 +269,19 @@ class DocsSiteTest < ActiveSupport::TestCase
     assert_includes source, "https://davidteren.github.io/current_scope/security-checklist.html"
     refute_match(/\]\(security-checklist\.html\)/, source)
   end
+
+  test "landing and docs share the grid-164 identity" do
+    identity = File.read(File.expand_path("../docs/site/assets/css/cs-identity.css", __dir__), encoding: "UTF-8")
+    head = File.read(File.expand_path("../docs/site/_includes/head_custom.html", __dir__), encoding: "UTF-8")
+
+    assert_match(/current_scope-permission-grid-2026-09-08/, identity)
+    assert_match(/hue 164/, identity)
+    assert_includes identity, "#2ec9a8"
+    assert_includes @html, "#2ec9a8"
+    assert_includes @html, "Recursive"
+    assert_includes @html, "og-grid-164.png"
+    refute_match(%r{assets/og\.png}, @html)
+    assert_match(%r{cs-identity\.css}, head)
+    assert_match(/setAttribute\(["']data-theme["']/, head)
+  end
 end

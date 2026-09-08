@@ -1,0 +1,19 @@
+STATUS.md
+  s_07bf1cd5f0cd8c::t_20c32e501154c9 5-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "3a89447ea97ece0b87e6190248d4843adde2c00a",
+  "prompts": {},
+  "sessions": {
+    "s_07bf1cd5f0cd8c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a07cbd-2fc4-7070-bc07-f6ef87d9a960",
+        "model": "unknown"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

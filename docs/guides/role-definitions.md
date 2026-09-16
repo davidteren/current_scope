@@ -73,6 +73,13 @@ file, the undo file goes to `<document>.pre.yml` instead. That is what makes a
 rollback from `tmp/current_scope/last_definitions_snapshot.yml` safe: the
 snapshot survives, so a second rollback is a no-op instead of re-applying the
 change. An apply that does not commit puts the undo file back the way it was.
+The read, write, and restore of that undo file take an exclusive lock on
+`<destination>.lock`, so two overlapping applies that share a path cannot rewind
+each other's undo point.
+
+The audit event and the returned diff are computed after role locks, so they
+name every key the apply actually wrote, including a concurrent edit that the
+desired-state document replaced.
 
 Rake tasks are thin wrappers. `ACTOR_ID=` looks up `config.subject_class` by
 primary key, the same shape as `current_scope:grant` with `SUBJECT_ID=`.

@@ -27,6 +27,9 @@ class GemspecTest < ActiveSupport::TestCase
     assert_equal repo, meta["source_code_uri"]
     assert_equal "#{repo}/issues", meta["bug_tracker_uri"]
     assert_equal "#{repo}/blob/main/CHANGELOG.md", meta["changelog_uri"]
+    # homepage_uri is derived from spec.homepage at publish time. Setting it
+    # separately can collide with documentation_uri or source_code_uri.
+    assert_nil meta["homepage_uri"]
     # The dup-uri gem-build warning fires when homepage_uri == source_code_uri.
     assert_not_equal SPEC.homepage, meta["source_code_uri"]
   end

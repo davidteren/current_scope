@@ -100,5 +100,40 @@ module CurrentScope
       CurrentScope::Current.polymorphic_registry_error ||= e.message
       true
     end
+
+    # True when destroying this org assignment would leave zero live full-access
+    # holders. An orphan or unresolvable subject is not a live holder: cleanup
+    # of that row is allowed, and the row must not vouch for the console.
+    # Unknown (a registry failure while this row still resolves) is a refusal.
+    def would_lock_console_by_removing_assignment?(assignment)
+      return false unless assignment.role&.full_access?
+      return true if registry_blind?
+      return false unless assignment.current_scope_resolved_record("subject")
+
+      !live_holder?(remaining_full_access_assignments(except_ids: [ assignment.id ]))
+    rescue CurrentScope::ConfigurationError => e
+      CurrentScope::Current.polymorphic_registry_error ||= e.message
+      true
+    end
+
+    # True when clearing or demoting these full-access assignments would leave
+    # zero live full-access holders. Pass only the rows being changed.
+    def would_lock_console_by_removing_assignments?(assignments)
+      ids = Array(assignments).map(&:id)
+      return false if ids.empty?
+      return true if registry_blind?
+
+      !live_holder?(remaining_full_access_assignments(except_ids: ids))
+    rescue CurrentScope::ConfigurationError => e
+      CurrentScope::Current.polymorphic_registry_error ||= e.message
+      true
+    end
+
+    def remaining_full_access_assignments(except_ids:)
+      RoleAssignment.joins(:role)
+        .where(current_scope_roles: { full_access: true })
+        .where.not(id: except_ids)
+    end
+    private_class_method :remaining_full_access_assignments
   end
 end

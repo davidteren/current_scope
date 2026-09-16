@@ -228,6 +228,64 @@ class ManagementUiTest < ActionDispatch::IntegrationTest
     assert_nil CurrentScope::RoleAssignment.find_by(subject: @owner)
   end
 
+  def orphan_full_access_holder
+    ghost = User.create!(name: "Deleted owner")
+    CurrentScope::RoleAssignment.create!(subject: ghost, role: @owner_role)
+    ghost.destroy!
+  end
+
+  test "an orphan full-access row does not let the last live holder be deleted" do
+    assignment = CurrentScope::RoleAssignment.find_by!(subject: @owner)
+    orphan_full_access_holder
+
+    delete current_scope.role_assignment_url(assignment), headers: as(@owner)
+    assert CurrentScope::RoleAssignment.exists?(assignment.id),
+           "Last live full-access assignment was deleted"
+    assert_match(/last full access/i, flash[:alert].to_s)
+  end
+
+  test "an orphan full-access row does not let the last live holder be cleared" do
+    assignment = CurrentScope::RoleAssignment.find_by!(subject: @owner)
+    orphan_full_access_holder
+
+    post current_scope.role_assignments_url, headers: as(@owner),
+         params: { subject_gid: @owner.to_gid.to_s, role_id: "" }
+    assert CurrentScope::RoleAssignment.exists?(assignment.id),
+           "Last live full-access assignment was cleared"
+  end
+
+  test "an orphan full-access row does not let the last live holder be demoted" do
+    assignment = CurrentScope::RoleAssignment.find_by!(subject: @owner)
+    orphan_full_access_holder
+
+    post current_scope.role_assignments_url, headers: as(@owner),
+         params: { subject_gid: @owner.to_gid.to_s, role_id: @member_role.id }
+    assert_equal @owner_role, assignment.reload.role
+  end
+
+  test "an orphan full-access assignment can still be removed while a live holder remains" do
+    ghost = User.create!(name: "Deleted owner")
+    orphan = CurrentScope::RoleAssignment.create!(subject: ghost, role: @owner_role)
+    ghost.destroy!
+
+    assert_difference -> { CurrentScope::RoleAssignment.count }, -1 do
+      delete current_scope.role_assignment_url(orphan), headers: as(@owner)
+    end
+    assert CurrentScope::RoleAssignment.find_by(subject: @owner)
+  end
+
+  test "a second live holder still allows the first to be cleared despite an orphan" do
+    orphan_full_access_holder
+    other = User.create!(name: "CoOwner")
+    co = CurrentScope::Role.create!(name: "CoOwner", full_access: true)
+    CurrentScope::RoleAssignment.create!(subject: other, role: co)
+
+    post current_scope.role_assignments_url, headers: as(@owner),
+         params: { subject_gid: @owner.to_gid.to_s, role_id: "" }
+    assert_nil CurrentScope::RoleAssignment.find_by(subject: @owner)
+    assert CurrentScope::RoleAssignment.find_by(subject: other)
+  end
+
   test "destroying a role with an orphaned holder records audit and succeeds" do
     ghost = User.create!(name: "Ghost")
     CurrentScope::RoleAssignment.create!(subject: ghost, role: @member_role)

@@ -160,6 +160,12 @@ no rescue of its own, so the strict half IS reachable without the refusal half. 
 outside the module calls it today, so the invariant currently holds by accident of call
 sites rather than by the privacy. A future caller would need its own rescue.
 
+Assignment delete, clear, and demotion now use the same remaining-holder
+question (`would_lock_console_by_removing_assignment?` and
+`would_lock_console_by_removing_assignments?`). An orphan row is not a live
+holder, so it can be cleaned up and it cannot keep the last live administrator
+from being protected (#218).
+
 Both public guards turn that raise into a refusal
 (`full_access_lock.rb:73-80` and `full_access_lock.rb:95-98`):
 

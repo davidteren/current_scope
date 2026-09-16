@@ -200,6 +200,29 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
     assert_match(/registry is misconfigured/, flash[:alert].to_s)
   end
 
+  test "a poisoned registry refuses to clear the last live full-access assignment" do
+    assignment = CurrentScope::RoleAssignment.find_by!(subject: @owner)
+    poison_registry!
+
+    post current_scope.role_assignments_url, headers: as(@owner),
+         params: { subject_gid: @owner.to_gid.to_s, role_id: "" }
+
+    assert CurrentScope::RoleAssignment.exists?(assignment.id)
+    assert_match(/registry is misconfigured/, flash[:alert].to_s)
+  end
+
+  test "a poisoned registry refuses to demote the last live full-access assignment" do
+    assignment = CurrentScope::RoleAssignment.find_by!(subject: @owner)
+    member = CurrentScope::Role.create!(name: "Member")
+    poison_registry!
+
+    post current_scope.role_assignments_url, headers: as(@owner),
+         params: { subject_gid: @owner.to_gid.to_s, role_id: member.id }
+
+    assert_equal @owner_role, assignment.reload.role
+    assert_match(/registry is misconfigured/, flash[:alert].to_s)
+  end
+
   test "an unlatched registry collision refuses to delete the last live full-access assignment" do
     assignment = CurrentScope::RoleAssignment.find_by!(subject: @owner)
     CurrentScope.rebuild_polymorphic_registry!
@@ -232,7 +255,8 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
     delete current_scope.role_assignment_url(assignment), headers: as(@owner)
 
     assert CurrentScope::RoleAssignment.exists?(assignment.id),
-           "an unreadable remaining holder is unknown, not proof that nobody remains"
+           "a leftover inert row is not a live holder and must not authorise removing the last live one"
+    assert_match(/last full access/i, flash[:alert].to_s)
   end
 
   # #166 — the UNLATCHED collision. registry_blind? cannot see this one before the

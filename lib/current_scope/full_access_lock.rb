@@ -107,6 +107,12 @@ module CurrentScope
     # Unknown (a registry failure while this row still resolves) is a refusal.
     def would_lock_console_by_removing_assignment?(assignment)
       return false unless assignment.role&.full_access?
+
+      # Cause the failure we are testing for. A degrading read would make an
+      # unlatched collision look like an orphan and allow the last live holder
+      # to be removed. A stale token returns nil without raising (#90) and is
+      # still cleanup, not unknown.
+      CurrentScope.polymorphic_class(assignment.subject_type)
       return true if registry_blind?
       return false unless assignment.current_scope_resolved_record("subject")
 
@@ -119,11 +125,13 @@ module CurrentScope
     # True when clearing or demoting these full-access assignments would leave
     # zero live full-access holders. Pass only the rows being changed.
     def would_lock_console_by_removing_assignments?(assignments)
-      ids = Array(assignments).map(&:id)
-      return false if ids.empty?
+      rows = Array(assignments)
+      return false if rows.empty?
+
+      rows.map(&:subject_type).uniq.each { |type| CurrentScope.polymorphic_class(type) }
       return true if registry_blind?
 
-      !live_holder?(remaining_full_access_assignments(except_ids: ids))
+      !live_holder?(remaining_full_access_assignments(except_ids: rows.map(&:id)))
     rescue CurrentScope::ConfigurationError => e
       CurrentScope::Current.polymorphic_registry_error ||= e.message
       true

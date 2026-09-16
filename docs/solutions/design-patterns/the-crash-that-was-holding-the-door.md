@@ -164,10 +164,9 @@ Assignment delete, clear, and demotion now use the same remaining-holder
 question (`would_lock_console_by_removing_assignment?` and
 `would_lock_console_by_removing_assignments?`). An orphan row is not a live
 holder, so it can be cleaned up and it cannot keep the last live administrator
-from being protected (#218).
-
-Both public guards turn that raise into a refusal
-(`full_access_lock.rb:73-80` and `full_access_lock.rb:95-98`):
+from being protected (#218). Those two methods, plus
+`would_lock_console_by_removing_role?` and `would_lose_held_full_access?`,
+turn a registry `ConfigurationError` into a refusal.
 
 ```ruby
 rescue CurrentScope::ConfigurationError => e
@@ -226,7 +225,8 @@ operator got the same advice for both, and for the second one that advice is imp
 to follow: granting full access to another subject does not help when no subject
 resolves. The guards now record the cause before refusing (the `||=` lines above), so
 `registry_blind?` answers true afterwards, and the controller picks the sentence
-(`app/controllers/current_scope/roles_controller.rb:190-203`):
+(`app/controllers/current_scope/application_controller.rb` `full_access_refusal_alert`,
+used from role demote/delete and assignment delete/clear/demote):
 
 ```ruby
 # The guard answers a bare true for two different reasons. Telling them apart

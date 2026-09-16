@@ -65,6 +65,22 @@ class ParentScopedGrantTest < ActiveSupport::TestCase
       subjects: [ @lead ], permission: "reports#approve", record: @report)
   end
 
+  test "a saved child whose parent id changed inherits the new parent's grant" do
+    scope_grant(@lead, role("Other lead", "reports#approve"), @other_project)
+    @report.project
+    @report.update!(project_id: @other_project.id)
+
+    assert_equal [ true, nil ], decide(@lead, "reports#approve", @report)
+  end
+
+  test "clearing a loaded parent id drops the previous parent grant" do
+    scope_grant(@lead, role("Cleared parent", "reports#approve"), @project)
+    @report.project
+    @report.update!(project_id: nil)
+
+    assert_equal [ false, :no_grant ], decide(@lead, "reports#approve", @report)
+  end
+
   test "an unsaved child whose parent id changed does not keep the previous parent grant" do
     scope_grant(@lead, role("Draft id writer", "reports#approve"), @project)
     draft = Report.new(title: "Draft", project: @project, requested_by: @requester)

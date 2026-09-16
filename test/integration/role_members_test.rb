@@ -213,6 +213,7 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
 
     assert_response :redirect
     assert CurrentScope::RoleAssignment.exists?(assignment.id)
+    assert_match(/registry is misconfigured/, flash[:alert].to_s)
   ensure
     CurrentScope.rebuild_polymorphic_registry!
   end

@@ -9,6 +9,7 @@ module CurrentScope
 
     def index
       @query = params[:q].to_s.strip
+      @global_search_supported = subject_search_columns(subject_class).any?
       scope = filter_subjects(subject_class.order(:id), @query)
 
       @page = [ params[:page].to_i, 1 ].max

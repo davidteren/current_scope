@@ -51,6 +51,25 @@ class SubjectsSearchTest < ActionDispatch::IntegrationTest
     assert_select "tr[data-cs-row]", count: 1 # only the match
   end
 
+  test "unsupported global search does not claim matching results" do
+    CurrentScope::SubjectsController.class_eval do
+      alias_method :original_subject_search_columns, :subject_search_columns
+      define_method(:subject_search_columns) { |_klass| [] }
+    end
+    User.create!(name: "Alice Cooper")
+    User.create!(name: "Bob Dylan")
+
+    get current_scope.subjects_url(q: "alice"), headers: as(@owner)
+    assert_response :success
+    assert_select "#cs_search_unsupported"
+    assert_match "Alice Cooper", response.body
+    assert_match "Bob Dylan", response.body
+  ensure
+    CurrentScope::SubjectsController.class_eval do
+      alias_method :subject_search_columns, :original_subject_search_columns
+    end
+  end
+
   test "a query with SQL metacharacters is parameterized, not injected" do
     User.create!(name: "Normal Person")
     assert_nothing_raised do

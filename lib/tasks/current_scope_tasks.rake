@@ -74,7 +74,14 @@ namespace :current_scope do
     end
 
     CurrentScope.grant!(subject)
-    puts "Granted the full-access Owner role to #{klass}##{subject.id}."
+    role = CurrentScope::RoleAssignment.find_by(subject: subject)&.role
+    if role&.full_access?
+      puts "Granted the full-access #{role.name} role to #{klass}##{subject.id}."
+    else
+      puts "Assigned the #{role&.name || "Owner"} role to #{klass}##{subject.id}. " \
+           "That role does not have full access, so the management console stays " \
+           "closed until a full-access role is granted or a host authorizer admits this subject."
+    end
   end
 
   namespace :identity do

@@ -1,0 +1,20 @@
+CHANGELOG.md
+  h_e8a5bb9272fa34 126-129
+docs/guides/role-definitions.md
+  h_e8a5bb9272fa34 76-82
+lib/current_scope/definitions_document.rb
+  h_e8a5bb9272fa34 260-261,279-283,285,337-363,374-381,433-445
+test/definitions_import_test.rb
+  h_e8a5bb9272fa34 368-413
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d927a1458c3443a17f0bf5a7f9f7905b2500a5b2",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

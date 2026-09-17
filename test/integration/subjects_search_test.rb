@@ -52,10 +52,9 @@ class SubjectsSearchTest < ActionDispatch::IntegrationTest
   end
 
   test "unsupported global search does not claim matching results" do
-    CurrentScope::SubjectsController.class_eval do
-      alias_method :original_subject_search_columns, :subject_search_columns
-      define_method(:subject_search_columns) { |_klass| [] }
-    end
+    original = CurrentScope::SubjectsController.instance_method(:subject_search_columns)
+    CurrentScope::SubjectsController.define_method(:subject_search_columns) { |_klass| [] }
+    CurrentScope::SubjectsController.send(:private, :subject_search_columns)
     User.create!(name: "Alice Cooper")
     User.create!(name: "Bob Dylan")
 
@@ -65,9 +64,8 @@ class SubjectsSearchTest < ActionDispatch::IntegrationTest
     assert_match "Alice Cooper", response.body
     assert_match "Bob Dylan", response.body
   ensure
-    CurrentScope::SubjectsController.class_eval do
-      alias_method :subject_search_columns, :original_subject_search_columns
-    end
+    CurrentScope::SubjectsController.define_method(:subject_search_columns, original)
+    CurrentScope::SubjectsController.send(:private, :subject_search_columns)
   end
 
   test "a query with SQL metacharacters is parameterized, not injected" do

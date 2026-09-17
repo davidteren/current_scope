@@ -70,7 +70,10 @@ module CurrentScope
       candidates = []
       candidates << configured.to_s if configured.is_a?(Symbol)
       candidates.concat(SEARCH_COLUMNS)
-      candidates.uniq.select { |c| klass.column_names.include?(c) }
+      names = klass.column_names
+      candidates.uniq.select { |c| names.include?(c) }
+    rescue ActiveRecord::StatementInvalid, ActiveRecord::ConnectionNotEstablished
+      []
     end
   end
 end

@@ -358,7 +358,7 @@ Or in `db/seeds.rb`:
 
 ```ruby
 CurrentScope.seed_defaults!            # Owner (full_access) + Member
-CurrentScope.grant!(User.first)        # give the first user the Owner role
+CurrentScope.grant!(User.first)        # Owner role; full_access only if that role has it
 ```
 
 Then manage everything at `/current_scope` (full-access subjects by default;

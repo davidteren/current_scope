@@ -1,0 +1,16 @@
+app/controllers/current_scope/subjects_controller.rb
+  h_e8a5bb9272fa34 12-14,56,59
+test/integration/subjects_search_test.rb
+  h_e8a5bb9272fa34 54-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "6e7fe507c9befc3a169c043ff646d4fc978c74e2",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

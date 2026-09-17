@@ -390,25 +390,32 @@ class DefinitionsImportTest < ActiveSupport::TestCase
   end
 
   test "apply waits for another process holding the snapshot lock" do
-    lock_path = "#{snapshot_path}.lock"
+    lock_path = "#{File.expand_path(snapshot_path)}.lock"
     FileUtils.mkdir_p(File.dirname(lock_path))
     reader, writer = IO.pipe
-    pid = fork do
-      reader.close
-      File.open(lock_path, File::RDWR | File::CREAT, 0o644) do |file|
-        file.flock(File::LOCK_EX)
-        writer.puts "held"
-        writer.flush
-        sleep 0.4
+    pid = nil
+    begin
+      pid = fork do
+        reader.close
+        File.open(lock_path, File::RDWR | File::CREAT, 0o644) do |file|
+          file.flock(File::LOCK_EX)
+          writer.puts "held"
+          writer.flush
+          sleep 0.4
+        end
       end
+      writer.close
+      writer = nil
+      assert_equal "held\n", reader.gets
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      with_key("Editor", [ "reports#show" ]).apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)
+      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+      assert_operator elapsed, :>=, 0.3, "apply must wait for the process lock"
+      assert_includes @editor.reload.permission_keys, "reports#show"
+    ensure
+      reader.close
+      writer.close if writer
+      Process.wait(pid) if pid
     end
-    writer.close
-    assert_equal "held\n", reader.gets
-    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    with_key("Editor", [ "reports#show" ]).apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)
-    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
-    Process.wait(pid)
-    assert_operator elapsed, :>=, 0.3, "apply must wait for the process lock"
-    assert_includes @editor.reload.permission_keys, "reports#show"
   end
 end

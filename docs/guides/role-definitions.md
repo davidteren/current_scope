@@ -77,9 +77,10 @@ The read, write, and restore of that undo file take an exclusive lock on
 `<destination>.lock`, so two overlapping applies that share a path cannot rewind
 each other's undo point.
 
-The audit event and the returned diff are computed after role locks, so they
-name every key the apply actually wrote, including a concurrent edit that the
-desired-state document replaced.
+The audit event and the returned diff are computed after role locks. For an
+existing role they name every permission key gained or lost, including a
+concurrent edit that the desired-state document replaced. Adding or removing a
+whole role is recorded by role name, not by listing that role's keys.
 
 Rake tasks are thin wrappers. `ACTOR_ID=` looks up `config.subject_class` by
 primary key, the same shape as `current_scope:grant` with `SUBJECT_ID=`.

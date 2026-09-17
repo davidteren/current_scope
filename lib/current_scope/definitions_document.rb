@@ -328,6 +328,8 @@ module CurrentScope
           Role.transaction do
             planned_fa = @roles.select(&:full_access).map(&:name)
             FullAccessLock.lock_console_state!(planned_fa)
+            role_ids = Role.order(:id).pluck(:id)
+            RolePermission.where(role_id: role_ids).order(:id).lock.load if role_ids.any?
             refuse_held_deletes!
             if FullAccessLock.would_lose_held_full_access?(planned_fa)
               raise LastHolderLock,
@@ -342,7 +344,7 @@ module CurrentScope
               # Set before the write, not after: File.write truncates first, so a
               # write that dies part way through still has to be put back.
               wrote_snapshot = true
-              write_snapshot(path)
+              Role.uncached { write_snapshot(path) }
               persist_roles!
               if CurrentScope.config.audit
                 Event.record!(
@@ -430,14 +432,30 @@ module CurrentScope
       (live.keys - doc_names).each { |name| live[name].destroy! }
     end
 
-    # Serialize the undo-file read, write, and restore for one destination so
-    # two overlapping applies cannot rewind each other's snapshot (#178).
-    def with_snapshot_lock(path)
-      lock_path = "#{path}.lock"
+    # Serialize undo-file read/write/restore for one destination, and for the
+    # source file when this apply was parsed from a path (rollback). Lock keys
+    # follow the real file, so two spellings of the same snapshot share a lock.
+    def with_snapshot_lock(path, &block)
+      paths = [ path ]
+      paths << @source_path if @source_path.present?
+      lock_files(paths.filter_map { |p| snapshot_lock_file(p) }.uniq.sort, &block)
+    end
+
+    def snapshot_lock_file(path)
+      return if path.blank?
+
+      dest = File.exist?(path) ? File.realpath(path) : File.expand_path(path)
+      "#{dest}.lock"
+    end
+
+    def lock_files(lock_paths, &block)
+      return yield if lock_paths.empty?
+
+      path = lock_paths.first
       FileUtils.mkdir_p(File.dirname(path))
-      File.open(lock_path, File::RDWR | File::CREAT, 0o644) do |file|
+      File.open(path, File::RDWR | File::CREAT, 0o644) do |file|
         file.flock(File::LOCK_EX)
-        yield
+        lock_files(lock_paths.drop(1), &block)
       ensure
         file.flock(File::LOCK_UN)
       end

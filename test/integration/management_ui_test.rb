@@ -239,6 +239,7 @@ class ManagementUiTest < ActionDispatch::IntegrationTest
     orphan_full_access_holder
 
     delete current_scope.role_assignment_url(assignment), headers: as(@owner)
+    assert_response :redirect
     assert CurrentScope::RoleAssignment.exists?(assignment.id),
            "Last live full-access assignment was deleted"
     assert_match(/last full access/i, flash[:alert].to_s)
@@ -250,6 +251,7 @@ class ManagementUiTest < ActionDispatch::IntegrationTest
 
     post current_scope.role_assignments_url, headers: as(@owner),
          params: { subject_gid: @owner.to_gid.to_s, role_id: "" }
+    assert_response :redirect
     assert CurrentScope::RoleAssignment.exists?(assignment.id),
            "Last live full-access assignment was cleared"
   end
@@ -260,6 +262,7 @@ class ManagementUiTest < ActionDispatch::IntegrationTest
 
     post current_scope.role_assignments_url, headers: as(@owner),
          params: { subject_gid: @owner.to_gid.to_s, role_id: @member_role.id }
+    assert_response :redirect
     assert_equal @owner_role, assignment.reload.role
   end
 
@@ -282,6 +285,7 @@ class ManagementUiTest < ActionDispatch::IntegrationTest
 
     post current_scope.role_assignments_url, headers: as(@owner),
          params: { subject_gid: @owner.to_gid.to_s, role_id: "" }
+    assert_response :redirect
     assert_nil CurrentScope::RoleAssignment.find_by(subject: @owner)
     assert CurrentScope::RoleAssignment.find_by(subject: other)
   end

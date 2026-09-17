@@ -195,6 +195,7 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
 
     delete current_scope.role_assignment_url(assignment), headers: as(@owner)
 
+    assert_response :redirect
     assert CurrentScope::RoleAssignment.exists?(assignment.id),
            "a registry that cannot resolve holders must not authorise assignment removal"
     assert_match(/registry is misconfigured/, flash[:alert].to_s)
@@ -207,6 +208,7 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
     post current_scope.role_assignments_url, headers: as(@owner),
          params: { subject_gid: @owner.to_gid.to_s, role_id: "" }
 
+    assert_response :redirect
     assert CurrentScope::RoleAssignment.exists?(assignment.id)
     assert_match(/registry is misconfigured/, flash[:alert].to_s)
   end
@@ -219,6 +221,7 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
     post current_scope.role_assignments_url, headers: as(@owner),
          params: { subject_gid: @owner.to_gid.to_s, role_id: member.id }
 
+    assert_response :redirect
     assert_equal @owner_role, assignment.reload.role
     assert_match(/registry is misconfigured/, flash[:alert].to_s)
   end
@@ -254,6 +257,7 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
 
     delete current_scope.role_assignment_url(assignment), headers: as(@owner)
 
+    assert_response :redirect
     assert CurrentScope::RoleAssignment.exists?(assignment.id),
            "a leftover inert row is not a live holder and must not authorise removing the last live one"
     assert_match(/last full access/i, flash[:alert].to_s)

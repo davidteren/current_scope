@@ -1,0 +1,16 @@
+test/integration/management_ui_test.rb
+  h_e8a5bb9272fa34 242,254,265,288
+test/integration/role_members_test.rb
+  h_e8a5bb9272fa34 198,211,224,260
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "786ccf407434712114b43912afb31259c246caa6",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

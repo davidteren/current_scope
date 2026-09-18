@@ -1,0 +1,26 @@
+CHANGELOG.md
+  h_e8a5bb9272fa34 126-130
+app/controllers/current_scope/application_controller.rb
+  h_e8a5bb9272fa34 37-51
+app/controllers/current_scope/role_assignments_controller.rb
+  h_e8a5bb9272fa34 58,79,90,119-120,124-128
+docs/solutions/design-patterns/the-crash-that-was-holding-the-door.md
+  h_e8a5bb9272fa34 163-168
+lib/current_scope/full_access_lock.rb
+  h_e8a5bb9272fa34 103-137
+test/integration/management_ui_test.rb
+  h_e8a5bb9272fa34 231-288
+test/integration/role_members_test.rb
+  h_e8a5bb9272fa34 192-236
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f0fb3047672f4e43f62e299c3785c1fa9ccf4d92",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

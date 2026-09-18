@@ -1,0 +1,14 @@
+test/integration/role_members_test.rb
+  h_e8a5bb9272fa34 216
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "aa855dbb9c40bcaee7d9fcc45904527c99b195ad",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

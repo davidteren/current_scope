@@ -1,0 +1,18 @@
+docs/solutions/design-patterns/the-crash-that-was-holding-the-door.md
+  h_e8a5bb9272fa34 167-169,228-229
+lib/current_scope/full_access_lock.rb
+  h_e8a5bb9272fa34 110-115,128-131,134
+test/integration/role_members_test.rb
+  h_e8a5bb9272fa34 203-225,258-259
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "b4ca7488d6080601344d82b7ab6ff9b81b826306",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

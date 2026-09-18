@@ -55,9 +55,7 @@ module CurrentScope
 
       if refused
         redirect_back_or_to subjects_path,
-                            alert: "Refusing to remove the last full-access org-wide assignment — " \
-                                   "it would lock everyone out of this UI. Grant full access to " \
-                                   "another subject first, then retry."
+                            alert: full_access_refusal_alert("remove the last full-access org-wide assignment")
         return
       end
 
@@ -78,7 +76,7 @@ module CurrentScope
         assignment.role&.lock!
         authorize_management!(:revoke_role, role: assignment.role, target: subject)
 
-        if last_full_access_org_assignment?(assignment)
+        if FullAccessLock.would_lock_console_by_removing_assignment?(assignment)
           refused = true
         else
           # org_role.removed comes from RoleAssignment's own callback (#182), so
@@ -89,9 +87,7 @@ module CurrentScope
 
       if refused
         redirect_back_or_to subjects_path,
-                            alert: "Refusing to remove the last full-access org-wide assignment — " \
-                                   "it would lock everyone out of this UI. Grant full access to " \
-                                   "another subject first, then retry."
+                            alert: full_access_refusal_alert("remove the last full-access org-wide assignment")
         return
       end
 
@@ -112,13 +108,6 @@ module CurrentScope
       Role.uncached { Role.includes(:role_permissions).lock.find(assignment.role_id) }
     end
 
-    # The grantee, or nil when the subject was deleted or its type no longer
-    # resolves (an orphaned assignment) — the ledger row then targets the
-    # assignment itself rather than 500ing.
-    def resolve_subject(assignment)
-      assignment.current_scope_resolved_record("subject")
-    end
-
     def org_notice(clearing, count)
       return "No org-wide role changes." if count.zero?
 
@@ -126,29 +115,17 @@ module CurrentScope
       count == 1 ? "Org-wide role #{verb}." : "Org-wide role #{verb} for #{count} subjects."
     end
 
-    # True when this assignment is a live full_access org holder and no other
-    # full_access org assignment exists. Orphan rows (deleted subject → nil)
-    # must not permanently block cleanup of the last FA assignment.
-    def last_full_access_org_assignment?(assignment)
-      return false unless assignment.role&.full_access?
-      return false if resolve_subject(assignment).nil?
-
-      !full_access_org_assignments.where.not(id: assignment.id).exists?
-    end
-
     # True when applying clear (or reassign to a non-full_access role) to these
-    # subjects would leave zero full_access org holders.
+    # subjects would leave zero live full_access org holders. Orphan rows do
+    # not count as remaining holders (#218).
     def would_remove_last_full_access_holders?(subjects, proposed:)
-      holders = full_access_org_assignments.to_a
-      return false if holders.empty?
-
-      affected_ids = holders.select { |a| subjects.any? { |s| same_subject?(a, s) } }.map(&:id)
-      return false if affected_ids.empty?
-
       return false if proposed&.full_access?
 
-      remaining = holders.reject { |a| affected_ids.include?(a.id) }
-      remaining.empty?
+      holders = full_access_org_assignments.to_a
+      affected = holders.select { |assignment| subjects.any? { |subject| same_subject?(assignment, subject) } }
+      return false if affected.empty?
+
+      FullAccessLock.would_lock_console_by_removing_assignments?(affected)
     end
 
     def full_access_org_assignments

@@ -34,6 +34,21 @@ module CurrentScope
         permission: key, subject: CurrentScope::Current.user)
     end
 
+    # The last-holder guard answers a bare true for two different reasons.
+    # "Grant full access to another subject first" is useless when this process
+    # cannot read who holds it (#166, #218).
+    def full_access_refusal_alert(action)
+      if CurrentScope::FullAccessLock.registry_blind?
+        "Refusing to #{action} while the polymorphic registry is misconfigured: this " \
+          "process cannot tell which subjects still hold full access. Fix the registry, " \
+          "then retry."
+      else
+        "Refusing to #{action} — it is the last full access any subject holds and would " \
+          "lock everyone out of this UI. Grant full access to another subject first, " \
+          "then retry."
+      end
+    end
+
     # The engine's UI is the one place a rendered denial belongs: the admin is
     # looking at a browser, and "blank page" is not an answer to "why can't I get
     # in?". Overrides ONLY the body — the reason header is still written by

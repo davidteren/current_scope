@@ -11,6 +11,20 @@ class RoleEditingSystemTest < ApplicationSystemTestCase
     sign_in(@owner)
   end
 
+  test "a delegated non-full-access administrator does not see a full access badge" do
+    delegate = User.create!(name: "Delegate")
+    CurrentScope::RoleAssignment.create!(
+      subject: delegate, role: CurrentScope::Role.create!(name: "Console admin"))
+    prior = CurrentScope.config.management_authorizer
+    CurrentScope.config.management_authorizer = ->(subject, **) { subject == delegate }
+    sign_in(delegate)
+    visit "/current_scope/roles"
+    assert_selector "#cs_authority_badge", text: "administrator"
+    assert_no_selector "#cs_authority_badge", text: /full access/i
+  ensure
+    CurrentScope.config.management_authorizer = prior
+  end
+
   test "delegated administrator creates a role while full access stays unavailable" do
     prior = CurrentScope.config.management_authorizer
     CurrentScope.config.management_authorizer = ->(subject, action:, role: nil, target: nil) do

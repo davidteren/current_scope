@@ -51,6 +51,40 @@ class SubjectsSearchTest < ActionDispatch::IntegrationTest
     assert_select "tr[data-cs-row]", count: 1 # only the match
   end
 
+  test "search status and filter share one column lookup" do
+    calls = { n: 0 }
+    original = CurrentScope::SubjectsController.instance_method(:subject_search_columns)
+    CurrentScope::SubjectsController.define_method(:subject_search_columns) do |klass|
+      calls[:n] += 1
+      original.bind_call(self, klass)
+    end
+    CurrentScope::SubjectsController.send(:private, :subject_search_columns)
+
+    get current_scope.subjects_url(q: "owner"), headers: as(@owner)
+    assert_response :success
+    assert_equal 1, calls[:n]
+  ensure
+    CurrentScope::SubjectsController.define_method(:subject_search_columns, original)
+    CurrentScope::SubjectsController.send(:private, :subject_search_columns)
+  end
+
+  test "unsupported global search does not claim matching results" do
+    original = CurrentScope::SubjectsController.instance_method(:subject_search_columns)
+    CurrentScope::SubjectsController.define_method(:subject_search_columns) { |_klass| [] }
+    CurrentScope::SubjectsController.send(:private, :subject_search_columns)
+    User.create!(name: "Alice Cooper")
+    User.create!(name: "Bob Dylan")
+
+    get current_scope.subjects_url(q: "alice"), headers: as(@owner)
+    assert_response :success
+    assert_select "#cs_search_unsupported"
+    assert_match "Alice Cooper", response.body
+    assert_match "Bob Dylan", response.body
+  ensure
+    CurrentScope::SubjectsController.define_method(:subject_search_columns, original)
+    CurrentScope::SubjectsController.send(:private, :subject_search_columns)
+  end
+
   test "a query with SQL metacharacters is parameterized, not injected" do
     User.create!(name: "Normal Person")
     assert_nothing_raised do

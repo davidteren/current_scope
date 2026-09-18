@@ -48,4 +48,31 @@ class GrantTaskTest < ActiveSupport::TestCase
     _out, err = run_grant
     assert_no_match(/WARNING/, err)
   end
+
+  test "does not claim full access when the existing Owner role is not full_access" do
+    CurrentScope::Role.create!(name: "Owner", full_access: false)
+    ENV["SUBJECT_ID"] = @user.id.to_s
+
+    out, err = run_grant
+    assert_no_match(/WARNING/, err)
+    assert_no_match(/Granted the full-access/, out)
+    assert_match(/does not have full access/, out)
+    assert_no_match(/console stays closed/, out)
+    role = CurrentScope::RoleAssignment.find_by(subject: @user).role
+    assert_equal "Owner", role.name
+    assert_not role.full_access?
+  end
+
+  test "replacement warning follows the assigned role's full_access flag" do
+    CurrentScope::Role.create!(name: "Owner", full_access: false)
+    member = CurrentScope::Role.create!(name: "Member")
+    CurrentScope::RoleAssignment.create!(subject: @user, role: member)
+    ENV["SUBJECT_ID"] = @user.id.to_s
+
+    out, err = run_grant
+    assert_match(/WARNING/, err)
+    assert_match(/Member/, err)
+    assert_no_match(/full-access/, err)
+    assert_no_match(/Granted the full-access/, out)
+  end
 end

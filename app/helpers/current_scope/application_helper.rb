@@ -10,6 +10,16 @@ module CurrentScope
       CurrentScope.label_for(record)
     end
 
+    # Default console entry is full-access. A host management_authorizer can
+    # admit a restricted delegate; the badge must not still say full access.
+    def current_scope_authority_badge
+      subject = CurrentScope::Current.user
+      return "administrator" unless subject
+      return "full access" if CurrentScope.resolver.full_access?(subject)
+
+      "administrator"
+    end
+
     # Human label for a subject (user/account), honouring config.subject_label
     # so a host on UUID keys can show email or a full name instead of an
     # opaque id. Falls back to the best-effort current_scope_label.

@@ -123,6 +123,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Console, bootstrap, and search describe the authority they actually
+  have (#220).** The console badge says full access only for a full-access
+  subject. The grant task reports when the assigned Owner role is not
+  full-access. Subject search says when global search is unsupported
+  instead of claiming matches. README now names full-access entry as the
+  default policy.
 - Report scoped permission validation failures from role-definition import and rollback as actionable command errors while preserving the transaction and undo snapshot.
 - Explain that an empty resource permission ceiling accepts no scoped roles.
 - Role creation now returns a create-only administrator to the role list with

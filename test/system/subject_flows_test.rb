@@ -11,6 +11,21 @@ class SubjectFlowsSystemTest < ApplicationSystemTestCase
     sign_in(@owner)
   end
 
+  test "unsupported global search is described in the browser" do
+    original = CurrentScope::SubjectsController.instance_method(:subject_search_columns)
+    CurrentScope::SubjectsController.define_method(:subject_search_columns) { |_klass| [] }
+    CurrentScope::SubjectsController.send(:private, :subject_search_columns)
+    User.create!(name: "Alice Cooper")
+    User.create!(name: "Bob Dylan")
+    visit "/current_scope/subjects?q=alice"
+    assert_selector "#cs_search_unsupported"
+    assert_text "Alice Cooper"
+    assert_text "Bob Dylan"
+  ensure
+    CurrentScope::SubjectsController.define_method(:subject_search_columns, original)
+    CurrentScope::SubjectsController.send(:private, :subject_search_columns)
+  end
+
   test "multi-select + bulk org-role sets the role for exactly the checked subjects" do
     alice = User.create!(name: "Alice Adams")
     bob = User.create!(name: "Bob Brown")

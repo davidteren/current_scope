@@ -365,4 +365,57 @@ class DefinitionsImportTest < ActiveSupport::TestCase
   ensure
     CurrentScope::Event.define_singleton_method(:create!, original) if original
   end
+
+  test "the committed diff includes an intervening permission removal" do
+    editor = @editor
+    specs = document_from_live.roles.map do |spec|
+      spec.name == editor.name ? spec.with(permission_keys: [ "reports#index", "reports#show" ]) : spec
+    end
+    incoming = CurrentScope::DefinitionsDocument.new(specs)
+    original_diff = incoming.method(:diff)
+    incoming.define_singleton_method(:diff) do
+      result = original_diff.call
+      editor.reload
+      editor.permission_keys = [ "reports#index", "reports#approve" ]
+      editor.save!
+      result
+    end
+
+    incoming.apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)
+
+    assert_equal [ "reports#index", "reports#show" ], @editor.reload.permission_keys.sort
+    event = CurrentScope::Event.where(event: "definitions.applied").last
+    assert_includes event.details.fetch("diff"), "loses reports#approve"
+    assert_includes event.details.fetch("diff"), "gains reports#show"
+  end
+
+  test "apply waits for another process holding the snapshot lock" do
+    lock_path = "#{File.expand_path(snapshot_path)}.lock"
+    FileUtils.mkdir_p(File.dirname(lock_path))
+    reader, writer = IO.pipe
+    pid = nil
+    begin
+      pid = fork do
+        reader.close
+        File.open(lock_path, File::RDWR | File::CREAT, 0o644) do |file|
+          file.flock(File::LOCK_EX)
+          writer.puts "held"
+          writer.flush
+          sleep 0.4
+        end
+      end
+      writer.close
+      writer = nil
+      assert_equal "held\n", reader.gets
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      with_key("Editor", [ "reports#show" ]).apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)
+      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+      assert_operator elapsed, :>=, 0.3, "apply must wait for the process lock"
+      assert_includes @editor.reload.permission_keys, "reports#show"
+    ensure
+      reader.close
+      writer.close if writer
+      Process.wait(pid) if pid
+    end
+  end
 end

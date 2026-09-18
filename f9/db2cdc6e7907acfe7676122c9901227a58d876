@@ -1,0 +1,14 @@
+test/parent_scoped_grant_test.rb
+  h_e8a5bb9272fa34 68-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f9db2cdc6e7907acfe7676122c9901227a58d876",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

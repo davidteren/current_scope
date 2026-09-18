@@ -1,0 +1,22 @@
+CHANGELOG.md
+  h_e8a5bb9272fa34 126-129
+lib/current_scope/parent_chain.rb
+  h_e8a5bb9272fa34 327-330,341
+test/parent_chain_test.rb
+  h_e8a5bb9272fa34 240-268
+test/parent_scope_for_test.rb
+  h_e8a5bb9272fa34 45-54
+test/parent_scoped_grant_test.rb
+  h_e8a5bb9272fa34 56-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "986e688e78b274a91e6b71b461f2d3c05318aa99",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

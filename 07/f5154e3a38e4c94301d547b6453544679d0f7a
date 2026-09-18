@@ -1,0 +1,24 @@
+README.md
+  h_e8a5bb9272fa34 361
+app/controllers/current_scope/subjects_controller.rb
+  h_e8a5bb9272fa34 73-76
+lib/tasks/current_scope_tasks.rake
+  h_e8a5bb9272fa34 58-59,69-72,74,76,79-81
+test/grant_task_test.rb
+  h_e8a5bb9272fa34 60,65-77
+test/integration/subjects_search_test.rb
+  h_e8a5bb9272fa34 55-57,67-68
+test/system/subject_flows_test.rb
+  h_e8a5bb9272fa34 14-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "07f5154e3a38e4c94301d547b6453544679d0f7a",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

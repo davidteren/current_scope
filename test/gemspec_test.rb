@@ -18,10 +18,19 @@ class GemspecTest < ActiveSupport::TestCase
 
   test "carries publish metadata and no duplicate homepage/source uri (warning-clean build)" do
     meta = SPEC.metadata
+    docs = "https://davidteren.github.io/current_scope/"
+    repo = "https://github.com/davidteren/current_scope"
+
     assert_equal "true", meta["rubygems_mfa_required"]
-    assert_match %r{/CHANGELOG\.md\z}, meta["changelog_uri"].to_s
-    # The dup-uri gem-build warning fires when homepage_uri == source_code_uri;
-    # we don't set source_code_uri, so that can't happen.
-    assert_nil meta["source_code_uri"]
+    assert_equal docs, SPEC.homepage
+    assert_equal docs, meta["documentation_uri"]
+    assert_equal repo, meta["source_code_uri"]
+    assert_equal "#{repo}/issues", meta["bug_tracker_uri"]
+    assert_equal "#{repo}/blob/main/CHANGELOG.md", meta["changelog_uri"]
+    # homepage_uri is derived from spec.homepage at publish time. Setting it
+    # separately can collide with documentation_uri or source_code_uri.
+    assert_nil meta["homepage_uri"]
+    # The dup-uri gem-build warning fires when homepage_uri == source_code_uri.
+    assert_not_equal SPEC.homepage, meta["source_code_uri"]
   end
 end

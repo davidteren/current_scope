@@ -32,6 +32,10 @@ group :test do
   gem "trilogy", require: false
   # Coverage signal in CI (T6 / #114). Opt out with COVERAGE=0.
   gem "simplecov", require: false
+  # Mutation-testing runner for the PR gate (.github/workflows/mutation.yml).
+  # >= 1.0.0 is required by davidteren/mutineer@v1 PR scoping (auto --since).
+  # require: false — it is a CLI, not something the dummy app should load.
+  gem "mutineer", "~> 1.0", require: false
 end
 
 # Start debugger with binding.b [https://github.com/ruby/debug]

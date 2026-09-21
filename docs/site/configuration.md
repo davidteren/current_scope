@@ -1,6 +1,7 @@
 ---
 title: Configuration
 nav_order: 6
+has_children: true
 ---
 
 # Configuration reference
@@ -11,7 +12,10 @@ install generator. The
 and
 [`Configuration`](https://github.com/davidteren/current_scope/blob/main/lib/current_scope/configuration.rb)
 are canonical — each knob's full contract is documented there, in the source
-a mismatch cannot hide from. This page is the map.
+a mismatch cannot hide from. This page is the map. The narrative reference
+is the [configuration guide](configuration-reference.md); role YAML is
+[portable role definitions](role-definitions.md); act-as is
+[impersonation](impersonation.md).
 
 ## Identity
 

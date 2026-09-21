@@ -1,0 +1,193 @@
+# Single catalog for the docs site. bin/docs-site reads this to generate
+# Just-the-Docs pages from docs/guides/, llms.txt, llms-full.txt, Markdown
+# twins, and sitemap extras. A page that is in the human nav is in the
+# machine index — adding a guide means adding a row here, not editing three
+# files by hand.
+#
+# source is repo-relative. generate: true writes docs/site/<slug>.md at
+# prepare time (gitignored). Hand-authored site pages keep generate: false.
+
+site_origin: https://davidteren.github.io
+baseurl: /current_scope
+github_blob: https://github.com/davidteren/current_scope/blob/main
+github_raw: https://raw.githubusercontent.com/davidteren/current_scope/main
+
+llms_preamble: |
+  # CurrentScope
+
+  > A mountable Rails engine (Rails >= 8.1, < 9) for authorization: permissions
+  > auto-derived from controller#action routes, roles as editable data,
+  > per-record scoped roles, an opt-in separation-of-duties veto (initiator
+  > can never approve their own record), and one ambient context so
+  > allowed_to? works identically in controllers, views, and components.
+  > Fail-closed: no grant means denied. Status: Beta. Built for
+  > experimentation and report-mode pilots while remaining security items
+  > are hardened. Run :report, read bin/rails current_scope:report, then
+  > flip to :enforce. #116 closes after that bake.
+
+  Key facts agents get wrong without reading:
+  - The gate covers EVERY action; skip it on sessions/webhooks with
+    skip_before_action :current_scope_check! or sign-in breaks.
+  - Separation of duties is OFF by default (config.sod_actions = []).
+  - An SoD member action must return its record from current_scope_record,
+    or the veto is silently skipped.
+  - An SoD action on a model with no current_scope_initiator RAISES (500),
+    in report mode too — report mode downgrades a missing grant, never a
+    misconfiguration.
+  - config.actor_method is security-critical the moment the host impersonates.
+  - Retrofit existing apps through config.enforcement = :report first.
+  - config.subject_identity is the portable key (column, composite, or
+    identify/resolve object). config.subject_label is display-only. They
+    are not the same knob. Duplicate identity keys raise. resolve never
+    inserts. PLACEHOLDER=1 is refused in production.
+
+pages:
+  - slug: index
+    title: Overview
+    description: Product pitch, resolver order, comparison, six-step install
+    source: docs/site/index.md
+    html: /
+    markdown: /index.md
+    in_nav: false
+
+  - slug: comparison
+    title: Is it the right fit?
+    description: CurrentScope vs Pundit, Action Policy, CanCanCan, Banken, Oso; when to choose one of them instead; adoption cost for greenfield vs an existing app
+    source: docs/site/comparison.md
+    nav_order: 1
+
+  - slug: quickstart
+    title: Quickstart
+    description: install, gate skip, report mode, bootstrap admin
+    source: docs/site/quickstart.md
+    nav_order: 2
+
+  - slug: adopting-in-an-existing-app
+    title: Adopting in an existing app
+    description: retrofit an existing app through report mode
+    source: docs/guides/adopting-in-an-existing-app.md
+    generate: true
+    parent: Quickstart
+    nav_order: 1
+
+  - slug: concepts
+    title: Concepts
+    description: resolver order, permissions from routes, ambient context
+    source: docs/site/concepts.md
+    nav_order: 3
+
+  - slug: concepts-and-glossary
+    title: Concepts & glossary
+    description: decision order and core vocabulary
+    source: docs/guides/concepts-and-glossary.md
+    generate: true
+    parent: Concepts
+    nav_order: 1
+
+  - slug: checking-permissions
+    title: Checking permissions
+    description: allowed_to?, scope_for, record-level grants, scopeable models
+    source: docs/guides/checking-permissions.md
+    generate: true
+    parent: Concepts
+    nav_order: 2
+
+  - slug: separation-of-duties
+    title: Separation of duties
+    description: the anti-fraud veto — opt-in, how to enable, verify, break-glass
+    source: docs/site/separation-of-duties.md
+    nav_order: 4
+
+  - slug: separation-of-duties-and-break-glass
+    title: SoD & break-glass
+    description: SoD veto, sod_identity, allow_sod_bypass
+    source: docs/guides/separation-of-duties-and-break-glass.md
+    generate: true
+    parent: Separation of duties
+    nav_order: 1
+
+  - slug: security-checklist
+    title: Security & production checklist
+    description: excluded controllers, 403/404 record oracle, pre-ship list
+    source: docs/SECURITY-CHECKLIST.md
+    generate: true
+    generate_kind: security_checklist
+    nav_order: 5
+
+  - slug: configuration
+    title: Configuration
+    description: every knob with defaults
+    source: docs/site/configuration.md
+    nav_order: 6
+
+  - slug: configuration-reference
+    title: Configuration reference
+    description: initializer knobs, enforcement, audit, diagnostics
+    source: docs/guides/configuration-reference.md
+    generate: true
+    parent: Configuration
+    nav_order: 1
+
+  - slug: role-definitions
+    title: Portable role definitions
+    description: export, diff, import, and rollback of role grids (not assignments)
+    source: docs/guides/role-definitions.md
+    generate: true
+    parent: Configuration
+    nav_order: 2
+
+  - slug: impersonation
+    title: Impersonation
+    description: act-as, mutation guard, denial shape, actor_method
+    source: docs/guides/impersonation.md
+    generate: true
+    nav_order: 7
+
+  - slug: testing
+    title: Testing
+    description: TestHelpers, grants in request and system specs
+    source: docs/guides/testing.md
+    generate: true
+    nav_order: 8
+
+  - slug: upgrading
+    title: Upgrading
+    description: posture-changing upgrades
+    source: docs/site/upgrading.md
+    nav_order: 9
+
+  - slug: ai-agents
+    title: For AI agents
+    description: copy-paste integration prompts, including subject identity
+    source: docs/site/ai-agents.md
+    nav_order: 10
+
+  - slug: limitations
+    title: Limitations
+    description: SSR-first stance and intentional residuals
+    source: docs/site/limitations.md
+    nav_order: 11
+
+extras:
+  - id: readme
+    title: README highlights
+    source: README.md
+    kind: readme_highlights
+    description: product pitch, fit, installation, documentation table
+
+  - id: upgrading-root
+    title: UPGRADING.md
+    source: UPGRADING.md
+    kind: full
+    description: silent posture changes a changelog line is easy to miss
+
+also_on_github:
+  - title: README
+    path: README.md
+    description: the full in-repo reference
+  - title: CHANGELOG
+    path: CHANGELOG.md
+    description: every release, newest first
+  - title: Issues
+    url: https://github.com/davidteren/current_scope/issues
+    description: bugs, security reports, and the 1.0 bake

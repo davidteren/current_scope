@@ -28,21 +28,31 @@ Key facts agents get wrong without reading:
 
 ## Docs
 
-- [Is it the right fit?](https://davidteren.github.io/current_scope/comparison.html): CurrentScope vs Pundit, Action Policy, CanCanCan, Banken, Oso; when to choose one of them instead; adoption cost for greenfield vs an existing app
-- [Quickstart](https://davidteren.github.io/current_scope/quickstart.html): install, gate skip, report mode, bootstrap admin
-- [Concepts](https://davidteren.github.io/current_scope/concepts.html): resolver order, permissions from routes, ambient context
-- [Separation of duties](https://davidteren.github.io/current_scope/separation-of-duties.html): the anti-fraud veto — opt-in, how to enable, verify, break-glass
-- [Security & production checklist](https://davidteren.github.io/current_scope/security-checklist.html): excluded controllers, 403/404 record oracle, pre-ship list
-- [Configuration](https://davidteren.github.io/current_scope/configuration.html): every knob with defaults
-- [Upgrading](https://davidteren.github.io/current_scope/upgrading.html): posture-changing upgrades
-- [Limitations](https://davidteren.github.io/current_scope/limitations.html): SSR-first stance + intentional residuals
-- [For AI agents](https://davidteren.github.io/current_scope/ai-agents.html): copy-paste integration prompts, including subject identity
+- [Overview](https://davidteren.github.io/current_scope/index.md): Product pitch, resolver order, comparison, six-step install
+- [Is it the right fit?](https://davidteren.github.io/current_scope/comparison.md): CurrentScope vs Pundit, Action Policy, CanCanCan, Banken, Oso; when to choose one of them instead; adoption cost for greenfield vs an existing app
+- [Quickstart](https://davidteren.github.io/current_scope/quickstart.md): install, gate skip, report mode, bootstrap admin
+- [Adopting in an existing app](https://davidteren.github.io/current_scope/adopting-in-an-existing-app.md): retrofit an existing app through report mode
+- [Concepts](https://davidteren.github.io/current_scope/concepts.md): resolver order, permissions from routes, ambient context
+- [Concepts & glossary](https://davidteren.github.io/current_scope/concepts-and-glossary.md): decision order and core vocabulary
+- [Checking permissions](https://davidteren.github.io/current_scope/checking-permissions.md): allowed_to?, scope_for, record-level grants, scopeable models
+- [Separation of duties](https://davidteren.github.io/current_scope/separation-of-duties.md): the anti-fraud veto — opt-in, how to enable, verify, break-glass
+- [SoD & break-glass](https://davidteren.github.io/current_scope/separation-of-duties-and-break-glass.md): SoD veto, sod_identity, allow_sod_bypass
+- [Security & production checklist](https://davidteren.github.io/current_scope/security-checklist.md): excluded controllers, 403/404 record oracle, pre-ship list
+- [Configuration](https://davidteren.github.io/current_scope/configuration.md): every knob with defaults
+- [Configuration reference](https://davidteren.github.io/current_scope/configuration-reference.md): initializer knobs, enforcement, audit, diagnostics
+- [Portable role definitions](https://davidteren.github.io/current_scope/role-definitions.md): export, diff, import, and rollback of role grids (not assignments)
+- [Impersonation](https://davidteren.github.io/current_scope/impersonation.md): act-as, mutation guard, denial shape, actor_method
+- [Testing](https://davidteren.github.io/current_scope/testing.md): TestHelpers, grants in request and system specs
+- [Upgrading](https://davidteren.github.io/current_scope/upgrading.md): posture-changing upgrades
+- [For AI agents](https://davidteren.github.io/current_scope/ai-agents.md): copy-paste integration prompts, including subject identity
+- [Limitations](https://davidteren.github.io/current_scope/limitations.md): SSR-first stance and intentional residuals
 
-## Source (canonical, deepest detail)
+## Full corpus
 
-- [README](https://raw.githubusercontent.com/davidteren/current_scope/main/README.md): the full reference
-- [Adoption guide](https://raw.githubusercontent.com/davidteren/current_scope/main/docs/guides/adopting-in-an-existing-app.md): retrofit an existing app
-- [Portable role definitions](https://raw.githubusercontent.com/davidteren/current_scope/main/docs/guides/role-definitions.md): export/diff/import/rollback of role grids (not assignments)
-- [Security checklist](https://raw.githubusercontent.com/davidteren/current_scope/main/docs/SECURITY-CHECKLIST.md)
-- [CHANGELOG](https://raw.githubusercontent.com/davidteren/current_scope/main/CHANGELOG.md)
-- [Issues](https://github.com/davidteren/current_scope/issues)
+- [llms-full.txt](https://davidteren.github.io/current_scope/llms-full.txt): every published page above, plus README and UPGRADING highlights, in one file
+
+## Also on GitHub
+
+- [README](https://raw.githubusercontent.com/davidteren/current_scope/main/README.md): the full in-repo reference
+- [CHANGELOG](https://raw.githubusercontent.com/davidteren/current_scope/main/CHANGELOG.md): every release, newest first
+- [Issues](https://github.com/davidteren/current_scope/issues): bugs, security reports, and the 1.0 bake

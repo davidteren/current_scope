@@ -1,0 +1,92 @@
+# yaml-language-server: $schema=https://cubic.dev/schema/cubic-repository-config.schema.json
+version: 1
+
+reviews:
+  enabled: true
+  sensitivity: high
+  incremental_commits: true
+  check_drafts: false
+  architecture_diagrams: true
+  resolve_threads_when_addressed: true
+  external_contributors_require_manual_review: false
+  senior_reviewers: [davidteren]
+  auto_approve_behavior: disabled
+  auto_approve: disabled
+  ultrareview: automatic
+  auto_ultrareview: high_risk_only
+  auto_ultrareview_file_patterns:
+    - 'lib/**/auth*/**'
+    - '**/migrations/**'
+    - 'db/migrate/**'
+    - 'app/controllers/**'
+  custom_instructions: |
+    This is a Ruby gem/engine (current_scope) published for host Rails apps to mount.
+    Prioritize: public API stability, backwards compatibility, engine isolation
+    (don't assume host app internals), authorization correctness, and clear
+    failure modes. Treat CHANGELOG and README contract language as part of the API.
+    Prefer minimal diffs; flag accidental public-API surface changes.
+    Prefer correctness and authz over style nits. Flag missing tests for behavioral changes.
+
+  ignore:
+    files:
+      - 'docs/api/**'
+      - 'docs/site/_site/**'
+      - '**/coverage/**'
+      - 'pkg/**'
+      - 'Gemfile.lock'
+      - '**/Gemfile.lock'
+      - '**/*.gem'
+      - 'tmp/**'
+      - 'vendor/**'
+      - '**/node_modules/**'
+      - '**/fixtures/**'
+      - '**/cassettes/**'
+    pr_labels:
+      - skip-review
+      - wip
+      - draft
+      - docs-only
+    max_changed_lines: 5000
+
+  custom_rules:
+    - name: Gem public API / changelog
+      description: >
+        Flag changes to public constants, method signatures, or default config
+        without CHANGELOG notes. Flag engine initializers that leak into host apps.
+      include:
+        - 'lib/**'
+        - 'app/**'
+        - '*.gemspec'
+    - name: Rails engine boundaries
+      description: >
+        Flag host-app assumptions, global monkey patches, and controllers/helpers
+        that don't stay namespaced under the engine module.
+      include:
+        - 'app/**'
+        - 'lib/**'
+    - name: Mutation / CI gate honesty
+      description: >
+        For Mutineer or mutation CI changes, flag configs that silently skip
+        mutants, weaken thresholds, or exclude production code without documenting why.
+      include:
+        - '**/.mutineer.yml'
+        - '**/*mutineer*'
+        - '.github/workflows/**'
+    - name: Security and secrets
+      description: >
+        Flag hardcoded secrets, unsafe deserialization, SQL injection via string
+        interpolation, open redirects, and missing authorization checks on new endpoints.
+
+pr_descriptions:
+  generate: true
+  skip_if_author_description: true
+  cubic_review_link: true
+  instructions: |
+    Keep What / Why / How. Mention risk and test plan briefly.
+
+issues:
+  fix_with_cubic_buttons: true
+  pr_comment_fixes: true
+  fix_commits_to_pr: true
+  auto_fix_sign_commits: false
+  coding_agent_provider: cubic

@@ -36,7 +36,7 @@
       <div class="cs-topbar">
         <span class="cs-topbar-title">Authorization</span>
         <span class="cs-topbar-spacer"></span>
-        <span class="cs-badge">full access</span>
+        <span class="cs-badge" id="cs_authority_badge"><%= current_scope_authority_badge %></span>
         <button type="button" class="cs-theme-toggle" data-cs-theme-toggle
                 aria-label="Toggle dark mode" aria-pressed="<%= cs_theme == "dark" %>">
           <span class="cs-icon-light" aria-hidden="true">☾</span>

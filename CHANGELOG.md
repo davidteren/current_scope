@@ -150,6 +150,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Console, bootstrap, and search describe the authority they actually
+  have (#220).** The console badge says full access only for a full-access
+  subject. The grant task reports when the assigned Owner role is not
+  full-access. Subject search says when global search is unsupported
+  instead of claiming matches. README now names full-access entry as the
+  default policy.
 - **Definitions import records the committed diff and serializes the undo
   file (#219, #178).** The audit event is computed after role locks, so an
   intervening permission change is named. Overlapping applies that share a

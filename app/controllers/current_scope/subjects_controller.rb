@@ -9,7 +9,9 @@ module CurrentScope
 
     def index
       @query = params[:q].to_s.strip
-      scope = filter_subjects(subject_class.order(:id), @query)
+      search_columns = subject_search_columns(subject_class)
+      @global_search_supported = search_columns.any?
+      scope = filter_subjects(subject_class.order(:id), @query, search_columns)
 
       @page = [ params[:page].to_i, 1 ].max
       @subjects = scope.limit(PER_PAGE).offset((@page - 1) * PER_PAGE)
@@ -51,10 +53,10 @@ module CurrentScope
     # subject_label can't be expressed in SQL; when the model exposes none of the
     # searchable columns this returns the scope unfiltered and the per-page
     # client filter remains the only narrowing.
-    def filter_subjects(scope, query)
+    def filter_subjects(scope, query, columns = nil)
       return scope if query.blank?
 
-      columns = subject_search_columns(scope.klass)
+      columns = subject_search_columns(scope.klass) if columns.nil?
       return scope if columns.empty?
 
       conn    = scope.klass.connection
@@ -69,7 +71,10 @@ module CurrentScope
       candidates = []
       candidates << configured.to_s if configured.is_a?(Symbol)
       candidates.concat(SEARCH_COLUMNS)
-      candidates.uniq.select { |c| klass.column_names.include?(c) }
+      names = klass.column_names
+      candidates.uniq.select { |c| names.include?(c) }
+    rescue ActiveRecord::StatementInvalid, ActiveRecord::ConnectionNotEstablished
+      []
     end
   end
 end

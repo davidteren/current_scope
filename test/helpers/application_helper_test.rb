@@ -34,6 +34,27 @@ module CurrentScope
 
     # --- Existing behaviour, unchanged (R4) ---
 
+    test "the authority badge says full access only for a full-access subject" do
+      owner = User.create!(name: "Badge owner")
+      CurrentScope::RoleAssignment.create!(
+        subject: owner, role: CurrentScope::Role.create!(name: "Owner", full_access: true))
+      CurrentScope::Current.user = owner
+      assert_equal "full access", current_scope_authority_badge
+
+      delegate = User.create!(name: "Badge delegate")
+      CurrentScope::RoleAssignment.create!(
+        subject: delegate, role: CurrentScope::Role.create!(name: "Delegate"))
+      CurrentScope::Current.user = delegate
+      assert_equal "administrator", current_scope_authority_badge
+    ensure
+      CurrentScope::Current.user = nil
+    end
+
+    test "the authority badge says administrator when no subject is signed in" do
+      CurrentScope::Current.user = nil
+      assert_equal "administrator", current_scope_authority_badge
+    end
+
     test "a blank/whitespace email falls through to the next identifier, not an empty label" do
       CurrentScope.config.subject_label = nil # exercise the default chain
       subject = Struct.new(:email, :name).new("   ", "Fallback Person")

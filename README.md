@@ -215,9 +215,10 @@ end
 A skipped controller is unprotected by the permission gate — supply your own
 auth where that matters ([security checklist](docs/SECURITY-CHECKLIST.md)).
 
-**3. Bootstrap the first admin.** The management UI only admits full-access
-subjects; the seeded **Member** role starts with **zero** permissions until
-you edit it:
+**3. Bootstrap the first admin.** By default the management UI only admits
+full-access subjects. A host can also admit delegates through
+`management_authorizer` (see [Editable role administration](#editable-role-administration)).
+The seeded **Member** role starts with **zero** permissions until you edit it:
 
 ```bash
 bin/rails current_scope:grant SUBJECT_ID=YOUR_USER_ID
@@ -360,11 +361,12 @@ Or in `db/seeds.rb`:
 
 ```ruby
 CurrentScope.seed_defaults!            # Owner (full_access) + Member
-CurrentScope.grant!(User.first)        # give the first user the Owner role
+CurrentScope.grant!(User.first)        # Owner role; full_access only if that role has it
 ```
 
-Then manage everything at `/current_scope` (full-access subjects only): the
-role grid, org-wide assignments, scoped grants.
+Then manage everything at `/current_scope` (full-access subjects by default;
+see [Editable role administration](#editable-role-administration) for
+delegated access): the role grid, org-wide assignments, scoped grants.
 
 ## Documentation
 

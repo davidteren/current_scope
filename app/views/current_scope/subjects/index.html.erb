@@ -12,13 +12,17 @@
   <% end %>
   <span class="cs-spacer"></span>
 </div>
-<% if @query.present? %>
-  <p class="cs-hint">Showing matches for “<%= @query %>” across all subjects. Narrow the list below per page; selection applies to the current page.</p>
-<% else %>
+<% if @query.present? && @global_search_supported %>
+  <p class="cs-hint" id="cs_search_status">Showing matches for “<%= @query %>” across all subjects. Narrow the list below per page; selection applies to the current page.</p>
+<% elsif @query.present? %>
+  <p class="cs-hint" id="cs_search_unsupported">Global search is not available for this subject model. The list is unfiltered. Type to filter this page.</p>
+<% elsif @global_search_supported %>
   <%# Always shown (not just on multi-page lists): the one input drives TWO
       mechanisms — typing live-filters this page, Search queries every subject —
       and nothing but this line says so. %>
-  <p class="cs-hint">Type to filter this page, or Search to find anyone by email or name across every subject.</p>
+  <p class="cs-hint" id="cs_search_hint">Type to filter this page, or Search to find anyone by email or name across every subject.</p>
+<% else %>
+  <p class="cs-hint" id="cs_search_hint">Type to filter this page. Global search is not available for this subject model.</p>
 <% end %>
 
 <div class="cs-bulk" data-cs-bulk hidden>

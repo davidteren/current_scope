@@ -55,8 +55,8 @@ namespace :current_scope do
     puts "CurrentScope grant columns are in the #{shape} shape #151 requires."
   end
 
-  desc "Grant the full-access Owner role to a subject (bootstrap the first admin). " \
-       "Usage: bin/rails current_scope:grant SUBJECT_ID=1"
+  desc "Grant the Owner role to a subject (bootstrap the first admin). " \
+       "On a fresh seed Owner is full-access. Usage: bin/rails current_scope:grant SUBJECT_ID=1"
   task grant: :environment do
     id = ENV["SUBJECT_ID"]
     abort "SUBJECT_ID is required, e.g. bin/rails current_scope:grant SUBJECT_ID=1" if id.blank?
@@ -65,16 +65,21 @@ namespace :current_scope do
     subject = klass.find_by(id: id)
     abort "No #{klass} with id=#{id}" if subject.nil?
 
-    # grant! seeds Owner on the default path — warn on replacement even when
-    # the Owner row does not exist yet (first-time Owner creation).
     prior = CurrentScope::RoleAssignment.find_by(subject: subject)&.role
-    if prior && prior.name != "Owner"
+    assignment = CurrentScope.grant!(subject)
+    role = assignment.role
+    if prior && prior.id != role.id
+      access = role.full_access? ? "full-access " : ""
       warn "WARNING: #{klass}##{subject.id} already held the #{prior.name.inspect} role — " \
-           "replacing it with full-access Owner."
+           "replacing it with #{access}#{role.name}."
     end
-
-    CurrentScope.grant!(subject)
-    puts "Granted the full-access Owner role to #{klass}##{subject.id}."
+    if role.full_access?
+      puts "Granted the full-access #{role.name} role to #{klass}##{subject.id}."
+    else
+      puts "Assigned the #{role.name} role to #{klass}##{subject.id}. " \
+           "That role does not have full access; a host authorizer may independently " \
+           "admit this subject."
+    end
   end
 
   namespace :identity do

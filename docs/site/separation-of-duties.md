@@ -1,6 +1,7 @@
 ---
 title: Separation of duties
 nav_order: 4
+has_children: true
 ---
 
 # Separation of duties: the anti-fraud guarantee
@@ -227,6 +228,6 @@ conditional, privileged, audited self-approval is the real requirement.
 
 ## Full reference
 
-The [README's SoD section](https://github.com/davidteren/current_scope/blob/main/docs/guides/separation-of-duties-and-break-glass.md#separation-of-duties-opt-in)
+The [SoD & break-glass guide](separation-of-duties-and-break-glass.md#separation-of-duties-opt-in)
 is the canonical deep treatment — record-less refusals, the report-mode
 blind spot, `sod_identity` modes, and the break-glass host recipe.

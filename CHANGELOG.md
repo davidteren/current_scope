@@ -7,6 +7,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Mutation-testing PR gate.** Every PR runs
+  [Mutineer](https://github.com/davidteren/mutineer) via
+  `.github/workflows/mutation.yml`: dummy-app boot, serial `--rails` (the
+  daemon worker-DB path wants a root `db/schema.rb` this engine does not
+  have — [#227](https://github.com/davidteren/current_scope/issues/227)),
+  diff-scoped to the PR base, 80% score floor. The explicit test list
+  omits generator, docs-site, and wiring pins that fail or add no
+  mutant signal under that boot. How to run it locally and why the floor
+  is 80 rather than 90 is in CONTRIBUTING.md. No committed baseline yet
+  — add `.mutineer/baseline.json` after a full scan on `main`.
+- **AI-friendly docs site (#212, #213).** The Pages site now ships
+  `llms-full.txt`, a Markdown twin for every HTML page (`rel="alternate"`
+  `type="text/markdown"`), and those URLs in `sitemap.xml`. `docs/guides/`
+  is published into the Just-the-Docs nav from one catalog
+  (`docs/site/_data/doc_tree.yml`) so human nav, sitemap, `llms.txt`, and
+  `llms-full.txt` cannot drift. `bin/docs-site prepare` / `publish` wrap
+  the GitHub Pages build (the github-pages gem will not load a custom
+  plugin). `bin/docs-site check` validates catalog coverage, that
+  `.gitignore` lists generated pages, and that the committed `llms.txt`
+  matches the generator. README and UPGRADING highlights in
+  `llms-full.txt` rewrite repository-relative links: catalogued docs
+  become published Markdown twins; other repo files become GitHub
+  blob/raw URLs.
 - **Delegated role administration.** `config.management_authorizer` lets a host
   decide console entry and role or assignment operations through a pure
   callback. `CurrentScope.can_manage?` exposes the same decision to host code.
@@ -100,6 +123,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     now says so instead of printing the literal key `"(duplicate natural key)"`.
 
 ### Changed
+- **RubyGems metadata now points at the docs site (#211).**
+  `documentation_uri` and `homepage` are the Pages site;
+  `source_code_uri` and `bug_tracker_uri` are the GitHub repo and issue
+  tracker. `changelog_uri` is unchanged.
 - **CI now fails when line coverage falls below 95% or branch coverage
   falls below 80% (#146).** Local runs, including a single-file run, do
   not enforce the floor. Reproduce with `CI=1` in front of the documented

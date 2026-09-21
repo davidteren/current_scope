@@ -5,14 +5,22 @@ on:
     branches: [main]
     paths:
       - "docs/site/**"
+      - "docs/guides/**"
       - "docs/SECURITY-CHECKLIST.md"
+      - "README.md"
+      - "UPGRADING.md"
+      - "bin/docs-site"
       - ".github/workflows/pages.yml"
   # PRs get the build (never the deploy) so a broken site fails the PR,
   # not the post-merge deploy.
   pull_request:
     paths:
       - "docs/site/**"
+      - "docs/guides/**"
       - "docs/SECURITY-CHECKLIST.md"
+      - "README.md"
+      - "UPGRADING.md"
+      - "bin/docs-site"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -35,41 +43,24 @@ jobs:
       pages: read
     steps:
       - uses: actions/checkout@v7
-      # The security checklist has ONE canonical source: docs/SECURITY-CHECKLIST.md.
-      # Copy it into the site at build time (front matter prepended, repo-relative
-      # links rewritten to GitHub URLs) so the site page can never drift from it.
-      # docs/site/security-checklist.md is gitignored for the same reason.
-      - name: Generate security checklist page from the canonical doc
-        run: |
-          {
-            printf -- '---\ntitle: Security & production checklist\nnav_order: 5\n---\n\n'
-            sed -e 's|(\.\./README\.md|(https://github.com/davidteren/current_scope/blob/main/README.md|g' \
-                -e 's|(guides/|(https://github.com/davidteren/current_scope/blob/main/docs/guides/|g' \
-                docs/SECURITY-CHECKLIST.md
-          } > docs/site/security-checklist.md
-      # The sed rules above only know today's link shapes. Fail the build if
-      # any link target that is not absolute or an in-page anchor survived the
-      # rewrite, so a new relative-link style breaks CI instead of shipping a 404.
-      - name: Assert no unrewritten relative links remain
-        run: |
-          if grep -oE '\]\([^)]*\)' docs/site/security-checklist.md | grep -vE '^\]\((https?://|#|mailto:)'; then
-            echo "::error::docs/SECURITY-CHECKLIST.md has a relative link the sed rewrite does not cover — extend the rewrite step."
-            exit 1
-          fi
-          # Reference-style definitions ([label]: target) bypass the inline
-          # check above — hold them to the same bar. kramdown allows up to
-          # three leading spaces and <angle-bracket> destinations; '^ *'
-          # supersets the space rule (portable across BSD/GNU grep — BSD
-          # mishandles an interval next to a negated bracket class).
-          if grep -nE '^ *\[[^]]+\]:' docs/site/security-checklist.md | grep -vE '\]:[[:space:]]*<?(https?://|#|mailto:)'; then
-            echo "::error::docs/SECURITY-CHECKLIST.md has a relative reference-style link — extend the rewrite step."
-            exit 1
-          fi
+      # One catalog (docs/site/_data/doc_tree.yml) generates the security
+      # checklist, the docs/guides/ pages, and llms.txt so nav / sitemap /
+      # machine indexes cannot drift. Generated Markdown is gitignored.
+      - name: Prepare generated docs pages
+        run: ruby bin/docs-site prepare
       - uses: actions/configure-pages@v6
       - uses: actions/jekyll-build-pages@v1
         with:
           source: ./docs/site
           destination: ./_site
+      # jekyll-build-pages runs in Docker as root, so _site is not writable
+      # by the runner until we take ownership.
+      - name: Allow post-build writes into _site
+        run: sudo chown -R "$USER" _site
+      # github-pages will not load a custom Jekyll plugin, so Markdown twins,
+      # llms-full.txt, and sitemap extras are written into the built tree.
+      - name: Publish Markdown twins and llms-full.txt
+        run: ruby bin/docs-site publish _site
       - uses: actions/upload-pages-artifact@v5
 
   deploy:

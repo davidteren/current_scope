@@ -1,5 +1,16 @@
 # STATUS
 
+## Current work
+
+Mutation-testing PR gate (Mutineer): `.github/workflows/mutation.yml` runs
+`davidteren/mutineer@v1` on every PR. Diff-scoped to the PR base, dummy-app
+boot, serial `--rails`, 80% floor. `bin/mutineer-test-files` lists only
+tests that stay green under that boot and can kill engine-source mutants
+(no generators, docs-site pins, or system tests). Daemon workers:
+[#227](https://github.com/davidteren/current_scope/issues/227). How to run
+it locally is in CONTRIBUTING.md. No committed `.mutineer/baseline.json`
+yet.
+
 ## Last session handoff
 
 **What this is:** Miela and CurrentScope provide editable business and resource roles.\

@@ -3,13 +3,15 @@
 # github-pages gem). index.html has no front matter, so Jekyll passes it
 # through untouched — the landing page stays hand-authored HTML.
 #
-# NOTE for local preview: security-checklist.md is NOT committed — the
-# workflow generates it from docs/SECURITY-CHECKLIST.md. To get it locally,
-# run (from the repo root):
-#   { printf -- '---\ntitle: Security & production checklist\nnav_order: 5\n---\n\n'; \
-#     sed -e 's|(\.\./README\.md|(https://github.com/davidteren/current_scope/blob/main/README.md|g' \
-#         -e 's|(guides/|(https://github.com/davidteren/current_scope/blob/main/docs/guides/|g' \
-#         docs/SECURITY-CHECKLIST.md; } > docs/site/security-checklist.md
+# NOTE for local preview: generated *pages* (security-checklist and the
+# docs/guides/ tree) are gitignored. llms.txt is generated and committed so
+# the repo stays readable. From the repo root:
+#   ruby bin/docs-site prepare
+# After `jekyll build`, publish Markdown twins + llms-full.txt + sitemap extras:
+#   ruby bin/docs-site publish _site
+# Catalog coverage, .gitignore for generated pages, committed llms.txt:
+#   ruby bin/docs-site check
+# The catalog is docs/site/_data/doc_tree.yml.
 title: CurrentScope
 description: >-
   A mountable Rails engine for authorization: permissions auto-derived from

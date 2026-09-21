@@ -100,5 +100,48 @@ module CurrentScope
       CurrentScope::Current.polymorphic_registry_error ||= e.message
       true
     end
+
+    # True when destroying this org assignment would leave zero live full-access
+    # holders. An orphan or unresolvable subject is not a live holder: cleanup
+    # of that row is allowed, and the row must not vouch for the console.
+    # Unknown (a registry failure while this row still resolves) is a refusal.
+    def would_lock_console_by_removing_assignment?(assignment)
+      return false unless assignment.role&.full_access?
+
+      # Cause the failure we are testing for. A degrading read would make an
+      # unlatched collision look like an orphan and allow the last live holder
+      # to be removed. A stale token returns nil without raising (#90) and is
+      # still cleanup, not unknown.
+      CurrentScope.polymorphic_class(assignment.subject_type)
+      return true if registry_blind?
+      return false unless assignment.current_scope_resolved_record("subject")
+
+      !live_holder?(remaining_full_access_assignments(except_ids: [ assignment.id ]))
+    rescue CurrentScope::ConfigurationError => e
+      CurrentScope::Current.polymorphic_registry_error ||= e.message
+      true
+    end
+
+    # True when clearing or demoting these full-access assignments would leave
+    # zero live full-access holders. Pass only the rows being changed.
+    def would_lock_console_by_removing_assignments?(assignments)
+      rows = Array(assignments)
+      return false if rows.empty?
+
+      rows.map(&:subject_type).uniq.each { |type| CurrentScope.polymorphic_class(type) }
+      return true if registry_blind?
+
+      !live_holder?(remaining_full_access_assignments(except_ids: rows.map(&:id)))
+    rescue CurrentScope::ConfigurationError => e
+      CurrentScope::Current.polymorphic_registry_error ||= e.message
+      true
+    end
+
+    def remaining_full_access_assignments(except_ids:)
+      RoleAssignment.joins(:role)
+        .where(current_scope_roles: { full_access: true })
+        .where.not(id: except_ids)
+    end
+    private_class_method :remaining_full_access_assignments
   end
 end

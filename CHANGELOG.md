@@ -156,6 +156,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   full-access. Subject search says when global search is unsupported
   instead of claiming matches. README now names full-access entry as the
   default policy.
+- **Orphan full-access assignments no longer vouch for the last live
+  administrator (#218).** Assignment delete, clear, and demotion reuse the
+  live-holder rule from role removal. A deleted subject cannot keep the
+  console open, and a registry failure still means unknown rather than
+  nobody.
 - **Stale parent associations no longer retain access (#217).** A loaded
   parent is reused only when it still matches the child's foreign key.
   Changing `project_id` (saved or unsaved) now walks the current parent, so

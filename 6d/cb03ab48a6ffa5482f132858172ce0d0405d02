@@ -1,0 +1,25 @@
+CHANGELOG.md
+  s_2eeb468b436f26::t_42697112d843ea 159-162
+docs/guides/role-definitions.md
+  s_2eeb468b436f26::t_904bc83a3d76f1 76-83
+lib/current_scope/definitions_document.rb
+  s_2eeb468b436f26::t_9cf0566fb18ecd 260-261,279-286,288,334-335,342-368,379-386,438-466
+test/definitions_import_test.rb
+  s_2eeb468b436f26::t_68eb0a646167eb 368-522
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "6dcb03ab48a6ffa5482f132858172ce0d0405d02",
+  "prompts": {},
+  "sessions": {
+    "s_2eeb468b436f26": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c2f9-d2eb-74f1-ab79-6419bfe59f75",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -156,6 +156,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   full-access. Subject search says when global search is unsupported
   instead of claiming matches. README now names full-access entry as the
   default policy.
+- **Definitions import records the committed diff and serializes the undo
+  file (#219, #178).** The audit event is computed after role locks, so an
+  intervening permission change is named. Overlapping applies that share a
+  snapshot path take an exclusive file lock around read, write, and restore.
 - **Orphan full-access assignments no longer vouch for the last live
   administrator (#218).** Assignment delete, clear, and demotion reuse the
   live-holder rule from role removal. A deleted subject cannot keep the

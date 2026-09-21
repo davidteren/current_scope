@@ -42,6 +42,16 @@ class ParentScopeForTest < ActiveSupport::TestCase
     assert_equal [ "also mine", "mine" ], listed
   end
 
+  test "a saved parent id change agrees between the list and the per-record check" do
+    scope_grant(@lead, role("Lead", "reports#index"), @project)
+    @mine.project
+    @mine.update!(project_id: @other_project.id)
+
+    assert_equal [ "also mine" ], listed
+    assert_equal [ false, :no_grant ],
+                 @resolver.decide(subject: @lead, permission: "reports#index", record: @mine)
+  end
+
   test "a grant two hops up lists the grandchildren" do
     grandparent = Project.create!(name: "GP")
     @project.update!(parent: grandparent)

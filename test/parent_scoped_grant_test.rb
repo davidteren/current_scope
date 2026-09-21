@@ -53,6 +53,47 @@ class ParentScopedGrantTest < ActiveSupport::TestCase
     assert_equal [ false, :no_grant ], decide(@lead, "reports#approve", draft)
   end
 
+  test "a saved child whose parent id changed does not keep the previous parent grant" do
+    scope_grant(@lead, role("Moved reviewer", "reports#approve"), @project)
+    @report.project
+    @report.update!(project_id: @other_project.id)
+
+    assert @report.association(:project).loaded?
+    assert @report.association(:project).stale_target?
+    assert_equal [ false, :no_grant ], decide(@lead, "reports#approve", @report)
+    assert_empty @resolver.allowed_subjects(
+      subjects: [ @lead ], permission: "reports#approve", record: @report)
+  end
+
+  test "a saved child whose parent id changed inherits the new parent's grant" do
+    scope_grant(@lead, role("Other lead", "reports#approve"), @other_project)
+    @report.project
+    @report.update!(project_id: @other_project.id)
+
+    assert_equal [ true, nil ], decide(@lead, "reports#approve", @report)
+  end
+
+  test "clearing a loaded parent id drops the previous parent grant" do
+    scope_grant(@lead, role("Cleared parent", "reports#approve"), @project)
+    @report.project
+    @report.update!(project_id: nil)
+
+    assert_equal [ false, :no_grant ], decide(@lead, "reports#approve", @report)
+  end
+
+  test "an unsaved child whose parent id changed does not keep the previous parent grant" do
+    scope_grant(@lead, role("Draft id writer", "reports#approve"), @project)
+    draft = Report.new(title: "Draft", project: @project, requested_by: @requester)
+    draft.project
+    draft.project_id = @other_project.id
+
+    assert draft.association(:project).loaded?
+    assert draft.association(:project).stale_target?
+    assert_equal [ false, :no_grant ], decide(@lead, "reports#approve", draft)
+    assert_empty @resolver.allowed_subjects(
+      subjects: [ @lead ], permission: "reports#approve", record: draft)
+  end
+
   test "an unsaved child cannot match a direct grant even with an assigned id" do
     scope_grant(@lead, role("Direct approver", "reports#approve"), @report)
     draft = Report.new(id: @report.id, title: "Draft", requested_by: @requester)

@@ -240,6 +240,35 @@ class ParentChainTest < ActiveSupport::TestCase
     end
   end
 
+  test "a stale loaded association walks the current foreign key" do
+    other = Project.create!(name: "other")
+    @report.project
+    @report.update!(project_id: other.id)
+
+    assert @report.association(:project).stale_target?
+    assert_equal [ other ], CurrentScope::ParentChain.ancestors_for(@report)
+  end
+
+  test "a stale loaded association on a draft walks the current foreign key" do
+    other = Project.create!(name: "other")
+    draft = Report.new(title: "Draft", project: @project, requested_by: @requester)
+    draft.project
+    draft.project_id = other.id
+
+    assert draft.association(:project).stale_target?
+    assert_equal [ other ], CurrentScope::ParentChain.ancestors_for(draft)
+  end
+
+  test "a stale parent on a strict_loading record follows the foreign key without raising" do
+    other = Project.create!(name: "other")
+    strict = Report.strict_loading.includes(:project).find(@report.id)
+    strict.update!(project_id: other.id)
+
+    assert_nothing_raised do
+      assert_equal [ other ], CurrentScope::ParentChain.ancestors_for(strict)
+    end
+  end
+
   test "truncation is fail-closed: a grant above the ceiling opens nothing" do
     root = Project.create!(name: "far-0")
     deepest = (1..CurrentScope::ParentChain::MAX_PARENT_DEPTH + 2).reduce(root) do |parent, i|

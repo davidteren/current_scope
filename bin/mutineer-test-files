@@ -1,0 +1,41 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Print the Minitest files Mutineer should run against (one path per line).
+#
+# The engine's tests are not 1:1 with sources: lib/current_scope/resolver.rb is
+# covered by test/resolver_test.rb, not test/current_scope/resolver_test.rb.
+# Mutineer's convention auto-pair would skip most of the authorization core.
+# This list is the explicit --test set: unit + integration that can kill
+# mutants in lib/current_scope and app/.
+#
+# Omitted on purpose (they do not kill engine-source mutants, and several
+# fail under --rails + test/mutineer_boot.rb):
+#   * system tests — Chrome, slow
+#   * dummy host tests — fixture app, not the product
+#   * generators — Rails::Generators::TestCase is unfit for this boot path
+#     and exercises lib/generators templates we do not mutate
+#   * docs_site_*, upgrading_doc, gemspec, coverage_setup, mutineer_config —
+#     pin docs/packaging/wiring, not engine-source behavior
+
+Dir.chdir(File.expand_path("..", __dir__))
+
+EXCLUDED_PREFIXES = %w[
+  test/system/
+  test/dummy/
+  test/generators/
+].freeze
+
+EXCLUDED_FILES = %w[
+  test/docs_site_test.rb
+  test/docs_site_ai_test.rb
+  test/gemspec_test.rb
+  test/coverage_setup_test.rb
+  test/upgrading_doc_test.rb
+  test/mutineer_config_test.rb
+].freeze
+
+puts Dir.glob("test/**/*_test.rb")
+  .reject { |path| EXCLUDED_PREFIXES.any? { |prefix| path.start_with?(prefix) } }
+  .reject { |path| EXCLUDED_FILES.include?(path) }
+  .sort

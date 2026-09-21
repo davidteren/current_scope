@@ -14,6 +14,12 @@ wip/
 .worktrees/
 coverage/
 
+# Mutineer coverage cache and per-run reports. A committed baseline.json
+# (when one exists) stays trackable via the exception below. Ignore the
+# contents, not the directory, or git never sees the un-ignore.
+.mutineer/*
+!.mutineer/baseline.json
+
 .compound-engineering/*.local.yaml
 
 # Intent-engineering audit output; config yaml files stay tracked

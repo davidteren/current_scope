@@ -1,6 +1,6 @@
 ---
 title: For AI agents
-nav_order: 8
+nav_order: 10
 ---
 
 # For AI agents (and the people driving them)
@@ -10,9 +10,11 @@ prompts encode the foot-guns this documentation already knows about, so an
 agent gets the integration right on the first try. Copy, adjust the names,
 paste.
 
-There is also an [`llms.txt`](llms.txt) index of this site, and every page
-here links to its canonical in-repo source — point your agent at those for
-depth.
+There is an [`llms.txt`](llms.txt) index of this site, a one-file
+[`llms-full.txt`](llms-full.txt) corpus, and a Markdown twin for every HTML
+page (same path, `.md` suffix, advertised as `rel="alternate"`). The deep
+guides under `docs/guides/` are published on this site from that same tree —
+do not treat raw GitHub as a second canon.
 
 ## Install CurrentScope in this app
 
@@ -210,7 +212,7 @@ deterministic rule inventories for all three systems, decision report,
 parity harness (per-system old-answer replay), reviewable role-backfill
 migrations (enum column or rolify), and safe mechanical call-site rewrites
 behind an explicit `--write`. The manual path remains the
-[adoption guide](https://github.com/davidteren/current_scope/blob/main/docs/guides/adopting-in-an-existing-app.md).
+[adoption guide](adopting-in-an-existing-app.md).
 
 ## Planned agent surfaces
 

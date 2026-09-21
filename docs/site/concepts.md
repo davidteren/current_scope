@@ -1,6 +1,7 @@
 ---
 title: Concepts
 nav_order: 3
+has_children: true
 ---
 
 # Concepts
@@ -68,11 +69,17 @@ controller whose path differs from the record's route key (a
 `DashboardController` rendering `Report`s), prefer the explicit full key —
 `allowed_to?("dashboard#show")`. The Guard stays authoritative either way,
 so a mismatch is a display bug, not a bypass. Details in the
-[README](https://github.com/davidteren/current_scope/blob/main/docs/guides/checking-permissions.md#checking-permissions--anywhere).
+[Checking permissions](checking-permissions.md#checking-permissions--anywhere).
 
 ## Where the deep answers live
 
+The published guides are the same files as `docs/guides/` in the repo:
+
+- [Concepts & glossary](concepts-and-glossary.md)
+- [Checking permissions](checking-permissions.md)
+- [Impersonation](impersonation.md)
+- [Configuration reference](configuration-reference.md)
+- [Testing](testing.md)
+
 The [README](https://github.com/davidteren/current_scope/blob/main/README.md)
-is the canonical reference: `scope_for` semantics, record hooks,
-impersonation and the read-only mutation guard, the audit ledger, dev
-diagnostics, and testing helpers.
+is the in-repo narrative those guides expand.

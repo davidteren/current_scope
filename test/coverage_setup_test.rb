@@ -46,6 +46,22 @@ class CoverageSetupTest < ActiveSupport::TestCase
     end
   end
 
+  test "mutineer_boot requires the bootstrap before it loads the app" do
+    source = File.read(File.join(__dir__, "mutineer_boot.rb"))
+
+    require_line = source.index(/^require_relative ["']coverage_setup["']/)
+    app_line = source.index(%r{^require_relative ["']dummy/config/environment["']})
+    coverage_zero = source.index(/ENV\["COVERAGE"\] = "0"/)
+
+    assert require_line, "mutineer_boot must require coverage_setup — it is a test entry point"
+    assert app_line, "mutineer_boot should still load the dummy app"
+    assert coverage_zero, "mutineer_boot must set COVERAGE=0 so SimpleCov does not start"
+    assert coverage_zero < require_line,
+           "COVERAGE=0 must be set before coverage_setup is required"
+    assert require_line < app_line,
+           "the bootstrap must be required before the dummy app loads the engine"
+  end
+
   test "test_helper requires the bootstrap before it loads the app" do
     source = File.read(File.join(__dir__, "test_helper.rb"))
 

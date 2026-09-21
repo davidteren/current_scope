@@ -1,0 +1,45 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Prepare and publish the GitHub Pages docs site. See docs/site/_build/docs_site.rb.
+require_relative "../docs/site/_build/docs_site"
+
+root = File.expand_path("..", __dir__)
+builder = DocsSite::Builder.new(root)
+command = ARGV.shift || "help"
+
+case command
+when "prepare"
+  site_dir = ARGV.shift || File.join(root, "docs/site")
+  builder.assert_catalog_covers_repo!
+  builder.prepare!(site_dir)
+  warn "Prepared generated pages and llms.txt in #{site_dir}"
+when "publish"
+  built = ARGV.shift
+  raise "usage: bin/docs-site publish <built_site_dir>" unless built
+
+  builder.publish!(built)
+  warn "Published Markdown twins, llms-full.txt, and sitemap extras in #{built}"
+when "check"
+  builder.assert_catalog_covers_repo!
+  gitignore = File.read(File.join(root, ".gitignore"), encoding: "UTF-8")
+  builder.assert_gitignore_covers_generated!(gitignore)
+  committed = File.read(File.join(root, "docs/site/llms.txt"), encoding: "UTF-8")
+  unless committed == builder.llms_txt
+    raise "docs/site/llms.txt is stale — run bin/docs-site prepare and commit it"
+  end
+  warn "docs catalog, gitignore, and llms.txt are in sync"
+when "help", "-h", "--help"
+  puts <<~USAGE
+    usage: bin/docs-site prepare [site_dir]
+           bin/docs-site publish <built_site_dir>
+           bin/docs-site check
+
+    check  catalog covers every guide and authored site page,
+           .gitignore lists generated pages, committed llms.txt
+           matches the generator
+  USAGE
+else
+  warn "unknown command #{command.inspect}"
+  exit 1
+end

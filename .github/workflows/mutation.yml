@@ -1,0 +1,80 @@
+# Mutation-testing gate. Separate from ci.yml so lint/test/adapters stay
+# untouched and this job can time out on its own.
+#
+# Always runs on pull_request (no paths filter): if `mutineer` is a required
+# check, a skipped workflow would block docs-only PRs waiting for a status
+# that never appears. The action still scopes to lines changed since the
+# PR base (do not pass since: none — a full-tree run is hours). A docs-only
+# or config-only diff schedules zero mutants and the job succeeds as a
+# vacuous pass after the dummy DB is prepared.
+name: Mutation
+
+on:
+  pull_request:
+
+jobs:
+  mutineer:
+    name: mutineer
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      RUBY_VERSION: 3.4.9
+      RAILS_ENV: test
+      # GitHub Actions sets CI=1. Without this, test_helper starts SimpleCov
+      # with the CI coverage floor, and Mutineer's own Coverage map is stolen
+      # or the subset run fails the 95/80 floor.
+      COVERAGE: "0"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          # --since needs the PR base reachable. The action fetches that SHA,
+          # but a full history is cheap insurance if the default shallow clone
+          # ever misses it.
+          fetch-depth: 0
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ env.RUBY_VERSION }}
+          bundler-cache: true
+
+      - name: Prepare the dummy test database
+        run: |
+          mkdir -p tmp
+          bin/rails db:test:prepare
+
+      - name: Collect unit and integration tests
+        id: tests
+        run: |
+          files="$(bin/mutineer-test-files | tr '\n' ' ')"
+          {
+            echo "files<<EOF"
+            echo "$files"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run Mutineer
+        id: mutineer
+        uses: davidteren/mutineer@v1
+        with:
+          # Engine runtime only. lib/generators templates are host-app copies;
+          # test/dummy is the fixture host, not the product; views are ERB.
+          sources: lib/current_scope.rb lib/current_scope app
+          test: ${{ steps.tests.outputs.files }}
+          use-bundler: true
+          rails: true
+          extra-args: --boot test/mutineer_boot.rb
+          threshold: "80"
+          jobs: "1"
+          format: json
+          output: tmp/mutineer-report.json
+
+      - name: Upload mutation report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mutineer-report
+          path: tmp/mutineer-report.json
+          if-no-files-found: ignore

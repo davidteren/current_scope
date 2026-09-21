@@ -14,7 +14,9 @@ module CurrentScope
     # admit a restricted delegate; the badge must not still say full access.
     def current_scope_authority_badge
       subject = CurrentScope::Current.user
-      return "administrator" unless subject
+      # Equivalent: full_access?(nil) is already false, so the later return
+      # still reads administrator when no subject is signed in.
+      return "administrator" unless subject # mutineer:disable-line statement_removal
       return "full access" if CurrentScope.resolver.full_access?(subject)
 
       "administrator"

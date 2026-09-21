@@ -1,0 +1,6 @@
+# Cubic / GitHub: skip generated and lockfile noise in AI review
+docs/api/** linguist-generated=true
+docs/site/_site/** linguist-generated=true
+db/schema.rb linguist-generated=true
+test/dummy/db/schema.rb linguist-generated=true
+Gemfile.lock linguist-generated=true

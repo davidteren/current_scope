@@ -84,11 +84,13 @@ CAPTURE_SCREENSHOTS=1 RAILS_ENV=test bin/rails test test/system/screenshots_test
 
 ## Mutation testing
 
-PRs that touch engine Ruby (`lib/`, `app/`) or the suite are mutation-tested
-by [Mutineer](https://github.com/davidteren/mutineer) in
-`.github/workflows/mutation.yml`. The job mutates only lines changed since the
-PR base, runs the covering unit/integration tests, and fails when the score
-drops below 80% (or when the run cannot score a meaningful set of mutants).
+Every PR runs [Mutineer](https://github.com/davidteren/mutineer) in
+`.github/workflows/mutation.yml` (no path filter — the check is meant to be
+required, so it must always report). The job mutates only lines changed since
+the PR base, runs the covering unit/integration tests, and fails when the
+score drops below 80% (or when the run cannot score a meaningful set of
+mutants). A docs-only or config-only diff schedules zero mutants and the
+job still succeeds.
 
 That is a different question from SimpleCov: coverage says the line ran;
 mutation testing asks whether any assertion would notice if it lied.
@@ -106,14 +108,19 @@ plus `test/` on `$LOAD_PATH`, so `require "test_helper"` works), and the 80%
 floor. Runs are serial (`--jobs 1`): Mutineer's `--daemon` worker DBs load
 `db/schema.rb` from the project root, but this engine's schema is
 `test/dummy/db/schema.rb`, so those copies would be empty. Incremental
-`--since` PRs do not need parallel workers. Always set `COVERAGE=0`:
-`test_helper` would otherwise start SimpleCov, which fights Mutineer's
-coverage map and, under `CI=1`, applies the 95/80 floor to a subset run.
+`--since` PRs do not need parallel workers; turning daemon on is
+[#227](https://github.com/davidteren/current_scope/issues/227). Always set
+`COVERAGE=0`: `test_helper` would otherwise start SimpleCov, which fights
+Mutineer's coverage map and, under `CI=1`, applies the 95/80 floor to a
+subset run.
 
 `bin/mutineer-test-files` is the explicit `--test` list. The engine's tests
 are not 1:1 with sources (`lib/current_scope/resolver.rb` is covered by
 `test/resolver_test.rb`), so Mutineer's convention auto-pair would skip most
-of the authorization core. System tests are omitted on purpose.
+of the authorization core. System tests, generator tests, docs-site pins,
+gemspec/coverage/upgrading wiring tests, and this gate's own config pin are
+omitted: they cannot kill mutants in `lib/current_scope` or `app/`, and
+generator tests fail under Mutineer's `--rails` boot.
 
 Do not pass `--since none` on a PR — a full-tree run is hours. When you want
 a committed `.mutineer/baseline.json` later, generate it on `main` from a

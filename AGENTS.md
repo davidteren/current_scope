@@ -150,21 +150,24 @@ reviewer/planner.
 - Coverage (SimpleCov) is bootstrapped by `test/coverage_setup.rb`, which
   **must load before the engine does** — Ruby's `Coverage` cannot instrument an
   already-loaded file, so a late start silently reports `lib/` at 0%. Any new
-  test entry point must require it first; `bin/rails` and `test/test_helper.rb`
-  both do. That file raises if the ordering is ever broken, and
-  `test/coverage_setup_test.rb` pins both require sites. `COVERAGE=0` opts out.
+  test entry point must require it first; `bin/rails`, `test/test_helper.rb`,
+  and `test/mutineer_boot.rb` all do. That file raises if the ordering is ever
+  broken, and `test/coverage_setup_test.rb` pins those require sites.
+  `COVERAGE=0` opts out.
   Do **not** rename it to `coverage.rb` — `ruby -Itest` would then shadow the
   stdlib `coverage` extension SimpleCov itself requires.
 - Integration-test gotcha: after requesting the mounted engine, SCRIPT_NAME
   sticks in the session — use literal paths (`"/session"`) for host routes.
-- **Mutation gate.** PRs that touch `lib/`, `app/`, or the suite run
-  `.github/workflows/mutation.yml` (`davidteren/mutineer@v1`,
-  `test/mutineer_boot.rb`, serial `--rails`, `--since` the PR base). The
-  check name is `mutineer`; it fails
-  when the score on changed lines is below 80%. Run it locally with
-  `COVERAGE=0` (SimpleCov and Mutineer cannot share `Coverage`) — see
-  CONTRIBUTING.md. Do not force a full-tree scan on a PR. This is unrelated
-  to the impersonation `mutation_guard`.
+- **Mutation gate.** Every PR runs `.github/workflows/mutation.yml`
+  (`davidteren/mutineer@v1`, `test/mutineer_boot.rb`, serial `--rails`,
+  `--since` the PR base). The check name is `mutineer`; it fails when the
+  score on changed lines is below 80%, and succeeds vacuously when no
+  `lib/`/`app/` lines changed. `bin/mutineer-test-files` is the explicit
+  `--test` list (no generators, docs-site pins, or system tests). Run it
+  locally with `COVERAGE=0` (SimpleCov and Mutineer cannot share
+  `Coverage`) — see CONTRIBUTING.md. Do not force a full-tree scan on a
+  PR. Daemon workers are deferred to #227. This is unrelated to the
+  impersonation `mutation_guard`.
 
 ## Conventions
 

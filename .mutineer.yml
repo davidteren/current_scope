@@ -8,8 +8,9 @@
 # --daemon is off on purpose. Mutineer provisions per-worker SQLite files from
 # db/schema.rb at the project root; this engine's schema lives at
 # test/dummy/db/schema.rb, so worker DBs would be empty and the smoke check
-# would fail. Incremental --since PRs do not need parallel workers. Revisit
-# when Mutineer accepts a schema path (or we grow a root schema.rb).
+# would fail. Incremental --since PRs do not need parallel workers. Tracked
+# in https://github.com/davidteren/current_scope/issues/227 — revisit when
+# Mutineer accepts a schema path (do not add a stub root schema.rb).
 #
 # Threshold is 80, not the 90 in Mutineer's README examples. We have no
 # survivor inventory or committed baseline yet, and a first-adoption 90

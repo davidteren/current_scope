@@ -8,9 +8,13 @@
 #
 # COVERAGE=0 is required: test_helper would otherwise start SimpleCov, which
 # fights Mutineer's Coverage map and, under CI=1, applies the 95/80 floor.
+# coverage_setup is still required first (same rule as bin/rails and
+# test_helper); with COVERAGE=0 it is a no-op start.
 
 ENV["RAILS_ENV"] ||= "test"
 ENV["COVERAGE"] = "0"
+
+require_relative "coverage_setup"
 
 test_dir = __dir__
 $LOAD_PATH.unshift(test_dir) unless $LOAD_PATH.include?(test_dir)

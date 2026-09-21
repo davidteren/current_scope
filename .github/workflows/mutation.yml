@@ -1,25 +1,16 @@
 # Mutation-testing gate. Separate from ci.yml so lint/test/adapters stay
 # untouched and this job can time out on its own.
 #
-# On pull_request the action scopes to lines changed since the PR base
-# (do not pass since: none — a full-tree run is hours, not a PR gate).
-# A docs-only diff schedules zero mutants and the job still prepares the
-# dummy DB; the path filter below skips that cost when no mutable Ruby
-# or test file moved.
+# Always runs on pull_request (no paths filter): if `mutineer` is a required
+# check, a skipped workflow would block docs-only PRs waiting for a status
+# that never appears. The action still scopes to lines changed since the
+# PR base (do not pass since: none — a full-tree run is hours). A docs-only
+# or config-only diff schedules zero mutants and the job succeeds as a
+# vacuous pass after the dummy DB is prepared.
 name: Mutation
 
 on:
   pull_request:
-    paths:
-      - "lib/**"
-      - "app/**"
-      - "test/**"
-      - "Gemfile"
-      - "Gemfile.lock"
-      - "current_scope.gemspec"
-      - ".mutineer.yml"
-      - ".github/workflows/mutation.yml"
-      - "bin/mutineer-test-files"
 
 jobs:
   mutineer:
@@ -37,6 +28,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          # --since needs the PR base reachable. The action fetches that SHA,
+          # but a full history is cheap insurance if the default shallow clone
+          # ever misses it.
+          fetch-depth: 0
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1

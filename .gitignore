@@ -19,6 +19,14 @@ coverage/
 # Intent-engineering audit output; config yaml files stay tracked
 .intense/runs/
 
-# Built at Pages deploy time from docs/SECURITY-CHECKLIST.md — never commit
+# Built at Pages deploy time from canonical repo docs — never commit
 docs/site/security-checklist.md
+docs/site/adopting-in-an-existing-app.md
+docs/site/checking-permissions.md
+docs/site/concepts-and-glossary.md
+docs/site/configuration-reference.md
+docs/site/impersonation.md
+docs/site/role-definitions.md
+docs/site/separation-of-duties-and-break-glass.md
+docs/site/testing.md
 coverage/

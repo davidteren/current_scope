@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **AI-friendly docs site (#212, #213).** The Pages site now ships
+  `llms-full.txt`, a Markdown twin for every HTML page (`rel="alternate"`
+  `type="text/markdown"`), and those URLs in `sitemap.xml`. `docs/guides/`
+  is published into the Just-the-Docs nav from one catalog
+  (`docs/site/_data/doc_tree.yml`) so human nav, sitemap, `llms.txt`, and
+  `llms-full.txt` cannot drift. `bin/docs-site prepare` / `publish` wrap
+  the GitHub Pages build (the github-pages gem will not load a custom
+  plugin).
 - **Delegated role administration.** `config.management_authorizer` lets a host
   decide console entry and role or assignment operations through a pure
   callback. `CurrentScope.can_manage?` exposes the same decision to host code.

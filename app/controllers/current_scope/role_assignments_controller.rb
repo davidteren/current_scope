@@ -123,7 +123,9 @@ module CurrentScope
 
       holders = full_access_org_assignments.to_a
       affected = holders.select { |assignment| subjects.any? { |subject| same_subject?(assignment, subject) } }
-      return false if affected.empty?
+      # Equivalent to would_lock_console_by_removing_assignments?([]) — kept so
+      # the "no FA holder is being changed" case is visible at this call site.
+      return false if affected.empty? # mutineer:disable-line
 
       FullAccessLock.would_lock_console_by_removing_assignments?(affected)
     end

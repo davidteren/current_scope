@@ -50,6 +50,11 @@ module CurrentScope
       CurrentScope::Current.user = nil
     end
 
+    test "the authority badge says administrator when no subject is signed in" do
+      CurrentScope::Current.user = nil
+      assert_equal "administrator", current_scope_authority_badge
+    end
+
     test "a blank/whitespace email falls through to the next identifier, not an empty label" do
       CurrentScope.config.subject_label = nil # exercise the default chain
       subject = Struct.new(:email, :name).new("   ", "Fallback Person")

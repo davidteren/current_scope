@@ -21,6 +21,8 @@ class SubjectsSearchTest < ActionDispatch::IntegrationTest
     # Server-side, not client-side: a non-match is absent from the HTML entirely
     # (a client filter would still render Bob's row, just hidden).
     assert_no_match(/Bob Dylan/, response.body)
+    assert_select "#cs_search_status"
+    assert_select "#cs_search_unsupported", count: 0
   end
 
   test "search is case-insensitive" do
@@ -83,6 +85,47 @@ class SubjectsSearchTest < ActionDispatch::IntegrationTest
   ensure
     CurrentScope::SubjectsController.define_method(:subject_search_columns, original)
     CurrentScope::SubjectsController.send(:private, :subject_search_columns)
+  end
+
+  test "a configured symbol label is a search column" do
+    prior = CurrentScope.config.subject_label
+    CurrentScope.config.subject_label = :id
+    columns = CurrentScope::SubjectsController.new.send(:subject_search_columns, User)
+    assert_includes columns, "id"
+    assert_includes columns, "name"
+  ensure
+    CurrentScope.config.subject_label = prior
+  end
+
+  test "filter_subjects looks up columns when the caller omits them" do
+    alice = User.create!(name: "Alice Cooper")
+    User.create!(name: "Bob Dylan")
+    scope = CurrentScope::SubjectsController.new.send(:filter_subjects, User.order(:id), "alice")
+    assert_equal [ alice.id ], scope.map(&:id)
+  end
+
+  test "subject_search_columns is empty when the table cannot be read" do
+    singleton = User.singleton_class
+    original = User.method(:column_names)
+    singleton.define_method(:column_names) {
+      raise ActiveRecord::StatementInvalid, "no such table: users"
+    }
+
+    assert_equal [], CurrentScope::SubjectsController.new.send(:subject_search_columns, User)
+  ensure
+    singleton.define_method(:column_names, original)
+  end
+
+  test "subject_search_columns is empty when the connection is down" do
+    singleton = User.singleton_class
+    original = User.method(:column_names)
+    singleton.define_method(:column_names) {
+      raise ActiveRecord::ConnectionNotEstablished, "connection refused"
+    }
+
+    assert_equal [], CurrentScope::SubjectsController.new.send(:subject_search_columns, User)
+  ensure
+    singleton.define_method(:column_names, original)
   end
 
   test "a query with SQL metacharacters is parameterized, not injected" do

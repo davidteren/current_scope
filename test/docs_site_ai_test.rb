@@ -84,6 +84,10 @@ class DocsSiteAiTest < ActiveSupport::TestCase
       assert_includes full, "## Installation"
       assert_includes full, "# UPGRADING.md"
       assert_includes full, "config.subject_identity"
+      assert_includes full, "https://davidteren.github.io/current_scope/checking-permissions.md#a-grant-on-a-parent-record-108"
+      refute_match(/\]\(docs\/guides\/checking-permissions\.md/, full)
+      assert_includes full, "https://github.com/davidteren/current_scope/blob/main/CHANGELOG.md"
+      refute_match(/\]\(CHANGELOG\.md\)/, full)
 
       sitemap = File.read(File.join(dir, "sitemap.xml"), encoding: "UTF-8")
       @builder.sitemap_urls.each do |url|
@@ -102,6 +106,7 @@ class DocsSiteAiTest < ActiveSupport::TestCase
     assert_includes landing, 'type="text/markdown"'
     assert_includes landing, "index.md"
     assert_includes landing, "llms-full.txt"
+    assert_includes landing, 'id="llms_full"'
   end
 
   test "robots.txt keeps crawlers allowed and names major AI bots" do
@@ -132,5 +137,37 @@ class DocsSiteAiTest < ActiveSupport::TestCase
   test "landing Markdown twin has no front matter so Jekyll cannot replace index.html" do
     landing = File.read(File.expand_path("../docs/site/index.md", __dir__), encoding: "UTF-8")
     refute_match(/\A---/, landing)
+  end
+
+  test "rewrite_extra_links maps guides to twins, screenshots to raw, CHANGELOG to blob" do
+    snippet = <<~MD
+      See [Checking permissions](docs/guides/checking-permissions.md#scope).
+      ![Permission grid](docs/screenshots/permission-grid.png)
+      Read the [CHANGELOG](CHANGELOG.md).
+      Stay on [this heading](#local).
+      Keep [the site](https://davidteren.github.io/current_scope/).
+    MD
+
+    rewritten = @builder.rewrite_extra_links(snippet, "README.md")
+
+    assert_includes rewritten, "https://davidteren.github.io/current_scope/checking-permissions.md#scope"
+    refute_includes rewritten, "](docs/guides/checking-permissions.md"
+    assert_includes rewritten, "https://raw.githubusercontent.com/davidteren/current_scope/main/docs/screenshots/permission-grid.png"
+    refute_includes rewritten, "](docs/screenshots/permission-grid.png)"
+    assert_includes rewritten, "https://github.com/davidteren/current_scope/blob/main/CHANGELOG.md"
+    refute_includes rewritten, "](CHANGELOG.md)"
+    assert_includes rewritten, "](#local)"
+    assert_includes rewritten, "](https://davidteren.github.io/current_scope/)"
+  end
+
+  test "llms-full extras rewrite README guide links and UPGRADING's CHANGELOG" do
+    full = @builder.llms_full_txt
+
+    assert_includes full, "https://davidteren.github.io/current_scope/checking-permissions.md#scoping-a-list-scope_for"
+    assert_includes full, "https://davidteren.github.io/current_scope/security-checklist.md"
+    refute_match(/\]\(docs\/guides\/[^\)]+\)/, full)
+    refute_match(/\]\(docs\/SECURITY-CHECKLIST\.md\)/, full)
+    assert_includes full, "https://github.com/davidteren/current_scope/blob/main/CHANGELOG.md"
+    refute_match(/\]\(CHANGELOG\.md\)/, full)
   end
 end

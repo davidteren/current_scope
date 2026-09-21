@@ -9,6 +9,8 @@
 #   ruby bin/docs-site prepare
 # After `jekyll build`, publish Markdown twins + llms-full.txt + sitemap extras:
 #   ruby bin/docs-site publish _site
+# Catalog coverage, .gitignore for generated pages, committed llms.txt:
+#   ruby bin/docs-site check
 # The catalog is docs/site/_data/doc_tree.yml.
 title: CurrentScope
 description: >-

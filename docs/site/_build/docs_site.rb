@@ -12,6 +12,7 @@ require "yaml"
 #   bin/docs-site prepare   # Jekyll inputs (generated pages, llms.txt)
 #   jekyll build
 #   bin/docs-site publish _site  # .md twins, llms-full.txt, sitemap extras
+#   bin/docs-site check     # catalog coverage, gitignore, committed llms.txt
 #
 # One catalog (docs/site/_data/doc_tree.yml) feeds human nav, sitemap,
 # llms.txt, and llms-full.txt so those lists cannot drift.
@@ -200,6 +201,14 @@ module DocsSite
       end
     end
 
+    # README/UPGRADING live at the repo root. Concatenated under Pages, a
+    # leftover `docs/guides/…` or `CHANGELOG.md` would resolve against
+    # github.io and 404. Catalogued sources become published Markdown twins;
+    # images use github_raw; everything else uses github_blob.
+    def rewrite_extra_links(text, source)
+      rewrite_links(text) { |href| rewrite_extra_href(href, source) }
+    end
+
     private
 
     def page_body(page)
@@ -256,15 +265,17 @@ module DocsSite
     end
 
     def extra_body(extra)
-      source = File.read(root.join(extra.fetch("source")), encoding: "UTF-8")
-      case extra["kind"]
+      source = extra.fetch("source")
+      text = File.read(root.join(source), encoding: "UTF-8")
+      body = case extra["kind"]
       when "readme_highlights"
-        readme_highlights(source)
+        readme_highlights(text)
       when "full"
-        source
+        text
       else
         raise Error, "unknown extra kind #{extra["kind"].inspect}"
       end
+      rewrite_extra_links(body, source)
     end
 
     def readme_highlights(readme)
@@ -330,6 +341,34 @@ module DocsSite
       else
         raise Error, "unrewritable relative link in #{source}: #{href}"
       end
+    end
+
+    def rewrite_extra_href(href, source)
+      path, suffix = split_href(href)
+      return href if skip_rewrite?(path) || path.start_with?("/")
+
+      repo_path = extra_repo_path(path, source)
+      return href unless repo_path
+
+      page = pages.find { |item| item["source"] == repo_path }
+      if page
+        "#{absolute_url(markdown_path(page))}#{suffix}"
+      elsif extra_image?(repo_path)
+        "#{github_raw}/#{repo_path}#{suffix}"
+      else
+        "#{github_blob}/#{repo_path}#{suffix}"
+      end
+    end
+
+    def extra_repo_path(path, source)
+      resolved = (Pathname.new(File.dirname(source)) + path).cleanpath
+      return if resolved.absolute? || resolved.to_s.start_with?("..")
+
+      resolved.to_s
+    end
+
+    def extra_image?(path)
+      path.match?(/\.(?:png|jpe?g|gif|svg|webp|ico)\z/i)
     end
 
     def split_href(href)

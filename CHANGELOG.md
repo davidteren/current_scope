@@ -14,7 +14,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (`docs/site/_data/doc_tree.yml`) so human nav, sitemap, `llms.txt`, and
   `llms-full.txt` cannot drift. `bin/docs-site prepare` / `publish` wrap
   the GitHub Pages build (the github-pages gem will not load a custom
-  plugin).
+  plugin). `bin/docs-site check` validates catalog coverage, that
+  `.gitignore` lists generated pages, and that the committed `llms.txt`
+  matches the generator. README and UPGRADING highlights in
+  `llms-full.txt` rewrite repository-relative links: catalogued docs
+  become published Markdown twins; other repo files become GitHub
+  blob/raw URLs.
 - **Delegated role administration.** `config.management_authorizer` lets a host
   decide console entry and role or assignment operations through a pure
   callback. `CurrentScope.can_manage?` exposes the same decision to host code.

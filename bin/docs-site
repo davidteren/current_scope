@@ -34,6 +34,10 @@ when "help", "-h", "--help"
     usage: bin/docs-site prepare [site_dir]
            bin/docs-site publish <built_site_dir>
            bin/docs-site check
+
+    check  catalog covers every guide and authored site page,
+           .gitignore lists generated pages, committed llms.txt
+           matches the generator
   USAGE
 else
   warn "unknown command #{command.inspect}"

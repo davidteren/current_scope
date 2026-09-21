@@ -223,21 +223,6 @@ module CurrentScope
       Event.record!(event: event, target: role, details: details.merge(attribution: "actor"))
     end
 
-    # The guard answers a bare true for two different reasons. Telling them apart
-    # matters: "grant full access to another subject first" is useless advice when
-    # the truth is that this process cannot read who holds it (#166).
-    def full_access_refusal_alert(action)
-      if CurrentScope::FullAccessLock.registry_blind?
-        "Refusing to #{action} while the polymorphic registry is misconfigured: this " \
-          "process cannot tell which subjects still hold full access. Fix the registry, " \
-          "then retry."
-      else
-        "Refusing to #{action} — it is the last full access any subject holds and would " \
-          "lock everyone out of this UI. Grant full access to another subject first, " \
-          "then retry."
-      end
-    end
-
     # True when removing/demoting this full_access role would leave zero
     # full_access org holders. An unassigned full_access role is always safe
     # to delete/demote (cubic). An empty spare full_access role must NOT

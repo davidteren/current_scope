@@ -324,8 +324,10 @@ module CurrentScope
       # F. Read the parent WITHOUT triggering a lazy load. A host running
       # `strict_loading` would otherwise get ActiveRecord::StrictLoadingViolationError
       # from inside the gate — a 500 on ordinary data, which is the failure this
-      # module exists to avoid. Uses the already-loaded target when there is one,
-      # so `includes(:project)` still pays off. (cubic P2)
+      # module exists to avoid. Uses the already-loaded target when it still
+      # matches the foreign key, so `includes(:project)` still pays off. A stale
+      # target is the previous parent after a foreign-key write; reuse would
+      # keep its grants. (cubic P2)
       def load_parent(record, reflection)
         # A preloaded target is only trustworthy when the record's own class
         # resolves the SAME association object the base declared. An STI subclass
@@ -336,7 +338,7 @@ module CurrentScope
         # (cubic P1, second round)
         if record.class.reflect_on_association(reflection.name).equal?(reflection)
           association = record.association(reflection.name)
-          return association.target if association.loaded?
+          return association.target if association.loaded? && !association.stale_target?
         end
 
         foreign_key = record[reflection.foreign_key]

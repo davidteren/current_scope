@@ -150,6 +150,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Stale parent associations no longer retain access (#217).** A loaded
+  parent is reused only when it still matches the child's foreign key.
+  Changing `project_id` (saved or unsaved) now walks the current parent, so
+  the per-record check, batch subject check, and saved-row list agree.
 - Report scoped permission validation failures from role-definition import and rollback as actionable command errors while preserving the transaction and undo snapshot.
 - Explain that an empty resource permission ceiling accepts no scoped roles.
 - Role creation now returns a create-only administrator to the role list with

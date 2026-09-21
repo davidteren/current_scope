@@ -30,11 +30,13 @@
 > [issue tracker](https://github.com/davidteren/current_scope/issues).
 
 **Website:** [davidteren.github.io/current_scope](https://davidteren.github.io/current_scope/) —
-overview, quickstart, the
+overview, quickstart, the deep `docs/guides/` tree, the
 [separation-of-duties guide](https://davidteren.github.io/current_scope/separation-of-duties.html),
 the security checklist, and
 [copy-paste prompts for AI agents](https://davidteren.github.io/current_scope/ai-agents.html).
-Source lives in [`docs/site/`](docs/site/).
+Source lives in [`docs/site/`](docs/site/) plus [`docs/guides/`](docs/guides/);
+the published site is generated from that one tree (`llms.txt`,
+`llms-full.txt`, Markdown twins).
 
 **Authorization as data you edit in a UI, not rules you hardcode and redeploy —
 with one ambient context that makes `allowed_to?` work identically in
@@ -376,7 +378,7 @@ role grid, org-wide assignments, scoped grants.
 | [Adopting in an existing app](docs/guides/adopting-in-an-existing-app.md) | Report-mode retrofit ladder |
 | [Security & production checklist](docs/SECURITY-CHECKLIST.md) | Pre-ship tick list |
 | [Is it the right fit?](https://davidteren.github.io/current_scope/comparison.html) | CurrentScope vs Pundit, Action Policy, CanCanCan, Banken, Oso — and adoption cost |
-| [Docs site](https://davidteren.github.io/current_scope/) | Published quickstart, SoD story, AI-agent prompts |
+| [Docs site](https://davidteren.github.io/current_scope/) | Published tree (same guides as this table), `llms.txt` / `llms-full.txt`, Markdown twins |
 
 Root [CONCEPTS.md](CONCEPTS.md) is the longer glossary narrative for maintainers.
 

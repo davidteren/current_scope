@@ -127,6 +127,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Recursive:wght@360;480;640;800;1000&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ '/assets/css/cs-identity.css' | relative_url }}?v=grid164">
+{% assign cs_md_url = page.url | default: '' | replace: '.html', '.md' %}
+{% if cs_md_url == '/' or cs_md_url == '/index.html' %}
+  {% assign cs_md_url = '/index.md' %}
+{% endif %}
+{% if cs_md_url != '' %}
+<link rel="alternate" type="text/markdown" title="Markdown" href="{{ cs_md_url | relative_url }}">
+{% endif %}
 
 <style>
   /* The way back. A reader who arrived on a guide from a search engine has no

@@ -1,6 +1,7 @@
 ---
 title: Quickstart
 nav_order: 2
+has_children: true
 ---
 
 # Quickstart
@@ -42,7 +43,7 @@ Your authentication must run **before** these concerns do — `Context` reads
 `current_user` when its callback fires. If your auth is set up in a concern
 or callback registered *after* these includes, the gate runs first, sees no
 subject, and denies. The
-[adoption guide](https://github.com/davidteren/current_scope/blob/main/docs/guides/adopting-in-an-existing-app.md)
+[adoption guide](adopting-in-an-existing-app.md)
 covers callback ordering against Devise and friends.
 
 ## 3. Skip the gate where authorization doesn't apply
@@ -91,7 +92,7 @@ any `access.sod_blind_spot` entries are resolved.
 Report mode is an adoption ramp, not an off switch: the SoD veto, the
 management console, and the impersonation gate all still refuse. Retrofitting
 a real app? There is a
-[full adoption guide](https://github.com/davidteren/current_scope/blob/main/docs/guides/adopting-in-an-existing-app.md)
+[full adoption guide](adopting-in-an-existing-app.md)
 — callback ordering vs. your authentication, the Devise recipe, and a
 rollout ladder.
 

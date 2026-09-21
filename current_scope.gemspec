@@ -5,7 +5,7 @@ Gem::Specification.new do |spec|
   spec.version     = CurrentScope::VERSION
   spec.authors     = [ "David Teren" ]
   spec.email       = [ "dteren@gmail.com" ]
-  spec.homepage    = "https://github.com/davidteren/current_scope"
+  spec.homepage    = "https://davidteren.github.io/current_scope/"
   spec.summary     = "Data-driven authorization for Rails with an ambient current-user context."
   spec.description = "A mountable Rails engine for authorization: permissions auto-derived " \
                      "from controller actions, roles as editable data, per-record scoped roles, " \
@@ -16,10 +16,13 @@ Gem::Specification.new do |spec|
                      "mode, and send feedback. See the README and the issue tracker (#116)."
   spec.license     = "MIT"
 
-  # homepage_uri is derived from spec.homepage (the source repo). Setting
-  # source_code_uri to the same URL warns ("only the first is shown"), so give
-  # rubygems distinct, useful links instead.
-  spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  # homepage_uri is derived from spec.homepage (the docs site). Setting
+  # source_code_uri to the same URL warns ("only the first is shown"), so the
+  # GitHub links stay on the other metadata keys.
+  spec.metadata["documentation_uri"] = spec.homepage
+  spec.metadata["source_code_uri"] = "https://github.com/davidteren/current_scope"
+  spec.metadata["bug_tracker_uri"] = "https://github.com/davidteren/current_scope/issues"
+  spec.metadata["changelog_uri"] = "https://github.com/davidteren/current_scope/blob/main/CHANGELOG.md"
   spec.metadata["rubygems_mfa_required"] = "true"
 
   spec.files = Dir.chdir(File.expand_path(__dir__)) do

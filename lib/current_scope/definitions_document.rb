@@ -257,8 +257,8 @@ module CurrentScope
               "Permission keys not in the catalog: #{unknown.join(', ')}"
       end
 
-      changeset = diff
-      return changeset if changeset.empty?
+      preview_changeset = diff
+      return preview_changeset if preview_changeset.empty?
 
       if confirm_required? && confirm != true
         raise ConfirmRequired,
@@ -276,11 +276,16 @@ module CurrentScope
       end
 
       path = snapshot_destination(snapshot_path)
-      previous_snapshot = File.exist?(path) ? File.read(path) : nil
-      wrote_snapshot = false
-      committed = false
+      changeset = preview_changeset
+      with_snapshot_lock(path) do
+        previous_snapshot = File.exist?(path) ? File.read(path) : nil
+        # Init false is equivalent: restore before write_snapshot either
+        # rm_f's a missing file or rewrites the same previous bytes.
+        wrote_snapshot = false # mutineer:disable-line boolean_literal
+        # Local is nil until assigned; `!committed` is already true without this.
+        committed = false # mutineer:disable-line statement_removal
 
-      begin
+        begin
         # The resolved actor becomes the AMBIENT one for the duration (#182
         # review). This method takes an actor explicitly — ACTOR_ID on the rake
         # path — and the model callbacks that now record role.deleted and each
@@ -326,33 +331,41 @@ module CurrentScope
           Role.transaction do
             planned_fa = @roles.select(&:full_access).map(&:name)
             FullAccessLock.lock_console_state!(planned_fa)
+            role_ids = Role.order(:id).pluck(:id)
+            RolePermission.where(role_id: role_ids).order(:id).lock.load if role_ids.any?
             refuse_held_deletes!
             if FullAccessLock.would_lose_held_full_access?(planned_fa)
               raise LastHolderLock,
                     "Refusing to apply: this document would leave zero org-wide full-access holders."
             end
 
-            # Set before the write, not after: File.write truncates first, so a
-            # write that dies part way through still has to be put back.
-            wrote_snapshot = true
-            write_snapshot(path)
-            persist_roles!
-            if CurrentScope.config.audit
-              Event.record!(
-                event: event,
-                target: CurrentScope::Event::DEFINITIONS_TARGET,
-                details: {
-                  "snapshot" => path,
-                  # The file this document came from. On a rolled_back row that is
-                  # the snapshot the operator restored FROM, which is the question
-                  # an audit reader asks. "snapshot" is always the undo point this
-                  # operation wrote, for both events.
-                  "source" => @source_path,
-                  "diff" => changeset.to_s
-                }.compact,
-                actor: actor,
-                subject: subject || actor
-              )
+            # The preview ran before these locks. Recompute so the ledger names
+            # every key this apply actually overwrites, including an intervening
+            # edit (#219).
+            changeset = Role.uncached { diff }
+            unless changeset.empty?
+              # Set before the write, not after: File.write truncates first, so a
+              # write that dies part way through still has to be put back.
+              wrote_snapshot = true
+              Role.uncached { write_snapshot(path) }
+              persist_roles!
+              if CurrentScope.config.audit
+                Event.record!(
+                  event: event,
+                  target: CurrentScope::Event::DEFINITIONS_TARGET,
+                  details: {
+                    "snapshot" => path,
+                    # The file this document came from. On a rolled_back row that is
+                    # the snapshot the operator restored FROM, which is the question
+                    # an audit reader asks. "snapshot" is always the undo point this
+                    # operation wrote, for both events.
+                    "source" => @source_path,
+                    "diff" => changeset.to_s
+                  }.compact,
+                  actor: actor,
+                  subject: subject || actor
+                )
+              end
             end
           end
         ensure
@@ -363,13 +376,14 @@ module CurrentScope
           CurrentScope::Current.user = previous_user
         end
         committed = true
-      ensure
-        # The snapshot is written inside the transaction so an unwritable path
-        # stops the apply. An apply that does not commit changed nothing, so put
-        # back what the undo file held: the previous apply's undo point. Only
-        # what THIS run wrote, and an ensure rather than a rescue because Ctrl-C
-        # is not a StandardError.
-        restore_snapshot(path, previous_snapshot) if wrote_snapshot && !committed
+        ensure
+          # The snapshot is written inside the transaction so an unwritable path
+          # stops the apply. An apply that does not commit changed nothing, so put
+          # back what the undo file held: the previous apply's undo point. Only
+          # what THIS run wrote, and an ensure rather than a rescue because Ctrl-C
+          # is not a StandardError.
+          restore_snapshot(path, previous_snapshot) if wrote_snapshot && !committed
+        end
       end
 
       changeset
@@ -419,6 +433,35 @@ module CurrentScope
       end
 
       (live.keys - doc_names).each { |name| live[name].destroy! }
+    end
+
+    # Serialize undo-file read/write/restore for one destination, and for the
+    # source file when this apply was parsed from a path (rollback). Lock keys
+    # follow the real file, so two spellings of the same snapshot share a lock.
+    def with_snapshot_lock(path, &block)
+      paths = [ path ]
+      paths << @source_path if @source_path.present?
+      lock_files(paths.filter_map { |p| snapshot_lock_file(p) }.uniq.sort, &block)
+    end
+
+    def snapshot_lock_file(path)
+      return if path.blank?
+
+      dest = File.exist?(path) ? File.realpath(path) : File.expand_path(path)
+      "#{dest}.lock"
+    end
+
+    def lock_files(lock_paths, &block)
+      return yield if lock_paths.empty?
+
+      path = lock_paths.first
+      FileUtils.mkdir_p(File.dirname(path))
+      File.open(path, File::RDWR | File::CREAT, 0o644) do |file|
+        file.flock(File::LOCK_EX)
+        lock_files(lock_paths.drop(1), &block)
+      ensure
+        file.flock(File::LOCK_UN)
+      end
     end
 
     # A failure here must never replace the error that stopped the apply.

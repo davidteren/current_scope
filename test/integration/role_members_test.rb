@@ -189,6 +189,80 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
                  "the operator must be told the real reason, not blamed on a last holder")
   end
 
+  test "a poisoned registry refuses to delete the last live full-access assignment" do
+    assignment = CurrentScope::RoleAssignment.find_by!(subject: @owner)
+    poison_registry!
+
+    delete current_scope.role_assignment_url(assignment), headers: as(@owner)
+
+    assert_response :redirect
+    assert CurrentScope::RoleAssignment.exists?(assignment.id),
+           "a registry that cannot resolve holders must not authorise assignment removal"
+    assert_match(/registry is misconfigured/, flash[:alert].to_s)
+  end
+
+  test "a poisoned registry refuses to clear the last live full-access assignment" do
+    assignment = CurrentScope::RoleAssignment.find_by!(subject: @owner)
+    poison_registry!
+
+    post current_scope.role_assignments_url, headers: as(@owner),
+         params: { subject_gid: @owner.to_gid.to_s, role_id: "" }
+
+    assert_response :redirect
+    assert CurrentScope::RoleAssignment.exists?(assignment.id)
+    assert_match(/registry is misconfigured/, flash[:alert].to_s)
+  end
+
+  test "a poisoned registry refuses to demote the last live full-access assignment" do
+    assignment = CurrentScope::RoleAssignment.find_by!(subject: @owner)
+    member = CurrentScope::Role.create!(name: "Member")
+    poison_registry!
+
+    post current_scope.role_assignments_url, headers: as(@owner),
+         params: { subject_gid: @owner.to_gid.to_s, role_id: member.id }
+
+    assert_response :redirect
+    assert_equal @owner_role, assignment.reload.role
+    assert_match(/registry is misconfigured/, flash[:alert].to_s)
+  end
+
+  test "an unlatched registry collision refuses to delete the last live full-access assignment" do
+    assignment = CurrentScope::RoleAssignment.find_by!(subject: @owner)
+    CurrentScope.rebuild_polymorphic_registry!
+    CurrentScope.polymorphic_registry.dup.tap do |map|
+      map["User"] = Folder
+      CurrentScope::PolymorphicRegistry.instance_variable_set(:@polymorphic_registry, map.freeze)
+    end
+    assert_nil CurrentScope::PolymorphicRegistry.error, "this path must not latch"
+
+    delete current_scope.role_assignment_url(assignment), headers: as(@owner)
+
+    assert_response :redirect
+    assert CurrentScope::RoleAssignment.exists?(assignment.id)
+    assert_match(/registry is misconfigured/, flash[:alert].to_s)
+  ensure
+    CurrentScope.rebuild_polymorphic_registry!
+  end
+
+  test "an unresolvable remaining subject type refuses removal of the last live holder" do
+    assignment = CurrentScope::RoleAssignment.find_by!(subject: @owner)
+    now = Time.current
+    CurrentScope::RoleAssignment.insert!({
+      role_id: @owner_role.id,
+      subject_type: "token_people_unmapped_218",
+      subject_id: "5",
+      created_at: now,
+      updated_at: now
+    })
+
+    delete current_scope.role_assignment_url(assignment), headers: as(@owner)
+
+    assert_response :redirect
+    assert CurrentScope::RoleAssignment.exists?(assignment.id),
+           "a leftover inert row is not a live holder and must not authorise removing the last live one"
+    assert_match(/last full access/i, flash[:alert].to_s)
+  end
+
   # #166 — the UNLATCHED collision. registry_blind? cannot see this one before the
   # scan starts, because nothing latches and no labeling lookup has run yet in
   # this request. Found by qodo and Devin on PR #181 against the first fix.

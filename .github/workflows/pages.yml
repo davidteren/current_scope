@@ -53,6 +53,10 @@ jobs:
         with:
           source: ./docs/site
           destination: ./_site
+      # jekyll-build-pages runs in Docker as root, so _site is not writable
+      # by the runner until we take ownership.
+      - name: Allow post-build writes into _site
+        run: sudo chown -R "$USER" _site
       # github-pages will not load a custom Jekyll plugin, so Markdown twins,
       # llms-full.txt, and sitemap extras are written into the built tree.
       - name: Publish Markdown twins and llms-full.txt

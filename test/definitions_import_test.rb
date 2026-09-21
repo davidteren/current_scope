@@ -389,6 +389,108 @@ class DefinitionsImportTest < ActiveSupport::TestCase
     assert_includes event.details.fetch("diff"), "gains reports#show"
   end
 
+  test "an empty preview does not overwrite an intervening live edit" do
+    incoming = document_from_live
+    editor = @editor
+    original_diff = incoming.method(:diff)
+    incoming.define_singleton_method(:diff) do
+      result = original_diff.call
+      editor.reload
+      editor.permission_keys = [ "reports#index", "reports#approve" ]
+      editor.save!
+      result
+    end
+
+    result = incoming.apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)
+
+    assert result.empty?
+    assert_equal [ "reports#approve", "reports#index" ], @editor.reload.permission_keys.sort
+    assert_not File.exist?(snapshot_path), "a no-op preview must not write an undo file"
+  end
+
+  test "a failed first apply does not leave a snapshot file" do
+    CurrentScope.config.audit = :strict
+    original = CurrentScope::Event.method(:create!)
+    CurrentScope::Event.define_singleton_method(:create!) do |*, **|
+      raise ActiveRecord::StatementInvalid, "SQLite3::SQLException: no such table: current_scope_events"
+    end
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      with_key("Editor", [ "reports#show" ]).apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)
+    end
+    assert_not File.exist?(snapshot_path),
+               "restore with no prior snapshot must delete the file, not write a stand-in"
+  ensure
+    CurrentScope::Event.define_singleton_method(:create!, original) if original
+  end
+
+  test "apply creates nested snapshot directories before taking the lock" do
+    nested = File.join(@tmpdir, "nested", "undo", "roles.yml")
+    with_key("Editor", [ "reports#show" ]).apply(confirm: true, actor: @actor, snapshot_path: nested)
+    assert File.exist?(nested)
+    assert File.exist?("#{File.expand_path(nested)}.lock")
+  end
+
+  test "apply waits for another process holding the source-file lock" do
+    yaml_path = File.join(@tmpdir, "incoming.yml")
+    File.write(yaml_path, CurrentScope.export_definitions)
+    incoming = CurrentScope::DefinitionsDocument.parse(yaml_path)
+    incoming = CurrentScope::DefinitionsDocument.new(
+      incoming.roles.map { |role|
+        role.name == "Editor" ? role.with(permission_keys: (role.permission_keys + [ "reports#show" ]).sort) : role
+      },
+      source_path: yaml_path
+    )
+    lock_path = "#{File.realpath(yaml_path)}.lock"
+    reader, writer = IO.pipe
+    pid = nil
+    begin
+      pid = fork do
+        reader.close
+        File.open(lock_path, File::RDWR | File::CREAT, 0o644) do |file|
+          file.flock(File::LOCK_EX)
+          writer.puts "held"
+          writer.flush
+          sleep 0.4
+        end
+      end
+      writer.close
+      writer = nil
+      assert_equal "held\n", reader.gets
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      incoming.apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)
+      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+      assert_operator elapsed, :>=, 0.3, "apply must wait for the source-file lock"
+      assert_includes @editor.reload.permission_keys, "reports#show"
+    ensure
+      reader.close
+      writer.close if writer
+      Process.wait(pid) if pid
+    end
+  end
+
+  test "a blank snapshot lock path is skipped" do
+    incoming = document_from_live
+    assert_nil incoming.send(:snapshot_lock_file, nil)
+    assert_nil incoming.send(:snapshot_lock_file, "")
+  end
+
+  test "apply locks role permission rows after locking console state" do
+    locked = 0
+    relation = CurrentScope::RolePermission.all
+    relation_class = relation.class
+    original = relation_class.instance_method(:lock)
+    relation_class.define_method(:lock) do |*args, **kwargs|
+      locked += 1 if klass == CurrentScope::RolePermission
+      original.bind_call(self, *args, **kwargs)
+    end
+
+    with_key("Editor", [ "reports#show" ]).apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)
+    assert_operator locked, :>=, 1, "permission rows must be locked before the committed diff"
+  ensure
+    relation_class.define_method(:lock, original) if original
+  end
+
   test "apply waits for another process holding the snapshot lock" do
     lock_path = "#{File.expand_path(snapshot_path)}.lock"
     FileUtils.mkdir_p(File.dirname(lock_path))

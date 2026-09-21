@@ -279,8 +279,11 @@ module CurrentScope
       changeset = preview_changeset
       with_snapshot_lock(path) do
         previous_snapshot = File.exist?(path) ? File.read(path) : nil
-        wrote_snapshot = false
-        committed = false
+        # Init false is equivalent: restore before write_snapshot either
+        # rm_f's a missing file or rewrites the same previous bytes.
+        wrote_snapshot = false # mutineer:disable-line boolean_literal
+        # Local is nil until assigned; `!committed` is already true without this.
+        committed = false # mutineer:disable-line statement_removal
 
         begin
         # The resolved actor becomes the AMBIENT one for the duration (#182

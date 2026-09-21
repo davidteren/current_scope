@@ -1,5 +1,12 @@
 # STATUS
 
+## Current work
+
+Mutation-testing PR gate (Mutineer): `.github/workflows/mutation.yml` runs
+`davidteren/mutineer@v1` on PRs that touch engine Ruby or the suite. Diff-scoped
+to the PR base, dummy-app boot, serial `--rails`, 80% floor. How to run it
+locally is in CONTRIBUTING.md. No committed `.mutineer/baseline.json` yet.
+
 ## Last session handoff
 
 **What this is:** Miela and CurrentScope provide editable business and resource roles.\

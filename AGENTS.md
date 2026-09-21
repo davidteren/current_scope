@@ -157,6 +157,14 @@ reviewer/planner.
   stdlib `coverage` extension SimpleCov itself requires.
 - Integration-test gotcha: after requesting the mounted engine, SCRIPT_NAME
   sticks in the session — use literal paths (`"/session"`) for host routes.
+- **Mutation gate.** PRs that touch `lib/`, `app/`, or the suite run
+  `.github/workflows/mutation.yml` (`davidteren/mutineer@v1`,
+  `test/mutineer_boot.rb`, serial `--rails`, `--since` the PR base). The
+  check name is `mutineer`; it fails
+  when the score on changed lines is below 80%. Run it locally with
+  `COVERAGE=0` (SimpleCov and Mutineer cannot share `Coverage`) — see
+  CONTRIBUTING.md. Do not force a full-tree scan on a PR. This is unrelated
+  to the impersonation `mutation_guard`.
 
 ## Conventions
 

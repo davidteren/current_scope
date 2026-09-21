@@ -1,0 +1,30 @@
+# Mutation-testing defaults for this Rails engine.
+#
+# current_scope is a mountable engine: the bootable app is test/dummy, not a
+# root config/environment. `rails: true` reconnects ActiveRecord after each
+# fork. `boot` is test/mutineer_boot.rb — dummy environment plus `test/` on
+# $LOAD_PATH so `require "test_helper"` works.
+#
+# --daemon is off on purpose. Mutineer provisions per-worker SQLite files from
+# db/schema.rb at the project root; this engine's schema lives at
+# test/dummy/db/schema.rb, so worker DBs would be empty and the smoke check
+# would fail. Incremental --since PRs do not need parallel workers. Revisit
+# when Mutineer accepts a schema path (or we grow a root schema.rb).
+#
+# Threshold is 80, not the 90 in Mutineer's README examples. We have no
+# survivor inventory or committed baseline yet, and a first-adoption 90
+# would fail on equivalent mutants we have not reviewed. 80 still fails a
+# PR that lands untested branches in lib/ or app/. Raise it (and/or add
+# .mutineer/baseline.json) after a full scan produces an ignore list.
+# See CONTRIBUTING.md.
+rails: true
+boot: test/mutineer_boot.rb
+framework: minitest
+threshold: 80
+jobs: 1
+operators:
+  - arithmetic
+  - comparison
+  - boolean_connector
+  - boolean_literal
+  - statement_removal

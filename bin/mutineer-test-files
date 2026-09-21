@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Print the Minitest files Mutineer should run against (one path per line).
+#
+# The engine's tests are not 1:1 with sources: lib/current_scope/resolver.rb is
+# covered by test/resolver_test.rb, not test/current_scope/resolver_test.rb.
+# Mutineer's convention auto-pair would skip most of the authorization core.
+# This list is the explicit --test set: unit + integration, no system tests
+# (Chrome, slow, and they add nothing to mutant verdicts).
+
+Dir.chdir(File.expand_path("..", __dir__))
+
+puts Dir.glob("test/**/*_test.rb")
+  .reject { |path| path.start_with?("test/system/", "test/dummy/") }
+  .sort

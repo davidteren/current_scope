@@ -82,6 +82,46 @@ README and docs-site screenshots come from the system suite:
 CAPTURE_SCREENSHOTS=1 RAILS_ENV=test bin/rails test test/system/screenshots_test.rb
 ```
 
+## Mutation testing
+
+PRs that touch engine Ruby (`lib/`, `app/`) or the suite are mutation-tested
+by [Mutineer](https://github.com/davidteren/mutineer) in
+`.github/workflows/mutation.yml`. The job mutates only lines changed since the
+PR base, runs the covering unit/integration tests, and fails when the score
+drops below 80% (or when the run cannot score a meaningful set of mutants).
+
+That is a different question from SimpleCov: coverage says the line ran;
+mutation testing asks whether any assertion would notice if it lied.
+
+```bash
+RAILS_ENV=test bin/rails db:test:prepare
+RAILS_ENV=test COVERAGE=0 bundle exec mutineer run \
+  lib/current_scope.rb lib/current_scope app \
+  $(bin/mutineer-test-files | sed 's/^/--test /') \
+  --since origin/main
+```
+
+`.mutineer.yml` supplies `--rails`, `--boot test/mutineer_boot.rb` (dummy app
+plus `test/` on `$LOAD_PATH`, so `require "test_helper"` works), and the 80%
+floor. Runs are serial (`--jobs 1`): Mutineer's `--daemon` worker DBs load
+`db/schema.rb` from the project root, but this engine's schema is
+`test/dummy/db/schema.rb`, so those copies would be empty. Incremental
+`--since` PRs do not need parallel workers. Always set `COVERAGE=0`:
+`test_helper` would otherwise start SimpleCov, which fights Mutineer's
+coverage map and, under `CI=1`, applies the 95/80 floor to a subset run.
+
+`bin/mutineer-test-files` is the explicit `--test` list. The engine's tests
+are not 1:1 with sources (`lib/current_scope/resolver.rb` is covered by
+`test/resolver_test.rb`), so Mutineer's convention auto-pair would skip most
+of the authorization core. System tests are omitted on purpose.
+
+Do not pass `--since none` on a PR — a full-tree run is hours. When you want
+a committed `.mutineer/baseline.json` later, generate it on `main` from a
+full scan and keep the file; `.mutineer/*` is gitignored except that path.
+
+The check name is `mutineer`. Require it in branch protection (Settings →
+Branches) if the API cannot add it — this repo's token often cannot.
+
 ## Style
 
 RuboCop omakase: `bin/rubocop` clean before commit.

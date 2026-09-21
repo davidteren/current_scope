@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Mutation-testing PR gate.** PRs that touch engine Ruby or the suite run
+  [Mutineer](https://github.com/davidteren/mutineer) via
+  `.github/workflows/mutation.yml`: dummy-app boot, serial `--rails` (the
+  daemon worker-DB path wants a root `db/schema.rb` this engine does not
+  have), diff-scoped to the PR base, 80% score floor. How to run it locally and why
+  the floor is 80 rather than 90 is in CONTRIBUTING.md. No committed
+  baseline yet — add `.mutineer/baseline.json` after a full scan on `main`.
 - **AI-friendly docs site (#212, #213).** The Pages site now ships
   `llms-full.txt`, a Markdown twin for every HTML page (`rel="alternate"`
   `type="text/markdown"`), and those URLs in `sitemap.xml`. `docs/guides/`

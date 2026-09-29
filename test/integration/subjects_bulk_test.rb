@@ -326,6 +326,38 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
     assert_nil CurrentScope::RoleAssignment.find_by(subject: skipped.first)
   end
 
+  test "a skipped name past the notice budget is cut on a character boundary" do
+    delegate = User.create!(name: "Delegate")
+    allowed = User.create!(name: "Allowed Person")
+    skipped = User.create!(name: "Skipped Person")
+    editor = CurrentScope::Role.create!(name: "Editor")
+    CurrentScope.config.subject_label = ->(user) { user.id == skipped.id ? ("あ" * 600) : user.name }
+    authorizer = lambda do |actor, action:, target: nil, **|
+      next false unless actor == delegate
+      return true if action == :access
+      return true if target == allowed
+
+      "yes"
+    end
+
+    with_management_authorizer(authorizer) do
+      post current_scope.role_assignments_url, headers: as(delegate), params: {
+        role_id: editor.id,
+        subject_gids: [ allowed.to_gid.to_s, skipped.to_gid.to_s ]
+      }
+    end
+
+    assert_redirected_to current_scope.subjects_path
+    notice = flash[:notice].to_s
+    assert notice.valid_encoding?
+    assert_operator notice.bytesize, :<, 2_000
+    clipped = notice[/Skipped (あ+)\./, 1]
+    assert clipped
+    assert_operator clipped.bytesize, :<=, 80
+    assert_equal editor, CurrentScope::RoleAssignment.find_by(subject: allowed)&.role
+    assert_nil CurrentScope::RoleAssignment.find_by(subject: skipped)
+  end
+
   test "a role change still checks revoke before it applies the allowed subject" do
     delegate = User.create!(name: "Delegate")
     kept = User.create!(name: "Kept Person")

@@ -118,6 +118,7 @@ module CurrentScope
     # The notice shares the 4KB cookie session. Stop the skipped-name list
     # before that cookie can overflow after the writes have already committed.
     SKIPPED_NOTICE_BUDGET = 1_500
+    NAME_CLIP_BYTES = 80
 
     def org_notice(clearing, count, skipped)
       base = if count.zero?
@@ -140,8 +141,23 @@ module CurrentScope
 
         kept = candidate
       end
-      kept = [ names.first.to_s.byteslice(0, 80) ] if kept.empty?
+      kept = [ clipped_notice_name(names.first) ] if kept.empty?
       skipped_sentence(kept, names.size - kept.size)
+    end
+
+    # A byte cut can split a character. The cookie session then refuses the
+    # notice after the allowed change is already saved.
+    def clipped_notice_name(name)
+      text = name.to_s
+      return text if text.bytesize <= NAME_CLIP_BYTES
+
+      kept = +""
+      text.each_char do |char|
+        break if kept.bytesize + char.bytesize > NAME_CLIP_BYTES
+
+        kept << char
+      end
+      kept
     end
 
     def skipped_sentence(kept, leftover)

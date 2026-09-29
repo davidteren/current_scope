@@ -39,6 +39,11 @@ module CurrentScope
     # leaves it nil so a grant answer is not reused (#136).
     attribute :ancestor_list_cache, :ancestor_list_hit_key
 
+    # Boolean for one subject, permission, record, and parent foreign key.
+    # Cleared on role, permission, and scoped-assignment writes. Not an allow?
+    # result: the separation-of-duties veto still runs first (#136).
+    attribute :ancestor_grant_cache
+
     # Set by a labeling lookup that swallowed a registry ConfigurationError so the
     # console can say why rows went inert (#166). Per-request, so it never leaks
     # a stale cause into the next one.
@@ -81,6 +86,11 @@ module CurrentScope
     # request sees the change.
     def reset_org_role_cache
       self.org_role_cache = nil
+    end
+
+    # Drop the ancestor-grant boolean only. The ancestor list stays.
+    def reset_ancestor_grant_cache
+      self.ancestor_grant_cache = nil
     end
   end
 end

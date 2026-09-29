@@ -493,11 +493,38 @@ module CurrentScope
       end
     end
 
+    # The ancestor boolean is remembered only after this direct check and only
+    # when cascade is on. `allow?` and `decide` are not remembered: the
+    # separation-of-duties veto has to run on every call (#136).
     def scoped_grant?(subject:, permission:, record:, cascade: true)
       return true if direct_scoped_grants(permission: permission, record: record).where(subject: subject).exists?
       return false unless cascade
 
-      ancestor_scoped_grants(permission: permission, record: record).where(subject: subject).exists?
+      remembered_ancestor_grant?(subject: subject, permission: permission, record: record)
+    end
+
+    def remembered_ancestor_grant?(subject:, permission:, record:)
+      # ancestors_for first. The stored boolean is read only when that call was
+      # a clean list hit. A dropped list or a record guard overwrites the key.
+      ParentChain.ancestors_for(record)
+      key = ancestor_grant_key(subject, permission, record)
+      cache = (CurrentScope::Current.ancestor_grant_cache ||= {})
+      return cache[key] if key && ParentChain.clean_list_hit?(record) && cache.key?(key)
+
+      allowed = ancestor_scoped_grants(permission: permission, record: record).where(subject: subject).exists?
+      cache[key] = allowed if key
+      allowed
+    end
+
+    # Subject class and id, permission, and the ancestor-list key. No cascade
+    # flag: the cascade-false path never reads this hash. A nil id is absent.
+    def ancestor_grant_key(subject, permission, record)
+      return nil if subject.nil? || subject.id.nil?
+
+      list_key = ParentChain.memo_key(record)
+      return nil if list_key.nil?
+
+      [ subject.class.name, subject.id, permission.to_s, *list_key ].freeze
     end
 
     # Scalar and batch checks share these exact grant relations. A draft can

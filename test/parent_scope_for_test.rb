@@ -30,6 +30,29 @@ class ParentScopeForTest < ActiveSupport::TestCase
     CurrentScope::ScopedRoleAssignment.create!(subject: user, role: role, resource: record)
   end
 
+  def allow_record(record, permission = "reports#approve")
+    @resolver.allow?(subject: @lead, permission: permission, record: record)
+  end
+
+  # Uncached so a repeated identical SELECT cannot look like a memo hit.
+  def sql_queries
+    rows = []
+    subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+      name = payload[:name].to_s
+      next if name == "SCHEMA" || name == "CACHE" || payload[:cached]
+
+      rows << payload[:sql].to_s
+    end
+    ActiveRecord::Base.uncached { yield }
+    rows
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber) if subscriber
+  end
+
+  def project_load?(sql)
+    sql.match?(/FROM ["`]projects["`]/i)
+  end
+
   def listed(permission = "reports#index")
     @resolver.scope_for(subject: @lead, model: Report, permission: permission).pluck(:title).sort
   end
@@ -183,5 +206,179 @@ class ParentScopeForTest < ActiveSupport::TestCase
     assert_equal listed_ids.include?(far.id), allowed,
                  "past the ceiling the gate and the list must still agree"
     refute allowed, "and both must DENY — truncation is fail-closed"
+  end
+
+  # --- Ancestor-grant memo (#136). scope_for itself stays a live query. ---
+
+  test "a second allow? for the same grandchild does not walk or recompute the ancestor grant" do
+    grandparent = Project.create!(name: "GP")
+    @project.update!(parent: grandparent)
+    scope_grant(@lead, role("Lead", "reports#approve"), grandparent)
+    cold = Report.find(@mine.id)
+
+    assert allow_record(cold)
+    rows = sql_queries { assert allow_record(cold) }
+
+    refute rows.any? { |sql| project_load?(sql) }, rows
+    assert_equal 1, rows.count { |sql| sql.include?("current_scope_scoped_role_assignments") }, rows
+  end
+
+  test "a second child still pays for its own ancestor walk" do
+    scope_grant(@lead, role("Lead", "reports#approve"), @project)
+    first = Report.find(@mine.id)
+    second = Report.find(@also_mine.id)
+
+    assert allow_record(first)
+    rows = sql_queries { assert allow_record(second) }
+
+    assert rows.any? { |sql| project_load?(sql) }, rows
+  end
+
+  test "a cached ancestor deny does not become an allow" do
+    cold = Report.find(@mine.id)
+
+    refute allow_record(cold)
+    rows = sql_queries { refute allow_record(cold) }
+
+    assert_equal 1, rows.count { |sql| sql.include?("current_scope_scoped_role_assignments") }, rows
+  end
+
+  test "a changed parent foreign key does not reuse the ancestor grant" do
+    scope_grant(@lead, role("Lead", "reports#approve"), @project)
+    cold = Report.find(@mine.id)
+    assert allow_record(cold)
+
+    cold.project_id = @other_project.id
+
+    refute allow_record(cold)
+    CurrentScope::Current.reset
+    refute allow_record(cold)
+  end
+
+  test "a changed parent foreign key can allow through the new parent" do
+    scope_grant(@lead, role("Other", "reports#approve"), @other_project)
+    cold = Report.find(@mine.id)
+    refute allow_record(cold)
+
+    cold.project_id = @other_project.id
+
+    assert allow_record(cold)
+    CurrentScope::Current.reset
+    assert allow_record(cold)
+  end
+
+  test "an unsaved record is not served from the ancestor-grant memo" do
+    scope_grant(@lead, role("Lead", "reports#approve"), @project)
+    assert allow_record(@mine)
+    keys = CurrentScope::Current.ancestor_grant_cache.keys.dup
+    draft = Report.new(title: "Draft", project_id: @other_project.id, requested_by: @requester)
+
+    refute allow_record(draft)
+
+    assert_equal keys, CurrentScope::Current.ancestor_grant_cache.keys
+  end
+
+  test "a scoped grant in the same request replaces a cached ancestor deny" do
+    cold = Report.find(@mine.id)
+    refute allow_record(cold)
+
+    scope_grant(@lead, role("Lead", "reports#approve"), @project)
+
+    assert allow_record(cold)
+  end
+
+  test "revoking a parent grant replaces a cached ancestor allow" do
+    grant = scope_grant(@lead, role("Lead", "reports#approve"), @project)
+    cold = Report.find(@mine.id)
+    assert allow_record(cold)
+
+    grant.destroy!
+
+    refute allow_record(cold)
+  end
+
+  test "a rolled-back revoke allows again" do
+    grant = scope_grant(@lead, role("Lead", "reports#approve"), @project)
+    cold = Report.find(@mine.id)
+    assert allow_record(cold)
+
+    CurrentScope::ScopedRoleAssignment.transaction(requires_new: true) do
+      grant.destroy!
+      refute allow_record(cold)
+      raise ActiveRecord::Rollback
+    end
+
+    assert allow_record(cold)
+  end
+
+  test "flipping the parent role to full_access denies and keeps the ancestor list" do
+    held = role("Lead", "reports#approve")
+    scope_grant(@lead, held, @project)
+    cold = Report.find(@mine.id)
+    assert allow_record(cold)
+
+    held.update!(full_access: true)
+
+    rows = sql_queries { CurrentScope::ParentChain.ancestors_for(cold) }
+    refute rows.any? { |sql| project_load?(sql) }, rows
+    refute allow_record(cold)
+  end
+
+  test "removing the ticked permission denies and keeps the ancestor list" do
+    held = role("Lead", "reports#approve")
+    scope_grant(@lead, held, @project)
+    cold = Report.find(@mine.id)
+    assert allow_record(cold)
+
+    held.update!(permission_keys: [])
+
+    rows = sql_queries { CurrentScope::ParentChain.ancestors_for(cold) }
+    refute rows.any? { |sql| project_load?(sql) }, rows
+    refute allow_record(cold)
+  end
+
+  test "destroying the same parent object overwrites the stored ancestor allow" do
+    scope_grant(@lead, role("Lead", "reports#approve"), @project)
+    cold = Report.find(@mine.id)
+    assert allow_record(cold)
+    parent = CurrentScope::ParentChain.ancestors_for(cold).first
+    child_id = cold.id
+    child_fk = cold.project_id
+
+    parent.destroy!
+
+    assert_equal child_id, cold.id
+    assert_equal child_fk, cold.project_id
+    refute allow_record(cold)
+    refute allow_record(cold)
+  end
+
+  test "a destroyed child does not keep a stored ancestor allow" do
+    scope_grant(@lead, role("Lead", "reports#approve"), @project)
+    cold = Report.find(@mine.id)
+    assert allow_record(cold)
+
+    cold.destroy!
+
+    refute allow_record(cold)
+    refute allow_record(cold)
+  end
+
+  test "cascade false does not read or replace a warm ancestor grant" do
+    scope_grant(@lead, role("Lead", "reports#approve"), @project)
+    cold = Report.find(@mine.id)
+
+    assert allow_record(cold)
+    refute @resolver.allow?(subject: @lead, permission: "reports#approve", record: cold, cascade: false)
+    assert allow_record(cold)
+  end
+
+  test "scope_for is not remembered across calls" do
+    scope_grant(@lead, role("Lead", "reports#index"), @project)
+    assert_equal [ "also mine", "mine" ], listed
+
+    rows = sql_queries { assert_equal [ "also mine", "mine" ], listed }
+
+    assert rows.any? { |sql| sql.match?(/FROM ["`]reports["`]/i) }, rows
   end
 end

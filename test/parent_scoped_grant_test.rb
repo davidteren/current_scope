@@ -208,6 +208,21 @@ class ParentScopedGrantTest < ActiveSupport::TestCase
     end
   end
 
+  test "a warm ancestor bypass grant still does not lift the veto on a child" do
+    with_sod_actions("approve") do
+      with_bypass do
+        Report.sod_bypass_glass = true
+        scope_grant(@lead, role("Lead", "reports#approve", "reports#bypass_sod"), @project)
+        own = Report.create!(title: "mine", project: @project, requested_by: @lead)
+
+        assert @resolver.allow?(subject: @lead, permission: "reports#bypass_sod", record: own),
+               "the warm-up has to cache the cascading bypass grant"
+        assert_equal [ false, :sod_veto ], decide(@lead, "reports#approve", own),
+                     "a stored ancestor allow for bypass_sod must not satisfy cascade: false"
+      end
+    end
+  end
+
   test "a bypass_sod grant held on the RECORD still lifts the veto, unchanged" do
     with_sod_actions("approve") do
       with_bypass do

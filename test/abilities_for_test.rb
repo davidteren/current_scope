@@ -269,31 +269,34 @@ class AbilitiesForTest < ActiveSupport::TestCase
     composite = Class.new(ApplicationRecord) do
       self.table_name = "users"
       self.primary_key = [ "id", "name" ]
+      def self.name = "CompositeUser"
     end
     unnamed = Class.new(ApplicationRecord) do
       self.table_name = "projects"
     end
     unnamed.define_singleton_method(:name) { nil }
     bad_lists = [
-      nil,
-      "projects",
-      [ Project, PROJECT_KEY ],
-      [ [ "Project", PROJECT_KEY ] ],
-      [ [ Project, :index ] ],
-      [ [ Project, "" ] ],
-      [ [ ApplicationRecord, PROJECT_KEY ] ],
-      [ [ composite, PROJECT_KEY ] ],
-      [ [ unnamed, PROJECT_KEY ] ]
+      [ nil, "scopes must be a list" ],
+      [ "projects", "scopes must be a list" ],
+      [ [ Project, PROJECT_KEY ], "each scope must be a [model class, permission key] pair" ],
+      [ [ [ "Project", PROJECT_KEY ] ], "each model must be a named class" ],
+      [ [ [ Project, :index ] ], "each permission key must be a non-empty string" ],
+      [ [ [ Project, "" ] ], "each permission key must be a non-empty string" ],
+      [ [ [ ApplicationRecord, PROJECT_KEY ] ], "is not a concrete model" ],
+      [ [ [ composite, PROJECT_KEY ] ], "composite primary key" ],
+      [ [ [ unnamed, PROJECT_KEY ] ], "each model must be a named class" ]
     ]
 
-    bad_lists.each do |scopes|
+    bad_lists.each do |scopes, expected|
+      error = nil
       calls = scope_calls do
         assert_no_queries do
-          assert_raises(ArgumentError) do
+          error = assert_raises(ArgumentError) do
             CurrentScope.abilities_for(@alice, scopes: scopes, limit: 2)
           end
         end
       end
+      assert_match expected, error.message
       assert_empty calls, "scopes #{scopes.inspect} must not call scope_for"
     end
   end

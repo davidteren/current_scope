@@ -569,23 +569,20 @@ module  CurrentScope
       end
 
       model, permission = pair
-      # The same shapes the record-less gate refuses, plus a class with no name.
-      # An abstract class has no table. A composite key is not one stored id.
-      # A nameless class would store model: nil. Each one must raise here,
-      # before scope_for builds a relation that cannot run.
-      named = model.is_a?(Class) && model.name.present?
-      usable = named && CurrentScope.resolver.collection_type?(model) && storable_scope_key?(model)
-      unless usable && permission.is_a?(String) && !permission.empty?
-        raise ArgumentError, "each scope must be a [model class, permission key] pair"
+      # Each fault names itself. A connection error while reading the primary
+      # key must stay that error. It must not look like a bad pair.
+      unless permission.is_a?(String) && !permission.empty?
+        raise ArgumentError, "each permission key must be a non-empty string"
       end
+      unless model.is_a?(Class) && model.name.present?
+        raise ArgumentError, "each model must be a named class"
+      end
+      unless CurrentScope.resolver.collection_type?(model)
+        raise ArgumentError, "#{model.name} is not a concrete model"
+      end
+      return [ model, permission ] if CurrentScope.storable_key?(model)
 
-      [ model, permission ]
-    end
-
-    def storable_scope_key?(model)
-      CurrentScope.storable_key?(model)
-    rescue StandardError
-      false
+      raise ArgumentError, CurrentScope.unstorable_key_error(model, role: "resource")
     end
 
     def abilities_scoped_entry(subject, model, permission, limit)

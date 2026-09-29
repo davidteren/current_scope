@@ -252,7 +252,8 @@ is not full access.
 key string. The method calls `scope_for` once for that pair. It does not cross
 every model with every permission, and it does not discover the host's models.
 An abstract class, a class with no name, or a model whose primary key is not
-one column, raises `ArgumentError` before `scope_for` runs.
+one column, raises `ArgumentError` before `scope_for` runs. The error names
+that fault. A permission key that is not a non-empty string does the same.
 
 `limit` is required. It must be a positive integer. `nil`, zero, a negative
 number, and a string raise `ArgumentError` before any relation is limited.

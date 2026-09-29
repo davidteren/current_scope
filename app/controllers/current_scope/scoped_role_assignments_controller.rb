@@ -76,8 +76,9 @@ module CurrentScope
       end
 
       granted = 0
-      # One transaction for the whole bulk grant — all-or-nothing, like the
-      # org-wide sibling. A per-subject savepoint (grant_one) absorbs the
+      # One transaction for this bulk grant. A denied recipient rolls the
+      # whole scoped batch back. The org-wide role batch skips a denied
+      # recipient and names them. A per-subject savepoint (grant_one) absorbs the
       # concurrent-duplicate race without poisoning the outer transaction, while
       # a genuine RecordInvalid rolls the entire batch back.
       ScopedRoleAssignment.transaction do

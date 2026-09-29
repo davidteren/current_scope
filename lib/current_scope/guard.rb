@@ -64,6 +64,22 @@ module CurrentScope
     # Inheritable whole-controller skip reason from current_scope_skip_gate!.
     # nil means no declared reason (bare skip_before_action or never included).
     class_methods do
+      # current_scope_parent is a class macro and is NOT also an instance method.
+      # This macro must define the instance method. The request gate calls
+      # current_scope_model on the instance (resolve_current_scope_model), so a
+      # class attribute alone would never be read there.
+      #
+      # Two orders. A later `def current_scope_model` replaces this method, and
+      # the request uses that def. An earlier `def` is replaced here by
+      # define_method, and the request then uses this method. Call the macro
+      # only, or write the instance method after the macro.
+      def current_scope_model(model_class)
+        self.current_scope_declared_model = model_class
+        define_method(:current_scope_model) { self.class.current_scope_declared_model }
+        private :current_scope_model
+        self.current_scope_model_macro_method = instance_method(:current_scope_model)
+      end
+
       # Prefer the macro over bare skip_before_action so the grid can show
       # "skipped: …" instead of the alarming unexplained badge (#76 / plan 030).
       # only:/except: still perform the skip; the stored reason is the
@@ -124,6 +140,14 @@ module CurrentScope
     included do
       # class_attribute so a child inherits a parent's declared reason (#62 shape).
       class_attribute :current_scope_gate_skip_reason, instance_accessor: false, default: nil
+      # The class-level model (#142). instance_accessor: false so the instance
+      # method the macro defines is the only current_scope_model an instance
+      # answers. The stored UnboundMethod is how preflight tells that method
+      # from a later hand-written def. Both inherit until a subclass overrides.
+      class_attribute :current_scope_declared_model,
+                      instance_accessor: false, instance_predicate: false, default: nil
+      class_attribute :current_scope_model_macro_method,
+                      instance_accessor: false, instance_predicate: false, default: nil
       before_action :current_scope_check!
     end
 

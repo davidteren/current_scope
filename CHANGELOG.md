@@ -127,7 +127,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   check on the same record reuses that parent list and the allow or deny,
   while every stored parent is still walkable. Creating, updating, or
   destroying a scoped grant drops the stored allow or deny. Destroying a
-  parent in that list walks again. The request cache is not a host API.
+  parent in that list walks again. A check of a destroyed record drops the
+  stored answer, so the next live check of that row is computed again. The
+  request cache is not a host API.
 - **RubyGems metadata now points at the docs site (#211).**
   `documentation_uri` and `homepage` are the Pages site;
   `source_code_uri` and `bug_tracker_uri` are the GitHub repo and issue

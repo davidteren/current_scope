@@ -364,6 +364,21 @@ class ParentScopeForTest < ActiveSupport::TestCase
     refute allow_record(cold)
   end
 
+  test "a rolled-back destroy does not keep a deny for the live record" do
+    scope_grant(@lead, role("Lead", "reports#approve"), @project)
+    cold = Report.find(@mine.id)
+    assert allow_record(cold)
+
+    Report.transaction do
+      cold.destroy!
+      refute allow_record(cold)
+      raise ActiveRecord::Rollback
+    end
+
+    live = Report.find(@mine.id)
+    assert allow_record(live)
+  end
+
   test "cascade false does not read or replace a warm ancestor grant" do
     scope_grant(@lead, role("Lead", "reports#approve"), @project)
     cold = Report.find(@mine.id)

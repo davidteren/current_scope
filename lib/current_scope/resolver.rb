@@ -505,14 +505,19 @@ module CurrentScope
 
     def remembered_ancestor_grant?(subject:, permission:, record:)
       # ancestors_for first. The stored boolean is read only when that call was
-      # a clean list hit. A dropped list or a record guard overwrites the key.
+      # a clean list hit. A dropped list overwrites the key. A destroyed record
+      # drops the key. Storing that deny would make the next live check refuse.
       ParentChain.ancestors_for(record)
       key = ancestor_grant_key(subject, permission, record)
       cache = (CurrentScope::Current.ancestor_grant_cache ||= {})
       return cache[key] if key && ParentChain.clean_list_hit?(record) && cache.key?(key)
 
       allowed = ancestor_scoped_grants(permission: permission, record: record).where(subject: subject).exists?
-      cache[key] = allowed if key
+      if key && record.destroyed?
+        cache.delete(key)
+      elsif key
+        cache[key] = allowed
+      end
       allowed
     end
 

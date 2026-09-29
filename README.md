@@ -287,9 +287,12 @@ Total: 457 outstanding would-be denial(s) across 2 subject(s).
 
 That *is* your grant-seeding work, in the shape of the role grid you need to
 build: every subject who'd have been refused, what they were missing, and how
-badly. Seed the roles it names, re-exercise, and flip to `:enforce` once newly
-exercised requests stop adding rows (the report reads the append-only
-ledger, so historical rows do not clear). Each step is one line back, and nobody gets a 403 while you learn.
+badly. Seed the roles it names, re-exercise, and run
+`bin/rails current_scope:preflight`. The task prints one of three headlines.
+None of the three is permission to set `:enforce`. "Nothing to act on in the
+checks that ran" is not a clearance. The report reads an append-only ledger,
+so historical rows do not clear themselves. Each step is one line back, and
+nobody gets a 403 while you learn.
 
 The rows are ordinary ledger events, so query them directly if you want
 something the task doesn't show:

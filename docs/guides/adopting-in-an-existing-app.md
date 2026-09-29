@@ -47,15 +47,25 @@ Total: 457 outstanding would-be denial(s) across 2 subject(s).
 ```
 
 That list is your migration plan, in the shape of the role grid you need to
-build. Seed the roles it names, re-run the report until nothing is **still
-ungranted**, then set `config.enforcement = :enforce`. Every step is one line
-back.
+build. Seed the roles it names. Then run:
+
+```bash
+bin/rails current_scope:preflight
+```
+
+The task prints one of three headlines. **None of the three is permission to
+set `config.enforcement = :enforce`.** A problem means not ready. A check that
+could not run means you cannot tell. "Nothing to act on in the checks that
+ran" only describes the checks that ran. It is not a clearance. Run
+`bin/rails current_scope:report` when you need the row-level listing.
 
 **What "empty" means here.** The ledger is append-only, so a would-be denial
 stays listed after you grant it. The report therefore re-checks every recorded
 denial against your live grants and counts only the ones that would *still* be
-denied today. That count is the one that reaches zero, and a denial you cannot
-re-check (its subject is gone) is counted as outstanding, never as ready. A
+denied today. That count is what the report shows. It is not permission to set
+`config.enforcement = :enforce`, and neither is any headline from
+`current_scope:preflight`. A denial you cannot re-check (its subject is gone)
+is counted as outstanding, never as cleared. A
 denial that names a record which no longer loads is a different case: the report
 prints it on a line of its own and leaves it out of the count, because the gate
 loads a target the same way the report does and so is never asked about a row it
@@ -79,6 +89,8 @@ authorization; that warning is there because the failure mode is quiet, and a
 temporary survey is exactly the kind of thing that quietly becomes permanent.
 
 See the README's Installation section (report-mode ramp) for the short version.
+That short version tells you to run `current_scope:preflight`. None of the three
+headlines is permission to set `:enforce`.
 
 ---
 
@@ -347,11 +359,12 @@ A workable order:
 1. Turn on `Context` + `Guard` in **report mode**. Nothing changes for users,
    with three named exceptions:
    [what report mode will not downgrade](#three-things-report-mode-will-not-downgrade).
-2. Seed roles from `current_scope:report` until nothing is still ungranted. The
-   raw list never shrinks, because the ledger is append-only; the count the
-   report re-checks against live grants is the one that reaches zero.
-3. Flip to `:enforce`. Both systems now run; the gate admits, your policies still
-   decide records.
+2. Seed roles from `current_scope:report`. The raw list never shrinks, because
+   the ledger is append-only. The count the report re-checks against live grants
+   is not a clearance to set `:enforce`.
+3. Run `bin/rails current_scope:preflight`. None of the three headlines is
+   permission to set `:enforce`. When you do set it, both systems run; the gate
+   admits, and your policies still decide records.
 4. Port record rules incrementally: `authorize` / `policy_scope` become
    `allowed_to?` / `scope_for`. A scoped role ("Editor of Project #7") is usually
    what an ownership predicate was approximating.
@@ -412,25 +425,26 @@ after the ladder.
    collection gate only for the type the controller names. Then read
    [the three things report mode will not downgrade](#three-things-report-mode-will-not-downgrade)
    below: none of them is fixed by granting, and all three land in live traffic.
-4. **Flip one namespace to `:enforce`?** You can't — enforcement is global. What
-   you *can* do is watch `current_scope:report` reach zero still-ungranted and
-   flip once. If you
-   want a narrower blast radius, roll out `Guard` itself one base controller at a
-   time (include it on `Admin::BaseController` before `ApplicationController`).
-5. **Flip to `:enforce`.** Before you do, check the one thing the report cannot
-   tell you: **does your authentication run before the gate?** A request that
-   reaches the gate with no subject resolved is downgraded in report mode and
-   recorded nowhere, so it can never appear in the survey, and it is refused the
-   moment you flip. A clean report plus an unauthenticated request reaching the
-   gate is the shape that turns a rehearsal into an outage. Denials naming a
-   record that no longer loads are reported on their own line and do not block
-   the flip: the gate can never be asked about that record again. One exception.
-   If you soft-delete (`acts_as_paranoid`, `discard`, or any `default_scope`
-   that hides rows), a hidden-but-live record is reported the same way, and a
-   controller that reads it with `unscoped` will still reach the gate. Check
-   that line before you read it as clear. Keep the diagnostics on in
-   dev/test — they're on by default and they're how the next mistake tells on
-   itself.
+4. **Enforcement is global.** You cannot set `:enforce` for one namespace.
+   If you want a narrower blast radius, roll out `Guard` itself one base
+   controller at a time (include it on `Admin::BaseController` before
+   `ApplicationController`).
+5. **Do not set `:enforce` because a report looks empty.** Run
+   `bin/rails current_scope:preflight`. None of its three headlines is
+   permission to set `:enforce`. Before you read any of them as the end of
+   the survey, check the one thing neither task can tell you: **does your
+   authentication run before the gate?** A request that reaches the gate with
+   no subject resolved is downgraded in report mode and recorded nowhere, so
+   it can never appear in the survey, and it is refused once enforcement is
+   `:enforce`. An empty-looking report plus an unauthenticated request
+   reaching the gate is the shape that turns a rehearsal into an outage.
+   Denials naming a record that no longer loads are reported on their own
+   line. They are not work to grant. One exception. If you soft-delete
+   (`acts_as_paranoid`, `discard`, or any `default_scope` that hides rows), a
+   hidden-but-live record is reported the same way, and a controller that
+   reads it with `unscoped` will still reach the gate. Check that line before
+   you read it as clear. Keep the diagnostics on in dev/test — they're on by
+   default and they're how the next mistake tells on itself.
 6. **Broaden `excluded_controllers` only deliberately.** Every entry is a
    controller that can never be granted; that's a decision, not a cleanup.
 

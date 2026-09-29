@@ -123,6 +123,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     now says so instead of printing the literal key `"(duplicate natural key)"`.
 
 ### Changed
+- **Parent-chain checks are remembered for one request (#136).** A repeated
+  check on the same record reuses that parent list and the allow or deny,
+  while every stored parent is still walkable. Creating, updating, or
+  destroying a scoped grant drops the stored allow or deny. Destroying a
+  parent in that list walks again. The request cache is not a host API.
 - **RubyGems metadata now points at the docs site (#211).**
   `documentation_uri` and `homepage` are the Pages site;
   `source_code_uri` and `bug_tracker_uri` are the GitHub repo and issue

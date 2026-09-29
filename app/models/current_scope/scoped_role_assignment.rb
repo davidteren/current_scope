@@ -31,9 +31,11 @@ module CurrentScope
     include CurrentScope::AuditedWrites
     after_create :record_scoped_role_granted
     after_destroy :record_scoped_role_revoked
-    # Create, destroy, and rollback. Not update: assignments are not edited in
-    # place. The ancestor list is parent data and is not cleared here (#136).
+    # Create, update, destroy, and rollback. An in-place edit of the subject,
+    # role, or resource must not keep an allow stored earlier in this request.
+    # The ancestor list is parent data and is not cleared here (#136).
     after_create { CurrentScope::Current.reset_ancestor_grant_cache }
+    after_update { CurrentScope::Current.reset_ancestor_grant_cache }
     after_destroy { CurrentScope::Current.reset_ancestor_grant_cache }
     after_rollback { CurrentScope::Current.reset_ancestor_grant_cache }
 

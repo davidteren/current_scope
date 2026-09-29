@@ -395,8 +395,10 @@ class ParentScopeForTest < ActiveSupport::TestCase
       rows << payload[:sql].to_s.gsub(/\s+/, " ")
     end
 
-    assert allow_record(cold)
-    assert_equal PINNED_TWO_HOP_ALLOW_QUERIES, rows.size, rows
+    ActiveRecord::Base.uncached do
+      assert allow_record(cold)
+      assert_equal PINNED_TWO_HOP_ALLOW_QUERIES, rows.size, rows
+    end
   ensure
     ActiveSupport::Notifications.unsubscribe(subscriber) if subscriber
   end

@@ -62,6 +62,15 @@ class ParentScopedGrantTest < ActiveSupport::TestCase
     assert_equal [ false, :no_grant ], decide(colleague, "reports#approve", cold)
   end
 
+  test "moving a parent grant drops the stored child allow" do
+    assignment = scope_grant(@lead, role("Moved grant", "reports#approve"), @project)
+    cold = Report.find(@report.id)
+
+    assert_equal [ true, nil ], decide(@lead, "reports#approve", cold)
+    assignment.update!(resource: @other_project)
+    assert_equal [ false, :no_grant ], decide(@lead, "reports#approve", cold)
+  end
+
   test "a persisted parent grant opens an unsaved child before validation" do
     scope_grant(@lead, role("Draft approver", "reports#approve"), @project)
     draft = Report.new(title: "Draft", project: @project, requested_by: @requester)

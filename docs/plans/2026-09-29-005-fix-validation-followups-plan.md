@@ -67,7 +67,7 @@ The other six items are smaller holes in the same review. They are grouped here 
 
 **Test tables**
 
-- R10. `SupportTable.prepare` rebuilds when column names, column types, or index names differ. It does not drop a table whose names, types, and index names match. A default id stored as `:primary_key` matches the reflected default. On SQLite that is `:integer`. On MySQL and PostgreSQL that is `:bigint`. That match is not type drift. It never uses `force: true`.
+- R10. `SupportTable.prepare` rebuilds when column names, column types, or index names differ. It does not drop a table whose names, types, and index names match. A default id stored as `:primary_key` matches the reflected default. `column.type` is `:integer` on SQLite, MySQL, and PostgreSQL. `schema.rb` prints `:bigint` through `schema_type`. This check does not use that token. That match is not type drift. It never uses `force: true`.
 
 **Docs script**
 
@@ -103,7 +103,7 @@ The other six items are smaller holes in the same review. They are grouped here 
 - KTD-3. The report branch at lines 355 to 386 is already the product rule. U3 only adds the missing examples.
 - KTD-4. `database_context` keeps its rescue. The test feeds a model whose name lookup raises and expects the environment-only string. The diagnostic must not take the guard down.
 - KTD-5. Write `scoped_role.revoked` only when this destroy's DELETE changes a row. A second handle deletes zero rows and writes nothing. Do not dedupe by a time window.
-- KTD-6. Widen `SupportTable` drift using one normalized token on both sides. Treat a definition type of `:primary_key` as the reflected default id. On SQLite that token is `:integer`. On MySQL and PostgreSQL that token is `:bigint`. Compare that token to the live column's abstract type. Do not compare `type_to_sql(:primary_key)` to the live SQL string or to `type_to_sql` of the reflected type. Other columns compare one abstract type. Do not compare a nil `sql_type` on the definition with a live SQL string. Compare index identity from the block's column and options, using the name `create_table` would assign. Do not compare that pair to `connection.indexes` names directly. Equal schemas still skip the drop. The proof runs in `test/support_tables_test.rb`, which is already outside a transaction.
+- KTD-6. Widen `SupportTable` drift using one normalized token on both sides. Treat a definition type of `:primary_key` as the reflected default id. `column.type` is `:integer` on SQLite, MySQL, and PostgreSQL. `schema.rb` prints `:bigint` through `schema_type`. This check does not use that token. Compare the integer token to the live column's abstract type. Do not compare `type_to_sql(:primary_key)` to the live SQL string or to `type_to_sql` of the reflected type. Other columns compare one abstract type. Do not compare a nil `sql_type` on the definition with a live SQL string. Compare index identity from the block's column and options, using the name `create_table` would assign. Do not compare that pair to `connection.indexes` names directly. Equal schemas still skip the drop. The proof runs in `test/support_tables_test.rb`, which is already outside a transaction.
 - KTD-7. Move the script without changing its questions or veto ids. `test/docs_site_test.rb` reads the file instead of slicing a `<script>` out of the markdown. The README derivation keeps using those question and veto strings.
 
 ### Sequencing

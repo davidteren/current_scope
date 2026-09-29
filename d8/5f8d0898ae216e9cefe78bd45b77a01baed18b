@@ -1,0 +1,19 @@
+test/report_task_test.rb
+  s_74907f46c32c88::t_2bd3fa79678383 4-8,448-499
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d85f8d0898ae216e9cefe78bd45b77a01baed18b",
+  "prompts": {},
+  "sessions": {
+    "s_74907f46c32c88": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "85cc10a6-0224-41bc-8491-87ef2153d9a3",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

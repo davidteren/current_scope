@@ -1,0 +1,23 @@
+docs/site/assets/js/fit-chooser.js
+  s_7373c6f662bda6::t_35a5d2a689e812 1-384
+docs/site/comparison.md
+  s_7373c6f662bda6::t_9d237948d7b381 11-14,258
+test/system/docs_site_fit_chooser_test.rb
+  s_7373c6f662bda6::t_82396e73662c1f 17-20,33,41-44,46-47,50-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "925ead426ffd907de24a6242216d79dd3ca01048",
+  "prompts": {},
+  "sessions": {
+    "s_7373c6f662bda6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b82903de-0829-4639-b5e4-31391dd4e221",
+        "model": "unknown"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

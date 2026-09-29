@@ -1,0 +1,20 @@
+CHANGELOG.md
+  h_e8a5bb9272fa34 12-16
+docs/guides/checking-permissions.md
+  h_e8a5bb9272fa34 254-255
+lib/current_scope.rb
+  h_e8a5bb9272fa34 572-577
+test/abilities_for_test.rb
+  h_e8a5bb9272fa34 217-236,273-276,285-286
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "3c154546de7f2d6c3f14477fb903cc4150a70bf0",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

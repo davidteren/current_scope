@@ -1,0 +1,20 @@
+CHANGELOG.md
+  h_e8a5bb9272fa34 130-132
+docs/plans/2026-09-29-004-perf-parent-chain-memo-plan.md
+  h_e8a5bb9272fa34 54
+lib/current_scope/resolver.rb
+  h_e8a5bb9272fa34 508-509,516-520
+test/parent_scope_for_test.rb
+  h_e8a5bb9272fa34 367-381
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "9a967dc6436c3f0ec0700935f1dbc90c1802d4d0",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

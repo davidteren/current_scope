@@ -1,0 +1,29 @@
+app/views/current_scope/subjects/index.html.erb
+  s_be14d56078e8d2::t_10a15bb018322c 104,109,111-114,117-119
+test/integration/subjects_bulk_test.rb
+  s_1879c34796d50d::t_91448ab964232c 18-25,200-268
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "599e971ff683aa851b7f0279d66dbe000e8684ca",
+  "prompts": {},
+  "sessions": {
+    "s_1879c34796d50d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "39e18212-0247-4b49-bf95-1d6ba7e4ad53",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    },
+    "s_be14d56078e8d2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a017ee4-da61-4a96-9a80-843bb0f41e07",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -61,7 +61,7 @@ A helper that returns every id for every model would be a data dump and could di
 **Authority**
 
 - R8. The method does not change `allow?` or the denial header.
-- R9. The guide says the snapshot is stale as soon as a grant changes, and the server is authoritative on the next request. It also says a full-access list, or a list for a key on the org role, goes stale when a row is created or destroyed. The host builds the snapshot in the same response as the records the client filters.
+- R9. The guide says the snapshot is stale as soon as a grant changes, and the server is authoritative on the next request. When full access is on, or the key is on the org role, `scope_for` returns every current row, and the snapshot still keeps at most `limit` ids. A complete list goes stale when a row is created or destroyed. A cut list stays a sample. The host builds the snapshot in the same response as the records the client filters.
 - R10. No new engine route serves this Hash. The guide shows a one-action host controller for #96 and an Inertia shared-prop recipe for #97 that does not add the `inertia_rails` gem to this engine.
 
 ### Acceptance Examples

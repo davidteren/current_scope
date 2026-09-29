@@ -263,9 +263,11 @@ are the values `scope_for` returns. A string primary key stays a string.
 
 `truncated` is true when another id exists. The hash is stale as soon as a
 grant changes. The server is authoritative on the next request. When
-`full_access` is true, or the key is in `permission_keys`, the ids are every
-row from this response. Creating or destroying a row makes that list stale
-even when no grant changed.
+`full_access` is true, or the key is in `permission_keys`, `scope_for`
+returns every current row. This snapshot still keeps at most `limit` ids.
+A cut entry is a sample, and absence is not a denial. When `truncated` is
+false, those ids are every row from this response. Creating or destroying a
+row makes that complete list stale even when no grant changed.
 
 ### What a client may hide
 

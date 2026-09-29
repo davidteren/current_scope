@@ -569,10 +569,12 @@ module  CurrentScope
       end
 
       model, permission = pair
-      # The same shapes the record-less gate refuses. An abstract class has no
-      # table, and a composite key is not one stored id. Either one must raise
-      # here, before scope_for builds a relation that cannot run.
-      usable = CurrentScope.resolver.collection_type?(model) && storable_scope_key?(model)
+      # The same shapes the record-less gate refuses, plus a class with no name.
+      # An abstract class has no table. A composite key is not one stored id.
+      # A nameless class would store model: nil. Each one must raise here,
+      # before scope_for builds a relation that cannot run.
+      named = model.is_a?(Class) && model.name.present?
+      usable = named && CurrentScope.resolver.collection_type?(model) && storable_scope_key?(model)
       unless usable && permission.is_a?(String) && !permission.empty?
         raise ArgumentError, "each scope must be a [model class, permission key] pair"
       end

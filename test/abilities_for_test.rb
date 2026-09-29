@@ -214,6 +214,26 @@ class AbilitiesForTest < ActiveSupport::TestCase
     assert_equal [ report.id ], payload[:scoped][1][:ids]
   end
 
+  test "the snapshot lists an id the veto still refuses" do
+    original = CurrentScope.config.sod_actions
+    CurrentScope.config.sod_actions = %w[show]
+    report = Report.create!(title: "Own", requested_by: @alice, project: @p1)
+    scope_grant(@alice, role("Reader", REPORT_KEY), report)
+
+    payload = CurrentScope.abilities_for(
+      @alice,
+      scopes: [ [ Report, REPORT_KEY ] ],
+      limit: 10
+    )
+
+    assert_includes payload[:scoped].sole[:ids], report.id
+    assert_equal [ false, :sod_veto ], CurrentScope.resolver.decide(
+      subject: @alice, permission: REPORT_KEY, record: report
+    )
+  ensure
+    CurrentScope.config.sod_actions = original
+  end
+
   test "duplicate pairs each call scope_for once" do
     calls = scope_calls do
       CurrentScope.abilities_for(
@@ -250,6 +270,10 @@ class AbilitiesForTest < ActiveSupport::TestCase
       self.table_name = "users"
       self.primary_key = [ "id", "name" ]
     end
+    unnamed = Class.new(ApplicationRecord) do
+      self.table_name = "projects"
+    end
+    unnamed.define_singleton_method(:name) { nil }
     bad_lists = [
       nil,
       "projects",
@@ -258,7 +282,8 @@ class AbilitiesForTest < ActiveSupport::TestCase
       [ [ Project, :index ] ],
       [ [ Project, "" ] ],
       [ [ ApplicationRecord, PROJECT_KEY ] ],
-      [ [ composite, PROJECT_KEY ] ]
+      [ [ composite, PROJECT_KEY ] ],
+      [ [ unnamed, PROJECT_KEY ] ]
     ]
 
     bad_lists.each do |scopes|

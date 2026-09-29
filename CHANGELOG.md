@@ -9,8 +9,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 - **Advisory client snapshot (#96, #97).** `CurrentScope.abilities_for`
   returns a bounded hash a host can hand to a JavaScript or Inertia client.
-  The request gate stays the authority. There is no new route, no Inertia
-  dependency, and no published JavaScript package.
+  The request gate stays the authority. A class with no name raises
+  `ArgumentError` before `scope_for` runs, the same as an abstract class or
+  a key that is not one column. The snapshot does not apply the
+  separation-of-duties veto. There is no new route, no Inertia dependency,
+  and no published JavaScript package.
 - **Mutation-testing PR gate.** Every PR runs
   [Mutineer](https://github.com/davidteren/mutineer) via
   `.github/workflows/mutation.yml`: dummy-app boot, serial `--rails` (the

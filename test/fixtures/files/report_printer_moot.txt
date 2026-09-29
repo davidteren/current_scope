@@ -1,0 +1,30 @@
+CurrentScope report: nothing to act on in any category.
+
+  Nothing recorded so far is still outstanding: 0 subject/permission pair(s)
+  re-checked against live grants are granted, and 5 recorded denial(s) name a
+  record that no longer loads.
+  The ledger still lists them because it is append-only. That is the list
+  you were waiting to see empty; this is what empty looks like.
+
+  5 recorded denial(s) name a record that no longer loads (deleted, or hidden
+  by a default scope). The gate can never be asked about that record again, so
+  they are NOT counted as outstanding.
+
+  This is a survey, not a clearance: the ledger only knows traffic that has already run, and only requests that resolved a subject. A request that reaches the gate before authentication is downgraded and recorded NOWHERE, so it cannot appear above and WILL be refused after the flip. Confirm your authentication runs before the gate. The SoD preflight is also partial by construction (its own note says how). It could not complete this run.
+
+No would-be denials recorded.
+
+  config.enforcement is :report (needs :report to record any)
+  config.audit is true (needs true or :strict — the ledger is where these rows live)
+
+With both on, exercise the app or run your suite, then re-run this.
+
+Separation-of-duties preflight: COULD NOT COMPLETE — this section is incomplete.
+
+  [CurrentScope] SodPreflight skipped 1 check(s), so its list is INCOMPLETE — absence below is not an all-clear: ReportsController (NameError). 1 of those did not LOAD (ReportsController) — that is a broken controller, not a missing declaration, and the gate will fail there too.
+  Do NOT read the absence of findings below as an all-clear.
+
+  This list is PARTIAL — a lead, not a verdict. Confirm against the model before you change config.sod_actions.
+  Silent when: the controller declares no current_scope_model (ABSENT is not cleared), or the model cannot be instantiated right now (no database connection yet, a custom initialize).
+  Names the wrong thing when: the declared type is what the COLLECTION lists and a member action loads a different one; or current_scope_model branches on action_name, which is read here with no action in hand.
+  Cannot happen at all: a finding against an action that turns out to be a COLLECTION action — the veto never reaches those.

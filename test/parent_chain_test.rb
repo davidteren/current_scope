@@ -659,4 +659,86 @@ class ParentChainTest < ActiveSupport::TestCase
     assert rows.any? { |sql| project_load?(sql) }, rows
     assert_empty sql_queries { assert_empty CurrentScope::ParentChain.ancestors_for(cold) }
   end
+
+  test "a class has no ancestor-list hit key" do
+    assert_empty CurrentScope::ParentChain.ancestors_for(Report)
+
+    assert_nil CurrentScope::Current.ancestor_list_hit_key
+  end
+
+  test "a draft is not a clean list hit" do
+    draft = Report.new(title: "Draft", project_id: @project.id, requested_by: @requester)
+    CurrentScope::ParentChain.ancestors_for(draft)
+
+    assert_equal false, CurrentScope::ParentChain.clean_list_hit?(draft)
+  end
+
+  test "a class and an undeclared record have no list key" do
+    folder = Folder.create!(name: "Flat")
+
+    assert_nil CurrentScope::ParentChain.memo_key(Report)
+    assert_nil CurrentScope::ParentChain.memo_key(folder)
+  end
+
+  test "a declared record with no parent reflection has no list key" do
+    cold = cold_report
+    original = CurrentScope::ParentChain.method(:reflection_for)
+    CurrentScope::ParentChain.define_singleton_method(:reflection_for) { |_klass| nil }
+
+    assert_nil CurrentScope::ParentChain.memo_key(cold)
+  ensure
+    CurrentScope::ParentChain.define_singleton_method(:reflection_for, original) if original
+  end
+
+  test "a destroyed stored ancestor is deleted from the list cache" do
+    cold = cold_report
+    key = CurrentScope::ParentChain.memo_key(cold)
+    parent = CurrentScope::ParentChain.ancestors_for(cold).first
+    cache = Class.new(Hash) do
+      attr_reader :deleted_keys
+
+      def initialize
+        super
+        @deleted_keys = []
+      end
+
+      def delete(item)
+        @deleted_keys << item
+        super
+      end
+    end.new
+    cache[key] = [ parent ]
+    CurrentScope::Current.ancestor_list_cache = cache
+    parent.destroy!
+
+    CurrentScope::ParentChain.ancestors_for(cold)
+
+    assert_includes cache.deleted_keys, key
+  end
+
+  test "dropping one list keeps a grant answer stored for another list" do
+    cold = cold_report
+    list_key = CurrentScope::ParentChain.memo_key(cold)
+    parent = CurrentScope::ParentChain.ancestors_for(cold).first
+    other = [ "Other", 1, 2 ]
+    matching = [ "User", @requester.id, "reports#show", *list_key ]
+    CurrentScope::Current.ancestor_grant_cache = { matching => true, other => false }
+    parent.destroy!
+
+    CurrentScope::ParentChain.ancestors_for(cold)
+
+    grants = CurrentScope::Current.ancestor_grant_cache
+    assert_equal false, grants[other]
+    refute grants.key?(matching)
+  end
+
+  test "a missing subject has no ancestor grant key" do
+    assert_nil CurrentScope.resolver.send(:ancestor_grant_key, nil, "reports#show", @report)
+  end
+
+  test "a subject with no id has no ancestor grant key" do
+    draft = User.new(name: "Draft")
+
+    assert_nil CurrentScope.resolver.send(:ancestor_grant_key, draft, "reports#show", @report)
+  end
 end

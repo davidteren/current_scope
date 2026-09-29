@@ -1032,6 +1032,37 @@ class ReportTaskTest < ActiveSupport::TestCase
     CurrentScope.reset_catalog!
   end
 
+  test "both SoD preflight sections print a split declaration (#142)" do
+    CurrentScope.config.sod_actions = %w[approve]
+    CurrentScope.reset_catalog!
+    ReportsController.current_scope_model Report
+    replace_instance_model(ReportsController, Invoice)
+
+    quiet = run_task
+
+    assert_match(/inspected \d+ of \d+ routed SoD action/, quiet)
+    refute_match(/will RAISE/, quiet)
+    assert_match(split_sentence, quiet)
+    assert_match(/reports/, quiet)
+
+    restore_instance_model(ReportsController, Report)
+    DocumentsController.current_scope_model Document
+    replace_instance_model(DocumentsController, Invoice)
+    CurrentScope.config.sod_actions = %w[show]
+    CurrentScope.reset_catalog!
+
+    noisy = run_task
+
+    assert_match(/will RAISE/, noisy)
+    assert_match(split_sentence, noisy)
+    assert_match(/documents/, noisy)
+  ensure
+    restore_instance_model(ReportsController, Report)
+    restore_instance_model(DocumentsController, Document)
+    CurrentScope.config.sod_actions = []
+    CurrentScope.reset_catalog!
+  end
+
   test "a preflight that could not complete says THAT, not 'nothing found' (#133)" do
     CurrentScope.config.sod_actions = %w[show]
     CurrentScope.reset_catalog!
@@ -1066,6 +1097,21 @@ class ReportTaskTest < ActiveSupport::TestCase
     assert_match(/3x\s+documents#show — Invoice/, out)
     assert_match "NOT denials and granting changes nothing", out,
                  "an operator reading this next to would_deny must not try to grant their way out"
+  end
+
+  def replace_instance_model(klass, model)
+    klass.send(:define_method, :current_scope_model) { model }
+    klass.send(:private, :current_scope_model)
+  end
+
+  def restore_instance_model(klass, model)
+    klass.current_scope_declared_model = nil
+    klass.current_scope_model_macro_method = nil
+    replace_instance_model(klass, model)
+  end
+
+  def split_sentence
+    /declares current_scope_model at class level and also defines a different instance method/
   end
 
   test "a raised-request ledger alone still surfaces its section (#133)" do

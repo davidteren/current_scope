@@ -223,10 +223,10 @@ class SodPreflightTest < ActiveSupport::TestCase
     # `slug_reports` sorts after `documents`, so documents#show is already
     # collected when this blows up. Raising from declared_model_for (rather than
     # inside it) is what escapes the helper's own rescue and reaches the walk.
-    singleton.define_method(:declared_model_for) do |path, reflection, skipped|
+    singleton.define_method(:declared_model_for) do |path, reflection, skipped, split_declarations = nil|
       raise "blew up mid-walk" if path == "slug_reports"
 
-      original.call(path, reflection, skipped)
+      original.call(path, reflection, skipped, split_declarations)
     end
 
     result = CurrentScope::SodPreflight.scan
@@ -328,7 +328,7 @@ class SodPreflightTest < ActiveSupport::TestCase
     CurrentScope.config.sod_actions = %w[show]
     singleton = CurrentScope::SodPreflight.singleton_class
     original = CurrentScope::SodPreflight.method(:declared_model_for)
-    singleton.define_method(:declared_model_for) do |path, _reflection, skipped|
+    singleton.define_method(:declared_model_for) do |path, _reflection, skipped, _split_declarations = nil|
       skipped << [ path, RuntimeError.new("the host's hook blew up") ]
       nil
     end
@@ -425,7 +425,142 @@ class SodPreflightTest < ActiveSupport::TestCase
     singleton.define_method(:catalog, original)
   end
 
+  # #142 AE1. The class value answers, so a host constructor must not run.
+  test "a class-level model is returned without calling new" do
+    CurrentScope.config.sod_actions = %w[show]
+    DocumentsController.current_scope_model Report
+    DocumentsController.define_singleton_method(:new) { |*| raise "must not instantiate" }
+
+    result = CurrentScope::SodPreflight.scan
+    model = CurrentScope::SodPreflight.send(
+      :declared_model_for, "documents", CurrentScope::GatingReflection.new, [], []
+    )
+
+    assert_equal Report, model
+    refute_includes result.rows.map(&:first), "documents#show",
+                    "Report defines the initiator, so the class value must not be read as Document"
+    refute result.degraded?, "calling new would rescue the raise into skipped"
+    assert_empty result.skipped
+    assert_empty result.split_declarations
+  ensure
+    remove_singleton_new(DocumentsController)
+    restore_instance_model(DocumentsController, Document)
+  end
+
+  # #142 AE2. No class value: keep today's instantiate-and-rescue path.
+  test "an instance-only model still instantiates, and a raise from new is skipped" do
+    CurrentScope.config.sod_actions = %w[show]
+    assert_nil DocumentsController.current_scope_declared_model
+    DocumentsController.define_singleton_method(:new) { |*| raise "host new" }
+
+    result = CurrentScope::SodPreflight.scan
+
+    refute_includes result.rows.map(&:first), "documents#show"
+    assert result.degraded?
+    assert result.skipped.any? { |subject, error| subject == "documents" && error.message == "host new" }
+    assert_nil CurrentScope::SodPreflight.split_declaration_summary(result)
+  ensure
+    remove_singleton_new(DocumentsController)
+  end
+
+  # #142 AE3. Identity, not the return value: the scan keeps Report, the
+  # request calls the later method, and one controller is named once.
+  test "a hand-written instance method beside the macro is listed once and is not a skip" do
+    CurrentScope.config.sod_actions = %w[index show]
+    DocumentsController.current_scope_model Report
+    replace_instance_model(DocumentsController, Invoice)
+    DocumentsController.define_singleton_method(:new) { |*| raise "must not instantiate" }
+
+    result = CurrentScope::SodPreflight.scan
+    model = CurrentScope::SodPreflight.send(
+      :declared_model_for, "documents", CurrentScope::GatingReflection.new, [], []
+    )
+
+    assert_equal [ "documents" ], result.split_declarations
+    refute result.degraded?
+    assert_equal Report, model
+    refute result.rows.any? { |permission, found| permission.start_with?("documents#") || found == Invoice }
+    assert_equal Invoice, DocumentsController.allocate.send(:current_scope_model)
+    assert_empty result.skipped, "a split is a new list, not a string stuffed into skipped"
+    assert_nil CurrentScope::SodPreflight.skip_summary(result)
+  ensure
+    remove_singleton_new(DocumentsController)
+    restore_instance_model(DocumentsController, Document)
+  end
+
+  # The quiet shape: the model can answer the veto, so there is no raise row
+  # and the run is not blind. The split is still said.
+  test "warn! names a split controller when rows are empty and the run is not degraded" do
+    CurrentScope.config.sod_actions = %w[approve]
+    ReportsController.current_scope_model Report
+    replace_instance_model(ReportsController, Invoice)
+
+    result = CurrentScope::SodPreflight.scan
+    logs = capture_warn_log { CurrentScope::SodPreflight.warn!(result) }
+
+    assert_empty result.rows
+    refute result.degraded?
+    refute result.blind?
+    assert_includes result.split_declarations, "reports"
+    assert_match(/reports/, logs)
+    assert_match(/class level/, logs)
+    refute_match(/will raise CurrentScope::ConfigurationError/, logs)
+  ensure
+    restore_instance_model(ReportsController, Report)
+  end
+
+  # Def, then the macro: define_method replaces the def. That is the macro's
+  # method, so there is nothing to warn about.
+  test "a macro that replaces an earlier instance method does not warn" do
+    CurrentScope.config.sod_actions = %w[approve]
+    replace_instance_model(ReportsController, Invoice)
+    ReportsController.current_scope_model Report
+
+    result = CurrentScope::SodPreflight.scan
+    logs = capture_warn_log { CurrentScope::SodPreflight.warn!(result) }
+
+    assert_empty result.split_declarations
+    assert_nil CurrentScope::SodPreflight.split_declaration_summary(result)
+    refute_match(/class level/, logs)
+    assert_equal Report, ReportsController.allocate.send(:current_scope_model)
+  ensure
+    restore_instance_model(ReportsController, Report)
+  end
+
+  test "a class-level value the shape guard refuses returns nil without new" do
+    DocumentsController.current_scope_model "Report"
+    DocumentsController.define_singleton_method(:new) { |*| raise "must not instantiate" }
+    skipped = []
+
+    model = CurrentScope::SodPreflight.send(
+      :declared_model_for, "documents", CurrentScope::GatingReflection.new, skipped, []
+    )
+
+    assert_nil model
+    assert_empty skipped
+  ensure
+    remove_singleton_new(DocumentsController)
+    restore_instance_model(DocumentsController, Document)
+  end
+
   private
+
+  def replace_instance_model(klass, model)
+    klass.send(:define_method, :current_scope_model) { model }
+    klass.send(:private, :current_scope_model)
+  end
+
+  def restore_instance_model(klass, model)
+    klass.current_scope_declared_model = nil
+    klass.current_scope_model_macro_method = nil
+    replace_instance_model(klass, model)
+  end
+
+  def remove_singleton_new(klass)
+    return unless klass.singleton_methods(false).include?(:new)
+
+    klass.singleton_class.send(:remove_method, :new)
+  end
 
   def capture_warn_log
     io = StringIO.new

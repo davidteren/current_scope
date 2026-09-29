@@ -28,6 +28,31 @@ module CurrentScope
       keyword_init: true
     )
 
+    NOT_READY_HEADLINE = "CurrentScope preflight: NOT READY. A check found a problem."
+    CANNOT_TELL_HEADLINE = "CurrentScope preflight: CANNOT TELL. A required check could not run."
+    NOTHING_TO_ACT_ON_HEADLINE = "CurrentScope preflight: nothing to act on in the checks that ran."
+
+    # The ungated task already prints this limit. Preflight repeats it under
+    # Not checked on every run. It does not change the headline.
+    CONDITIONAL_SKIP_LIMIT =
+      "Limit: this lists only what the callback chain PROVES. A conditional skip " \
+      "(skip_before_action only:/except:) does not appear here — set " \
+      "config.gating_tripwire = :warn and include CurrentScope::GatingTripwire " \
+      "to inventory those at runtime."
+
+    NOT_CHECKED = [
+      "Host authentication order. This gem cannot see whether the host authenticates before the gate.",
+      "Routes with no recorded traffic. They are absent from this survey.",
+      "Denials after a flip are log lines, not ledger rows.",
+      CONDITIONAL_SKIP_LIMIT
+    ].freeze
+
+    # What assemble returns. The rake task prints this. It does not decide again.
+    Answer = Struct.new(
+      :headline, :why, :act_on, :moot_count, :moot_line, :not_checked,
+      keyword_init: true
+    )
+
     def self.denials
       events_table_missing = false
       rows = []
@@ -418,5 +443,96 @@ module CurrentScope
         events_table_missing: events_table_missing
       )
     end
+
+    def self.assemble
+      survey = denials
+      ungated, missing, name_errors = gating_walk
+      config = CurrentScope.config
+      why = []
+
+      survey.signals.each do |label, count|
+        why << "#{count} #{label}."
+      end
+      if ungated.any?
+        why << "Ungated controllers, the gate never runs: #{ungated.join(', ')}."
+      end
+      if config.enforcement != :report
+        why << "Enforcement is #{config.enforcement.inspect}, not :report."
+      end
+      unless config.audit == true || config.audit == :strict
+        why << "Audit is #{config.audit.inspect}. It is neither true nor :strict."
+      end
+      why << "The SoD preflight could not complete." if survey.preflight.degraded?
+      why << "The SoD preflight is blind. An empty finding list is not a result." if survey.preflight.blind?
+      if survey.grant_scan_rescued
+        why << "The grant scan rescued an error. This run cannot judge every grant."
+      end
+      if survey.events_table_missing
+        why << "The current_scope_events table doesn't exist, so nothing was recorded."
+        why << "Run: bin/rails current_scope:install:migrations && bin/rails db:migrate"
+      end
+      if missing.any?
+        why << "Routed paths whose controller class did not load: #{missing.join(', ')}."
+      end
+      name_errors.each do |path|
+        why << "Loading controller #{path} raised NameError."
+      end
+
+      moot_count = survey.moot.sum(&:denials)
+      moot_line = if moot_count.zero?
+        nil
+      else
+        "#{moot_count} recorded denial(s) are not work to grant. Those rows name a record that no longer loads."
+      end
+
+      problem = survey.signals.any? || ungated.any?
+      cannot_tell = config.enforcement != :report ||
+        !(config.audit == true || config.audit == :strict) ||
+        survey.preflight.degraded? ||
+        survey.preflight.blind? ||
+        survey.grant_scan_rescued ||
+        survey.events_table_missing ||
+        missing.any? ||
+        name_errors.any?
+      headline = if problem
+        NOT_READY_HEADLINE
+      elsif cannot_tell
+        CANNOT_TELL_HEADLINE
+      else
+        NOTHING_TO_ACT_ON_HEADLINE
+      end
+
+      Answer.new(
+        headline: headline,
+        why: why,
+        act_on: survey.signals,
+        moot_count: moot_count,
+        moot_line: moot_line,
+        not_checked: NOT_CHECKED
+      )
+    end
+
+    # One controller at a time. A NameError from ungated? is caught here, not
+    # inside ungated?, and the walk continues. A later ungated controller still
+    # counts as a problem.
+    def self.gating_walk
+      gating = CurrentScope::GatingReflection.new
+      ungated = []
+      missing = []
+      name_errors = []
+      CurrentScope.catalog.grouped.each_key do |controller|
+        begin
+          if gating.ungated?(controller)
+            ungated << controller
+          elsif gating.missing_controller?(controller)
+            missing << controller
+          end
+        rescue NameError
+          name_errors << controller
+        end
+      end
+      [ ungated, missing, name_errors ]
+    end
+    private_class_method :gating_walk
   end
 end

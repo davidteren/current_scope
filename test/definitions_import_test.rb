@@ -186,6 +186,34 @@ class DefinitionsImportTest < ActiveSupport::TestCase
     assert CurrentScope::RoleAssignment.exists?(subject: holder, role: @editor)
   end
 
+  test "a registry collision does not hide a held-role delete" do
+    CurrentScope::RoleAssignment.create!(subject: User.create!(name: "Lead"), role: @owner)
+    CurrentScope::RoleAssignment.create!(subject: User.create!(name: "Pat"), role: @editor)
+    incoming = CurrentScope::DefinitionsDocument.new(
+      document_from_live.roles.filter_map do |role|
+        next if role.name == "Editor"
+
+        role.name == "Owner" ? role.with(full_access: false) : role
+      end
+    )
+    CurrentScope.rebuild_polymorphic_registry!
+    CurrentScope.polymorphic_registry.dup.tap do |map|
+      map["User"] = Folder
+      CurrentScope::PolymorphicRegistry.instance_variable_set(:@polymorphic_registry, map.freeze)
+    end
+    CurrentScope::Current.polymorphic_registry_error = nil
+
+    error = assert_raises(CurrentScope::DefinitionsDocument::HeldRoleDelete) do
+      incoming.apply(confirm: true, actor: @actor, snapshot_path: snapshot_path)
+    end
+    assert_match(/Editor/, error.message)
+    assert @owner.reload.full_access?
+    assert CurrentScope::Role.exists?(name: "Editor")
+  ensure
+    CurrentScope.rebuild_polymorphic_registry!
+    CurrentScope::Current.polymorphic_registry_error = nil
+  end
+
   test "missing apiVersion writes nothing" do
     assert_raises CurrentScope::DefinitionsDocument::InvalidDocument do
       CurrentScope.import_definitions("roles: []\n", confirm: true, actor: @actor)

@@ -305,6 +305,35 @@ class FullAccessLockAssignmentTest < ActiveSupport::TestCase
                  "every planned page is locked before the would-lose answer"
   end
 
+  test "a planned-row registry collision does not refuse an empty console" do
+    @owner_assignment.destroy!
+    promoted = CurrentScope::Role.create!(name: "Promoted")
+    planned = CurrentScope::RoleAssignment.create!(subject: User.create!(name: "Planned"), role: promoted)
+    collide_user_token!
+
+    batches = with_assignment_page_size(1) do
+      assignment_locks do
+        refute lock.would_lose_held_full_access?([ "Promoted" ]),
+               "nobody holds full access today, so a planned collision must not close the console"
+      end
+    end
+
+    assert_equal [ [ planned.id ] ], batches
+    assert_nil CurrentScope::Current.polymorphic_registry_error
+  end
+
+  test "a planned-row collision still refuses when a live holder exists" do
+    @owner_assignment.destroy!
+    uuid_live_holder
+    promoted = CurrentScope::Role.create!(name: "Promoted")
+    CurrentScope::RoleAssignment.create!(subject: User.create!(name: "Planned"), role: promoted)
+    collide_user_token!
+
+    assert lock.would_lose_held_full_access?([ "Promoted" ])
+    assert lock.registry_blind?
+    assert_match(/claimed by both/, CurrentScope::Current.polymorphic_registry_error.to_s)
+  end
+
   test "no current live holder still allows a document whose planned rows are inert" do
     @owner_assignment.destroy!
     promoted = CurrentScope::Role.create!(name: "Promoted")

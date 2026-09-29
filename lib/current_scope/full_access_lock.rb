@@ -195,6 +195,9 @@ module CurrentScope
     # the lowest planned id. The current cursor is never reused as the
     # planned start. An id already locked is skipped in Ruby and still tested.
     def walk_would_lose_held_full_access(planned_fa_names)
+      # Nil until the current-holder check finishes. The rescue treats nil as
+      # unknown, which refuses. False is a finished "nobody holds it" answer.
+      current_live = nil
       lock_role_rows!
       seen = {}
       each_assignment_id_page(current_full_access_assignments) do |ids|
@@ -215,6 +218,11 @@ module CurrentScope
         fresh = ids.reject { |id| seen.key?(id) }
         rows = lock_assignment_ids!(fresh)
         fresh.each { |id| seen[id] = true }
+        # Nobody holds full access today. Still lock the planned pages so two
+        # applies serialize. Do not ask whether a planned row is live. A
+        # registry collision on that row must not close an empty console.
+        next unless current_live
+
         missing = ids - rows.map(&:id)
         rows += RoleAssignment.where(id: missing).order(:id).to_a if missing.any?
         if live_holder?(rows)
@@ -230,10 +238,11 @@ module CurrentScope
 
       current_live
     rescue CurrentScope::ConfigurationError => e
-      # Same reason as the sibling guard above. Latch and return. Do not
-      # raise: the apply caller still has to run the held-role delete check.
+      # Latch and return. Do not raise: the apply caller still has to run the
+      # held-role delete check. Unknown refuses. A live holder whose planned
+      # scan cannot finish refuses. A finished empty console does not.
       CurrentScope::Current.polymorphic_registry_error ||= e.message
-      true
+      current_live != false
     end
     private_class_method :walk_would_lose_held_full_access
   end

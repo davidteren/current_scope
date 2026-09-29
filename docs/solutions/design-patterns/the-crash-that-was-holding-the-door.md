@@ -164,9 +164,10 @@ Assignment delete, clear, and demotion now use the same remaining-holder
 question (`would_lock_console_by_removing_assignment?` and
 `would_lock_console_by_removing_assignments?`). An orphan row is not a live
 holder, so it can be cleaned up and it cannot keep the last live administrator
-from being protected (#218). Those two methods, plus
-`would_lock_console_by_removing_role?` and `would_lose_held_full_access?`,
-turn a registry `ConfigurationError` into a refusal.
+from being protected (#218). Those two methods, plus `would_lock_console_by_removing_role?`, turn a
+registry `ConfigurationError` into a refusal. `would_lose_held_full_access?`
+does the same unless it already knows nobody holds full access today. A
+planned-row collision must not refuse that apply.
 
 ```ruby
 rescue CurrentScope::ConfigurationError => e
@@ -411,12 +412,17 @@ write half (`role_members_test.rb:166-175`): under a poisoned registry
 
 ### Example 4: the second guard, and where the pattern still applies
 
-`would_lose_held_full_access?` (`full_access_lock.rb:90-99`) is the definitions-apply
-sibling, called from `lib/current_scope/definitions_document.rb:288` inside the same
-transaction as `lock_console_state!`. It has the identical shape: `registry_blind?` first,
-then `held_full_access?` (`full_access_lock.rb:82-84`), then the planned-name scan, then
-the same rescue. It has no `full_access?` early return, and correctly so: its subject is a
-whole document, not one role.
+`would_lose_held_full_access?` (`lib/current_scope/full_access_lock.rb`) is the
+definitions-apply sibling, called from `lib/current_scope/definitions_document.rb`
+inside the same transaction. The walker locks every role row, then pages the current
+full-access assignment ids, then pages the planned-name ids on a second keyset. It
+refuses when the registry is already blind. It refuses when the current-holder check
+itself raises. When that check finds no live holder, the walker still locks the planned
+pages and does not ask whether those rows are live. A registry collision on a planned
+row must not close an empty console. When a live holder exists and the planned scan
+cannot tell, the rescue latches the cause and returns true. It does not raise, so the
+held-role delete check still runs. It has no `full_access?` early return, and correctly
+so: its subject is a whole document, not one role.
 
 One residual worth knowing. The scoping fix from round 2 is pinned by reading, not by a
 test. `test/integration/management_ui_test.rb:148-181` covers the last-holder rules with a

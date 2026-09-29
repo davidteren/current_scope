@@ -42,6 +42,32 @@ class ParentChainTest < ActiveSupport::TestCase
     Rails.logger = logger
   end
 
+  # Schema and cache notifications are not the walk. The block runs uncached so
+  # a repeated identical SELECT cannot look like a memo hit.
+  def sql_queries
+    rows = []
+    subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+      name = payload[:name].to_s
+      next if name == "SCHEMA" || name == "CACHE" || payload[:cached]
+
+      rows << payload[:sql].to_s
+    end
+    ActiveRecord::Base.uncached { yield }
+    rows
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber) if subscriber
+  end
+
+  def project_load?(sql)
+    sql.match?(/FROM ["`]projects["`]/i)
+  end
+
+  def cold_report(report = @report)
+    loaded = Report.find(report.id)
+    refute loaded.association(:project).loaded?
+    loaded
+  end
+
   # --- R1: the declaration ---
 
   test "a declared chain yields the parent, nearest first" do
@@ -521,5 +547,116 @@ class ParentChainTest < ActiveSupport::TestCase
     singleton.define_method(:validate_key!, original_validate)
     singleton.send(:private, :validate_key!)
     chain.instance_variable_set(:@declared_names, original_names)
+  end
+
+  # --- Request memo for the ancestor list (#136) ---
+
+  test "a second ancestors_for with the same foreign key does not walk again" do
+    cold = cold_report
+    first = sql_queries { assert_equal [ @project ], CurrentScope::ParentChain.ancestors_for(cold) }
+    assert first.any? { |sql| project_load?(sql) }, first
+
+    second = sql_queries { assert_equal [ @project ], CurrentScope::ParentChain.ancestors_for(cold) }
+    refute second.any? { |sql| project_load?(sql) }, second
+  end
+
+  test "the list key is the base class, the id, and the declared parent foreign key" do
+    cold = cold_report
+    CurrentScope::ParentChain.ancestors_for(cold)
+
+    assert_equal [ [ "Report", cold.id, cold.project_id ] ],
+                 CurrentScope::Current.ancestor_list_cache.keys
+  end
+
+  test "an empty ancestor list is stored and reused" do
+    gone = Project.create!(name: "Gone")
+    report = Report.create!(title: "fk left behind", project: gone, requested_by: @requester)
+    # The reports foreign key would refuse this delete. The point is a stored
+    # empty walk, which needs the parent row gone and the child's key unchanged.
+    ActiveRecord::Base.connection.disable_referential_integrity { gone.delete }
+    cold = Report.find(report.id)
+    assert_equal gone.id, cold.project_id
+
+    first = sql_queries { assert_empty CurrentScope::ParentChain.ancestors_for(cold) }
+    assert first.any? { |sql| project_load?(sql) }, first
+    second = sql_queries { assert_empty CurrentScope::ParentChain.ancestors_for(cold) }
+    assert_empty second
+  end
+
+  test "a record with a nil id is walked every time and is not stored" do
+    draft = Report.new(title: "Draft", project_id: @project.id, requested_by: @requester)
+    refute draft.association(:project).loaded?
+
+    first = sql_queries { assert_equal [ @project ], CurrentScope::ParentChain.ancestors_for(draft) }
+    second = sql_queries { assert_equal [ @project ], CurrentScope::ParentChain.ancestors_for(draft) }
+
+    assert first.any? { |sql| project_load?(sql) }, first
+    assert second.any? { |sql| project_load?(sql) }, second
+    assert_nil CurrentScope::Current.ancestor_list_cache
+  end
+
+  test "changing the declared parent foreign key does not reuse the stored list" do
+    other = Project.create!(name: "Other")
+    cold = cold_report
+    assert_equal [ @project ], CurrentScope::ParentChain.ancestors_for(cold)
+
+    cold.project_id = other.id
+    rows = sql_queries { assert_equal [ other ], CurrentScope::ParentChain.ancestors_for(cold) }
+    assert rows.any? { |sql| project_load?(sql) }, rows
+    refute_includes CurrentScope::ParentChain.ancestors_for(cold), @project
+  end
+
+  test "a second child still walks" do
+    other = Report.create!(title: "sibling", project: @project, requested_by: @requester)
+    first = cold_report
+    second = cold_report(other)
+    CurrentScope::ParentChain.ancestors_for(first)
+
+    rows = sql_queries { assert_equal [ @project ], CurrentScope::ParentChain.ancestors_for(second) }
+    assert rows.any? { |sql| project_load?(sql) }, rows
+  end
+
+  test "resetting the request drops the stored ancestor list" do
+    cold = cold_report
+    CurrentScope::ParentChain.ancestors_for(cold)
+    CurrentScope::Current.reset
+
+    rows = sql_queries { assert_equal [ @project ], CurrentScope::ParentChain.ancestors_for(cold) }
+    assert rows.any? { |sql| project_load?(sql) }, rows
+  end
+
+  test "a class, a destroyed record, and an undeclared model do not poison a later walk" do
+    cold = cold_report
+    assert_equal [ @project ], CurrentScope::ParentChain.ancestors_for(cold)
+
+    assert_empty CurrentScope::ParentChain.ancestors_for(Report)
+    assert_empty sql_queries { assert_equal [ @project ], CurrentScope::ParentChain.ancestors_for(cold) }
+
+    folder = Folder.create!(name: "Flat")
+    assert_empty CurrentScope::ParentChain.ancestors_for(folder)
+    assert_empty CurrentScope::ParentChain.ancestors_for(Folder)
+    assert_empty sql_queries { assert_equal [ @project ], CurrentScope::ParentChain.ancestors_for(cold) }
+
+    doomed = Report.create!(title: "doomed", project: @project, requested_by: @requester)
+    assert_equal [ @project ], CurrentScope::ParentChain.ancestors_for(doomed)
+    doomed.destroy!
+    assert_empty CurrentScope::ParentChain.ancestors_for(doomed)
+    assert_equal [ @project ], CurrentScope::ParentChain.ancestors_for(cold)
+  end
+
+  test "destroying the same parent object drops the stored list" do
+    cold = cold_report
+    parent = CurrentScope::ParentChain.ancestors_for(cold).first
+    child_id = cold.id
+    child_fk = cold.project_id
+
+    parent.destroy!
+
+    assert_equal child_id, cold.id
+    assert_equal child_fk, cold.project_id
+    assert parent.destroyed?
+    rows = sql_queries { assert_empty CurrentScope::ParentChain.ancestors_for(cold) }
+    assert rows.any? { |sql| project_load?(sql) }, rows
+    assert_empty sql_queries { assert_empty CurrentScope::ParentChain.ancestors_for(cold) }
   end
 end

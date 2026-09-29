@@ -32,6 +32,13 @@ module CurrentScope
     # a grant-then-check within one request is never stale.
     attribute :org_role_cache
 
+    # Ancestor list for one record in this request. Not cleared on a grant
+    # write: the list is parent data, and a grant change does not move a parent.
+    # `ancestor_list_hit_key` is set only when that call returned a stored list
+    # whose members were still walkable. A dropped list or an early return
+    # leaves it nil so a grant answer is not reused (#136).
+    attribute :ancestor_list_cache, :ancestor_list_hit_key
+
     # Set by a labeling lookup that swallowed a registry ConfigurationError so the
     # console can say why rows went inert (#166). Per-request, so it never leaks
     # a stale cause into the next one.

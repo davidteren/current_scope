@@ -183,7 +183,12 @@ module CurrentScope
       # The ancestors a scoped grant may be matched against, nearest parent
       # first, root last. A draft may have persisted parents. A class, destroyed
       # record, or model without a declaration has no ancestors to match.
+      #
+      # Those three return before the request memo. A nil id is not stored.
+      # A stored list is reused only while every ancestor is still walkable.
+      # A destroyed member drops that entry and walks again (#136).
       def ancestors_for(record)
+        CurrentScope::Current.ancestor_list_hit_key = nil
         return [] unless record.respond_to?(:new_record?) && !record.destroyed?
 
         unless declared?(record.class)
@@ -191,7 +196,29 @@ module CurrentScope
           return []
         end
 
-        walk(record)
+        remembered_ancestors(record)
+      end
+
+      # True only when the ancestors_for call that just returned reused a stored
+      # list. The grant answer may be reused only in that case.
+      def clean_list_hit?(record)
+        key = memo_key(record)
+        return false if key.nil?
+
+        CurrentScope::Current.ancestor_list_hit_key == key
+      end
+
+      # [base class name, id, declared parent foreign key]. Nil means "do not
+      # store": no id, or no declared chain. polymorphic_name is not part of it.
+      def memo_key(record)
+        return nil unless record.is_a?(ActiveRecord::Base)
+        return nil if record.id.nil?
+        return nil unless declared?(record.class)
+
+        reflection = reflection_for(record.class)
+        return nil if reflection.nil?
+
+        [ record.class.base_class.name, record.id, record[reflection.foreign_key] ].freeze
       end
 
       # Whether this class (or an STI ancestor it inherits from) opted in.
@@ -236,6 +263,24 @@ module CurrentScope
       end
 
       private
+
+      def remembered_ancestors(record)
+        key = memo_key(record)
+        return walk(record) if key.nil?
+
+        cache = (CurrentScope::Current.ancestor_list_cache ||= {})
+        if cache.key?(key)
+          stored = cache[key]
+          if stored.all? { |ancestor| walkable?(ancestor) }
+            CurrentScope::Current.ancestor_list_hit_key = key
+            return stored
+          end
+
+          cache.delete(key)
+        end
+
+        cache[key] = walk(record)
+      end
 
       # Checked HERE, not at declaration time, because it needs reflection.klass
       # and forcing that constant to resolve inside the macro breaks a perfectly

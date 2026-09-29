@@ -235,10 +235,12 @@ uses `AccessDenied#reason == :management_denied`; the default policy uses
 Direct model writes and `CurrentScope.grant!` do not call this management
 predicate; host write paths must authorize their own callers.
 
-Known console controls stay off unless the callback returns literal `true`.
-That covers Edit permissions, Remove, and Revoke on Members, and scoped
-revoke on Members and Subjects. Add members, Set, and the scoped-role links
-stay available. The server checks the write again.
+When a management authorizer is set, Edit permissions, Remove, and Revoke
+stay off unless that callback returns literal `true` for that control's
+action. That also covers scoped revoke on Members and Subjects. With no
+callback, a subject who holds the organization-wide full-access role still
+sees those controls on. Add members, Set, and the scoped-role links stay
+available. The server checks the write again.
 
 A mixed organization-wide role batch applies the people this subject may
 change. One refused recipient no longer refuses the whole batch. The notice

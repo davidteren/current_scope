@@ -531,6 +531,41 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
     CurrentScope::Guard.reset_ledger_warning!
   end
 
+  test "a subject lookup failure does not replace the initiator configuration error (#140)" do
+    original_logger = Rails.logger
+    io = StringIO.new
+    Rails.logger = ActiveSupport::Logger.new(io)
+
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[show]
+    CurrentScope::Guard.reset_ledger_warning!
+    document = Invoice.create!(title: "Contract")
+    current = CurrentScope::Current.singleton_class
+    current.alias_method(:user_before_lookup_test, :user)
+    current.define_method(:user) do
+      hit = caller_locations(1, 15)&.any? { |loc|
+        loc.label.to_s.end_with?("#record_sod_initiator_missing_event")
+      }
+      raise "lookup failed" if hit
+
+      user_before_lookup_test
+    end
+
+    error = assert_raises(CurrentScope::ConfigurationError) do
+      get document_url(document), headers: sign_in(@alice)
+    end
+
+    refute_match(/lookup failed/, error.message)
+    assert_match(/could not BUILD the access.sod_initiator_missing row/, io.string)
+  ensure
+    if CurrentScope::Current.singleton_class.method_defined?(:user_before_lookup_test)
+      CurrentScope::Current.singleton_class.alias_method(:user, :user_before_lookup_test)
+      CurrentScope::Current.singleton_class.remove_method(:user_before_lookup_test)
+    end
+    Rails.logger = original_logger
+    CurrentScope::Guard.reset_ledger_warning!
+  end
+
   # cubic: every `e.message` here sits inside a rescue on a path that is about to
   # re-raise something MORE important. `message` is host-overridable and can
   # raise, so formatting the first exception could replace the ConfigurationError

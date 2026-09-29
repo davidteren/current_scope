@@ -257,9 +257,6 @@ module CurrentScope
     end
 
     def record_sod_initiator_missing_event(permission, record)
-      subject = CurrentScope::Current.user
-      return if subject.nil?
-
       # Building the row is rescued SEPARATELY from writing it, and the reason is
       # the latch rather than the rescue. warn_ledger_failure_once is one
       # per-PROCESS one-shot shared by all three report-mode recorders
@@ -268,7 +265,13 @@ module CurrentScope
       # need — and label itself "could not record", sending an operator after a
       # ledger problem that does not exist. Only Event.record! may trip that
       # latch. (#133 — qodo, PR #141)
+      #
+      # The subject lookup is part of that build. A raise here must not replace
+      # the ConfigurationError the request is about to re-raise.
       begin
+        subject = CurrentScope::Current.user
+        return if subject.nil?
+
         # An unsaved record has no GlobalID, so attribute the row to the subject
         # instead — the model NAME is the fix-carrying detail here, and it rides
         # in details either way.

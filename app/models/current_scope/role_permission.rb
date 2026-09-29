@@ -32,6 +32,7 @@ module CurrentScope
     def reset_cached_permissions
       association(:role).target&.role_permissions&.reset
       CurrentScope::Current.reset_org_role_cache
+      CurrentScope::Current.reset_ancestor_grant_cache
     end
   end
 end

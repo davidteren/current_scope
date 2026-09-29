@@ -540,6 +540,34 @@ namespace :current_scope do
     end
   end
 
+  desc "Run the checks that can run and print one headline: a problem, a check that could not " \
+       "run, or nothing to act on in those checks. None of the three is permission to set " \
+       ":enforce. Usage: bin/rails current_scope:preflight"
+  task preflight: :environment do
+    # Name the run on the first line, the same rule the report task follows.
+    # The headline is the answer. It is not a clearance.
+    answer = CurrentScope::DenialSurvey.assemble
+    puts answer.headline
+    puts "Why:"
+    if answer.why.empty?
+      puts "  None."
+    else
+      answer.why.each { |line| puts "  #{line}" }
+    end
+    puts "Act on:"
+    if answer.act_on.empty?
+      puts "  None."
+    else
+      answer.act_on.each { |label, count| puts "  #{count.to_s.rjust(6)}  #{label}" }
+    end
+    # Moot is not an act-on count. Its own line, and only when the count is not zero.
+    puts answer.moot_line if answer.moot_line
+    puts "Not checked:"
+    answer.not_checked.each { |line| puts "  #{line}" }
+    puts
+    puts "For the row-level listing, run: bin/rails current_scope:report"
+  end
+
   desc "Inventory the routed controllers that provably never run the gate — the static " \
        "half of the ungated-surface audit (config.gating_tripwire = :warn is the runtime half). " \
        "Usage: bin/rails current_scope:ungated"

@@ -18,12 +18,16 @@ work anywhere the request has already established the subject.
 
 | Surface | Status |
 |---|---|
-| Separate JS front-end (React/Next over an API) | Open — [#96](https://github.com/davidteren/current_scope/issues/96) |
-| Inertia.js shared props + denials | Open — [#97](https://github.com/davidteren/current_scope/issues/97) |
+| Separate JS front-end (React/Next over an API) | Advisory snapshot and a host JSON recipe. No JavaScript package. [#96](https://github.com/davidteren/current_scope/issues/96) stays open |
+| Inertia.js shared props + denials | Same snapshot and a shared-prop recipe. This gem does not depend on Inertia. [#97](https://github.com/davidteren/current_scope/issues/97) stays open |
 
 You can still authorize API requests that hit Rails controllers with Guard.
-There is no shipped abilities payload, client SDK, or Inertia shared-props
-contract. Do not plan a SPA cutover expecting that to exist today.
+`CurrentScope.abilities_for` returns one advisory snapshot. The
+[checking permissions](checking-permissions.md#client-snapshot) guide shows the
+one-action host controller and the Inertia shared-prop recipe. This gem does
+not mount an endpoint, does not depend on `inertia_rails`, and does not ship a
+JavaScript client. The scenario apps are not in this repository. Do not treat
+the snapshot as the gate.
 
 ## Intentional residuals (do not "fix open")
 

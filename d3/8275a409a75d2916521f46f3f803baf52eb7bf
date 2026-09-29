@@ -1,0 +1,21 @@
+CHANGELOG.md
+  s_3ef8b8824ed52f::t_94269263d8ffcb 10-13
+docs/guides/checking-permissions.md
+  s_3ef8b8824ed52f::t_316785a2f075ee 225-228,234,293,311
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d38275a409a75d2916521f46f3f803baf52eb7bf",
+  "prompts": {},
+  "sessions": {
+    "s_3ef8b8824ed52f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a771e476-07cd-4400-8555-ab6f64f5152d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

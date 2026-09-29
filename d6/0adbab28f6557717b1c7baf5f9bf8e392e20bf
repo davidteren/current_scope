@@ -1,0 +1,14 @@
+test/schema_guard_test.rb
+  h_e8a5bb9272fa34 1-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d60adbab28f6557717b1c7baf5f9bf8e392e20bf",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

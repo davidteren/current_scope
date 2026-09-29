@@ -807,6 +807,8 @@ namespace :current_scope do
                "not an all-clear."
         end
       end
+      split_note = CurrentScope::SodPreflight.split_declaration_summary(preflight)
+      puts "  #{split_note}" if split_note
       puts
       puts "  #{CurrentScope::SodPreflight.caveat}"
     end
@@ -827,6 +829,8 @@ namespace :current_scope do
       puts "  #{CurrentScope::SodPreflight.fix_line}"
       puts "  Report mode does NOT downgrade these — the request 500s exactly as it would " \
            "under :enforce."
+      split_note = CurrentScope::SodPreflight.split_declaration_summary(preflight)
+      puts "  #{split_note}" if split_note
       puts
       puts "  #{CurrentScope::SodPreflight.caveat}"
     end

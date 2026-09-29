@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **A controller may declare `current_scope_model` on the class (#142).**
+  The separation-of-duties preflight reads that declaration without building
+  a controller. A request still uses the instance method. When the class
+  declaration and a later instance method disagree, the report keeps a split
+  note under the headline. The headline does not change.
 - **Mutation-testing PR gate.** Every PR runs
   [Mutineer](https://github.com/davidteren/mutineer) via
   `.github/workflows/mutation.yml`: dummy-app boot, serial `--rails` (the

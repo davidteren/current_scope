@@ -43,8 +43,10 @@ module CurrentScope
     # A value has none of those problems: you cannot ask a result you do not
     # have. (#133 review — cubic, ie-predictability, ie-architecture all landed
     # on this seam.)
-    Result = Struct.new(:rows, :inspected, :in_scope, :skipped, keyword_init: true) do
+    Result = Struct.new(:rows, :inspected, :in_scope, :skipped, :split_declarations, keyword_init: true) do
       # Some check could not be completed, so the list under-reports.
+      # A split declaration is NOT a skipped check. A string in `skipped`
+      # breaks skip_summary, and it would mark a finished class read degraded.
       def degraded? = skipped.any?
 
       # The list cannot be read as an all-clear: either a check failed, or there
@@ -71,6 +73,7 @@ module CurrentScope
       def scan
         rows = []
         skipped = []
+        split_declarations = []
         inspected = 0
         in_scope = 0
 
@@ -82,7 +85,7 @@ module CurrentScope
             sod_permissions.each do |controller, permission|
               in_scope += 1
               model = models.fetch(controller) {
-                models[controller] = declared_model_for(controller, reflection, skipped)
+                models[controller] = declared_model_for(controller, reflection, skipped, split_declarations)
               }
               next if model.nil?
 
@@ -122,12 +125,19 @@ module CurrentScope
           end
         end
 
-        Result.new(rows: rows, inspected: inspected, in_scope: in_scope, skipped: skipped)
+        Result.new(rows: rows, inspected: inspected, in_scope: in_scope, skipped: skipped,
+                   split_declarations: split_declarations)
       end
 
       # One message listing every action that will raise, plus the coverage
       # behind an empty list. Log-only.
       def warn!(result = scan)
+        # Before the empty-rows return. A quiet run (initiator present, no
+        # rows, not degraded, not blind) still has to name a split controller.
+        # This log is not the raise log below.
+        split = split_declaration_summary(result)
+        Rails.logger&.warn(split) if split
+
         skips = skip_summary(result)
         Rails.logger&.warn(skips) if skips
 
@@ -243,6 +253,22 @@ module CurrentScope
         message
       end
 
+      # Controllers whose class-level model and hand-written instance method
+      # are not the same method. Nil when there are none. Does not log: scan
+      # stays pure, and warn! plus the report task are the two speakers.
+      def split_declaration_summary(result)
+        names = Array(result.split_declarations).compact.uniq
+        return nil if names.empty?
+
+        declares = names.one? ? "declares" : "declare"
+        defines = names.one? ? "defines" : "define"
+        "[CurrentScope] separation-of-duties preflight: #{names.join(', ')} #{declares} " \
+          "current_scope_model at class level and also #{defines} a different instance method. " \
+          "The static scan uses the class value. The request uses the instance method. " \
+          "Use only the class macro, or write the instance method after the macro when it must " \
+          "read action_name."
+      end
+
       private
 
       def blind_message(result)
@@ -287,13 +313,30 @@ module CurrentScope
       end
 
       # The type this controller declared, or nil when it declared none, nothing
-      # is routed there, or asking failed. Mirrors Guard#resolve_current_scope_model
-      # — same private hook, same respond_to?(…, true) discovery — because a
-      # second spelling of "what did the host declare?" is a second spelling that
-      # drifts.
-      def declared_model_for(controller_path, reflection, skipped)
+      # is routed there, or asking failed.
+      #
+      # The class value is read on the class. `new` runs only when that value
+      # is unset. A hand-written instance method that is not the method the
+      # macro defined is appended here, inside this cached call, so one
+      # controller with two SoD actions is named once. That list is not
+      # `skipped`, and this method does not log. The static scan still returns
+      # the class value. The request gate still calls the instance method.
+      #
+      # The instance-only path mirrors Guard#resolve_current_scope_model — same
+      # private hook, same respond_to?(…, true) discovery — because a second
+      # spelling of "what did the host declare?" is a second spelling that drifts.
+      def declared_model_for(controller_path, reflection, skipped, split_declarations = nil)
+        split_declarations ||= []
         klass = reflection.controller_class(controller_path)
         return nil if klass.nil?
+
+        declared = class_declared_model(klass)
+        unless declared.nil?
+          note_split_declaration(klass, controller_path, split_declarations)
+          return nil unless CurrentScope.resolver.collection_type?(declared)
+
+          return declared
+        end
 
         instance = klass.new
         return nil unless instance.respond_to?(:current_scope_model, true)
@@ -322,6 +365,39 @@ module CurrentScope
         # distinction that reflection exists to keep. (#133 review)
         skipped << [ controller_path, e ]
         nil
+      end
+
+      # Nil when the controller has no class-level declaration. A set value,
+      # even one collection_type? will refuse, must not fall through to `new`.
+      def class_declared_model(klass)
+        return nil unless klass.respond_to?(:current_scope_declared_model)
+
+        klass.current_scope_declared_model
+      end
+
+      # Method identity, not the two return values. Calling the instance
+      # method here would run host code, which is the boot cost this avoids.
+      # No logging: the caller renders the list.
+      def note_split_declaration(klass, controller_path, split_declarations)
+        return unless different_instance_model?(klass)
+        return if split_declarations.include?(controller_path)
+
+        split_declarations << controller_path
+      end
+
+      def different_instance_model?(klass)
+        return false unless klass.respond_to?(:current_scope_model_macro_method)
+        return false unless model_method_defined?(klass)
+
+        installed = klass.current_scope_model_macro_method
+        current = klass.instance_method(:current_scope_model)
+        installed.nil? || current != installed
+      end
+
+      def model_method_defined?(klass)
+        klass.method_defined?(:current_scope_model) ||
+          klass.private_method_defined?(:current_scope_model) ||
+          klass.protected_method_defined?(:current_scope_model)
       end
 
       # ASKS an instance the same question the resolver asks the record, rather

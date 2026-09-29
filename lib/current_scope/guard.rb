@@ -29,16 +29,30 @@ module CurrentScope
   #
   #       def current_scope_record = nil
   #
-  # A controller may ALSO declare a private current_scope_model naming the type
-  # its collection actions deal in:
+  # A controller may ALSO name the type its collection actions deal in.
+  # Class form, when that type does not depend on the action:
+  #
+  #       current_scope_model Report
+  #
+  # Instance form, when the answer branches on action_name:
   #
   #       def current_scope_model = Report
   #
+  # The macro defines the instance method too, because the gate calls the
+  # instance method. `current_scope_parent` is a class macro and is not also
+  # an instance method. This one is different on purpose. Subclasses inherit
+  # the class form until they call the macro again.
+  #
+  # Use only the macro, or write the instance method AFTER the macro. Macro,
+  # then a later `def`: the request uses the `def`, and preflight warns.
+  # `def`, then the macro: the macro replaces the `def` and does not warn,
+  # because the instance method is then the macro's method. Declaring both by
+  # hand warns only when the instance method is not the method the macro defined.
+  #
   # Same discovery rules as current_scope_record (private, fixed name,
-  # optional). The Guard threads it to the resolver so the record-less scoped
-  # branch can bind to that type instead of matching a scoped grant on ANY
-  # type (#50); absent means the type is unknown. A plain method, so a host
-  # may branch on action_name for a per-action answer.
+  # optional). The Guard threads the instance method to the resolver so the
+  # record-less scoped branch can bind to that type instead of matching a
+  # scoped grant on ANY type (#50); absent means the type is unknown.
   #
   # The declaration is TRUSTED, like current_scope_record: since #65 a listed
   # collection-read gate derives its answer from the declared type's scoped
@@ -47,10 +61,11 @@ module CurrentScope
   # type. Review the declaration the way you review the record hook.
   #
   # The two hooks PAIR, they don't substitute: current_scope_model WITHOUT
-  # current_scope_record is inert, because declaring no record hook passes
-  # NO_RECORD (below) and the record-less branch never runs — the declared
-  # type is never consulted. A collection controller opting scoped grants in
-  # declares BOTH: `def current_scope_record = nil` plus the model.
+  # current_scope_record is inert, for the class form and the instance form,
+  # because declaring no record hook passes NO_RECORD (below) and the
+  # record-less branch never runs. The declared type is never consulted. A
+  # collection controller opting scoped grants in declares BOTH:
+  # `def current_scope_record = nil` plus the model.
   #
   # Skip the gate for public endpoints with skip_before_action :current_scope_check!
   # or, preferably, current_scope_skip_gate!(reason: "…") so the role grid can
@@ -64,6 +79,22 @@ module CurrentScope
     # Inheritable whole-controller skip reason from current_scope_skip_gate!.
     # nil means no declared reason (bare skip_before_action or never included).
     class_methods do
+      # current_scope_parent is a class macro and is NOT also an instance method.
+      # This macro must define the instance method. The request gate calls
+      # current_scope_model on the instance (resolve_current_scope_model), so a
+      # class attribute alone would never be read there.
+      #
+      # Two orders. A later `def current_scope_model` replaces this method, and
+      # the request uses that def. An earlier `def` is replaced here by
+      # define_method, and the request then uses this method. Call the macro
+      # only, or write the instance method after the macro.
+      def current_scope_model(model_class)
+        self.current_scope_declared_model = model_class
+        define_method(:current_scope_model) { self.class.current_scope_declared_model }
+        private :current_scope_model
+        self.current_scope_model_macro_method = instance_method(:current_scope_model)
+      end
+
       # Prefer the macro over bare skip_before_action so the grid can show
       # "skipped: …" instead of the alarming unexplained badge (#76 / plan 030).
       # only:/except: still perform the skip; the stored reason is the
@@ -124,6 +155,14 @@ module CurrentScope
     included do
       # class_attribute so a child inherits a parent's declared reason (#62 shape).
       class_attribute :current_scope_gate_skip_reason, instance_accessor: false, default: nil
+      # The class-level model (#142). instance_accessor: false so the instance
+      # method the macro defines is the only current_scope_model an instance
+      # answers. The stored UnboundMethod is how preflight tells that method
+      # from a later hand-written def. Both inherit until a subclass overrides.
+      class_attribute :current_scope_declared_model,
+                      instance_accessor: false, instance_predicate: false, default: nil
+      class_attribute :current_scope_model_macro_method,
+                      instance_accessor: false, instance_predicate: false, default: nil
       before_action :current_scope_check!
     end
 

@@ -1,0 +1,14 @@
+test/sod_preflight_test.rb
+  h_e8a5bb9272fa34 530-540
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "78f84680beffd78694caba01d1573f916cb3fc18",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -139,6 +139,12 @@ two `UPDATE`s and must not turn a live request into a 500. If a subject is
 missing access they should have, look for "current_scope_parent stopped walking"
 in the log.
 
+**Loading many children.** Include the declared parent when you already have the
+rows (`Report.includes(:project)` in the example above, or `includes(:parent)`
+when that is the association you declared). That avoids one query per row on
+the walk. A page that checks 100 different records still walks once per record.
+Remembering one record's chain does not make the next distinct record free.
+
 ### When a scoped grant reaches nothing
 
 `bin/rails current_scope:report` and the role members view flag two shapes

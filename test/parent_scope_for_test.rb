@@ -373,6 +373,34 @@ class ParentScopeForTest < ActiveSupport::TestCase
     assert allow_record(cold)
   end
 
+  # Measured on the unchanged walk at a3d4fef: one cold two-hop allow?,
+  # schema and cache notifications ignored. Two runs both returned 5.
+  # A lower count fails. A higher count fails.
+  PINNED_TWO_HOP_ALLOW_QUERIES = 5
+
+  test "the first two-hop allow? keeps the measured query count" do
+    root = Project.create!(name: "pin-root")
+    parent = Project.create!(name: "pin-parent", parent: root)
+    report = Report.create!(title: "pin", project: parent, requested_by: @requester)
+    scope_grant(@lead, role("Pin", "reports#approve"), root)
+    cold = Report.find(report.id)
+    refute cold.association(:project).loaded?
+
+    rows = []
+    subscriber = nil
+    subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+      name = payload[:name].to_s
+      next if name == "SCHEMA" || name == "CACHE" || payload[:cached]
+
+      rows << payload[:sql].to_s.gsub(/\s+/, " ")
+    end
+
+    assert allow_record(cold)
+    assert_equal PINNED_TWO_HOP_ALLOW_QUERIES, rows.size, rows
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber) if subscriber
+  end
+
   test "scope_for is not remembered across calls" do
     scope_grant(@lead, role("Lead", "reports#index"), @project)
     assert_equal [ "also mine", "mine" ], listed

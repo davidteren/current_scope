@@ -92,7 +92,6 @@ class AbilitiesForTest < ActiveSupport::TestCase
     assert_equal expected.first(2), entry[:ids]
     assert_equal 2, entry[:ids].length
     assert_equal true, entry[:truncated]
-    assert_includes expected, expected.last
     refute_includes entry[:ids], expected.last
   end
 

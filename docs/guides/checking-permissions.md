@@ -222,13 +222,16 @@ A JavaScript client and an Inertia client cannot call the resolver. They can
 read one advisory hash, `CurrentScope.abilities_for`. The request gate stays
 the authority. This gem does not mount a route for the hash, does not depend
 on Inertia, and does not ship a JavaScript package. Authenticate the subject
-before you call it. A nil subject fails closed: `full_access` is false, there
+before you call it. Pass `current_scope_user`, the effective subject the gate
+checks. During impersonation, `current_user` can be the real actor, and a
+snapshot of the actor hides the wrong records. A nil subject fails closed:
+`full_access` is false, there
 is no org role, and every requested id list is empty. Do not treat that result
 as allow-all.
 
 ```ruby
 CurrentScope.abilities_for(
-  current_user,
+  current_scope_user,
   scopes: [[Project, "projects#index"], [Report, "reports#show"]],
   limit: 100
 )
@@ -287,7 +290,7 @@ class AbilitiesController < ApplicationController
 
   def show
     render json: CurrentScope.abilities_for(
-      current_user,
+      current_scope_user,
       scopes: [[Project, "projects#index"], [Report, "reports#show"]],
       limit: 100
     )
@@ -305,7 +308,7 @@ class ApplicationController < ActionController::Base
   inertia_share do
     {
       abilities: CurrentScope.abilities_for(
-        current_user,
+        current_scope_user,
         scopes: [[Project, "projects#index"], [Report, "reports#show"]],
         limit: 100
       )

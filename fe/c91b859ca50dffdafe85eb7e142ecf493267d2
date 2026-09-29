@@ -1,0 +1,29 @@
+lib/current_scope/denial_survey.rb
+  s_74907f46c32c88::t_35e900cbc4dc22 31-55,446-536
+test/denial_survey_test.rb
+  s_bf45b1f481907b::t_dde5bced1366f9 1-354
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "fec91b859ca50dffdafe85eb7e142ecf493267d2",
+  "prompts": {},
+  "sessions": {
+    "s_74907f46c32c88": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "85cc10a6-0224-41bc-8491-87ef2153d9a3",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    },
+    "s_bf45b1f481907b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "981c3369-fac2-41e0-8164-b2465d8ddf5e",
+        "model": "unknown"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

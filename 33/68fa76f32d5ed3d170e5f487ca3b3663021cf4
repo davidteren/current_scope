@@ -1,0 +1,31 @@
+docs/solutions/design-patterns/the-crash-that-was-holding-the-door.md
+  s_be14d56078e8d2::t_23c28a5fdaf399 167-170,415-425
+lib/current_scope/full_access_lock.rb
+  s_be14d56078e8d2::t_4ebb425eef140d 198-200,221-225,241-243,245
+test/full_access_lock_assignment_test.rb
+  s_74907f46c32c88::t_1e7f825154ea45 308-336
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "3368fa76f32d5ed3d170e5f487ca3b3663021cf4",
+  "prompts": {},
+  "sessions": {
+    "s_74907f46c32c88": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "85cc10a6-0224-41bc-8491-87ef2153d9a3",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    },
+    "s_be14d56078e8d2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a017ee4-da61-4a96-9a80-843bb0f41e07",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+test/helpers/application_helper_test.rb
+  h_e8a5bb9272fa34 455-515
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "aa866d7a5182cdf1f3b73b3095aba5cdaae6a767",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

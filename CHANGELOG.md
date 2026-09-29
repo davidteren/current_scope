@@ -12,8 +12,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   The request gate stays the authority. A class with no name, an abstract
   class, or a key that is not one column raises `ArgumentError` before
   `scope_for` runs. The error names that fault. The snapshot does not apply the
-  separation-of-duties veto. There is no new route, no Inertia dependency,
-  and no published JavaScript package.
+  separation-of-duties veto. A full-access list, or a list for a key on the
+  org role, also goes stale when a row is created or destroyed. There is no
+  new route, no Inertia dependency, and no published JavaScript package.
 - **Mutation-testing PR gate.** Every PR runs
   [Mutineer](https://github.com/davidteren/mutineer) via
   `.github/workflows/mutation.yml`: dummy-app boot, serial `--rails` (the

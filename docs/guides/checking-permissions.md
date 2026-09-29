@@ -262,7 +262,10 @@ primary-key ids, ordered by that key. The same rows return the same cut. Ids
 are the values `scope_for` returns. A string primary key stays a string.
 
 `truncated` is true when another id exists. The hash is stale as soon as a
-grant changes. The server is authoritative on the next request.
+grant changes. The server is authoritative on the next request. When
+`full_access` is true, or the key is in `permission_keys`, the ids are every
+row from this response. Creating or destroying a row makes that list stale
+even when no grant changed.
 
 ### What a client may hide
 
@@ -270,7 +273,9 @@ The ids are an allow list, up to the separation-of-duties veto. This snapshot
 does not apply that veto. A listed id can still be refused when the subject
 started that record.
 
-Hide a record only when `truncated` is false and the id is absent. When
+Hide a record only when `truncated` is false and the id is absent. Build the
+snapshot in the same response as the records the client filters. A later
+response can include a row this snapshot does not list. When
 `truncated` is true, absence is not a denial. Pass `allowed_to?` for that one
 record as a page prop, and let the page decide. `full_access` false plus an
 empty id list means no access. When `full_access` is true, or the key is in

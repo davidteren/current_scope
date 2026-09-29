@@ -1,6 +1,11 @@
 require "test_helper"
 require "rake"
 
+# constantize succeeds. The resolver's collection_type? refuses it.
+# This is not an Active Record model.
+class CurrentScopeReportNonCollection
+end
+
 # U4/R8 of plan 019: `current_scope:report` turns recorded would-be denials into
 # a starter role grid. Report mode collects the data; without this the host is
 # left hand-writing GROUP BYs over a JSON column, which is the manual step the
@@ -438,6 +443,58 @@ class ReportTaskTest < ActiveSupport::TestCase
     assert_no_match(/would-be denials STILL ungranted/, output,
       "full_access answers this without needing the type at all")
     assert_match(/nothing found in any category|Every would-be denial/, output)
+  end
+
+  # A name can constantize and still be unusable: a module or a PORO is not a
+  # collection type. That is not the same as a name that does not constantize.
+  # The deny stays in the ungranted count. It is not dropped from it.
+  test "a model name the resolver refuses is unknown, a dead model, and still ungranted" do
+    alice = User.create!(name: "Alice")
+    would_deny_with_model(alice, "reports#index", "CurrentScopeReportNonCollection")
+
+    asked = []
+    resolver = CurrentScope.resolver
+    original = resolver.method(:allow?)
+    resolver.define_singleton_method(:allow?) do |**kwargs|
+      asked << kwargs
+      original.call(**kwargs)
+    end
+
+    output = run_task
+
+    assert_equal 1, asked.size
+    assert_nil asked.first[:model], "a non-collection is not passed through as the gate's type"
+    assert_match(/could not be re-checked/, output)
+    assert_match(/name a model class that no longer loads/, output)
+    assert_match(/1\s+would-be denials STILL ungranted/, output,
+      "cannot-tell stays in the ungranted count; it is not removed from it")
+  ensure
+    resolver&.singleton_class&.remove_method(:allow?)
+  end
+
+  test "an allow on a model name the resolver refuses has no dead-model caveat" do
+    alice = User.create!(name: "Alice")
+    role = CurrentScope::Role.create!(name: "Admin", full_access: true)
+    CurrentScope::RoleAssignment.create!(subject: alice, role: role)
+    would_deny_with_model(alice, "reports#index", "CurrentScopeReportNonCollection")
+
+    asked = []
+    resolver = CurrentScope.resolver
+    original = resolver.method(:allow?)
+    resolver.define_singleton_method(:allow?) do |**kwargs|
+      asked << kwargs
+      original.call(**kwargs)
+    end
+
+    output = run_task
+
+    assert_equal 1, asked.size
+    assert_nil asked.first[:model]
+    assert_no_match(/name a model class that no longer loads/, output,
+      "an allow needs no dead-model caveat: the type could not have changed it")
+    assert_no_match(/would-be denials STILL ungranted/, output)
+  ensure
+    resolver&.singleton_class&.remove_method(:allow?)
   end
 
   test "a legacy row with no model is re-checked without one, and the report says so" do

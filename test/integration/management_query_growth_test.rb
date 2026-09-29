@@ -47,6 +47,20 @@ class ManagementQueryGrowthTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "subjects permission reads do not grow with scoped chip count" do
+    ceiling = Project.current_scope_grantable_permissions
+    Project.current_scope_grantable_permissions = [ "reports#index" ]
+    CurrentScope.config.management_authorizer = ->(_subject, **) { true }
+
+    one = permission_selects_for_subjects(1)
+    many = permission_selects_for_subjects(5)
+
+    assert_operator one, :>, 0
+    assert_equal one, many, "a permission ceiling must not query once per chip"
+  ensure
+    Project.current_scope_grantable_permissions = ceiling
+  end
+
   test "permission reads on the roles list do not grow with role count" do
     small_count = permission_selects_for_index
     5.times do |index|
@@ -87,6 +101,21 @@ class ManagementQueryGrowthTest < ActionDispatch::IntegrationTest
         params: { subject_gids: recipients.map { |recipient| recipient.to_gid.to_s }, role_id: @role.id },
         headers: { "X-User-Id" => @admin.id.to_s }
       assert_response :redirect
+    end
+  end
+
+  def permission_selects_for_subjects(count)
+    count.times do |index|
+      holder = User.create!(name: "Chip subject #{count}-#{index}")
+      role = CurrentScope::Role.create!(
+        name: "Chip role #{count}-#{index}", permission_keys: [ "reports#index" ]
+      )
+      project = Project.create!(name: "Chip project #{count}-#{index}")
+      CurrentScope::ScopedRoleAssignment.create!(subject: holder, role: role, resource: project)
+    end
+    count_selects("current_scope_role_permissions") do
+      get current_scope.subjects_url, headers: { "X-User-Id" => @admin.id.to_s }
+      assert_response :success
     end
   end
 

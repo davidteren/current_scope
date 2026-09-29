@@ -97,6 +97,9 @@
               <span class="cs-chip-label">
                 <%= sra.role.name %> of <%= resource_label %>
                 <% if orphaned %><span class="cs-inert-badge">inert</span><% end %>
+                <% if (refused = current_scope_declaration_refused_badge(sra)) %>
+                  <span class="<%= refused[0] %>" id="declaration_refused_<%= sra.id %>" title="<%= refused[2] %>"><%= refused[1] %><span class="cs-badge-note"> — <%= refused[2] %></span></span>
+                <% end %>
               </span>
               <% revoke_prompt = orphaned ?
                     "Remove inert scoped grant (#{resource_label})?" :

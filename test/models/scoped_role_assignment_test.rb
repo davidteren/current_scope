@@ -107,4 +107,74 @@ class ScopedRoleAssignmentTest < ActiveSupport::TestCase
     assert_nil row.current_scope_resolved_record("subject"),
                "the canonical guard must return nil, not the unrelated live subject"
   end
+
+  def scoped_grant
+    holder = User.create!(name: "Holder")
+    folder = Folder.create!(name: "Folder")
+    role = CurrentScope::Role.create!(name: "Editor #{SecureRandom.hex(4)}")
+    CurrentScope::ScopedRoleAssignment.create!(subject: holder, role: role, resource: folder)
+  end
+
+  def revoked_events
+    CurrentScope::Event.where(event: "scoped_role.revoked")
+  end
+
+  test "two handles destroying one scoped role write one revoke event" do
+    grant = scoped_grant
+    other = CurrentScope::ScopedRoleAssignment.find(grant.id)
+
+    assert_difference -> { revoked_events.count }, 1 do
+      grant.destroy!
+      other.destroy!
+    end
+    assert_not CurrentScope::ScopedRoleAssignment.exists?(grant.id)
+  end
+
+  test "a recreated scoped role writes its own revoke event" do
+    grant = scoped_grant
+    holder = grant.subject
+    folder = grant.resource
+    role = grant.role
+    grant.destroy!
+    assert_equal 1, revoked_events.count
+
+    again = CurrentScope::ScopedRoleAssignment.create!(subject: holder, role: role, resource: folder)
+    assert_not_equal grant.id, again.id
+
+    assert_difference -> { revoked_events.count }, 1 do
+      again.destroy!
+    end
+  end
+
+  test "audit off writes no revoke event for either handle" do
+    grant = scoped_grant
+    other = CurrentScope::ScopedRoleAssignment.find(grant.id)
+    original = CurrentScope.config.audit
+    CurrentScope.config.audit = false
+
+    assert_no_difference -> { revoked_events.count } do
+      grant.destroy!
+      other.destroy!
+    end
+  ensure
+    CurrentScope.config.audit = original
+  end
+
+  test "strict audit rolls a scoped revoke back with the event" do
+    grant = scoped_grant
+    original = CurrentScope.config.audit
+    CurrentScope.config.audit = :strict
+    create = CurrentScope::Event.method(:create!)
+    CurrentScope::Event.define_singleton_method(:create!) do |*, **|
+      raise ActiveRecord::StatementInvalid, "SQLite3::SQLException: no such table: current_scope_events"
+    end
+
+    assert_no_difference -> { revoked_events.count } do
+      assert_raises(ActiveRecord::StatementInvalid) { grant.destroy! }
+    end
+    assert CurrentScope::ScopedRoleAssignment.exists?(grant.id)
+  ensure
+    CurrentScope::Event.define_singleton_method(:create!, create) if create
+    CurrentScope.config.audit = original
+  end
 end

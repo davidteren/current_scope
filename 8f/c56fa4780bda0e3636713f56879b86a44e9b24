@@ -1,0 +1,14 @@
+docs/plans/2026-09-29-004-perf-parent-chain-memo-plan.md
+  h_e8a5bb9272fa34 54,110,174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "8fc56fa4780bda0e3636713f56879b86a44e9b24",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

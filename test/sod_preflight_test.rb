@@ -527,6 +527,17 @@ class SodPreflightTest < ActiveSupport::TestCase
     restore_instance_model(ReportsController, Report)
   end
 
+  test "a class without the class-model readers is not a declared model or a split" do
+    klass = Class.new do
+      def current_scope_model
+        Report
+      end
+    end
+
+    assert_nil CurrentScope::SodPreflight.send(:class_declared_model, klass)
+    refute CurrentScope::SodPreflight.send(:different_instance_model?, klass)
+  end
+
   test "a class-level value the shape guard refuses returns nil without new" do
     DocumentsController.current_scope_model "Report"
     DocumentsController.define_singleton_method(:new) { |*| raise "must not instantiate" }

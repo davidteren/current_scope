@@ -115,6 +115,10 @@ module CurrentScope
       Role.uncached { Role.includes(:role_permissions).lock.find(assignment.role_id) }
     end
 
+    # The notice shares the 4KB cookie session. Stop the skipped-name list
+    # before that cookie can overflow after the writes have already committed.
+    SKIPPED_NOTICE_BUDGET = 1_500
+
     def org_notice(clearing, count, skipped)
       base = if count.zero?
         "No org-wide role changes."
@@ -125,7 +129,24 @@ module CurrentScope
       return base if skipped.empty?
 
       names = skipped.map { |subject| helpers.current_scope_subject_label(subject) }
-      "#{base} Skipped #{names.to_sentence}."
+      "#{base} #{skipped_names_sentence(names)}"
+    end
+
+    def skipped_names_sentence(names)
+      kept = []
+      names.each do |name|
+        candidate = kept + [ name.to_s ]
+        break if skipped_sentence(candidate, names.size - candidate.size).bytesize > SKIPPED_NOTICE_BUDGET
+
+        kept = candidate
+      end
+      kept = [ names.first.to_s.byteslice(0, 80) ] if kept.empty?
+      skipped_sentence(kept, names.size - kept.size)
+    end
+
+    def skipped_sentence(kept, leftover)
+      body = "Skipped #{kept.to_sentence}."
+      leftover.positive? ? "#{body} And #{leftover} more." : body
     end
 
     # Literal true for every check the old loop raised on. A raised error is

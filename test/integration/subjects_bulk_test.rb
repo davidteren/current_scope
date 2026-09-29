@@ -298,6 +298,34 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
     assert targets.none? { |target| target.include?(skipped.to_gid.to_s) }
   end
 
+  test "a long skipped list still redirects after the allowed change" do
+    delegate = User.create!(name: "Delegate")
+    allowed = User.create!(name: "Allowed Person")
+    skipped = Array.new(100) { |index| User.create!(name: "Skipped #{index} #{'x' * 60}") }
+    editor = CurrentScope::Role.create!(name: "Editor")
+    authorizer = lambda do |actor, action:, target: nil, **|
+      next false unless actor == delegate
+      return true if action == :access
+      return true if target == allowed
+
+      "yes"
+    end
+
+    with_management_authorizer(authorizer) do
+      post current_scope.role_assignments_url, headers: as(delegate), params: {
+        role_id: editor.id,
+        subject_gids: [ allowed.to_gid.to_s, *skipped.map { |user| user.to_gid.to_s } ]
+      }
+    end
+
+    assert_redirected_to current_scope.subjects_path
+    notice = flash[:notice].to_s
+    assert_operator notice.bytesize, :<, 2_000
+    assert_match(/And \d+ more\./, notice)
+    assert_equal editor, CurrentScope::RoleAssignment.find_by(subject: allowed)&.role
+    assert_nil CurrentScope::RoleAssignment.find_by(subject: skipped.first)
+  end
+
   test "a role change still checks revoke before it applies the allowed subject" do
     delegate = User.create!(name: "Delegate")
     kept = User.create!(name: "Kept Person")

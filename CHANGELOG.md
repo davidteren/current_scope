@@ -7,6 +7,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Console marks a grant the type would refuse today (#204).**
+  Members and Subjects show "would refuse" on a scoped grant the current
+  declaration would refuse. The grant stays. Revoke stays. The mark is not
+  the inert mark. `bin/rails current_scope:report` already listed those rows.
 - **Mutation-testing PR gate.** Every PR runs
   [Mutineer](https://github.com/davidteren/mutineer) via
   `.github/workflows/mutation.yml`: dummy-app boot, serial `--rails` (the
@@ -123,6 +127,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     now says so instead of printing the literal key `"(duplicate natural key)"`.
 
 ### Changed
+- **A second destroy of one scoped grant writes one revoke event (#204).**
+  A second in-memory handle of a row that already deleted zero rows no
+  longer writes another `scoped_role.revoked` event. A new row still writes
+  its own. Strict audit still rolls the grant back with the event.
 - **RubyGems metadata now points at the docs site (#211).**
   `documentation_uri` and `homepage` are the Pages site;
   `source_code_uri` and `bug_tracker_uri` are the GitHub repo and issue

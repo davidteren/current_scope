@@ -324,7 +324,8 @@ old name in your models, and run `bin/rails current_scope:report`: it lists the
 grants whose type would refuse them today, which is where a rename shows up.
 A rename is allowed through both the model API and the console, including when
 the console submits an unchanged permission bundle. Existing grants remain in
-place. Later bundle edits must stay within their resource permission ceilings;
+place. Members and Subjects mark a grant the current declaration would refuse
+with "would refuse". That mark does not revoke the row. Later bundle edits must stay within their resource permission ceilings;
 the old name list does not prevent a safe bundle edit. A custom host
 `current_scope_grants_role?` override still controls compatibility checks.
 

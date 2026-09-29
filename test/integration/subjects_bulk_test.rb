@@ -15,6 +15,14 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
 
   def as(user) = { "X-User-Id" => user.id.to_s }
 
+  def with_management_authorizer(authorizer)
+    prior = CurrentScope.config.management_authorizer
+    CurrentScope.config.management_authorizer = authorizer
+    yield
+  ensure
+    CurrentScope.config.management_authorizer = prior
+  end
+
   test "config.subject_label controls how a subject is identified" do
     alice = User.create!(name: "Alice Cooper")
     CurrentScope.config.subject_label = ->(u) { "user-#{u.name.parameterize}" }
@@ -188,5 +196,74 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
       }
     end
     assert_equal 1, CurrentScope::ScopedRoleAssignment.where(subject: bob).count
+  end
+
+  test "a full-access subject keeps an enabled scoped revoke and the unknown submits" do
+    alice = User.create!(name: "Alice")
+    folder = Folder.create!(name: "Space")
+    sra = CurrentScope::ScopedRoleAssignment.create!(subject: alice, resource: folder, role: @role)
+
+    get current_scope.subjects_url, headers: as(@owner)
+
+    assert_response :success
+    button = css_select("#scoped_chip_revoke_#{sra.id}").first
+    assert_nil button["disabled"]
+    assert_match @role.name, button["aria-label"]
+    assert_nil button["aria-describedby"]
+    assert_select "#scoped_chip_revoke_#{sra.id}_limit", count: 0
+    assert_select "input[type=submit][value='Set for selected']:not([disabled])"
+    assert_select "input[type=submit][value='Set']:not([disabled])"
+    assert_select "a[data-cs-bulk-scoped]"
+    assert_select "a.cs-add-scoped"
+    assert_select "select[name=role_id] option[disabled]", count: 0
+  end
+
+  test "a denied scoped revoke is disabled and described, and unknown submits stay open" do
+    alice = User.create!(name: "Alice")
+    folder = Folder.create!(name: "Space")
+    sra = CurrentScope::ScopedRoleAssignment.create!(subject: alice, resource: folder, role: @role)
+    delegate = User.create!(name: "Delegate")
+    actions = []
+    authorizer = lambda do |subject, action:, **|
+      actions << action
+      subject == delegate && action == :access
+    end
+
+    with_management_authorizer(authorizer) do
+      get current_scope.subjects_url, headers: as(delegate)
+    end
+
+    assert_response :success
+    button = css_select("#scoped_chip_revoke_#{sra.id}").first
+    assert button["disabled"]
+    assert_equal "scoped_chip_revoke_#{sra.id}_limit", button["aria-describedby"]
+    assert_match @role.name, button["aria-label"]
+    assert_select "#scoped_chip_revoke_#{sra.id}_limit",
+      text: "Your administration permissions do not allow this removal."
+    assert_select "input[type=submit][value='Set for selected']:not([disabled])"
+    assert_select "input[type=submit][value='Set']:not([disabled])"
+    assert_select "a[data-cs-bulk-scoped]"
+    assert_select "a.cs-add-scoped"
+    assert_select "select[name=role_id] option[disabled]", count: 0
+    assert_not_includes actions, :assign_role
+    assert_not_includes actions, :assign_scoped_role
+  end
+
+  test "a scoped revoke asks once and uses the recipient, not the resource" do
+    alice = User.create!(name: "Alice")
+    CurrentScope::ScopedRoleAssignment.create!(subject: alice, resource: Folder.create!(name: "One"), role: @role)
+    CurrentScope::ScopedRoleAssignment.create!(subject: alice, resource: Folder.create!(name: "Two"), role: @role)
+    calls = []
+    authorizer = lambda do |subject, action:, role: nil, target: nil|
+      calls << [ action, role&.id, target&.class&.name, target&.id ] if action == :revoke_scoped_role
+      subject == @owner
+    end
+
+    with_management_authorizer(authorizer) do
+      get current_scope.subjects_url, headers: as(@owner)
+    end
+
+    assert_response :success
+    assert_equal [ [ :revoke_scoped_role, @role.id, "User", alice.id ] ], calls
   end
 end

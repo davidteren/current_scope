@@ -13,10 +13,10 @@
 # The dummy test environment tells the schema dumper to ignore the
 # current_scope_test_ prefix, so the persisted tables never reach db/schema.rb.
 #
-# A default id is :primary_key on the definition and the adapter's reflected
-# abstract type on the live column: :integer on SQLite, :bigint on MySQL and
-# PostgreSQL. That pair is one token, not drift. Index identity is the name
-# create_table would assign.
+# A default id is :primary_key on the definition. Rails reflects
+# column.type as :integer on SQLite, MySQL, and PostgreSQL. schema.rb
+# prints :bigint. This check uses column.type, so a matching table is
+# not drift. Index identity is the name create_table would assign.
 #
 # ponytail: names, abstract types, and those index names are the drift signal.
 # A limit, null, or default change, and a uniqueness change that keeps the
@@ -45,16 +45,11 @@ module SupportTable
     conn.columns(name).map { |column| [ column.name, column.type ] }.sort
   end
 
-  # :primary_key is the definition's token for a default id. The live column
-  # reports the abstract type the adapter reflected, never that symbol.
-  def self.type_token(column, conn)
-    return default_id_type(conn) if column.type == :primary_key
-
-    column.type
-  end
-
-  def self.default_id_type(conn)
-    /mysql|postgre/i.match?(conn.adapter_name) ? :bigint : :integer
+  # :primary_key is the definition token for a default id. The live
+  # column reports :integer. schema_type is the call that returns :bigint,
+  # and a drift check that used it would drop a matching PostgreSQL table.
+  def self.type_token(column, _conn)
+    column.type == :primary_key ? :integer : column.type
   end
 
   def self.index_identity(conn, name, definition)
@@ -63,5 +58,5 @@ module SupportTable
     }.sort
   end
   private_class_method :drifted?, :column_identity, :live_column_identity,
-                       :type_token, :default_id_type, :index_identity
+                       :type_token, :index_identity
 end

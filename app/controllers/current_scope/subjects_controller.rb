@@ -38,7 +38,7 @@ module CurrentScope
       scoped_scope = subject_ids_by_type.reduce(ScopedRoleAssignment.none) do |relation, (type, ids)|
         relation.or(ScopedRoleAssignment.where(subject_type: type, subject_id: ids))
       end
-      scoped_rows = scoped_scope.includes(:role).to_a
+      scoped_rows = scoped_scope.includes(role: :role_permissions).to_a
       ScopedRoleAssignment.preload_resolvable_resources!(scoped_rows)
       # to_s to match the view's key: subject_id is a string column (#151).
       @scoped = scoped_rows.group_by { |a| [ a.subject_type, a.subject_id.to_s ] }

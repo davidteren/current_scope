@@ -82,9 +82,9 @@ class SupportTablesTest < ActiveSupport::TestCase
     assert_equal :string, column_type(PROBE, "name")
   end
 
-  # A default id is :primary_key in the block and :integer (SQLite) or :bigint
-  # (MySQL, PostgreSQL) on the live column. That pair is a match. Passing
-  # id: :string would hide a false mismatch on the default.
+  # A default id is :primary_key in the block and :integer on the live
+  # column. schema.rb prints :bigint. Passing id: :string would hide a
+  # false mismatch on the default.
   test "a matching default id table with an index is not dropped" do
     prepare_indexed
     quoted = connection.quote_table_name(INDEXED)
@@ -104,6 +104,40 @@ class SupportTablesTest < ActiveSupport::TestCase
   ensure
     if connection.singleton_class.instance_methods(false).include?(:drop_table)
       connection.singleton_class.send(:remove_method, :drop_table)
+    end
+  end
+
+  # Stubbing the name is enough: column.type stays :integer on this
+  # SQLite connection. A :bigint compare would drop the table here.
+  test "a default id still matches when the adapter name is not SQLite" do
+    %w[PostgreSQL Mysql2 Trilogy].each do |adapter|
+      begin
+        connection.drop_table(INDEXED, if_exists: true)
+        prepare_indexed
+        quoted = connection.quote_table_name(INDEXED)
+        connection.execute(
+          "INSERT INTO #{quoted} (name, email, token) VALUES ('Kept', 'kept@example.test', 'tok')"
+        )
+        drops = 0
+        original_drop = connection.method(:drop_table)
+        connection.define_singleton_method(:adapter_name) { adapter }
+        connection.define_singleton_method(:drop_table) do |*args, **kwargs|
+          drops += 1
+          original_drop.call(*args, **kwargs)
+        end
+
+        prepare_indexed
+
+        assert_equal 0, drops, adapter
+        assert_equal 1, connection.select_value("SELECT COUNT(*) FROM #{quoted}").to_i
+        assert_equal :integer, column_type(INDEXED, "id")
+      ensure
+        singleton = connection.singleton_class
+        singleton.send(:remove_method, :drop_table) if singleton.instance_methods(false).include?(:drop_table)
+        if singleton.instance_methods(false).include?(:adapter_name)
+          singleton.send(:remove_method, :adapter_name)
+        end
+      end
     end
   end
 

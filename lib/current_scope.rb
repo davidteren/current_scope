@@ -569,11 +569,21 @@ module  CurrentScope
       end
 
       model, permission = pair
-      unless model.is_a?(Class) && model < ActiveRecord::Base && permission.is_a?(String) && !permission.empty?
+      # The same shapes the record-less gate refuses. An abstract class has no
+      # table, and a composite key is not one stored id. Either one must raise
+      # here, before scope_for builds a relation that cannot run.
+      usable = CurrentScope.resolver.collection_type?(model) && storable_scope_key?(model)
+      unless usable && permission.is_a?(String) && !permission.empty?
         raise ArgumentError, "each scope must be a [model class, permission key] pair"
       end
 
       [ model, permission ]
+    end
+
+    def storable_scope_key?(model)
+      CurrentScope.storable_key?(model)
+    rescue StandardError
+      false
     end
 
     def abilities_scoped_entry(subject, model, permission, limit)

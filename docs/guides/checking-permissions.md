@@ -251,6 +251,8 @@ is not full access.
 `scopes` is a list of pairs. Each pair is one model class and one permission
 key string. The method calls `scope_for` once for that pair. It does not cross
 every model with every permission, and it does not discover the host's models.
+An abstract class, or a model whose primary key is not one column, raises
+`ArgumentError` before `scope_for` runs.
 
 `limit` is required. It must be a positive integer. `nil`, zero, a negative
 number, and a string raise `ArgumentError` before any relation is limited.

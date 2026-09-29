@@ -246,13 +246,19 @@ class AbilitiesForTest < ActiveSupport::TestCase
   end
 
   test "a bad scope list raises before scope_for runs" do
+    composite = Class.new(ApplicationRecord) do
+      self.table_name = "users"
+      self.primary_key = [ "id", "name" ]
+    end
     bad_lists = [
       nil,
       "projects",
       [ Project, PROJECT_KEY ],
       [ [ "Project", PROJECT_KEY ] ],
       [ [ Project, :index ] ],
-      [ [ Project, "" ] ]
+      [ [ Project, "" ] ],
+      [ [ ApplicationRecord, PROJECT_KEY ] ],
+      [ [ composite, PROJECT_KEY ] ]
     ]
 
     bad_lists.each do |scopes|

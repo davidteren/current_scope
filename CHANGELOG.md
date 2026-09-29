@@ -123,6 +123,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     now says so instead of printing the literal key `"(duplicate natural key)"`.
 
 ### Changed
+- **Definitions apply locks full-access rows in pages (#178).**
+  `FullAccessLock.lock_console_state!` no longer takes planned role names.
+  Passing that argument raises `ArgumentError`. The would-lose walk locks
+  current holders and planned holders on two separate id pages, at most
+  `assignment_lock_page_size` ids per statement. That reader is for tests.
+  It is not a host setting.
 - **RubyGems metadata now points at the docs site (#211).**
   `documentation_uri` and `homepage` are the Pages site;
   `source_code_uri` and `bug_tracker_uri` are the GitHub repo and issue

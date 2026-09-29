@@ -476,13 +476,22 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
     assert_nil CurrentScope::RoleAssignment.find_by(subject: bob)
   end
 
-  # "Skipped " + 1,491 letters + "." is 1,500 bytes, the whole notice budget.
-  # A larger leftover count in the preview is enough to push that name out.
+  # "Skipped " + 1,489 letters + "." is 1,498 letters. The cookie stores two
+  # extra quote bytes, so the stored sentence is 1,500 bytes.
   test "a skipped name that fills the notice budget stays whole" do
-    name = "n" * 1_491
+    name = "n" * 1_489
     sentence = CurrentScope::RoleAssignmentsController.new.send(:skipped_names_sentence, [ name ])
 
     assert_equal "Skipped #{name}.", sentence
+    assert_equal 1_500, ActiveSupport::JSON.encode(sentence).bytesize
+  end
+
+  test "a skipped name of angle brackets stays inside the cookie budget" do
+    name = "<" * 400
+    sentence = CurrentScope::RoleAssignmentsController.new.send(:skipped_names_sentence, [ name ])
+
+    assert_operator ActiveSupport::JSON.encode(sentence).bytesize, :<=, 1_500
+    assert_not_includes sentence, name
   end
 
   test "a notice name one byte over the clip keeps eighty bytes" do

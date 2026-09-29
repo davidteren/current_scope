@@ -244,8 +244,9 @@ available. The server checks the write again.
 
 A mixed organization-wide role batch applies the people this subject may
 change. One refused recipient no longer refuses the whole batch. The notice
-names the skipped people until the next name would pass 1,500 bytes, then it
-says how many more were skipped. If nobody is allowed, nothing changes and no
+names the skipped people until the next name would pass 1,500 bytes in the
+session cookie, then it says how many more were skipped. `<`, `>`, and `&`
+count as six bytes there. If nobody is allowed, nothing changes and no
 audit event is written. The last full-access holder check still applies to
 the people who would change. A bulk scoped grant is still all or nothing.
 

@@ -115,8 +115,9 @@ module CurrentScope
       Role.uncached { Role.includes(:role_permissions).lock.find(assignment.role_id) }
     end
 
-    # The notice shares the 4KB cookie session. Stop the skipped-name list
-    # before that cookie can overflow after the writes have already committed.
+    # The notice shares the 4KB cookie session. The cookie stores this
+    # sentence as JSON. `<`, `>`, and `&` become six bytes there. Stop before
+    # that stored size can overflow after the writes have already committed.
     SKIPPED_NOTICE_BUDGET = 1_500
     NAME_CLIP_BYTES = 80
 
@@ -137,7 +138,7 @@ module CurrentScope
       kept = []
       names.each do |name|
         candidate = kept + [ name.to_s ]
-        break if skipped_sentence(candidate, names.size - candidate.size).bytesize > SKIPPED_NOTICE_BUDGET
+        break if notice_over_budget?(skipped_sentence(candidate, names.size - candidate.size))
 
         kept = candidate
       end
@@ -158,6 +159,10 @@ module CurrentScope
         kept << char
       end
       kept
+    end
+
+    def notice_over_budget?(sentence)
+      ActiveSupport::JSON.encode(sentence).bytesize > SKIPPED_NOTICE_BUDGET
     end
 
     def skipped_sentence(kept, leftover)

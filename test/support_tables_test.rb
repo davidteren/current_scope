@@ -73,9 +73,12 @@ class SupportTablesTest < ActiveSupport::TestCase
       "a matching table must never be dropped: another test process may be using it"
   end
 
+  # Create the drifted type directly. PostgreSQL will not cast a string
+  # column to an integer, so change_column is not a setup that can run there.
   test "a table whose column type drifted is rebuilt" do
-    prepare_probe
-    connection.change_column(PROBE, :name, :integer)
+    connection.create_table(PROBE, id: :string, force: true) do |t|
+      t.integer :name
+    end
 
     prepare_probe
 

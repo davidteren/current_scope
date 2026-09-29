@@ -235,6 +235,21 @@ uses `AccessDenied#reason == :management_denied`; the default policy uses
 Direct model writes and `CurrentScope.grant!` do not call this management
 predicate; host write paths must authorize their own callers.
 
+When a management authorizer is set, Edit permissions, Remove, and Revoke
+stay off unless that callback returns literal `true` for that control's
+action. That also covers scoped revoke on Members and Subjects. With no
+callback, a subject who holds the organization-wide full-access role still
+sees those controls on. Add members, Set, and the scoped-role links stay
+available. The server checks the write again.
+
+A mixed organization-wide role batch applies the people this subject may
+change. One refused recipient no longer refuses the whole batch. The notice
+names the skipped people until the next name would pass 1,500 bytes in the
+session cookie, then it says how many more were skipped. `<`, `>`, and `&`
+count as six bytes there. If nobody is allowed, nothing changes and no
+audit event is written. The last full-access holder check still applies to
+the people who would change. A bulk scoped grant is still all or nothing.
+
 Bulk console grants lock recipients before role and assignment rows. The
 recipient order is lexical by `[subject.class.base_class.name, subject.id.to_s]`,
 so an integer id of `10` precedes `2`. Host transactions that lock several

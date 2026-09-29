@@ -123,6 +123,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     now says so instead of printing the literal key `"(duplicate natural key)"`.
 
 ### Changed
+- **A mixed org-wide role change applies the allowed people (#210).**
+  With `management_authorizer` set, one refused recipient used to refuse
+  the whole batch. The allowed recipients now change, and the notice names
+  the skipped ones. With a management authorizer set, known Remove, Revoke,
+  and Edit permissions controls stay off unless the callback returns literal
+  true for that action. With no callback, full access still turns those
+  controls on. A fully refused batch
+  still changes nothing. A bulk scoped grant is still all or nothing.
+  See the management section of `docs/guides/configuration-reference.md`.
 - **RubyGems metadata now points at the docs site (#211).**
   `documentation_uri` and `homepage` are the Pages site;
   `source_code_uri` and `bug_tracker_uri` are the GitHub repo and issue

@@ -6,7 +6,13 @@
 <div class="cs-toolbar">
   <%= link_to "← All roles", roles_path %>
   <span class="cs-spacer"></span>
-  <%= link_to "Edit permissions", edit_role_path(@role), class: "cs-btn" %>
+  <% edit_allowed = current_scope_can_manage?(:update_role, role: @role) %>
+  <%= link_to_if edit_allowed, "Edit permissions", edit_role_path(@role), class: "cs-btn", id: "edit_permissions" do %>
+    <span id="edit_permissions">Edit permissions</span>
+  <% end %>
+  <% unless edit_allowed %>
+    <p id="edit_permissions_limit" class="cs-hint">Your administration permissions do not allow editing this role.</p>
+  <% end %>
 </div>
 
 <h2>Add org-wide members</h2>
@@ -61,28 +67,55 @@
                    end %>
                 <% if gid %>
                   <%# Removing = clearing this subject's org-wide role (blank role_id). %>
+                  <% clear_allowed = current_scope_can_manage?(:revoke_role, role: @role, target: resolved) %>
                   <%= form_with url: role_assignments_path, method: :post,
                         data: { cs_confirm: "Remove #{who} from #{@role.name}?" } do %>
                     <%= hidden_field_tag :subject_gid, gid %>
                     <%= hidden_field_tag :role_id, "" %>
-                    <%= submit_tag "Remove", name: nil, class: "cs-btn" %>
+                    <%= submit_tag "Remove", name: nil, class: "cs-btn",
+                          id: "org_clear_#{assignment.id}",
+                          disabled: !clear_allowed,
+                          aria: { describedby: (clear_allowed ? nil : "org_clear_#{assignment.id}_limit") } %>
+                  <% end %>
+                  <% unless clear_allowed %>
+                    <p id="org_clear_<%= assignment.id %>_limit" class="cs-hint">Your administration permissions do not allow this removal.</p>
                   <% end %>
                 <% else %>
+                  <% remove_allowed = current_scope_can_manage?(:revoke_role, role: @role, target: nil) %>
                   <%= button_to "Remove", role_assignment_path(assignment), method: :delete,
                         id: "org_remove_#{assignment.id}",
-                        class: "cs-btn", form: { data: { cs_confirm: "Remove #{who} from #{@role.name}?" } } %>
+                        class: "cs-btn",
+                        disabled: !remove_allowed,
+                        form: { data: { cs_confirm: "Remove #{who} from #{@role.name}?" } },
+                        aria: { describedby: (remove_allowed ? nil : "org_remove_#{assignment.id}_limit") } %>
+                  <% unless remove_allowed %>
+                    <p id="org_remove_<%= assignment.id %>_limit" class="cs-hint">Your administration permissions do not allow this removal.</p>
+                  <% end %>
                 <% end %>
               <% elsif inert %>
+                <% remove_allowed = current_scope_can_manage?(:revoke_role, role: @role, target: nil) %>
                 <%= button_to "Remove inert", role_assignment_path(assignment), method: :delete,
                       id: "org_remove_#{assignment.id}",
                       class: "cs-btn",
-                      form: { data: { cs_confirm: "Remove this inert org-wide assignment? The subject row may still exist." } } %>
+                      disabled: !remove_allowed,
+                      form: { data: { cs_confirm: "Remove this inert org-wide assignment? The subject row may still exist." } },
+                      aria: { describedby: (remove_allowed ? nil : "org_remove_#{assignment.id}_limit") } %>
+                <% unless remove_allowed %>
+                  <p id="org_remove_<%= assignment.id %>_limit" class="cs-hint">Your administration permissions do not allow this removal.</p>
+                <% end %>
                 <span class="cs-inert-badge"
                       title="This subject cannot be resolved from the stored type and id. The row may still exist, but this assignment grants nothing.">inert</span>
               <% else %>
+                <% remove_allowed = current_scope_can_manage?(:revoke_role, role: @role, target: nil) %>
                 <%= button_to "Remove", role_assignment_path(assignment), method: :delete,
                       id: "org_remove_#{assignment.id}",
-                      class: "cs-btn", form: { data: { cs_confirm: "Remove this orphaned org-wide assignment?" } } %>
+                      class: "cs-btn",
+                      disabled: !remove_allowed,
+                      form: { data: { cs_confirm: "Remove this orphaned org-wide assignment?" } },
+                      aria: { describedby: (remove_allowed ? nil : "org_remove_#{assignment.id}_limit") } %>
+                <% unless remove_allowed %>
+                  <p id="org_remove_<%= assignment.id %>_limit" class="cs-hint">Your administration permissions do not allow this removal.</p>
+                <% end %>
                 <span class="cs-subtle">subject deleted</span>
               <% end %>
             </td>
@@ -122,11 +155,19 @@
               <% revoke_prompt = orphaned ?
                     "Remove inert scoped grant (resource unavailable) for #{who}?" :
                     "Revoke #{@role.name} on #{what} from #{who}?" %>
+              <% recipient = sra.current_scope_resolved_record("subject") %>
+              <% revoke_allowed = current_scope_can_manage?(:revoke_scoped_role, role: @role, target: recipient) %>
               <%= button_to (orphaned ? "Remove inert" : "Revoke"),
                     scoped_role_assignment_path(sra), method: :delete,
                     id: "scoped_revoke_#{sra.id}",
-                    class: "cs-btn", form: { data: { cs_confirm: revoke_prompt } },
+                    class: "cs-btn",
+                    disabled: !revoke_allowed,
+                    form: { data: { cs_confirm: revoke_prompt } },
+                    aria: { describedby: (revoke_allowed ? nil : "scoped_revoke_#{sra.id}_limit") },
                     data: { turbo_confirm: revoke_prompt } %>
+              <% unless revoke_allowed %>
+                <p id="scoped_revoke_<%= sra.id %>_limit" class="cs-hint">Your administration permissions do not allow this removal.</p>
+              <% end %>
             </td>
           </tr>
         <% end %>

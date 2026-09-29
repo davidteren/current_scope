@@ -13,6 +13,14 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
 
   def as(user) = { "X-User-Id" => user.id.to_s }
 
+  def with_management_authorizer(authorizer)
+    prior = CurrentScope.config.management_authorizer
+    CurrentScope.config.management_authorizer = authorizer
+    yield
+  ensure
+    CurrentScope.config.management_authorizer = prior
+  end
+
   # Latches a real ConfigurationError on the registry: the config names a token
   # that User does not store, so the rebuild refuses and every later lookup
   # re-raises. Undone in teardown, because the latch is a process-wide ivar.
@@ -381,9 +389,176 @@ class RoleMembersTest < ActionDispatch::IntegrationTest
 
   test "removing an org-wide holder clears their role" do
     dave = User.create!(name: "Dave")
-    CurrentScope::RoleAssignment.create!(subject: dave, role: @role)
+    assignment = CurrentScope::RoleAssignment.create!(subject: dave, role: @role)
+
+    get current_scope.members_role_url(@role), headers: as(@owner)
+    assert_response :success
+    assert_select "#org_clear_#{assignment.id}:not([disabled])"
+    assert_select "#org_clear_#{assignment.id}_limit", count: 0
+    assert_select "#org_remove_#{assignment.id}", count: 0
+
     post current_scope.role_assignments_url, headers: as(@owner),
          params: { subject_gid: dave.to_gid.to_s, role_id: "" }
     assert_nil CurrentScope::RoleAssignment.find_by(subject: dave)
+  end
+
+  test "edit permissions is a link when the subject may update the role" do
+    get current_scope.members_role_url(@role), headers: as(@owner)
+
+    assert_response :success
+    assert_select "a#edit_permissions", text: "Edit permissions"
+    assert_select "#edit_permissions_limit", count: 0
+  end
+
+  test "edit permissions is plain text when the subject may not update the role" do
+    delegate = User.create!(name: "Delegate")
+    with_management_authorizer(->(subject, action:, **) { subject == delegate && action == :access }) do
+      get current_scope.members_role_url(@role), headers: as(delegate)
+    end
+
+    assert_response :success
+    assert_select "#edit_permissions", text: "Edit permissions"
+    assert_select "a#edit_permissions", count: 0
+    assert_select "#edit_permissions_limit", text: "Your administration permissions do not allow editing this role."
+  end
+
+  test "a denied live remove is disabled and explained, and is not the inert button" do
+    alice = User.create!(name: "Alice")
+    outsider = User.create!(name: "Outsider")
+    assignment = CurrentScope::RoleAssignment.create!(subject: alice, role: @role)
+    delegate = User.create!(name: "Delegate")
+    with_management_authorizer(->(subject, action:, **) { subject == delegate && action == :access }) do
+      get current_scope.members_role_url(@role), headers: as(delegate)
+    end
+
+    assert_response :success
+    assert_select "#org_clear_#{assignment.id}[disabled][aria-describedby=?]", "org_clear_#{assignment.id}_limit"
+    assert_select "#org_clear_#{assignment.id}_limit",
+      text: "Your administration permissions do not allow this removal."
+    assert_select "#org_remove_#{assignment.id}", count: 0
+    assert_select "input[type=submit][value='Add selected as org-wide members']:not([disabled])"
+    assert_select "select#subject_gids option[disabled]", count: 0
+    assert_select "select#subject_gids option", text: outsider.name
+  end
+
+  test "an allowed live remove stays enabled for a delegated subject" do
+    alice = User.create!(name: "Alice")
+    assignment = CurrentScope::RoleAssignment.create!(subject: alice, role: @role)
+    delegate = User.create!(name: "Delegate")
+    authorizer = lambda do |subject, action:, **|
+      subject == delegate && %i[access revoke_role].include?(action)
+    end
+    with_management_authorizer(authorizer) do
+      get current_scope.members_role_url(@role), headers: as(delegate)
+    end
+
+    assert_response :success
+    assert_select "#org_clear_#{assignment.id}:not([disabled])"
+    assert_select "#org_clear_#{assignment.id}_limit", count: 0
+  end
+
+  test "a truthy non-true authorizer answer does not enable the live remove" do
+    alice = User.create!(name: "Alice")
+    assignment = CurrentScope::RoleAssignment.create!(subject: alice, role: @role)
+    delegate = User.create!(name: "Delegate")
+    authorizer = lambda do |subject, action:, **|
+      next false unless subject == delegate
+      action == :access ? true : "yes"
+    end
+    with_management_authorizer(authorizer) do
+      get current_scope.members_role_url(@role), headers: as(delegate)
+    end
+
+    assert_response :success
+    assert_select "#org_clear_#{assignment.id}[disabled]"
+  end
+
+  test "unresolved holder removes ask with a nil recipient" do
+    delegate = User.create!(name: "Delegate")
+    seen = []
+    authorizer = lambda do |subject, action:, target: nil, **|
+      seen << target if action == :revoke_role
+      subject == delegate && (action == :access || !target.nil?)
+    end
+
+    ghost = User.create!(name: "Ghost")
+    deleted = CurrentScope::RoleAssignment.create!(subject: ghost, role: @role)
+    ghost.delete
+
+    now = Time.current
+    CurrentScope::RoleAssignment.insert!({
+      role_id: @role.id,
+      subject_type: "token_people_unmapped_210",
+      subject_id: "5",
+      created_at: now,
+      updated_at: now
+    })
+    inert = CurrentScope::RoleAssignment.find_by!(subject_type: "token_people_unmapped_210")
+
+    broken = User.create!(name: "BrokenGid")
+    failed_gid = CurrentScope::RoleAssignment.create!(subject: broken, role: @role)
+    User.class_eval do
+      alias_method :to_gid_before_members_test, :to_gid
+      def to_gid
+        raise StandardError, "gid failed" if name == "BrokenGid"
+
+        to_gid_before_members_test
+      end
+    end
+
+    with_management_authorizer(authorizer) do
+      get current_scope.members_role_url(@role), headers: as(delegate)
+    end
+
+    assert_response :success
+    [ deleted, inert, failed_gid ].each do |assignment|
+      assert_select "#org_remove_#{assignment.id}[disabled][aria-describedby=?]",
+        "org_remove_#{assignment.id}_limit"
+      assert_select "#org_remove_#{assignment.id}_limit",
+        text: "Your administration permissions do not allow this removal."
+      assert_select "#org_clear_#{assignment.id}", count: 0
+    end
+    assert_includes seen, nil
+    assert_equal [ nil ], seen.uniq
+  ensure
+    if User.private_method_defined?(:to_gid_before_members_test) || User.method_defined?(:to_gid_before_members_test)
+      User.class_eval do
+        alias_method :to_gid, :to_gid_before_members_test
+        remove_method :to_gid_before_members_test
+      end
+    end
+  end
+
+  test "a denied scoped revoke is disabled and explained" do
+    bob = User.create!(name: "Bob")
+    folder = Folder.create!(name: "Space")
+    sra = CurrentScope::ScopedRoleAssignment.create!(subject: bob, resource: folder, role: @role)
+    delegate = User.create!(name: "Delegate")
+    with_management_authorizer(->(subject, action:, **) { subject == delegate && action == :access }) do
+      get current_scope.members_role_url(@role), headers: as(delegate)
+    end
+
+    assert_response :success
+    assert_select "#scoped_revoke_#{sra.id}[disabled][aria-describedby=?]", "scoped_revoke_#{sra.id}_limit"
+    assert_select "#scoped_revoke_#{sra.id}_limit",
+      text: "Your administration permissions do not allow this removal."
+  end
+
+  test "the members page asks once for the same scoped revoke" do
+    bob = User.create!(name: "Bob")
+    role = @role
+    CurrentScope::ScopedRoleAssignment.create!(subject: bob, resource: Folder.create!(name: "One"), role: role)
+    CurrentScope::ScopedRoleAssignment.create!(subject: bob, resource: Folder.create!(name: "Two"), role: role)
+    calls = []
+    authorizer = lambda do |subject, action:, role: nil, target: nil|
+      calls << [ action, role&.id, target&.id ] if action == :revoke_scoped_role
+      subject == @owner
+    end
+    with_management_authorizer(authorizer) do
+      get current_scope.members_role_url(role), headers: as(@owner)
+    end
+
+    assert_response :success
+    assert_equal [ [ :revoke_scoped_role, role.id, bob.id ] ], calls
   end
 end

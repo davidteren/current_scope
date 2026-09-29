@@ -10,9 +10,8 @@ module CurrentScope
 
       clearing = params[:role_id].blank?
 
-      # One transaction for the whole bulk action: the UI presents it as a single
-      # operation, so a failure partway must not leave only the first subjects
-      # changed. All-or-nothing across assignments and their audit events. Count
+      # One transaction for the writes. A denied recipient is skipped. Any other
+      # failure still rolls the batch back, including its audit events. Count
       # only the subjects that ACTUALLY changed so the notice can't over-report
       # (a re-set to the same role, or a clear on a subject with no role, is a
       # no-op and shouldn't be counted).
@@ -22,6 +21,7 @@ module CurrentScope
       # both proceed to zero holders.
       changed = 0
       refused = false
+      skipped = []
       RoleAssignment.transaction do
         # Host transactions can update recipients before granting access.
         # Take these locks first, in stable order, then roles and assignments.
@@ -34,16 +34,23 @@ module CurrentScope
         lock_full_access_org_holders!
         proposed = Role.includes(:role_permissions).lock.find(params.expect(:role_id)) unless clearing
 
+        allowed = []
         subjects.each do |subject|
           previous = locked_role_for(RoleAssignment.lock.find_by(subject: subject))
-          authorize_management!(:revoke_role, role: previous, target: subject) if previous || clearing
-          authorize_management!(:assign_role, role: proposed, target: subject) unless clearing
+          if assignment_allowed?(subject, previous:, proposed:, clearing:)
+            allowed << subject
+          else
+            skipped << subject
+          end
         end
 
-        if would_remove_last_full_access_holders?(subjects, proposed: proposed)
+        if allowed.empty?
+          # Deny outside the skip path. Do not write, and do not continue.
+          refuse_unmanaged_batch!(subjects, clearing:, proposed:)
+        elsif would_remove_last_full_access_holders?(allowed, proposed: proposed)
           refused = true
         else
-          subjects.each do |subject|
+          allowed.each do |subject|
             assignment = RoleAssignment.lock.find_or_initialize_by(subject: subject)
             prior_role = locked_role_for(assignment) # nil for a brand-new assignment
             authorize_management!(:revoke_role, role: prior_role, target: subject) if prior_role || clearing
@@ -61,7 +68,7 @@ module CurrentScope
 
       # Return to wherever the action was invoked (the subjects page or a role's
       # members page); falls back to subjects when there's no referrer.
-      redirect_back_or_to subjects_path, notice: org_notice(clearing, changed)
+      redirect_back_or_to subjects_path, notice: org_notice(clearing, changed, skipped)
     rescue ActiveRecord::RecordNotFound, NameError
       redirect_back_or_to subjects_path, alert: "Couldn't set the org-wide role — a subject or role is no longer available."
     end
@@ -108,11 +115,77 @@ module CurrentScope
       Role.uncached { Role.includes(:role_permissions).lock.find(assignment.role_id) }
     end
 
-    def org_notice(clearing, count)
-      return "No org-wide role changes." if count.zero?
+    # The notice shares the 4KB cookie session. The cookie stores this
+    # sentence as JSON. `<`, `>`, and `&` become six bytes there. Stop before
+    # that stored size can overflow after the writes have already committed.
+    SKIPPED_NOTICE_BUDGET = 1_500
+    NAME_CLIP_BYTES = 80
 
-      verb = clearing ? "cleared" : "set"
-      count == 1 ? "Org-wide role #{verb}." : "Org-wide role #{verb} for #{count} subjects."
+    def org_notice(clearing, count, skipped)
+      base = if count.zero?
+        "No org-wide role changes."
+      else
+        verb = clearing ? "cleared" : "set"
+        count == 1 ? "Org-wide role #{verb}." : "Org-wide role #{verb} for #{count} subjects."
+      end
+      return base if skipped.empty?
+
+      names = skipped.map { |subject| helpers.current_scope_subject_label(subject) }
+      "#{base} #{skipped_names_sentence(names)}"
+    end
+
+    def skipped_names_sentence(names)
+      kept = []
+      names.each do |name|
+        candidate = kept + [ name.to_s ]
+        break if notice_over_budget?(skipped_sentence(candidate, names.size - candidate.size))
+
+        kept = candidate
+      end
+      kept = [ clipped_notice_name(names.first) ] if kept.empty?
+      skipped_sentence(kept, names.size - kept.size)
+    end
+
+    # A byte cut can split a character. The cookie session then refuses the
+    # notice after the allowed change is already saved.
+    def clipped_notice_name(name)
+      text = name.to_s
+      return text if text.bytesize <= NAME_CLIP_BYTES
+
+      kept = +""
+      text.each_char do |char|
+        break if kept.bytesize + char.bytesize > NAME_CLIP_BYTES
+
+        kept << char
+      end
+      kept
+    end
+
+    def notice_over_budget?(sentence)
+      ActiveSupport::JSON.encode(sentence).bytesize > SKIPPED_NOTICE_BUDGET
+    end
+
+    def skipped_sentence(kept, leftover)
+      body = "Skipped #{kept.to_sentence}."
+      leftover.positive? ? "#{body} And #{leftover} more." : body
+    end
+
+    # Literal true for every check the old loop raised on. A raised error is
+    # not a skip: only a non-true answer drops that recipient.
+    def assignment_allowed?(subject, previous:, proposed:, clearing:)
+      if (previous || clearing) && CurrentScope.can_manage?(:revoke_role, role: previous, target: subject) != true
+        return false
+      end
+      return true if clearing
+
+      CurrentScope.can_manage?(:assign_role, role: proposed, target: subject) == true
+    end
+
+    def refuse_unmanaged_batch!(subjects, clearing:, proposed:)
+      subject = subjects.first
+      previous = locked_role_for(RoleAssignment.lock.find_by(subject: subject))
+      authorize_management!(:revoke_role, role: previous, target: subject) if previous || clearing
+      authorize_management!(:assign_role, role: proposed, target: subject) unless clearing
     end
 
     # True when applying clear (or reassign to a non-full_access role) to these

@@ -190,6 +190,57 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
       "on the stricter question with neither caveat nor marker"
   end
 
+  # `model` is required so a caller cannot write model: nil by forgetting it.
+  # nil is knowledge ("the gate had no type"). A default would store that lie.
+  test "record_would_deny_event rejects a call that omits model (#140)" do
+    controller = AnonymousModelController.new
+
+    assert_raises(ArgumentError) do
+      controller.send(:record_would_deny_event, "reports#index", nil)
+    end
+  end
+
+  # A class whose name raises must not burn the shared one-shot warning, and
+  # must not drop the row. The key stays absent, which is the population the
+  # report already warns about. Stubbed, not an ActiveRecord descendant:
+  # a descendant that raises on name breaks grant diagnosis.
+  test "a model name that raises still records would_deny and leaves the warning armed (#140)" do
+    controller = AnonymousModelController.new
+    hostile = Class.new { def self.name = raise("name is hostile") }
+    CurrentScope::Guard.reset_ledger_warning!
+    CurrentScope::Event.delete_all
+    original_logger = Rails.logger
+    io = StringIO.new
+    Rails.logger = ActiveSupport::Logger.new(io)
+
+    with_anonymous_collection_type(hostile) do
+      CurrentScope::Current.set(user: @alice) do
+        controller.send(:record_would_deny_event, "reports#index", nil, hostile)
+      end
+    end
+
+    event = CurrentScope::Event.where(event: "access.would_deny").last
+    assert_equal "access.would_deny", event.event
+    assert_equal "reports#index", event.details["permission"]
+    assert_not event.details.key?("model"),
+      "the name never resolved, so the key is omitted and the report warns about the row"
+    assert_not CurrentScope::Guard.ledger_warning_emitted?,
+      "a model-name failure is not a ledger failure, so the one-shot warning stays armed"
+    assert_no_match(/could not record access\.would_deny/, io.string)
+
+    with_broken_ledger do
+      CurrentScope::Current.set(user: @alice) do
+        controller.send(:record_would_deny_event, "reports#index", nil, Report)
+      end
+      assert CurrentScope::Guard.ledger_warning_emitted?,
+        "the warning the model-name failure left armed still fires for a real ledger failure"
+    end
+    assert_match(/WAS allowed through/, io.string)
+  ensure
+    Rails.logger = original_logger
+    CurrentScope::Guard.reset_ledger_warning!
+  end
+
   test "a granted action in report mode is an ordinary allow — no report, no header" do
     CurrentScope.config.enforcement = :report
     assign(@alice, role("Member", "reports#index"))
@@ -424,6 +475,30 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
     Rails.logger = original_logger
   end
 
+  # The blind-spot write shares the one-shot warning, but the sentence is its
+  # own: the request is still a 403. A would-deny sentence here would send the
+  # operator to look for a request that was allowed through.
+  test "a failed sod_blind_spot ledger write warns that the request was denied (#140)" do
+    original_logger = Rails.logger
+    io = StringIO.new
+    Rails.logger = ActiveSupport::Logger.new(io)
+
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[approve]
+
+    with_broken_ledger do
+      post "/sod_nil/approve", headers: sign_in(@bob)
+    end
+
+    assert_response :forbidden
+    logs = io.string
+    assert_match "access.sod_blind_spot", logs
+    assert_match(/DENIED \(403\)/, logs)
+    assert_no_match(/WAS allowed through/, logs)
+  ensure
+    Rails.logger = original_logger
+  end
+
   # qodo: warn_ledger_failure_once is ONE per-process one-shot shared by all
   # three report-mode recorders. A failure that never reached the ledger must not
   # consume it — the other two still need that warning, and "could not record"
@@ -452,6 +527,41 @@ class ReportOnlyTest < ActionDispatch::IntegrationTest
            "the warning would_deny and sod_blind_spot still need"
   ensure
     Invoice.send(:remove_method, :persisted?)
+    Rails.logger = original_logger
+    CurrentScope::Guard.reset_ledger_warning!
+  end
+
+  test "a subject lookup failure does not replace the initiator configuration error (#140)" do
+    original_logger = Rails.logger
+    io = StringIO.new
+    Rails.logger = ActiveSupport::Logger.new(io)
+
+    CurrentScope.config.enforcement = :report
+    CurrentScope.config.sod_actions = %w[show]
+    CurrentScope::Guard.reset_ledger_warning!
+    document = Invoice.create!(title: "Contract")
+    current = CurrentScope::Current.singleton_class
+    current.alias_method(:user_before_lookup_test, :user)
+    current.define_method(:user) do
+      hit = caller_locations(1, 15)&.any? { |loc|
+        loc.label.to_s.end_with?("#record_sod_initiator_missing_event")
+      }
+      raise "lookup failed" if hit
+
+      user_before_lookup_test
+    end
+
+    error = assert_raises(CurrentScope::ConfigurationError) do
+      get document_url(document), headers: sign_in(@alice)
+    end
+
+    refute_match(/lookup failed/, error.message)
+    assert_match(/could not BUILD the access.sod_initiator_missing row/, io.string)
+  ensure
+    if CurrentScope::Current.singleton_class.method_defined?(:user_before_lookup_test)
+      CurrentScope::Current.singleton_class.alias_method(:user, :user_before_lookup_test)
+      CurrentScope::Current.singleton_class.remove_method(:user_before_lookup_test)
+    end
     Rails.logger = original_logger
     CurrentScope::Guard.reset_ledger_warning!
   end

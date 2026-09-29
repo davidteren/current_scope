@@ -1,0 +1,102 @@
+CurrentScope report — 7 category(ies) with something in them:
+       7  would-be denials STILL ungranted (grant these)
+       2  scoped grants that can never match
+       1  scoped grants worth checking
+       1  scoped grants their type no longer accepts
+       1  SoD actions that will RAISE (500, not grantable)
+       2  SoD blind-spot denials (not grantable)
+       1  SoD actions that already RAISED (500, not grantable)
+
+  3 recorded denial(s) could not be re-checked, because the
+  subject, the record, the permission or the recorded model no longer resolves.
+  They are counted as OUTSTANDING above: cannot tell is not the same as ready.
+
+  2 of those name a model class that no longer loads (renamed or removed).
+  The gate's own question cannot be put again, so these were asked the only way
+  left, without a type. An org-wide grant still clears them; a SCOPED one cannot,
+  because the arm that reads the type is the arm that cannot run. Exercise the
+  action again in report mode and read the fresh row.
+
+  5 recorded denial(s) name a record that no longer loads (deleted, or hidden
+  by a default scope). The gate can never be asked about that record again, so
+  they are NOT counted as outstanding.
+
+  6 recorded denial(s) predate the stored model and have since been
+  ASKED AGAIN: a newer row for the same subject, permission and target carried the
+  gate's model and came back granted. The old row cannot clear itself, because the
+  ledger is append-only, so it is answered here and left out of the count.
+
+  1 of the outstanding denial(s) were recorded BEFORE this task stored the
+  model the gate used, so they were re-checked without one. That is the stricter
+  question: a subject a scoped grant admits through current_scope_model reads as
+  denied here. Some of them may be exactly that, and the row is too old to tell.
+  Do not grant on the strength of THIS line. Exercise the action again in report
+  mode and read the fresh row, or check one by hand with
+  CurrentScope.resolver.decide(subject:, permission:, record: nil, model: TheModel).
+  A * in the list below marks a line that INCLUDES one; a marked line can also
+  hold denials recorded since, which is why the two numbers need not match.
+
+  This is a survey, not a clearance: the ledger only knows traffic that has already run, and only requests that resolved a subject. A request that reaches the gate before authentication is downgraded and recorded NOWHERE, so it cannot appear above and WILL be refused after the flip. Confirm your authentication runs before the gate. The SoD preflight is also partial by construction (its own note says how).
+
+Would-be denials still outstanding — grant these to stop them (most-denied first):
+  * = includes denial(s) re-checked WITHOUT the gate's model, because the row
+      predates it or names a type that no longer loads. See the notes above.
+
+  Ada Lovelace
+        1x  (unknown)
+        1x  reports#index *
+        1x  reports#show *
+
+Total: 3 outstanding would-be denial(s) across 1 subject(s).
+1 more subject/permission pair(s) were recorded and are now granted; the ledger keeps them because it is append-only.
+
+Scoped grants that can never match — granting more will not help:
+
+  role ticks no permissions
+    Ada Lovelace — role "Editor" on Project#9
+    → Tick at least one permission on this role, or remove the grant.
+
+  role ticks only unrouted keys
+    Ada Lovelace — role "Reader" on Project#9
+    → Every key on this role is absent from the route-derived catalog, so nothing can ever gate them. Re-tick the role against current routes.
+
+Total: 2 grant(s) that cannot match any gated action.
+
+Scoped grants their type no longer accepts (#183):
+
+    Ada Lovelace — role "Auditor" on Project#9
+
+  These rows were written before their type declared its grantable
+  roles, or before that declaration changed. The check runs on write,
+  so they still resolve. Revoke the ones that should not stand.
+
+Worth checking — no ticked key targets this grant's type:
+
+    Ada Lovelace — role "Witness" on Project#9
+
+  This is NOT a verdict. Only your current_scope_record hooks decide which records a controller resolves to, and that is not knowable statically. A controller serving this type under a different name is a false alarm here. Check the hook before removing anything.
+
+Separation-of-duties actions that will RAISE (500) — not a denial, a misconfiguration:
+
+    invoices#approve — ReportPrinterFixture::Invoice defines no current_scope_initiator
+
+  Fix: define current_scope_initiator on each model listed (return nil to exempt a record). Only if the action was never meant to be four-eyes gated should you remove it from config.sod_actions — that removes the control rather than wiring it, so confirm the finding first.
+  Report mode does NOT downgrade these — the request 500s exactly as it would under :enforce.
+
+  This list is PARTIAL — a lead, not a verdict. Confirm against the model before you change config.sod_actions.
+  Silent when: the controller declares no current_scope_model (ABSENT is not cleared), or the model cannot be instantiated right now (no database connection yet, a custom initialize).
+  Names the wrong thing when: the declared type is what the COLLECTION lists and a member action loads a different one; or current_scope_model branches on action_name, which is read here with no action in hand.
+  Cannot happen at all: a finding against an action that turns out to be a COLLECTION action — the veto never reaches those.
+
+SoD blind-spot denials — NOT fixed by granting (declare current_scope_record):
+
+        1x  (unknown)
+        1x  reports#approve
+
+Total: 2 blind-spot 403(s). Granting these permissions will not clear them — fix the record hook (or remove the action from config.sod_actions).
+
+SoD actions that RAISED (500s) — NOT fixed by granting, a missing current_scope_initiator:
+
+        1x  invoices#approve — Invoice
+
+Total: 1 raised request(s). These are NOT denials and granting changes nothing — define current_scope_initiator on each model listed (return nil to exempt a record), or remove the action from config.sod_actions.

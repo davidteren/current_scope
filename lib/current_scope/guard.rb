@@ -257,9 +257,6 @@ module CurrentScope
     end
 
     def record_sod_initiator_missing_event(permission, record)
-      subject = CurrentScope::Current.user
-      return if subject.nil?
-
       # Building the row is rescued SEPARATELY from writing it, and the reason is
       # the latch rather than the rescue. warn_ledger_failure_once is one
       # per-PROCESS one-shot shared by all three report-mode recorders
@@ -268,7 +265,13 @@ module CurrentScope
       # need — and label itself "could not record", sending an operator after a
       # ledger problem that does not exist. Only Event.record! may trip that
       # latch. (#133 — qodo, PR #141)
+      #
+      # The subject lookup is part of that build. A raise here must not replace
+      # the ConfigurationError the request is about to re-raise.
       begin
+        subject = CurrentScope::Current.user
+        return if subject.nil?
+
         # An unsaved record has no GlobalID, so attribute the row to the subject
         # instead — the model NAME is the fix-carrying detail here, and it rides
         # in details either way.
@@ -288,19 +291,17 @@ module CurrentScope
         return nil
       end
 
-      CurrentScope::Event.record!(
-        event: "access.sod_initiator_missing", target: target || subject, details: details
-      )
-    rescue StandardError => e
-      # The request is about to 500 on the ConfigurationError being re-raised —
-      # say that, rather than claiming an outcome this path does not produce.
-      warn_ledger_failure_once(
-        e,
+      # The request is about to 500 on the ConfigurationError being re-raised.
+      # Say that, rather than claiming an outcome this path does not produce.
+      # The build rescue above returned already, so a build failure never reaches
+      # this write and cannot spend the shared one-shot warning.
+      record_ledger_row(
         event: "access.sod_initiator_missing",
+        details: details,
+        target: target || subject,
         request_outcome: "The request RAISED CurrentScope::ConfigurationError (500) — only the " \
                          "access.sod_initiator_missing row is missing."
       )
-      nil
     end
 
     # Report mode lifts EXACTLY ONE wall: :no_grant — "nobody has granted this
@@ -399,32 +400,35 @@ module CurrentScope
     end
 
     def record_sod_blind_spot_event(permission, record)
-      subject = CurrentScope::Current.user
-      return if subject.nil?
+      # Blind-spot path returns 403 next. Do not claim the request was allowed
+      # or that a would_deny row was lost (PR #103 review).
+      request_outcome = "The request was DENIED (403) — only the access.sod_blind_spot row is missing."
+      begin
+        subject = CurrentScope::Current.user
+        return if subject.nil?
 
-      target = record.equal?(NO_RECORD) ? nil : record
-      # Non-records (String params[:id], etc.) are not GlobalID targets.
-      target = nil unless target.respond_to?(:to_gid)
-
-      CurrentScope::Event.record!(
-        event: "access.sod_blind_spot",
-        target: target || subject,
-        details: {
+        target = record.equal?(NO_RECORD) ? nil : record
+        # Non-records (String params[:id], etc.) are not GlobalID targets.
+        target = nil unless target.respond_to?(:to_gid)
+        details = {
           permission: permission,
           reason: "no_grant",
           blind_spot: true,
           fix: "declare current_scope_record for this SoD member action"
         }
-      )
-    rescue StandardError => e
-      # Blind-spot path returns 403 next — do not claim the request was allowed
-      # or that a would_deny row was lost (PR #103 review).
-      warn_ledger_failure_once(
-        e,
+      rescue StandardError => e
+        # Choosing the target used to share the method rescue with the write.
+        # A failure here still warns once and still does not reach the request.
+        warn_ledger_failure_once(e, event: "access.sod_blind_spot", request_outcome: request_outcome)
+        return nil
+      end
+
+      record_ledger_row(
         event: "access.sod_blind_spot",
-        request_outcome: "The request was DENIED (403) — only the access.sod_blind_spot row is missing."
+        details: details,
+        target: target || subject,
+        request_outcome: request_outcome
       )
-      nil
     end
 
     # R3: report mode NEVER raises — that is its whole promise, and it has to hold
@@ -437,84 +441,86 @@ module CurrentScope
     # run the events migration 500s on every ungranted request — the opposite of
     # what report mode promises, landing on the exact host it exists for.
     #
-    # The rescue wraps ONLY this call. Event.record! is the one thing here with a
-    # documented raise contract, so it is the one thing worth catching; a broad
-    # rescue over the whole observation would also swallow a broken logger or
-    # response, which are app-fatal anyway and shouldn't be hidden. (#59 review)
+    # record_ledger_row rescues only the write. A broad rescue over the whole
+    # observation would also swallow a broken logger or response, which are
+    # app-fatal anyway and should not be hidden. (#59 review)
     def record_would_deny_event(permission, record, model)
-      subject = CurrentScope::Current.user
-      # No ambient subject ⇒ nothing to attribute the row to, and Event.record!
-      # raises on a nil actor. Guard on the SUBJECT, not on `target` — a record
-      # can be non-nil while the subject is nil.
-      return if subject.nil?
-
-      # NO_RECORD (the controller declared no hook) and nil (it declared "no
-      # record here") both mean there is nothing to attribute the row to but the
-      # subject. Compared by identity — NO_RECORD is an Object instance, so
-      # `is_a?` would match every record there is.
-      target = record.equal?(NO_RECORD) ? nil : record
-
-      # `target: target || subject` keeps the ledger's target non-nil, which means
-      # a record-less denial and a denial ON THE SUBJECT'S OWN RECORD both store
-      # the subject's GID. Only this side knows which it was, so say so: the #116
-      # report re-asks the resolver and must ask with the same record the gate
-      # did. Inferring it from equal GIDs would read a self-targeted denial as
-      # record-less and re-check on the more permissive arm.
-      # #196: the model the GATE used, so the #116 report can re-ask the same
-      # question. Without it the report asks a stricter one — record-less with
-      # no type — and reports as denied every subject a scoped grant already
-      # admits through current_scope_model. On the bake host that was 406 of 696
-      # rows, and the fix it implied was to grant a whole controller to everyone.
-      #
-      # Recorded ONLY when the gate could use it. With NO_RECORD (the controller
-      # declares no record hook) the resolver's record-less arm never runs, so
-      # the model is inert; storing it anyway would make the report answer
-      # ALLOWED where the gate denies, which is the same bug pointing the other
-      # way. Same condition as Current.collection_model above.
-      #
-      # The key is written with nil for "no usable model here" (see
-      # recordable_model_name), and is OMITTED only if building it raises. A row
-      # from before this field existed has no key either, and lands in the same
-      # population: re-checked without a model, and warned about. nil is
-      # knowledge, absent is not.
-      details = { permission: permission, reason: "no_grant", record_less: target.nil? }
-      # Its own rescue, and deliberately not the one below. `model` is the
-      # HOST'S object and this line asks it two questions: a class with an
-      # overridden `self.name` that raises, or one whose ancestry lookup does,
-      # would otherwise lose the whole would_deny row AND burn the one
-      # per-process warning that sod_blind_spot and sod_initiator_missing still
-      # need, then label itself "could not record" and send an operator after a
-      # ledger problem that does not exist. This repo settled that argument in
-      # PR #93 and again in PR #141. Omitting the key is the honest fallback: it
-      # puts the row in the population the report warns about.
-      #
-      # No test drives it. The shape needs a class that passes the resolver's
-      # collection_type? and then raises on .name, which means an anonymous or
-      # hostile ActiveRecord class in the dummy app — the same fixture that
-      # broke GrantDiagnosisTest once already, because PolymorphicRegistry and
-      # GrantDiagnosis both walk descendants. Cheap insurance, honestly
-      # unpinned (#196 review).
+      # The request WAS allowed through. This sentence stays here, next to the
+      # event, so a reader does not have to look it up by event name.
+      request_outcome = "The request WAS allowed through — only the access.would_deny row is missing."
       begin
-        details[:model] = recordable_model_name(record, model) unless unnameable_model?(record, model)
-      rescue StandardError
-        # Nothing to undo: Ruby evaluates the right-hand side before assigning,
-        # so a raise leaves the key unset, which is the fallback this wants —
-        # the row joins the population the report warns about (#196 review).
-        nil
+        subject = CurrentScope::Current.user
+        # No ambient subject means nothing to attribute the row to, and Event.record!
+        # raises on a nil actor. Guard on the SUBJECT, not on `target`. A record
+        # can be non-nil while the subject is nil.
+        return if subject.nil?
+
+        # NO_RECORD (the controller declared no hook) and nil (it declared "no
+        # record here") both mean there is nothing to attribute the row to but the
+        # subject. Compared by identity. NO_RECORD is an Object instance, so
+        # `is_a?` would match every record there is.
+        target = record.equal?(NO_RECORD) ? nil : record
+
+        # `target: target || subject` keeps the ledger's target non-nil, which means
+        # a record-less denial and a denial ON THE SUBJECT'S OWN RECORD both store
+        # the subject's GID. Only this side knows which it was, so say so: the #116
+        # report re-asks the resolver and must ask with the same record the gate
+        # did. Inferring it from equal GIDs would read a self-targeted denial as
+        # record-less and re-check on the more permissive arm.
+        # #196: the model the GATE used, so the #116 report can re-ask the same
+        # question. Without it the report asks a stricter one (record-less with
+        # no type) and reports as denied every subject a scoped grant already
+        # admits through current_scope_model. On the bake host that was 406 of 696
+        # rows, and the fix it implied was to grant a whole controller to everyone.
+        #
+        # Recorded ONLY when the gate could use it. With NO_RECORD (the controller
+        # declares no record hook) the resolver's record-less arm never runs, so
+        # the model is inert; storing it anyway would make the report answer
+        # ALLOWED where the gate denies, which is the same bug pointing the other
+        # way. Same condition as Current.collection_model above.
+        #
+        # The key is written with nil for "no usable model here" (see
+        # recordable_model_name), and is OMITTED only if building it raises. A row
+        # from before this field existed has no key either, and lands in the same
+        # population: re-checked without a model, and warned about. nil is
+        # knowledge, absent is not.
+        details = { permission: permission, reason: "no_grant", record_less: target.nil? }
+        # Its own rescue, and deliberately not the write below. `model` is the
+        # HOST'S object and this line asks it two questions: a class with an
+        # overridden `self.name` that raises, or one whose ancestry lookup does,
+        # would otherwise lose the whole would_deny row AND burn the one
+        # per-process warning that sod_blind_spot and sod_initiator_missing still
+        # need, then label itself "could not record" and send an operator after a
+        # ledger problem that does not exist. This repo settled that argument in
+        # PR #93 and again in PR #141. Omitting the key is the honest fallback: it
+        # puts the row in the population the report warns about.
+        #
+        # Do not fixture an ActiveRecord descendant that raises on name.
+        # PolymorphicRegistry and GrantDiagnosis walk descendants, and that
+        # fixture broke GrantDiagnosisTest. The test stubs collection_type?
+        # on a plain class instead (#196 review, #140).
+        begin
+          details[:model] = recordable_model_name(record, model) unless unnameable_model?(record, model)
+        rescue StandardError
+          # Nothing to undo: Ruby evaluates the right-hand side before assigning,
+          # so a raise leaves the key unset, which is the fallback this wants.
+          # The row joins the population the report warns about (#196 review).
+          nil
+        end
+      rescue StandardError => e
+        # A failure while choosing the target still warns once and does not
+        # reach the request. The model-name rescue above swallows its own
+        # failure, so that failure does not land here and the write still runs.
+        warn_ledger_failure_once(e, event: "access.would_deny", request_outcome: request_outcome)
+        return nil
       end
 
-      CurrentScope::Event.record!(
-        event: "access.would_deny", target: target || subject, details: details
-      )
-    rescue StandardError => e
-      # ponytail: swallow and warn ONCE. An unrecordable observation is a lost
-      # log line; a raise here is a 500 on a request report mode promised to pass.
-      warn_ledger_failure_once(
-        e,
+      record_ledger_row(
         event: "access.would_deny",
-        request_outcome: "The request WAS allowed through — only the access.would_deny row is missing."
+        details: details,
+        target: target || subject,
+        request_outcome: request_outcome
       )
-      nil
     end
 
     # The model NAME the report may re-ask with, or nil (#196).
@@ -546,6 +552,17 @@ module CurrentScope
     def unnameable_model?(record, model)
       !record.equal?(NO_RECORD) && model.is_a?(Class) &&
         CurrentScope.resolver.collection_type?(model) && model.name.blank?
+    end
+
+    # The shared write for the three report-mode recorders. Rescues only
+    # Event.record!. Callers build the row first. A build failure must not
+    # reach this method: the one-shot warning is shared, and a build failure
+    # is not a ledger failure.
+    def record_ledger_row(event:, details:, target:, request_outcome:)
+      CurrentScope::Event.record!(event: event, target: target, details: details)
+    rescue StandardError => e
+      warn_ledger_failure_once(e, event: event, request_outcome: request_outcome)
+      nil
     end
 
     # The failure this catches is PERSISTENT, not incidental: :report + audit

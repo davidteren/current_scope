@@ -324,6 +324,217 @@ class DenialSurveyTest < ActiveSupport::TestCase
     assert_equal before, CurrentScope::Event.count
   end
 
+  test "a finished ledger read records that the events table exists" do
+    survey = nil
+    capture_io { survey = CurrentScope::DenialSurvey.denials }
+
+    assert_equal false, survey.events_table_missing
+  end
+
+  test "a denial with no permission is unknown and the why line names the count" do
+    alice = User.create!(name: "Alice")
+    CurrentScope::Event.create!(
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name,
+      details: { "reason" => "no_grant" }
+    )
+
+    survey = nil
+    capture_io { survey = CurrentScope::DenialSurvey.denials }
+    assembly, = assemble_in
+
+    assert_equal 1, survey.unknown.size
+    assert_empty survey.outstanding
+    assert assembly.why.any? { |line| line.include?("would-be denials STILL ungranted") },
+           assembly.why.inspect
+  end
+
+  test "audit on does not add an audit why line" do
+    assembly, = assemble_in(audit: true)
+
+    refute assembly.why.any? { |line| line.include?("Audit is") }, assembly.why.inspect
+  end
+
+  test "audit strict does not add an audit why line" do
+    assembly, = assemble_in(audit: :strict)
+
+    assert_equal NOTHING, assembly.headline
+    refute assembly.why.any? { |line| line.include?("Audit is") }, assembly.why.inspect
+  end
+
+  test "a degraded SoD preflight with no findings says the empty list is not a result" do
+    result = CurrentScope::SodPreflight::Result.new(
+      rows: [], inspected: 0, in_scope: 2,
+      skipped: [ [ "invoices", RuntimeError.new("hook blew up") ] ]
+    )
+    original = CurrentScope::SodPreflight.method(:scan)
+    CurrentScope::SodPreflight.define_singleton_method(:scan) { result }
+
+    assembly, = assemble_in
+
+    assert_equal CANNOT_TELL, assembly.headline
+    assert assembly.why.any? { |line| line.include?("An empty finding list is not a result.") },
+           assembly.why.inspect
+    refute assembly.why.any? { |line| line.include?("The finding list is incomplete.") },
+           assembly.why.inspect
+  ensure
+    CurrentScope::SodPreflight.define_singleton_method(:scan, original) if original
+  end
+
+  test "a missing events table says nothing was recorded" do
+    stub_events_error("no such table: current_scope_events")
+
+    assembly, = assemble_in
+
+    assert assembly.why.any? { |line| line.include?("doesn't exist, so nothing was recorded") },
+           assembly.why.inspect
+  ensure
+    restore_events_where
+  end
+
+  test "a record-less denial whose model is not a collection type stays unknown" do
+    alice = User.create!(name: "Alice")
+    CurrentScope::Event.create!(
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name,
+      details: {
+        "permission" => "reports#index", "reason" => "no_grant",
+        "record_less" => true, "model" => "String"
+      }
+    )
+
+    survey = nil
+    capture_io { survey = CurrentScope::DenialSurvey.denials }
+
+    assert_equal 1, survey.unknown.size
+    assert_equal 1, survey.dead_model.size
+    assert_empty survey.outstanding
+  end
+
+  test "a grant whose role row is gone is not a declaration refusal" do
+    alice = User.create!(name: "Alice")
+    project = Project.create!(name: "Q3")
+    role = role_with("projects#show")
+    grant = scope_grant(alice, role, project)
+    ActiveRecord::Base.connection.disable_referential_integrity do
+      CurrentScope::Role.delete(role.id)
+    end
+
+    survey = nil
+    capture_io { survey = CurrentScope::DenialSurvey.denials }
+
+    refute_includes survey.nonconforming_grants.map(&:id), grant.id
+    assert_equal false, survey.grant_scan_rescued
+    assert_equal 0, survey.unjudgeable_grants
+  end
+
+  test "a grant on a type with no role declaration is not unjudgeable" do
+    alice = User.create!(name: "Alice")
+    bob = User.create!(name: "Bob")
+    grant = scope_grant(alice, role_with("reports#show"), bob)
+
+    survey = nil
+    capture_io { survey = CurrentScope::DenialSurvey.denials }
+
+    refute_includes survey.nonconforming_grants.map(&:id), grant.id
+    assert_equal false, survey.grant_scan_rescued
+    assert_equal 0, survey.unjudgeable_grants
+  end
+
+  test "a stored nil model is not superseded by a later granted type" do
+    alice = User.create!(name: "Alice")
+    report = Report.create!(title: "Q3", requested_by: alice)
+    scope_grant(alice, role_with("reports#index"), report)
+    base = {
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name
+    }
+    CurrentScope::Event.create!(**base, created_at: 2.days.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant",
+      "record_less" => true, "model" => nil
+    })
+    CurrentScope::Event.create!(**base, created_at: 1.day.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant",
+      "record_less" => true, "model" => "Report"
+    })
+
+    survey = nil
+    capture_io { survey = CurrentScope::DenialSurvey.denials }
+
+    assert_equal 1, survey.outstanding.size
+    assert_nil survey.outstanding.first.model
+    assert_empty survey.superseded
+  end
+
+  test "a superseded legacy row leaves the legacy list" do
+    alice = User.create!(name: "Alice")
+    report = Report.create!(title: "Q3", requested_by: alice)
+    scope_grant(alice, role_with("reports#index"), report)
+    base = {
+      event: "access.would_deny", subject: alice.to_gid.to_s, actor: alice.to_gid.to_s,
+      target: alice.to_gid.to_s, target_label: alice.name
+    }
+    CurrentScope::Event.create!(**base, created_at: 2.days.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant", "record_less" => true
+    })
+    CurrentScope::Event.create!(**base, created_at: 1.day.ago, details: {
+      "permission" => "reports#index", "reason" => "no_grant",
+      "record_less" => true, "model" => "Report"
+    })
+
+    survey = nil
+    capture_io { survey = CurrentScope::DenialSurvey.denials }
+
+    assert_equal 1, survey.superseded.size
+    assert_empty survey.legacy_model
+    assert_empty survey.outstanding
+  end
+
+  test "the grant scan loads each resource type once" do
+    alice = User.create!(name: "Alice")
+    bob = User.create!(name: "Bob")
+    cara = User.create!(name: "Cara")
+    scope_grant(alice, role_with("reports#show"), bob)
+    scope_grant(alice, role_with("reports#index"), cara)
+
+    selects = []
+    callback = lambda do |*args|
+      sql = args.last[:sql].to_s
+      selects << sql if sql.match?(/from ["`]?users["`]?/i) && sql.match?(/\ASELECT/i)
+    end
+    ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
+      capture_io { CurrentScope::DenialSurvey.denials }
+    end
+
+    assert_equal 1, selects.size, selects.inspect
+  end
+
+  test "break-glass on still walks an ungated controller" do
+    config = CurrentScope.config
+    original = config.allow_sod_bypass
+    config.allow_sod_bypass = true
+
+    assembly, = assemble_in(grouped: { "bare" => [ "show" ] })
+
+    assert_equal NOT_READY, assembly.headline
+    assert assembly.why.any? { |line| line.include?("bare") }, assembly.why.inspect
+  ensure
+    config.allow_sod_bypass = original
+  end
+
+  test "break-glass on still walks a controller that lists no actions" do
+    config = CurrentScope.config
+    original = config.allow_sod_bypass
+    config.allow_sod_bypass = true
+
+    assembly, = assemble_in(grouped: { "bare" => [] })
+
+    assert_equal NOT_READY, assembly.headline
+    assert assembly.why.any? { |line| line.include?("bare") }, assembly.why.inspect
+  ensure
+    config.allow_sod_bypass = original
+  end
+
   private
 
   def spoken(assembly)

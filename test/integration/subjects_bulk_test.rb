@@ -475,4 +475,43 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
     assert_nil CurrentScope::RoleAssignment.find_by(subject: alice)
     assert_nil CurrentScope::RoleAssignment.find_by(subject: bob)
   end
+
+  # "Skipped " + 1,491 letters + "." is 1,500 bytes, the whole notice budget.
+  # A larger leftover count in the preview is enough to push that name out.
+  test "a skipped name that fills the notice budget stays whole" do
+    name = "n" * 1_491
+    sentence = CurrentScope::RoleAssignmentsController.new.send(:skipped_names_sentence, [ name ])
+
+    assert_equal "Skipped #{name}.", sentence
+  end
+
+  test "a notice name one byte over the clip keeps eighty bytes" do
+    clipped = CurrentScope::RoleAssignmentsController.new.send(:clipped_notice_name, "a" * 81)
+
+    assert_equal "a" * 80, clipped
+  end
+
+  test "a clear still removes the role when assign would be refused" do
+    delegate = User.create!(name: "Delegate")
+    alice = User.create!(name: "Alice")
+    CurrentScope::RoleAssignment.create!(subject: alice, role: @role)
+    authorizer = lambda do |actor, action:, target: nil, **|
+      next false unless actor == delegate
+      return true if action == :access
+      return true if action == :revoke_role && target == alice
+
+      false
+    end
+
+    with_management_authorizer(authorizer) do
+      post current_scope.role_assignments_url, headers: as(delegate), params: {
+        role_id: "",
+        subject_gids: [ alice.to_gid.to_s ]
+      }
+    end
+
+    assert_redirected_to current_scope.subjects_path
+    assert_equal "Org-wide role cleared.", flash[:notice]
+    assert_nil CurrentScope::RoleAssignment.find_by(subject: alice)
+  end
 end

@@ -390,6 +390,64 @@ class FullAccessLockAssignmentTest < ActiveSupport::TestCase
     assert_match(/claimed by both/, CurrentScope::Current.polymorphic_registry_error.to_s)
   end
 
+  test "the would-lose walk locks the role rows" do
+    selects = []
+    callback = lambda do |*args|
+      sql = args.last[:sql].to_s
+      selects << sql if sql.match?(/from ["`]current_scope_roles["`]/i) && !sql.match?(/join/i)
+    end
+
+    ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
+      lock.would_lose_held_full_access?([ "Owner" ])
+    end
+
+    assert_equal 1, selects.size, selects.inspect
+  end
+
+  test "an already locked planned id is not queried as an empty page" do
+    sqls = []
+    callback = lambda do |*args|
+      sqls << args.last[:sql].to_s
+    end
+
+    ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
+      refute lock.would_lose_held_full_access?([ "Owner" ])
+    end
+
+    refute sqls.any? { |sql| sql.match?(/1\s*=\s*0/) }, sqls.inspect
+  end
+
+  test "a registry that goes blind after the current pages still refuses" do
+    @owner_assignment.destroy!
+    calls = 0
+    singleton = lock.singleton_class
+    original = lock.method(:registry_blind?)
+    singleton.define_method(:registry_blind?) do
+      calls += 1
+      calls > 1
+    end
+
+    assert lock.would_lose_held_full_access?([ "Promoted" ]),
+           "a registry that fails during the planned pages must still refuse"
+  ensure
+    singleton.define_method(:registry_blind?, original) if original
+  end
+
+  test "a lock that returns every planned id does not load those ids again" do
+    selects = []
+    callback = lambda do |*args|
+      sql = args.last[:sql].to_s
+      selects << sql if sql.match?(/from ["`]current_scope_role_assignments["`]/i)
+    end
+
+    ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
+      assert lock.would_lose_held_full_access?([ "Promoted" ])
+    end
+
+    reloads = selects.count { |sql| sql.match?(/where ["`]?current_scope_role_assignments["`]?\.["`]?id["`]?/i) }
+    assert_equal 1, reloads, selects.inspect
+  end
+
   test "the console lock pages every current full-access id and skips other rows" do
     other = second_live_holder
     member = CurrentScope::RoleAssignment.create!(subject: User.create!(name: "Member"), role: @member_role)

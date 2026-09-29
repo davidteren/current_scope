@@ -1,0 +1,23 @@
+README.md
+  s_be14d56078e8d2::t_2fdbe5ba158906 376,412-421
+docs/site/ai-agents.md
+  s_be14d56078e8d2::t_341e281709d529 217-229
+docs/site/limitations.md
+  s_be14d56078e8d2::t_8b92e7463d9dff 21-22,25-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "06beada2a2c34c7cbbe7c12586d166df0b4dd1c7",
+  "prompts": {},
+  "sessions": {
+    "s_be14d56078e8d2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a017ee4-da61-4a96-9a80-843bb0f41e07",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

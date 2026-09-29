@@ -277,9 +277,22 @@ module CurrentScope
           end
 
           cache.delete(key)
+          # The list key did not change. Grant answers stored for that list
+          # belong to the dropped ancestors. A later clean hit must not
+          # return them for a different subject.
+          drop_grants_for_list(key)
         end
 
         cache[key] = walk(record)
+      end
+
+      def drop_grants_for_list(list_key)
+        grants = CurrentScope::Current.ancestor_grant_cache
+        return if grants.nil? || grants.empty?
+
+        grants.delete_if do |grant_key, _allowed|
+          grant_key.is_a?(Array) && grant_key.last(list_key.size) == list_key
+        end
       end
 
       # Checked HERE, not at declaration time, because it needs reflection.klass

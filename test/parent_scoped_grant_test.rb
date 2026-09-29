@@ -44,6 +44,24 @@ class ParentScopedGrantTest < ActiveSupport::TestCase
     assert_equal [ true, nil ], decide(@lead, "reports#approve", @report)
   end
 
+  test "destroying the same parent drops every stored ancestor allow" do
+    colleague = User.create!(name: "Colleague")
+    cold = Report.find(@report.id)
+    scope_grant(@lead, role("Lead", "reports#approve"), @project)
+    scope_grant(colleague, role("Colleague", "reports#approve"), @project)
+
+    assert_equal [ true, nil ], decide(@lead, "reports#approve", cold)
+    assert_equal [ true, nil ], decide(colleague, "reports#approve", cold)
+    parent = CurrentScope::ParentChain.ancestors_for(cold).first
+    child_fk = cold.project_id
+    parent.destroy!
+
+    assert_equal child_fk, cold.project_id
+    assert parent.destroyed?
+    assert_equal [ false, :no_grant ], decide(@lead, "reports#approve", cold)
+    assert_equal [ false, :no_grant ], decide(colleague, "reports#approve", cold)
+  end
+
   test "a persisted parent grant opens an unsaved child before validation" do
     scope_grant(@lead, role("Draft approver", "reports#approve"), @project)
     draft = Report.new(title: "Draft", project: @project, requested_by: @requester)

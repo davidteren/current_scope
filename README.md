@@ -373,7 +373,7 @@ delegated access): the role grid, org-wide assignments, scoped grants.
 | Guide | What it covers |
 |---|---|
 | [Concepts & glossary](docs/guides/concepts-and-glossary.md) | Decision order + core vocabulary — **read first** |
-| [Checking permissions](docs/guides/checking-permissions.md) | `allowed_to?`, `scope_for`, record-level, scopeable models |
+| [Checking permissions](docs/guides/checking-permissions.md) | `allowed_to?`, `scope_for`, `abilities_for`, record-level, scopeable models |
 | [Separation of duties & break-glass](docs/guides/separation-of-duties-and-break-glass.md) | SoD veto, `allow_sod_bypass` |
 | [Impersonation](docs/guides/impersonation.md) | Act-as, mutation guard, denial shape |
 | [Configuration reference](docs/guides/configuration-reference.md) | Initializer knobs, enforcement, audit, diagnostics |
@@ -409,10 +409,16 @@ bin/rails server   # http://localhost:3000
 ## Limitations
 
 **SSR-first.** CurrentScope is for server-rendered Rails (controllers, views,
-ViewComponents, Turbo). Separate JS front-ends ([#96](https://github.com/davidteren/current_scope/issues/96))
-and Inertia ([#97](https://github.com/davidteren/current_scope/issues/97)) have
-no first-class client contract yet. API controllers that include Guard still
-authorize on the server.
+ViewComponents, Turbo). A JavaScript or Inertia host can read one advisory
+snapshot, `CurrentScope.abilities_for`. The
+[checking permissions](docs/guides/checking-permissions.md#client-snapshot)
+guide shows two recipes: a one-action host JSON controller
+([#96](https://github.com/davidteren/current_scope/issues/96)) and an Inertia
+shared prop ([#97](https://github.com/davidteren/current_scope/issues/97)).
+This gem does not mount that action, does not depend on Inertia, and does not
+ship a JavaScript package. The scenario apps are not in this repo. Both issues
+stay open. API controllers that include Guard still authorize on the server.
+The snapshot does not replace the gate.
 
 **Model limits** — deliberate shape of the v1 data model, not gaps:
 

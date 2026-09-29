@@ -241,6 +241,36 @@ module  CurrentScope
       resolver.scope_for(subject: subject, model: model, permission: permission)
     end
 
+    # Advisory snapshot for a client that cannot call the resolver. The request
+    # gate stays authoritative. This hash does not apply the separation-of-duties
+    # veto, so a listed id can still be refused when the subject started that record.
+    #
+    # `scopes` is a list of [model, permission] pairs. One scope_for call per pair.
+    # It does not cross every model with every permission, and it does not scan
+    # the host's models. `limit` is a required positive integer. nil, zero, a
+    # negative number, and a non-integer raise ArgumentError before any relation
+    # is limited. Each entry keeps at most `limit` ids. `truncated` is true when
+    # one more id exists. Ids are the primary key values scope_for returns.
+    # They are not cast with to_i. Fetching limit + 1 is how truncation is known
+    # without a count and without a second grant query.
+    #
+    # A nil subject fails closed: full_access is false, there is no org role,
+    # and every requested list is empty. An empty permission_keys list is not
+    # full access. permission_keys is not a list of record ids.
+    def abilities_for(subject, scopes:, limit:)
+      bound = abilities_limit!(limit)
+      pairs = abilities_scope_pairs(scopes)
+      role = subject.nil? ? nil : resolver.org_role(subject)
+
+      {
+        version: VERSION,
+        full_access: resolver.full_access?(subject),
+        org_role: role&.name,
+        permission_keys: role ? role.permission_keys.dup : [],
+        scoped: pairs.map { |model, permission| abilities_scoped_entry(subject, model, permission, bound) }
+      }
+    end
+
     # THE human-label fallback chain, shared by the UI helpers
     # (ApplicationHelper#current_scope_label) and the audit ledger
     # (Event.label_for) — one definition, so a record can never render as
@@ -518,6 +548,55 @@ module  CurrentScope
     end
 
     private
+
+    def abilities_limit!(limit)
+      return limit if limit.is_a?(Integer) && limit.positive?
+
+      raise ArgumentError, "limit must be a positive integer"
+    end
+
+    def abilities_scope_pairs(scopes)
+      unless scopes.is_a?(Array)
+        raise ArgumentError, "scopes must be a list of [model, permission] pairs"
+      end
+
+      scopes.map { |pair| abilities_scope_pair(pair) }
+    end
+
+    def abilities_scope_pair(pair)
+      unless pair.is_a?(Array) && pair.length == 2
+        raise ArgumentError, "each scope must be a [model class, permission key] pair"
+      end
+
+      model, permission = pair
+      # Each fault names itself. A connection error while reading the primary
+      # key must stay that error. It must not look like a bad pair.
+      unless permission.is_a?(String) && !permission.empty?
+        raise ArgumentError, "each permission key must be a non-empty string"
+      end
+      unless model.is_a?(Class) && model.name.present?
+        raise ArgumentError, "each model must be a named class"
+      end
+      unless CurrentScope.resolver.collection_type?(model)
+        raise ArgumentError, "#{model.name} is not a concrete model"
+      end
+      return [ model, permission ] if CurrentScope.storable_key?(model)
+
+      raise ArgumentError, CurrentScope.unstorable_key_error(model, role: "resource")
+    end
+
+    def abilities_scoped_entry(subject, model, permission, limit)
+      relation = scope_for(subject: subject, model: model, permission: permission)
+      key = model.primary_key
+      ids = relation.reorder(key).limit(limit + 1).pluck(key)
+
+      {
+        model: model.name,
+        permission: permission,
+        ids: ids.take(limit),
+        truncated: ids.length > limit
+      }
+    end
 
     # The documented namespaced/custom-named controller foot-gun (#41): the short
     # form derived a DIFFERENT key than the gate on this controller enforces, so a

@@ -216,6 +216,151 @@ records when the model declares `current_scope_parent` (see above). SoD does not
 apply — it vetoes record-targeted *actions*,
 not list membership.
 
+## Client snapshot
+
+A JavaScript client and an Inertia client cannot call the resolver. They can
+read one advisory hash, `CurrentScope.abilities_for`. The request gate stays
+the authority. This gem does not mount a route for the hash, does not depend
+on Inertia, and does not ship a JavaScript package. Authenticate the subject
+before you call it. Pass `current_scope_user`, the effective subject the gate
+checks. During impersonation, `current_user` can be the real actor, and a
+snapshot of the actor hides the wrong records. A nil subject fails closed:
+`full_access` is false, there
+is no org role, and every requested id list is empty. Do not treat that result
+as allow-all.
+
+```ruby
+CurrentScope.abilities_for(
+  current_scope_user,
+  scopes: [[Project, "projects#index"], [Report, "reports#show"]],
+  limit: 100
+)
+```
+
+The hash has five keys.
+
+- `version` is `CurrentScope::VERSION`.
+- `full_access` is the resolver's boolean.
+- `org_role` is the org role name, or `nil`.
+- `permission_keys` is that role's `permission_keys`, or `[]` when there is no org role.
+- `scoped` has one entry per pair. Each entry has `model` (the class name), `permission` (the key), `ids`, and `truncated`.
+
+`permission_keys` is not a list of record ids. An empty `permission_keys` list
+is not full access.
+
+`scopes` is a list of pairs. Each pair is one model class and one permission
+key string. The method calls `scope_for` once for that pair. It does not cross
+every model with every permission, and it does not discover the host's models.
+An abstract class, a class with no name, or a model whose primary key is not
+one column, raises `ArgumentError` before `scope_for` runs. The error names
+that fault. A permission key that is not a non-empty string does the same.
+
+`limit` is required. It must be a positive integer. `nil`, zero, a negative
+number, and a string raise `ArgumentError` before any relation is limited.
+There is no default that returns every id. Each entry holds at most `limit`
+primary-key ids, ordered by that key. The same rows return the same cut. Ids
+are the values `scope_for` returns. A string primary key stays a string.
+
+`truncated` is true when another id exists. The hash is stale as soon as a
+grant changes. The server is authoritative on the next request. When
+`full_access` is true, or the key is in `permission_keys`, `scope_for`
+returns every current row. This snapshot still keeps at most `limit` ids.
+A cut entry is a sample, and absence is not a denial. When `truncated` is
+false, those ids are every row from this response. Creating or destroying a
+row makes that complete list stale even when no grant changed.
+
+### What a client may hide
+
+The ids are an allow list, up to the separation-of-duties veto. This snapshot
+does not apply that veto. A listed id can still be refused when the subject
+started that record.
+
+Hide a record only when `truncated` is false and the id is absent. Build the
+snapshot in the same response as the records the client filters. A later
+response can include a row this snapshot does not list. When
+`truncated` is true, absence is not a denial. Pass `allowed_to?` for that one
+record as a page prop, and let the page decide. `full_access` false plus an
+empty id list means no access. When `full_access` is true, or the key is in
+`permission_keys`, `scope_for` returns every row. A cut entry is then a sample
+of the table, not a list of exceptions.
+
+### Host JSON action
+
+One host action renders the hash as JSON. Add the route in the host. This
+engine does not. Pass the subject authentication already established. Do not
+take that subject from a query parameter.
+
+The action is not itself a grant check. Skip the gate on it, or a subject with
+no grants cannot read the empty snapshot. Authentication still has to run
+first. The snapshot does not authorize the next request.
+
+```ruby
+class AbilitiesController < ApplicationController
+  current_scope_skip_gate!(reason: "the subject is reading their own advisory snapshot")
+
+  def show
+    render json: CurrentScope.abilities_for(
+      current_scope_user,
+      scopes: [[Project, "projects#index"], [Report, "reports#show"]],
+      limit: 100
+    )
+  end
+end
+```
+
+### Inertia shared prop
+
+Use this only in a host that already has Inertia. Do not add `inertia_rails`
+to this gem.
+
+```ruby
+class ApplicationController < ActionController::Base
+  inertia_share do
+    {
+      abilities: CurrentScope.abilities_for(
+        current_scope_user,
+        scopes: [[Project, "projects#index"], [Report, "reports#show"]],
+        limit: 100
+      )
+    }
+  end
+end
+```
+
+When an entry is truncated, pass `allowed_to?` for the one record the page is
+showing. A missing id in that cut is not a denial.
+
+```ruby
+def show
+  project = Project.find(params[:id])
+
+  render inertia: "Projects/Show", props: {
+    project: project.as_json,
+    allowed: allowed_to?(:show, project)
+  }
+end
+```
+
+### A 403 during an Inertia visit
+
+A host denial is HTTP 403 with an empty body. The reason is the
+`X-Current-Scope-Reason` header. Show that reason on the page. Do not redirect.
+A redirect drops the header before the client can read it.
+
+Override the body seam. `current_scope_denied` has already set the header, and
+this override does not remove it:
+
+```ruby
+def current_scope_render_denied(reason)
+  render inertia: "Denied", props: { reason: reason.to_s }, status: :forbidden
+end
+```
+
+If you register your own `rescue_from CurrentScope::AccessDenied`, set
+`X-Current-Scope-Reason` yourself or the header is gone. The denial table, the
+empty body, and that rescue order are in
+[Impersonation](impersonation.md).
+
 ## Record-level decisions
 
 Member actions that need scoped roles or the SoD veto declare a hook. It runs

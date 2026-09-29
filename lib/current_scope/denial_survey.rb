@@ -73,9 +73,11 @@ module CurrentScope
       rescue ActiveRecord::StatementInvalid => e
         # A missing events table is a returned fact, not an empty ledger, and not
         # an abort. The report task still stops with the migrate sentence before
-        # any other section. An unrelated StatementInvalid still raises. The empty
-        # stand-in rows below must not be read as "nothing to act on".
-        raise unless e.message.match?(/current_scope_events/i)
+        # any other section. An unrelated StatementInvalid still raises. A missing
+        # column whose message names this table is that unrelated error: it is not
+        # an un-migrated host. The empty stand-in rows below must not be read as
+        # "nothing to act on".
+        raise unless CurrentScope::Event.missing_events_table?(e)
 
         events_table_missing = true
         rows = []
@@ -446,7 +448,7 @@ module CurrentScope
 
     def self.assemble
       survey = denials
-      ungated, missing, name_errors = gating_walk
+      ungated, missing, name_errors, empty_catalog = gating_walk
       config = CurrentScope.config
       why = []
 
@@ -463,7 +465,15 @@ module CurrentScope
         why << "Audit is #{config.audit.inspect}. It is neither true nor :strict."
       end
       why << "The SoD preflight could not complete." if survey.preflight.degraded?
-      why << "The SoD preflight is blind. An empty finding list is not a result." if survey.preflight.blind?
+      if survey.preflight.blind?
+        # blind? is also true when degraded? is true. A degraded scan can still
+        # have rows. Do not call that list empty.
+        why << if survey.preflight.degraded? && survey.preflight.any?
+          "The SoD preflight is blind. The finding list is incomplete."
+        else
+          "The SoD preflight is blind. An empty finding list is not a result."
+        end
+      end
       if survey.grant_scan_rescued
         why << "The grant scan rescued an error. This run cannot judge every grant."
       end
@@ -471,11 +481,14 @@ module CurrentScope
         why << "The current_scope_events table doesn't exist, so nothing was recorded."
         why << "Run: bin/rails current_scope:install:migrations && bin/rails db:migrate"
       end
+      if empty_catalog
+        why << "No routed controllers were found in the permission catalog, so nothing was inspected."
+      end
       if missing.any?
         why << "Routed paths whose controller class did not load: #{missing.join(', ')}."
       end
-      name_errors.each do |path|
-        why << "Loading controller #{path} raised NameError."
+      name_errors.each do |path, error_class|
+        why << "Loading controller #{path} raised #{error_class}."
       end
 
       moot_count = survey.moot.sum(&:denials)
@@ -492,6 +505,7 @@ module CurrentScope
         survey.preflight.blind? ||
         survey.grant_scan_rescued ||
         survey.events_table_missing ||
+        empty_catalog ||
         missing.any? ||
         name_errors.any?
       headline = if problem
@@ -517,22 +531,41 @@ module CurrentScope
     # counts as a problem.
     def self.gating_walk
       gating = CurrentScope::GatingReflection.new
+      catalog = CurrentScope.catalog
+      grouped = catalog.grouped
       ungated = []
       missing = []
       name_errors = []
-      CurrentScope.catalog.grouped.each_key do |controller|
+      # The catalog injects break-glass onto the last path segment. That row
+      # can name a controller nobody routes. The ungated task omits it. Do
+      # the same here, or a host that turns break-glass on is CANNOT TELL
+      # on every run.
+      bypass_action = CurrentScope.config.allow_sod_bypass ? catalog.bypass_action : nil
+      grouped.each do |controller, actions|
+        next if injected_bypass_only?(catalog, controller, actions, bypass_action)
+
         begin
           if gating.ungated?(controller)
             ungated << controller
           elsif gating.missing_controller?(controller)
             missing << controller
           end
-        rescue NameError
-          name_errors << controller
+        rescue NameError => e
+          # NoMethodError is a NameError. Keep the class, so a bug in the
+          # reflection is not described as a controller that failed to load.
+          name_errors << [ controller, e.class.name ]
         end
       end
-      [ ungated, missing, name_errors ]
+      [ ungated, missing, name_errors, grouped.empty? ]
     end
     private_class_method :gating_walk
+
+    def self.injected_bypass_only?(catalog, controller, actions, bypass_action)
+      return false if bypass_action.nil?
+      return false if actions.empty? || actions.any? { |action| action != bypass_action }
+
+      !catalog.routed?("#{controller}##{bypass_action}")
+    end
+    private_class_method :injected_bypass_only?
   end
 end

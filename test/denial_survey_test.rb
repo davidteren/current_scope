@@ -216,6 +216,77 @@ class DenialSurveyTest < ActiveSupport::TestCase
     restore_events_where
   end
 
+  test "a missing column on the events table still raises" do
+    stub_events_error("column current_scope_events.details does not exist")
+
+    error = assert_raises(ActiveRecord::StatementInvalid, SystemExit) do
+      capture_io { CurrentScope::DenialSurvey.assemble }
+    end
+
+    assert_kind_of ActiveRecord::StatementInvalid, error
+  ensure
+    restore_events_where
+  end
+
+  test "an empty permission catalog is CANNOT TELL" do
+    assembly, = assemble_in(grouped: {})
+
+    assert_equal CANNOT_TELL, assembly.headline
+    assert assembly.why.any? { |line| line.include?("nothing was inspected") }, assembly.why.inspect
+    refute_equal NOTHING, assembly.headline
+  end
+
+  test "an injected break-glass row is not a missing controller" do
+    config = CurrentScope.config
+    original_bypass = config.allow_sod_bypass
+    config.allow_sod_bypass = true
+    CurrentScope.catalog.define_singleton_method(:routed?) { |key| key != "ghost#bypass_sod" }
+
+    assembly, = assemble_in(grouped: { "reports" => [ "index" ], "ghost" => [ "bypass_sod" ] })
+
+    assert_equal NOTHING, assembly.headline
+    refute assembly.why.any? { |line| line.include?("ghost") }, assembly.why.inspect
+  ensure
+    config.allow_sod_bypass = original_bypass
+  end
+
+  test "a NoMethodError during the ungated walk keeps its class name" do
+    reflection = CurrentScope::GatingReflection
+    original = reflection.instance_method(:ungated?)
+    reflection.define_method(:ungated?) { |_controller| raise NoMethodError, "boom" }
+
+    assembly, = assemble_in(grouped: { "reports" => [ "index" ] })
+
+    assert_equal CANNOT_TELL, assembly.headline
+    assert assembly.why.any? { |line| line.include?("NoMethodError") }, assembly.why.inspect
+    refute assembly.why.any? { |line| line.include?("raised NameError") }, assembly.why.inspect
+  ensure
+    reflection.define_method(:ungated?, original) if original
+  end
+
+  test "a degraded SoD preflight with findings does not call the list empty" do
+    result = CurrentScope::SodPreflight::Result.new(
+      rows: [ [ "reports#approve", Report ] ],
+      inspected: 1,
+      in_scope: 2,
+      skipped: [ [ "invoices", RuntimeError.new("hook blew up") ] ]
+    )
+    original = CurrentScope::SodPreflight.method(:scan)
+    CurrentScope::SodPreflight.define_singleton_method(:scan) { result }
+
+    assembly, = assemble_in
+
+    assert result.degraded?
+    assert result.blind?
+    assert result.any?
+    assert_equal NOT_READY, assembly.headline
+    assert assembly.why.any? { |line| line.include?("could not complete") }, assembly.why.inspect
+    assert assembly.why.any? { |line| line.match?(/blind/i) }, assembly.why.inspect
+    refute assembly.why.any? { |line| line.match?(/empty finding list/i) }, assembly.why.inspect
+  ensure
+    CurrentScope::SodPreflight.define_singleton_method(:scan, original) if original
+  end
+
   test "a NameError during the ungated walk is CANNOT TELL and names the controller" do
     assert_raises(NameError) { CurrentScope::GatingReflection.new.ungated?("broken_constant") }
 

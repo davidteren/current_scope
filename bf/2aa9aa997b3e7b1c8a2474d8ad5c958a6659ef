@@ -1,0 +1,31 @@
+lib/current_scope.rb
+  s_74907f46c32c88::t_56cf4a8989a6e9 19
+lib/current_scope/report_printer.rb
+  s_f431179cf982ca::t_f1cd3cf5cbba18 1-421
+lib/tasks/current_scope_tasks.rake
+  s_f431179cf982ca::t_4e9503dcb8aa76 487-506
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "bf2aa9aa997b3e7b1c8a2474d8ad5c958a6659ef",
+  "prompts": {},
+  "sessions": {
+    "s_74907f46c32c88": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "85cc10a6-0224-41bc-8491-87ef2153d9a3",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    },
+    "s_f431179cf982ca": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "81d3f53d-efe9-4b07-ae39-21f80366d454",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

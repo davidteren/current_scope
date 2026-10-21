@@ -1,4 +1,6 @@
 require "ferrum"
+require "puma"
+require "rack/files"
 require "yaml"
 
 # One place that knows how this repo launches Chrome for the docs-site tests.
@@ -8,6 +10,32 @@ require "yaml"
 # slower runner — had to be made in four places, and missing one produced a
 # single mysteriously failing file.
 module HeadlessChrome
+  # Serve only the fixture directory on an OS-assigned loopback port. HTTP
+  # works in managed browsers that disallow file://, and gives localStorage
+  # the same origin semantics readers get on the published site.
+  def serve_site(directory)
+    @site_server = Puma::Server.new(Rack::Files.new(directory))
+    @site_server.add_tcp_listener("127.0.0.1", 0)
+    @site_origin = "http://127.0.0.1:#{@site_server.connected_ports.fetch(0)}"
+    @site_server.run
+  end
+
+  def stop_site
+    @site_server&.stop(true)
+  end
+
+  def site_url(path)
+    "#{@site_origin}/#{path}"
+  end
+
+  def site_page(browser)
+    page = browser.create_page
+    # Allow the fixture server only. Remote badges and version lookups must
+    # neither change the assertions nor keep navigation waiting on the network.
+    page.network.allowlist = [ /\A#{Regexp.escape(@site_origin)}\// ]
+    page
+  end
+
   # process_timeout covers launching the browser; timeout covers each CDP
   # command. They are separate, and Ferrum's default for the second is 5s, which
   # is far too short for the chooser's answer-space walk.

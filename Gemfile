@@ -19,8 +19,8 @@ group :test do
   gem "capybara"
   gem "cuprite"
   # Required directly by the docs-site browser tests (test/system/support/
-  # headless_chrome.rb and the three docs_site_*_test.rb files), which drive the
-  # static pages over file:// with no app server. It arrives through cuprite
+  # headless_chrome.rb and the docs_site_*_test.rb files), which drive the
+  # static pages over a local HTTP fixture server. It arrives through cuprite
   # anyway, but a file that requires it should say so: otherwise a driver change
   # in cuprite would surface as a missing gem rather than as what it is.
   gem "ferrum"

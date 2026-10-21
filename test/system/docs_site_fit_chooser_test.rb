@@ -60,8 +60,6 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
       <style>#{style}</style></head><body>#{mount}
       <script>#{script}</script></body></html>
     HTML
-
-    @page_path = File.join(@dir, "fit.html")
   end
 
   # Opened only when a test actually drives the widget. Three of them read
@@ -69,15 +67,17 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
   # Chrome for those is three browsers per run doing no work.
   def page
     @page ||= begin
+      serve_site(@dir)
       @browser = open_browser(size: [ 1280, 900 ], timeout: 60)
-      opened = @browser.create_page
-      opened.go_to("file://#{@page_path}")
+      opened = site_page(@browser)
+      opened.go_to(site_url("fit.html"))
       opened
     end
   end
 
   teardown do
     @browser&.quit
+    stop_site
     FileUtils.remove_entry(@dir) if @dir && File.directory?(@dir)
   end
 

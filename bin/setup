@@ -1,0 +1,38 @@
+#!/usr/bin/env ruby
+require "fileutils"
+require "optparse"
+require "rubygems"
+
+full_index = false
+OptionParser.new do |options|
+  options.banner = "Usage: bin/setup [--full-index]"
+  options.on("--full-index", "Use RubyGems' full index instead of its compact-index host") { full_index = true }
+end.parse!
+abort "Unexpected arguments: #{ARGV.join(' ')}" unless ARGV.empty?
+
+Dir.chdir(File.expand_path("..", __dir__)) do
+  expected_ruby = File.read(".ruby-version").strip
+  abort "Activate Ruby #{expected_ruby} before running bin/setup (found #{RUBY_VERSION})." unless RUBY_VERSION == expected_ruby
+  abort "Unset DATABASE_URL for SQLite setup; use bin/db for server adapters." unless ENV["DATABASE_URL"].to_s.empty?
+
+  bundler_version = File.read("Gemfile.lock")[/BUNDLED WITH\n\s+(\S+)/, 1]
+  abort "Gemfile.lock must specify BUNDLED WITH." unless bundler_version
+
+  if Gem::Specification.find_all_by_name("bundler", bundler_version).empty?
+    system(Gem.ruby, "-S", "gem", "install", "bundler", "--version", bundler_version, "--no-document", exception: true)
+  end
+
+  # Installation must never resolve a new lockfile during environment setup.
+  ENV["BUNDLE_FROZEN"] = "true"
+  bundle = [ Gem.ruby, "-S", "bundle", "_#{bundler_version}_" ]
+  unless system(*bundle, "check")
+    install_options = full_index ? [ "--full-index" ] : []
+    system(*bundle, "install", *install_options, exception: true)
+  end
+
+  FileUtils.mkdir_p("tmp")
+  # Load the committed schema; migrating SQLite would rewrite bigint columns
+  # in the tracked schema dump. This engine accepts one Rails command at a time.
+  system({ "RAILS_ENV" => "test" }, *bundle, "exec", Gem.ruby, "bin/rails", "db:test:prepare", exception: true)
+  puts "Setup complete. Run bin/rails test and bin/rails test:system sequentially."
+end

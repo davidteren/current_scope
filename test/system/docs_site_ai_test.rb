@@ -18,11 +18,11 @@ class DocsSiteAiBrowseTest < ActiveSupport::TestCase
     @dir = Dir.mktmpdir("cs-docs-ai")
     FileUtils.cp(LANDING, File.join(@dir, "index.html"))
     DocsSite::Builder.new(ROOT).publish!(@dir)
+    serve_site(@dir)
 
     @browser = open_browser(size: [ 1440, 1000 ])
-    @page = @browser.create_page
-    @page.network.blocklist = [ %r{\Ahttps?://} ]
-    @page.go_to("file://#{File.join(@dir, "index.html")}")
+    @page = site_page(@browser)
+    @page.go_to(site_url("index.html"))
     wait_until(timeout: 15, message: "the landing page never finished parsing") do
       @page.evaluate("document.readyState") != "loading"
     end
@@ -30,6 +30,7 @@ class DocsSiteAiBrowseTest < ActiveSupport::TestCase
 
   teardown do
     @browser&.quit
+    stop_site
     FileUtils.remove_entry(@dir) if @dir && File.directory?(@dir)
   end
 

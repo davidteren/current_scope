@@ -85,7 +85,7 @@ written on.
 
 Before writing the first assertion, list every input the page takes from outside the
 document: each `@media` query in its CSS, each `matchMedia` in its JS, the viewport,
-the locale and timezone, and every URL that is not `file://` or the app under test.
+the locale and timezone, and every URL outside the local fixture server or app under test.
 Each one is a test input. Pin it, or the OS pins it for you.
 
 For media features, the harness speaks CDP directly:
@@ -106,13 +106,20 @@ the list above is the checklist for the next one.
 Abort remote requests at the network layer, before `go_to`:
 
 ```ruby
-@page.network.blocklist = [ %r{\Ahttps?://} ]
-@page.go_to("file://#{LANDING}")
+serve_site(File.dirname(LANDING))
+@page = site_page(@browser) # allows only this fixture server's origin
+@page.go_to(site_url("index.html"))
 ```
 
 An aborted request is finished, not pending, so it cannot keep the frame loading past
 the timeout, and the page sees a failed image or fetch and carries on.
 With the four remote requests black-holed on purpose, `go_to` returned in 0.08 s.
+
+The original harness used `file://` and blocked all HTTP requests. Managed cloud
+browsers can prohibit file navigation, so the harness now serves its fixture
+directory on an ephemeral loopback port and allows only that HTTP origin. Stop
+the fixture server in teardown. This also gives localStorage ordinary web-origin
+semantics without depending on browser-specific file-origin behavior.
 
 Do not reach for `wait_for_idle` or `readyState == "complete"` to work around this.
 `wait_for_idle` waits on every request, the fetch included; `complete` waits for the

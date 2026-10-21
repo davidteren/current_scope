@@ -57,9 +57,13 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
       <div class="d-md-none mt-4 fs-2">#{footer}</div>
       </body></html>
     HTML
+    serve_site(@dir)
   end
 
-  teardown { FileUtils.remove_entry(@dir) if @dir && File.directory?(@dir) }
+  teardown do
+    stop_site
+    FileUtils.remove_entry(@dir) if @dir && File.directory?(@dir)
+  end
 
   # just-the-docs v0.12.0's own switcher, which the include prefers whenever it
   # is loaded: it rewrites the first stylesheet's href to
@@ -82,10 +86,10 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
   # fail on a runner set the other way: ubuntu-latest reports light.
   def with_page(size, jtd: false, prefers: "dark")
     browser = open_browser(size: size)
-    page = browser.create_page
+    page = site_page(browser)
     page.command("Emulation.setEmulatedMedia", media: "screen",
                  features: [ { "name" => "prefers-color-scheme", "value" => prefers } ])
-    page.go_to("file://#{File.join(@dir, 'docs.html')}")
+    page.go_to(site_url("docs.html"))
     # After load, which is fine: the handler reads window.jtd when it is
     # clicked, not when it is attached.
     page.execute(JTD_STUB) if jtd
@@ -219,14 +223,14 @@ class DocsSiteThemeToggleTest < ActiveSupport::TestCase
   # here before first paint, without the reader touching anything.
   test "a choice made on the landing page is already applied when the docs load" do
     browser = open_browser(size: DESKTOP)
-    page = browser.create_page
+    page = site_page(browser)
     # Emulated dark, so that a light result can only have come from the stored
     # choice and not from the machine's own preference.
     page.command("Emulation.setEmulatedMedia", media: "screen",
                  features: [ { "name" => "prefers-color-scheme", "value" => "dark" } ])
-    page.go_to("file://#{File.join(@dir, 'docs.html')}")
+    page.go_to(site_url("docs.html"))
     page.evaluate('localStorage.setItem("cs-theme", "light")')
-    page.go_to("file://#{File.join(@dir, 'docs.html')}")
+    page.go_to(site_url("docs.html"))
     wait_until(message: "the toggle was never wired after the second load") do
       toggles(page).any? { |t| !t["hidden"] }
     end

@@ -18,15 +18,16 @@ require_relative "support/headless_chrome"
 # unit pins in test/docs_site_test.rb were reduced to doing. This drives the real
 # page in a real browser instead, which is also what AGENTS.md asks for.
 #
-# It does not boot the app: the page is static, so it is loaded over file://.
+# A small HTTP fixture server serves the static page without the Rails app.
 class DocsSiteRevealTest < ActiveSupport::TestCase
   include HeadlessChrome
 
   LANDING = File.expand_path("../../docs/site/index.html", __dir__)
 
   setup do
+    serve_site(File.dirname(LANDING))
     @browser = open_browser(size: [ 1440, 1000 ])
-    @page = @browser.create_page
+    @page = site_page(@browser)
     # The reveal is skipped entirely under prefers-reduced-motion, and correctly
     # so. Unpinned, these tests would read the machine's accessibility setting
     # and fail against a page behaving exactly as designed.
@@ -39,8 +40,7 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
     # every test paid the full 60s timeout in setup (validation findings,
     # 2026-09-04). Abort them at the network layer instead: the page sees each
     # as a failed request and carries on.
-    @page.network.blocklist = [ %r{\Ahttps?://} ]
-    @page.go_to("file://#{LANDING}")
+    @page.go_to(site_url("index.html"))
 
     # Not "complete" either: the reveal script sits at the end of <body>, so
     # "interactive" is already past it, and waiting for the elements is what
@@ -51,7 +51,10 @@ class DocsSiteRevealTest < ActiveSupport::TestCase
     end
   end
 
-  teardown { @browser&.quit }
+  teardown do
+    @browser&.quit
+    stop_site
+  end
 
   # The first scroll arms the reveal; the transient arming class is removed in a
   # requestAnimationFrame callback, so waiting a fixed 300ms for it is a race on

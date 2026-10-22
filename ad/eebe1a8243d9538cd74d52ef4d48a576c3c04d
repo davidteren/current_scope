@@ -1,0 +1,19 @@
+cubic.yaml
+  s_bb728227ba1107::t_de119087bfd2ba 5,7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "adeebe1a8243d9538cd74d52ef4d48a576c3c04d",
+  "prompts": {},
+  "sessions": {
+    "s_bb728227ba1107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "426df8b0-e4a9-428e-9e4a-ef119955aad9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

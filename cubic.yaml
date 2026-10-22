@@ -2,7 +2,9 @@
 version: 1
 
 reviews:
-  enabled: true
+  # Automatic AI reviews are off to save the shared review quota.
+  # Ask for one on a PR with: @cubic-dev-ai review
+  enabled: false
   sensitivity: high
   incremental_commits: true
   check_drafts: false

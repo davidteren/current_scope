@@ -1,0 +1,21 @@
+lib/current_scope/definitions_document.rb
+  s_74907f46c32c88::t_042174cd3e7cd2 333-336,340
+lib/current_scope/full_access_lock.rb
+  s_74907f46c32c88::t_aeddded4f2911b 5-8,11-28,92-99,101,146-238
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "0885cbdbc3b0f23a92ff5fc5093a3ea717af8cdc",
+  "prompts": {},
+  "sessions": {
+    "s_74907f46c32c88": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "85cc10a6-0224-41bc-8491-87ef2153d9a3",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

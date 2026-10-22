@@ -1,0 +1,20 @@
+CHANGELOG.md
+  h_e8a5bb9272fa34 126-130
+app/models/current_scope/scoped_role_assignment.rb
+  h_e8a5bb9272fa34 34-36,38
+test/parent_scope_for_test.rb
+  h_e8a5bb9272fa34 398-401
+test/parent_scoped_grant_test.rb
+  h_e8a5bb9272fa34 65-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "c210712063282e08c6c60d593e47f8e481ed6f66",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

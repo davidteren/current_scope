@@ -1,0 +1,21 @@
+test/support/support_table.rb
+  s_74907f46c32c88::t_2561296a30e7d8 6-13,16-23,30-31,34-66
+test/support_tables_test.rb
+  s_74907f46c32c88::t_4c7d0daa2ddc7b 12-13,21-28,31-38,76-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7ed96601afcf01f79e189e2474f24161c990286d",
+  "prompts": {},
+  "sessions": {
+    "s_74907f46c32c88": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "85cc10a6-0224-41bc-8491-87ef2153d9a3",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

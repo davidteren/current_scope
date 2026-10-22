@@ -1,0 +1,19 @@
+docs/plans/2026-09-29-002-fix-definitions-apply-lock-bound-plan.md
+  s_74907f46c32c88::t_eaeed933d052f9 1-195
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "a3a7666a3c94291a6bfcd77470f9593509754f62",
+  "prompts": {},
+  "sessions": {
+    "s_74907f46c32c88": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "85cc10a6-0224-41bc-8491-87ef2153d9a3",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

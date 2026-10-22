@@ -1,0 +1,19 @@
+test/system/delegated_console_controls_test.rb
+  s_7b1bae394660cb::t_0903d6a4fdebd5 1-130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "ed4ba654662de9110662e83c876f9fefeee2541b",
+  "prompts": {},
+  "sessions": {
+    "s_7b1bae394660cb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a0ed6e-0ebd-7180-887a-b25ed6a9536c",
+        "model": "unknown"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

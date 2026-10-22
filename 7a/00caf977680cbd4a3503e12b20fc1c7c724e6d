@@ -1,0 +1,21 @@
+CHANGELOG.md
+  s_74907f46c32c88::t_3ee61f812854cd 129-132
+docs/guides/configuration-reference.md
+  s_74907f46c32c88::t_ff71c4da1a311b 238-243
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7a00caf977680cbd4a3503e12b20fc1c7c724e6d",
+  "prompts": {},
+  "sessions": {
+    "s_74907f46c32c88": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "85cc10a6-0224-41bc-8491-87ef2153d9a3",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

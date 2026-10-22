@@ -1,0 +1,18 @@
+CHANGELOG.md
+  h_e8a5bb9272fa34 15-17
+docs/guides/checking-permissions.md
+  h_e8a5bb9272fa34 265-268,276-278
+docs/plans/2026-09-29-008-feat-client-abilities-plan.md
+  h_e8a5bb9272fa34 64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "1222f864f0480b5d66937faf3edc4a026001832c",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

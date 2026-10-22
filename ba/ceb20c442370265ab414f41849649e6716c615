@@ -1,0 +1,21 @@
+lib/current_scope/parent_chain.rb
+  s_be14d56078e8d2::t_4a574dc730e96d 280-283,289-297
+test/parent_scoped_grant_test.rb
+  s_be14d56078e8d2::t_652d0d66becf33 47-64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "baceb20c442370265ab414f41849649e6716c615",
+  "prompts": {},
+  "sessions": {
+    "s_be14d56078e8d2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a017ee4-da61-4a96-9a80-843bb0f41e07",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

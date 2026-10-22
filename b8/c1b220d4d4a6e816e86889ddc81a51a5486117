@@ -1,0 +1,14 @@
+test/parent_chain_test.rb
+  h_e8a5bb9272fa34 662-743
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "b8c1b220d4d4a6e816e86889ddc81a51a5486117",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

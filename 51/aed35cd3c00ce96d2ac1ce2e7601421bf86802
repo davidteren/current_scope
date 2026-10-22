@@ -1,0 +1,14 @@
+docs/plans/2026-09-29-005-fix-validation-followups-plan.md
+  h_e8a5bb9272fa34 70,106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "51aed35cd3c00ce96d2ac1ce2e7601421bf86802",
+  "prompts": {},
+  "humans": {
+    "h_e8a5bb9272fa34": {
+      "author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

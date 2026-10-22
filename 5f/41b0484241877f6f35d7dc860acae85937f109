@@ -1,0 +1,21 @@
+docs/guides/checking-permissions.md
+  s_83851335d21301::t_07387e8bad4615 71-75,80-95
+lib/current_scope/guard.rb
+  s_83851335d21301::t_36d6705b00b41c 32-37,41-51,53-55,64-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "5f41b0484241877f6f35d7dc860acae85937f109",
+  "prompts": {},
+  "sessions": {
+    "s_83851335d21301": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "55536412-dada-49ee-9a5e-e73feec6e3f7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "davidteren <drteren@gmail.com>"
+    }
+  }
+}

@@ -3,7 +3,8 @@ version: 1
 
 reviews:
   # Automatic standard AI reviews are off to save the shared review quota.
-  # Ask for one on a PR with: @cubic-dev-ai review
+  # Review locally first with the free CLI: cubic review -b origin/main
+  # On a PR, "@cubic-dev-ai review" starts a full review, which uses quota.
   # Ultrareview has its own switch (reviews.ultrareview below).
   enabled: false
   sensitivity: high

@@ -78,7 +78,9 @@ of the following are done on the **current** head:
 
 1. **Wait** for remote CI and agentic reviewers to settle on the head SHA
    (cubic, qodo, Devin, and any other required checks). Do not declare ready
-   while a review bot is still pending.
+   while a review bot is still pending. cubic no longer reviews PRs
+   automatically (`reviews.enabled: false` in `cubic.yaml`), so do not wait
+   for it unless a cubic review was requested on that PR.
 2. **Re-review the open PR** with the same three lenses (PR-aware where the
    skill supports it): `/ce-code-review`, `/ie-review`, `/cubic-loop` in
    **PR mode** (or local cubic on that branch if PR mode cannot run). Fix

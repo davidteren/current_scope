@@ -2,8 +2,9 @@
 version: 1
 
 reviews:
-  # Automatic AI reviews are off to save the shared review quota.
+  # Automatic standard AI reviews are off to save the shared review quota.
   # Ask for one on a PR with: @cubic-dev-ai review
+  # Ultrareview has its own switch (reviews.ultrareview below).
   enabled: false
   sensitivity: high
   incremental_commits: true

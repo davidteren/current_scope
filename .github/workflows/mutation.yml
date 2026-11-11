@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
-      RUBY_VERSION: 3.4.9
+      RUBY_VERSION: 3.4.12
       RAILS_ENV: test
       # GitHub Actions sets CI=1. Without this, test_helper starts SimpleCov
       # with the CI coverage floor, and Mutineer's own Coverage map is stolen

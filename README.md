@@ -157,6 +157,8 @@ mode to tell you what would break.
 
 ## Installation
 
+Run **Ruby 3.4.12+, 3.3.13+, or 4.0.9+**. The gem still accepts Ruby 3.2 or newer, but those releases fix memory-safety bugs in Ruby's regular-expression compiler (CVE-2026-89078, CVE-2026-93577, CVE-2026-97229, CVE-2026-110264). The bugs are reachable when an application compiles a pattern from untrusted input. [Announcement](https://www.ruby-lang.org/en/news/2026/10/23/regexp-fixes-for-gitlab-cves/).
+
 > **Upgrading from 0.4 or earlier? Run the migrations.** 0.5 widens the columns
 > that store a grant's subject and resource id, so UUID and other string primary
 > keys are stored whole instead of being truncated to an integer

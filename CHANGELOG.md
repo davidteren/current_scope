@@ -386,6 +386,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   check, and ends with one grep line. The docs-site page and the README upgrade
   callout carry the same commands.
 
+### Security
+
+- **CI runs Ruby 3.4.12.** Ruby 3.4.12, 3.3.13, and 4.0.9 fix memory-safety bugs
+  in the regular-expression compiler, tracked as CVE-2026-89078, CVE-2026-93577,
+  CVE-2026-97229, and CVE-2026-110264
+  ([announcement](https://www.ruby-lang.org/en/news/2026/10/23/regexp-fixes-for-gitlab-cves/)).
+  `required_ruby_version` stays `>= 3.2`. Hosts should run Ruby 3.4.12+, 3.3.13+,
+  or 4.0.9+.
+
 ## [0.5.1] - 2026-08-12
 
 ### Changed

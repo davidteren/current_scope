@@ -223,6 +223,9 @@ module CurrentScope
     def reset_cached_permissions
       role_permissions.reset
       CurrentScope::Current.reset_org_role_cache
+      # Permission edits use delete_all and insert_all, so this save is the
+      # clear that those rows do not perform. The ancestor list is not a grant.
+      CurrentScope::Current.reset_ancestor_grant_cache
     end
 
     def snapshot_for_audit

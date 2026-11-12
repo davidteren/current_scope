@@ -31,6 +31,13 @@ module CurrentScope
     include CurrentScope::AuditedWrites
     after_create :record_scoped_role_granted
     after_destroy :record_scoped_role_revoked
+    # Create, update, destroy, and rollback. An in-place edit of the subject,
+    # role, or resource must not keep an allow stored earlier in this request.
+    # The ancestor list is parent data and is not cleared here (#136).
+    after_create { CurrentScope::Current.reset_ancestor_grant_cache }
+    after_update { CurrentScope::Current.reset_ancestor_grant_cache }
+    after_destroy { CurrentScope::Current.reset_ancestor_grant_cache }
+    after_rollback { CurrentScope::Current.reset_ancestor_grant_cache }
 
     # The audit TARGET is the subject, resolved through the canonical guard so a
     # non-canonical stored id names the grant row itself rather than the

@@ -44,6 +44,33 @@ class ParentScopedGrantTest < ActiveSupport::TestCase
     assert_equal [ true, nil ], decide(@lead, "reports#approve", @report)
   end
 
+  test "destroying the same parent drops every stored ancestor allow" do
+    colleague = User.create!(name: "Colleague")
+    cold = Report.find(@report.id)
+    scope_grant(@lead, role("Lead", "reports#approve"), @project)
+    scope_grant(colleague, role("Colleague", "reports#approve"), @project)
+
+    assert_equal [ true, nil ], decide(@lead, "reports#approve", cold)
+    assert_equal [ true, nil ], decide(colleague, "reports#approve", cold)
+    parent = CurrentScope::ParentChain.ancestors_for(cold).first
+    child_fk = cold.project_id
+    parent.destroy!
+
+    assert_equal child_fk, cold.project_id
+    assert parent.destroyed?
+    assert_equal [ false, :no_grant ], decide(@lead, "reports#approve", cold)
+    assert_equal [ false, :no_grant ], decide(colleague, "reports#approve", cold)
+  end
+
+  test "moving a parent grant drops the stored child allow" do
+    assignment = scope_grant(@lead, role("Moved grant", "reports#approve"), @project)
+    cold = Report.find(@report.id)
+
+    assert_equal [ true, nil ], decide(@lead, "reports#approve", cold)
+    assignment.update!(resource: @other_project)
+    assert_equal [ false, :no_grant ], decide(@lead, "reports#approve", cold)
+  end
+
   test "a persisted parent grant opens an unsaved child before validation" do
     scope_grant(@lead, role("Draft approver", "reports#approve"), @project)
     draft = Report.new(title: "Draft", project: @project, requested_by: @requester)
@@ -204,6 +231,21 @@ class ParentScopedGrantTest < ActiveSupport::TestCase
         assert_equal [ false, :sod_veto ], decide(@lead, "reports#approve", own),
                      "break-glass held on an ancestor must NOT lift the veto — the veto's " \
                      "escape hatch is exactly what must not widen with the chain"
+      end
+    end
+  end
+
+  test "a warm ancestor bypass grant still does not lift the veto on a child" do
+    with_sod_actions("approve") do
+      with_bypass do
+        Report.sod_bypass_glass = true
+        scope_grant(@lead, role("Lead", "reports#approve", "reports#bypass_sod"), @project)
+        own = Report.create!(title: "mine", project: @project, requested_by: @lead)
+
+        assert @resolver.allow?(subject: @lead, permission: "reports#bypass_sod", record: own),
+               "the warm-up has to cache the cascading bypass grant"
+        assert_equal [ false, :sod_veto ], decide(@lead, "reports#approve", own),
+                     "a stored ancestor allow for bypass_sod must not satisfy cascade: false"
       end
     end
   end

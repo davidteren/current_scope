@@ -117,6 +117,9 @@
               <% if (diag = current_scope_grant_diagnosis_badge(sra)) %>
                 <span class="<%= diag[0] %>" title="<%= diag[2] %>"><%= diag[1] %><span class="cs-badge-note"> — <%= diag[2] %></span></span>
               <% end %>
+              <% if (refused = current_scope_declaration_refused_badge(sra)) %>
+                <span class="<%= refused[0] %>" id="declaration_refused_<%= sra.id %>" title="<%= refused[2] %>"><%= refused[1] %><span class="cs-badge-note"> — <%= refused[2] %></span></span>
+              <% end %>
             </td>
             <td>
               <% revoke_prompt = orphaned ?

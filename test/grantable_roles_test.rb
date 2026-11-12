@@ -100,8 +100,26 @@ class GrantableRolesTest < ActiveSupport::TestCase
 
     assert Project.current_scope_grants_role?("Project Lead")
     assert_not Project.current_scope_grants_role?("Report Editor")
+    assert Project.current_scope_grants_role?(@container), "a Role instance is unchanged"
     assert_raises(ArgumentError, "a nil role is a caller error, not a refusal") do
       Project.current_scope_grants_role?(nil)
+    end
+  end
+
+  # Role validates presence, so a Role can never be blank. The predicate also
+  # accepts a string. A blank string must stay refused even when the allow list
+  # itself contains "", which include? would accept. The reader is stubbed
+  # because the setter strips blanks before they can be stored.
+  test "a blank string is refused even when the allow list contains one" do
+    declare_grantable_roles(Project, [ "Project Lead" ])
+    assert Project.current_scope_grants_role?("Project Lead")
+
+    Project.define_singleton_method(:current_scope_grantable_roles) { [ "" ] }
+
+    assert_not Project.current_scope_grants_role?("")
+  ensure
+    if Project.singleton_class.instance_methods(false).include?(:current_scope_grantable_roles)
+      Project.singleton_class.send(:remove_method, :current_scope_grantable_roles)
     end
   end
 

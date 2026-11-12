@@ -142,6 +142,27 @@ module CurrentScope
       ]
     end
 
+    # A grant the type would refuse if it were written today. Not a
+    # GrantDiagnosis verdict and not the inert badge: the row still matches
+    # until someone revokes it. Same decision as the report task, including
+    # the cases that stay silent.
+    def current_scope_declaration_refused_badge(grant)
+      return nil if grant.role.nil?
+      return nil if grant.respond_to?(:orphaned_resource?) && grant.orphaned_resource?
+
+      klass = grant.current_scope_governing_class(inert_on_error: true)
+      return nil if klass.nil? || !klass.respond_to?(:current_scope_grants_role?)
+      return nil if klass.current_scope_grants_role?(grant.role)
+
+      [
+        "cs-declaration-badge", "would refuse",
+        "The type's declaration would refuse this role if it were granted today, " \
+        "and the existing grant still matches until someone revokes it."
+      ]
+    rescue StandardError
+      nil
+    end
+
     def current_scope_holder_resource_label(scoped_assignment)
       if scoped_assignment.respond_to?(:orphaned_resource?) && scoped_assignment.orphaned_resource?
         return "#{scoped_assignment.resource_type} ##{scoped_assignment.resource_id} (unavailable — inert)"

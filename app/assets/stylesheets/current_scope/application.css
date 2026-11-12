@@ -678,7 +678,8 @@ input[type="checkbox"], input[type="radio"] {
    danger fill where .cs-inert-badge uses a wash of the same token, so the two
    are separable at a glance. Real theme tokens only (--cs-danger, --cs-warn). */
 .cs-dead-badge,
-.cs-check-badge {
+.cs-check-badge,
+.cs-declaration-badge {
   display: inline-block;
   font-size: 0.6875rem;
   font-weight: 600;
@@ -693,7 +694,10 @@ input[type="checkbox"], input[type="radio"] {
   color: var(--cs-surface);
   background: var(--cs-danger);
 }
-.cs-check-badge {
+/* Declaration refusal uses the same warn outline as the advisory badge.
+   It is not the danger fill, and it is not the topbar ok chip. */
+.cs-check-badge,
+.cs-declaration-badge {
   color: var(--cs-warn, #b45309);
   border: 1px solid var(--cs-warn, #b45309);
   background: color-mix(in srgb, var(--cs-warn, #b45309) 12%, var(--cs-surface));

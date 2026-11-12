@@ -229,7 +229,16 @@ module CurrentScope
     end
 
     def record_scoped_role_granted = record_scoped_role_audit("scoped_role.granted")
-    def record_scoped_role_revoked = record_scoped_role_audit("scoped_role.revoked")
+
+    # Rails sets this from destroy_row > 0 before after_destroy. A second
+    # in-memory handle of the same id deletes zero rows, so it must not write
+    # another event. Stay here, not after_commit, so strict audit rolls the
+    # grant back with the event.
+    def record_scoped_role_revoked
+      return unless _trigger_destroy_callback
+
+      record_scoped_role_audit("scoped_role.revoked")
+    end
 
     # The guard first: audit_subject and audit_resource_label each resolve a
     # polymorphic record, and a host with auditing off should pay for neither.

@@ -14,10 +14,10 @@ require_relative "support/headless_chrome"
 # object literal happens to be written in, a library that could never be
 # reached, and verdicts that named an upside with no cost.
 #
-# So this drives the real chooser. The page is Jekyll Markdown with the widget
-# inline, so the test assembles the same three parts Jekyll would (the mount
-# point, the style and the script) into a plain HTML file and walks every answer
-# path in the browser.
+# So this drives the real chooser. The page loads the script from
+# docs/site/assets/js/fit-chooser.js. An external script tag has an empty body,
+# so this reads that file and inlines it, with the mount point and the style
+# from the markdown, and walks every answer path in the browser.
 #
 # What that does and does not cover: it exercises the shipped script, styles and
 # markup, so the scoring, the disqualifiers, the ties, Back and the focus
@@ -30,6 +30,7 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
   include HeadlessChrome
 
   PAGE = File.expand_path("../../docs/site/comparison.md", __dir__)
+  SCRIPT = File.expand_path("../../docs/site/assets/js/fit-chooser.js", __dir__)
 
   # Every library here answers only for a Rails app, so none of them may be the
   # verdict once the reader says something outside Rails needs the same answer.
@@ -37,16 +38,17 @@ class DocsSiteFitChooserTest < ActiveSupport::TestCase
 
   setup do
     source = File.read(PAGE, encoding: "UTF-8")
+    script = File.read(SCRIPT, encoding: "UTF-8")
+    flunk "fit-chooser.js does not define the chooser" unless script.include?("QUESTIONS") && script.include?("LIBS")
+    assert_match(%r{<script src="\{\{ '/assets/js/fit-chooser\.js' \| relative_url \}\}"></script>}, source,
+                 "the page loads the chooser through the site baseurl")
 
-    # Chosen by content, not by position: taking the first <script> or <style>
-    # would silently assemble a different widget than the site ships if another
+    # Chosen by content, not by position: taking the first <style> would
+    # silently assemble a different widget than the site ships if another
     # block were ever added above the chooser, and the real one would go
     # untested while everything still passed.
-    scripts = source.scan(/<script\b[^>]*>(.*?)<\/script>/m).flatten
-    styles  = source.scan(/<style\b[^>]*>(.*?)<\/style>/m).flatten
-    script  = scripts.find { |b| b.include?("QUESTIONS") && b.include?("LIBS") } or
-      flunk "no <script> in comparison.md defines the chooser"
-    style   = styles.find { |b| b.include?(".cs-fit") } or
+    styles = source.scan(/<style\b[^>]*>(.*?)<\/style>/m).flatten
+    style  = styles.find { |b| b.include?(".cs-fit") } or
       flunk "no <style> in comparison.md styles the chooser"
 
     mount = source[/<div id="fitter"[^>]*>.*?<\/div>/m] or flunk "the chooser lost its mount point"

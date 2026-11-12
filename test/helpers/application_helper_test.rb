@@ -409,5 +409,109 @@ module CurrentScope
     ensure
       CurrentScope.define_singleton_method(:polymorphic_class, original)
     end
+
+    # The report task already names a grant the type would refuse today. The
+    # console helper must make the same call, and must not revoke the row.
+    DECLARATION_REFUSAL_CAVEAT =
+      "The type's declaration would refuse this role if it were granted today, " \
+      "and the existing grant still matches until someone revokes it."
+
+    test "a nil role shows no declaration badge and does not raise" do
+      grant = CurrentScope::ScopedRoleAssignment.new(role: nil, resource_type: "Project", resource_id: "1")
+
+      assert_nothing_raised do
+        assert_nil current_scope_declaration_refused_badge(grant)
+      end
+    end
+
+    test "a nil governing class shows no declaration badge and does not raise" do
+      role = CurrentScope::Role.create!(name: "Editor")
+      grant = CurrentScope::ScopedRoleAssignment.new(role: role, resource_type: "", resource_id: "")
+
+      assert_not grant.orphaned_resource?
+      assert_nil grant.current_scope_governing_class(inert_on_error: true)
+      assert_nothing_raised do
+        assert_nil current_scope_declaration_refused_badge(grant)
+      end
+    end
+
+    test "a declaration lookup that raises shows no badge and does not raise" do
+      holder = User.create!(name: "Holder")
+      project = Project.create!(name: "Declared")
+      role = CurrentScope::Role.create!(name: "Editor")
+      grant = CurrentScope::ScopedRoleAssignment.create!(subject: holder, role: role, resource: project)
+      declare_grantable_roles(Project, [ "Other" ])
+      Project.define_singleton_method(:current_scope_grants_role?) { |_role| raise "lookup failed" }
+
+      assert_nothing_raised do
+        assert_nil current_scope_declaration_refused_badge(grant)
+      end
+      assert CurrentScope::ScopedRoleAssignment.exists?(grant.id)
+    ensure
+      if Project.singleton_class.instance_methods(false).include?(:current_scope_grants_role?)
+        Project.singleton_class.send(:remove_method, :current_scope_grants_role?)
+      end
+    end
+
+    test "a live grant the declaration refuses shows the badge and keeps the row" do
+      holder = User.create!(name: "Holder")
+      project = Project.create!(name: "Declared")
+      role = CurrentScope::Role.create!(name: "Editor")
+      grant = CurrentScope::ScopedRoleAssignment.create!(subject: holder, role: role, resource: project)
+      declare_grantable_roles(Project, [ "Other" ])
+
+      assert_equal(
+        [ "cs-declaration-badge", "would refuse", DECLARATION_REFUSAL_CAVEAT ],
+        current_scope_declaration_refused_badge(grant)
+      )
+      assert CurrentScope::ScopedRoleAssignment.exists?(grant.id)
+    end
+
+    test "an orphan the declaration would refuse shows no badge" do
+      holder = User.create!(name: "Holder")
+      project = Project.create!(name: "Gone")
+      role = CurrentScope::Role.create!(name: "Editor")
+      grant = CurrentScope::ScopedRoleAssignment.create!(subject: holder, role: role, resource: project)
+      declare_grantable_roles(Project, [ "Other" ])
+      project.destroy!
+      grant.reload
+
+      assert grant.orphaned_resource?
+      assert_nil current_scope_declaration_refused_badge(grant)
+      assert CurrentScope::ScopedRoleAssignment.exists?(grant.id)
+    end
+
+    test "a nil role shows no badge even when the type would refuse every role" do
+      project = Project.create!(name: "Declared")
+      grant = CurrentScope::ScopedRoleAssignment.new(role: nil, resource: project)
+      Project.define_singleton_method(:current_scope_grants_role?) { |_role| false }
+      declare_grantable_roles(Project, [ "Other" ])
+
+      assert_nil current_scope_declaration_refused_badge(grant)
+    ensure
+      if Project.singleton_class.instance_methods(false).include?(:current_scope_grants_role?)
+        Project.singleton_class.send(:remove_method, :current_scope_grants_role?)
+      end
+    end
+
+    test "a missing record asks the type with inert errors and shows no badge" do
+      role = CurrentScope::Role.create!(name: "Editor")
+      grant = CurrentScope::ScopedRoleAssignment.new(role: role, resource_type: "Project", resource_id: "1")
+      grant.define_singleton_method(:orphaned_resource?) { false }
+      grant.define_singleton_method(:current_scope_resolved_record) { |_side| nil }
+      seen = []
+      original = CurrentScope.method(:polymorphic_class)
+      CurrentScope.define_singleton_method(:polymorphic_class) do |_type, inert_on_error: false|
+        seen << inert_on_error
+        raise CurrentScope::ConfigurationError, "poison" unless inert_on_error
+
+        Project
+      end
+
+      assert_nil current_scope_declaration_refused_badge(grant)
+      assert_equal [ true ], seen
+    ensure
+      CurrentScope.define_singleton_method(:polymorphic_class, original) if original
+    end
   end
 end

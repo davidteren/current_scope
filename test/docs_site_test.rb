@@ -9,6 +9,8 @@ class DocsSiteTest < ActiveSupport::TestCase
   LANDING = File.expand_path("../docs/site/index.html", __dir__)
   QUICKSTART = File.expand_path("../docs/site/quickstart.md", __dir__)
   UPGRADING_PAGE = File.expand_path("../docs/site/upgrading.md", __dir__)
+  COMPARISON = File.expand_path("../docs/site/comparison.md", __dir__)
+  FIT_CHOOSER = File.expand_path("../docs/site/assets/js/fit-chooser.js", __dir__)
 
   setup do
     @html = File.read(LANDING, encoding: "UTF-8")
@@ -66,11 +68,15 @@ class DocsSiteTest < ActiveSupport::TestCase
   end
 
   test "the fit page keeps its chooser and its no-JavaScript fallback" do
-    page = File.read(File.expand_path("../docs/site/comparison.md", __dir__), encoding: "UTF-8")
+    page = File.read(COMPARISON, encoding: "UTF-8")
+
+    assert_match(%r{<script src="\{\{ '/assets/js/fit-chooser\.js' \| relative_url \}\}"></script>}, page,
+                 "the page loads the chooser through the site baseurl")
+    refute_match(/\bvar QUESTIONS\b/, page, "the chooser script is not inline")
 
     # Anchored on the element, not the token: `data-fitter` also appears in a
-    # CSS selector and in the querySelector call, so deleting the mount point
-    # (which deletes the noscript nested in it) would not fail a bare match.
+    # CSS selector, so deleting the mount point (which deletes the noscript
+    # nested in it) would not fail a bare match.
     assert_match(%r{<div id="fitter" data-fitter[^>]*>\s*<noscript>}, page,
                  "the chooser's mount point carries the no-JavaScript fallback")
     assert_match(/^\| If this is true of you/, page,
@@ -93,7 +99,7 @@ class DocsSiteTest < ActiveSupport::TestCase
   # contradicting the other, so pin the seam: the landing table may only name
   # libraries the full page covers, and it has to send the reader there.
   test "the landing page's short comparison defers to the full one" do
-    page = File.read(File.expand_path("../docs/site/comparison.md", __dir__), encoding: "UTF-8")
+    page = File.read(COMPARISON, encoding: "UTF-8")
     covered = page[/^\| \| CurrentScope \|.*$/].to_s.split("|").map(&:strip).reject(&:empty?)
 
     section = @html[/<section id="comparison">.*?<\/section>/m] or
@@ -123,7 +129,6 @@ class DocsSiteTest < ActiveSupport::TestCase
   # disqualifier it can apply has to appear here too, or the reader who only
   # scrolls the landing page is told less than the one who clicks through.
   test "the landing page's 'pick something else' list names every disqualifier" do
-    page = File.read(File.expand_path("../docs/site/comparison.md", __dir__), encoding: "UTF-8")
     audience = @html[/<section id="audience">.*?<\/section>/m] or
       flunk "the landing page lost its audience section"
     # Only the "not a fit" card, so a word used approvingly in the "good fit"
@@ -134,7 +139,7 @@ class DocsSiteTest < ActiveSupport::TestCase
     not_for_you = audience[/<div class="card aud no">.*?<\/div>\s*<\/div>/m] or
       flunk "the landing page lost its 'pick something else' card"
 
-    # Derived from the page, not hardcoded: the comment at the top of
+    # Derived from the chooser, not hardcoded: the comment at the top of
     # comparison.md promises this test fails when a disqualifier there has no
     # counterpart here, and a literal list would quietly not do that.
     claims = { "attributes"        => /rules depend on the record's data or the time/i,
@@ -143,7 +148,8 @@ class DocsSiteTest < ActiveSupport::TestCase
                "minimal_footprint" => /smallest possible dependency/i,
                "beta"              => /cannot put beta software into production/i }
 
-    vetoes = page.scan(/veto: "(\w+)"/).flatten.uniq
+    chooser = File.read(FIT_CHOOSER, encoding: "UTF-8")
+    vetoes = chooser.scan(/veto: "(\w+)"/).flatten.uniq
     refute_empty vetoes, "the chooser has to be able to rule CurrentScope out"
     assert_equal claims.keys.sort, vetoes.sort,
                  "a disqualifier was added to or removed from the chooser. Every one of them " \
@@ -163,7 +169,8 @@ class DocsSiteTest < ActiveSupport::TestCase
   # apply also named in the README's "reach for something else" table.
   test "the README fit section agrees with the comparison page" do
     readme = File.read(File.expand_path("../README.md", __dir__), encoding: "UTF-8")
-    page   = File.read(File.expand_path("../docs/site/comparison.md", __dir__), encoding: "UTF-8")
+    page   = File.read(COMPARISON, encoding: "UTF-8")
+    chooser = File.read(FIT_CHOOSER, encoding: "UTF-8")
 
     section = readme[/^## Is it the right fit\?$.*?(?=^## )/m] or
       flunk "the README lost its fit section"
@@ -177,7 +184,7 @@ class DocsSiteTest < ActiveSupport::TestCase
       assert_includes section, lib, "the README fit section names #{lib}"
     end
 
-    count = page.scan(/^\s+q: "/).length
+    count = chooser.scan(/^\s+q: "/).length
     words = %w[zero one two three four five six seven eight nine]
     assert_includes section.gsub(/\s+/, " "), "#{words.fetch(count) { count.to_s }} questions",
                     "the README says how many questions the page asks; it asks #{count}"
@@ -192,7 +199,7 @@ class DocsSiteTest < ActiveSupport::TestCase
                 "code_review"       => "should be a code review",
                 "minimal_footprint" => "smallest possible dependency",
                 "beta"              => "cannot ship beta" }
-    vetoes = page.scan(/veto: "(\w+)"/).flatten.uniq
+    vetoes = chooser.scan(/veto: "(\w+)"/).flatten.uniq
     assert_equal phrases.keys.sort, vetoes.sort,
                  "a disqualifier was added to or removed from the chooser; the README's " \
                  "'Reach for something else when' table has to state it, and it has to be " \
@@ -207,7 +214,7 @@ class DocsSiteTest < ActiveSupport::TestCase
   # CurrentScope out on their own, and the verdict must never sell a library
   # without naming what it costs.
   test "the chooser can rule CurrentScope out and never recommends without a caveat" do
-    page = File.read(File.expand_path("../docs/site/comparison.md", __dir__), encoding: "UTF-8")
+    chooser = File.read(FIT_CHOOSER, encoding: "UTF-8")
 
     # Only that each disqualifier is reachable from an answer and explains
     # itself. Whether the chooser actually honours them — no verdict without a
@@ -215,10 +222,10 @@ class DocsSiteTest < ActiveSupport::TestCase
     # unreachable — is driven for real in
     # test/system/docs_site_fit_chooser_test.rb, so it is not re-pinned here
     # against the source's indentation and key order.
-    page.scan(/veto: "(\w+)"/).flatten.uniq.each do |veto|
-      assert_match(/#{veto}:\s*\{/, page, "#{veto} has to be a defined disqualifier")
-      assert_match(/#{veto}:\s*\{[^}]*note:/m, page, "#{veto} has to explain itself to the reader")
-      assert_match(/#{veto}:\s*\{[^}]*removes:\s*\[[^\]]+\]/m, page,
+    chooser.scan(/veto: "(\w+)"/).flatten.uniq.each do |veto|
+      assert_match(/#{veto}:\s*\{/, chooser, "#{veto} has to be a defined disqualifier")
+      assert_match(/#{veto}:\s*\{[^}]*note:/m, chooser, "#{veto} has to explain itself to the reader")
+      assert_match(/#{veto}:\s*\{[^}]*removes:\s*\[[^\]]+\]/m, chooser,
                    "#{veto} has to remove the libraries that cannot meet it")
     end
   end

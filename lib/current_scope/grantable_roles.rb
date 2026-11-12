@@ -183,6 +183,8 @@ module CurrentScope
         # the guide writes declarations as strings, so a host asking about one
         # by name is the first thing to try (#183).
         name = role.respond_to?(:name) ? role.name : role.to_s
+        # A Role cannot be blank: the model validates presence. A string can.
+        # present? stays, so a blank string does not depend on include?("").
         name.present? && allowed.include?(name)
       end
 

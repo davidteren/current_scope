@@ -1,0 +1,1 @@
+[CurrentScope] 1 more grant(s) could not be judged against their type's declaration; all are reported as conforming.

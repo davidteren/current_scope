@@ -123,6 +123,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     now says so instead of printing the literal key `"(duplicate natural key)"`.
 
 ### Changed
+- **The report task prints through `CurrentScope::ReportPrinter` (#140).**
+  The printed report is the same text as before. The class is the task's
+  printer, not a host API. A subject lookup that fails while building an
+  `access.sod_initiator_missing` row no longer replaces the configuration
+  error that request is about to raise.
 - **RubyGems metadata now points at the docs site (#211).**
   `documentation_uri` and `homepage` are the Pages site;
   `source_code_uri` and `bug_tracker_uri` are the GitHub repo and issue

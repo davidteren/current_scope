@@ -143,10 +143,20 @@ class DelegatedManagementTest < ActionDispatch::IntegrationTest
     assert CurrentScope::ScopedRoleAssignment.exists?(assignment.id)
   end
 
-  test "bulk assignment rolls back when any target is forbidden" do
-    post current_scope.role_assignments_url, params: { subject_gids: [ @member.to_gid.to_s, @admin.to_gid.to_s ], role_id: @role.id }, headers: headers
-    assert_response :forbidden
-    assert_equal 0, CurrentScope::RoleAssignment.where(role: @role).count
+  test "bulk assignment applies the allowed subjects and names the forbidden ones" do
+    assert_difference -> { CurrentScope::Event.where(event: "org_role.assigned").count }, 1 do
+      post current_scope.role_assignments_url,
+        params: { subject_gids: [ @member.to_gid.to_s, @admin.to_gid.to_s ], role_id: @role.id },
+        headers: headers
+    end
+
+    assert_redirected_to current_scope.subjects_path
+    assert_equal "Org-wide role set. Skipped Delegated administrator.", flash[:notice]
+    assert_equal @role, CurrentScope::RoleAssignment.find_by(subject: @member)&.role
+    assert_nil CurrentScope::RoleAssignment.find_by(subject: @admin)
+    targets = CurrentScope::Event.where(event: "org_role.assigned").pluck(:target)
+    assert targets.any? { |target| target.include?(@member.to_gid.to_s) }
+    assert targets.none? { |target| target.include?(@admin.to_gid.to_s) }
   end
   test "each write requires its specific management action" do
     project = Project.create!(name: "Project")

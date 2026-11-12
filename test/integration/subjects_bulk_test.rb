@@ -15,6 +15,14 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
 
   def as(user) = { "X-User-Id" => user.id.to_s }
 
+  def with_management_authorizer(authorizer)
+    prior = CurrentScope.config.management_authorizer
+    CurrentScope.config.management_authorizer = authorizer
+    yield
+  ensure
+    CurrentScope.config.management_authorizer = prior
+  end
+
   test "config.subject_label controls how a subject is identified" do
     alice = User.create!(name: "Alice Cooper")
     CurrentScope.config.subject_label = ->(u) { "user-#{u.name.parameterize}" }
@@ -188,5 +196,331 @@ class SubjectsBulkTest < ActionDispatch::IntegrationTest
       }
     end
     assert_equal 1, CurrentScope::ScopedRoleAssignment.where(subject: bob).count
+  end
+
+  test "a full-access subject keeps an enabled scoped revoke and the unknown submits" do
+    alice = User.create!(name: "Alice")
+    folder = Folder.create!(name: "Space")
+    sra = CurrentScope::ScopedRoleAssignment.create!(subject: alice, resource: folder, role: @role)
+
+    get current_scope.subjects_url, headers: as(@owner)
+
+    assert_response :success
+    button = css_select("#scoped_chip_revoke_#{sra.id}").first
+    assert_nil button["disabled"]
+    assert_match @role.name, button["aria-label"]
+    assert_nil button["aria-describedby"]
+    assert_select "#scoped_chip_revoke_#{sra.id}_limit", count: 0
+    assert_select "input[type=submit][value='Set for selected']:not([disabled])"
+    assert_select "input[type=submit][value='Set']:not([disabled])"
+    assert_select "a[data-cs-bulk-scoped]"
+    assert_select "a.cs-add-scoped"
+    assert_select "select[name=role_id] option[disabled]", count: 0
+  end
+
+  test "a denied scoped revoke is disabled and described, and unknown submits stay open" do
+    alice = User.create!(name: "Alice")
+    folder = Folder.create!(name: "Space")
+    sra = CurrentScope::ScopedRoleAssignment.create!(subject: alice, resource: folder, role: @role)
+    delegate = User.create!(name: "Delegate")
+    actions = []
+    authorizer = lambda do |subject, action:, **|
+      actions << action
+      subject == delegate && action == :access
+    end
+
+    with_management_authorizer(authorizer) do
+      get current_scope.subjects_url, headers: as(delegate)
+    end
+
+    assert_response :success
+    button = css_select("#scoped_chip_revoke_#{sra.id}").first
+    assert button["disabled"]
+    assert_equal "scoped_chip_revoke_#{sra.id}_limit", button["aria-describedby"]
+    assert_match @role.name, button["aria-label"]
+    assert_select "#scoped_chip_revoke_#{sra.id}_limit",
+      text: "Your administration permissions do not allow this removal."
+    assert_select "input[type=submit][value='Set for selected']:not([disabled])"
+    assert_select "input[type=submit][value='Set']:not([disabled])"
+    assert_select "a[data-cs-bulk-scoped]"
+    assert_select "a.cs-add-scoped"
+    assert_select "select[name=role_id] option[disabled]", count: 0
+    assert_not_includes actions, :assign_role
+    assert_not_includes actions, :assign_scoped_role
+  end
+
+  test "a scoped revoke asks once and uses the recipient, not the resource" do
+    alice = User.create!(name: "Alice")
+    CurrentScope::ScopedRoleAssignment.create!(subject: alice, resource: Folder.create!(name: "One"), role: @role)
+    CurrentScope::ScopedRoleAssignment.create!(subject: alice, resource: Folder.create!(name: "Two"), role: @role)
+    calls = []
+    authorizer = lambda do |subject, action:, role: nil, target: nil|
+      calls << [ action, role&.id, target&.class&.name, target&.id ] if action == :revoke_scoped_role
+      subject == @owner
+    end
+
+    with_management_authorizer(authorizer) do
+      get current_scope.subjects_url, headers: as(@owner)
+    end
+
+    assert_response :success
+    assert_equal [ [ :revoke_scoped_role, @role.id, "User", alice.id ] ], calls
+  end
+
+  test "a mixed org-role batch changes the allowed subject and names the skip" do
+    delegate = User.create!(name: "Delegate")
+    allowed = User.create!(name: "Allowed Person")
+    skipped = User.create!(name: "Skipped Person")
+    editor = CurrentScope::Role.create!(name: "Editor")
+    authorizer = lambda do |actor, action:, target: nil, **|
+      next false unless actor == delegate
+      return true if action == :access
+      return true if target == allowed
+
+      "yes"
+    end
+
+    with_management_authorizer(authorizer) do
+      assert_difference -> { CurrentScope::Event.where(event: "org_role.assigned").count }, 1 do
+        post current_scope.role_assignments_url, headers: as(delegate), params: {
+          role_id: editor.id,
+          subject_gids: [ allowed.to_gid.to_s, skipped.to_gid.to_s ]
+        }
+      end
+    end
+
+    assert_redirected_to current_scope.subjects_path
+    assert_equal "Org-wide role set. Skipped Skipped Person.", flash[:notice]
+    assert_equal editor, CurrentScope::RoleAssignment.find_by(subject: allowed)&.role
+    assert_nil CurrentScope::RoleAssignment.find_by(subject: skipped)
+    targets = CurrentScope::Event.where(event: "org_role.assigned").pluck(:target)
+    assert targets.any? { |target| target.include?(allowed.to_gid.to_s) }
+    assert targets.none? { |target| target.include?(skipped.to_gid.to_s) }
+  end
+
+  test "a long skipped list still redirects after the allowed change" do
+    delegate = User.create!(name: "Delegate")
+    allowed = User.create!(name: "Allowed Person")
+    skipped = Array.new(100) { |index| User.create!(name: "Skipped #{index} #{'x' * 60}") }
+    editor = CurrentScope::Role.create!(name: "Editor")
+    authorizer = lambda do |actor, action:, target: nil, **|
+      next false unless actor == delegate
+      return true if action == :access
+      return true if target == allowed
+
+      "yes"
+    end
+
+    with_management_authorizer(authorizer) do
+      post current_scope.role_assignments_url, headers: as(delegate), params: {
+        role_id: editor.id,
+        subject_gids: [ allowed.to_gid.to_s, *skipped.map { |user| user.to_gid.to_s } ]
+      }
+    end
+
+    assert_redirected_to current_scope.subjects_path
+    notice = flash[:notice].to_s
+    assert_operator notice.bytesize, :<, 2_000
+    assert_match(/And \d+ more\./, notice)
+    assert_equal editor, CurrentScope::RoleAssignment.find_by(subject: allowed)&.role
+    assert_nil CurrentScope::RoleAssignment.find_by(subject: skipped.first)
+  end
+
+  test "a skipped name past the notice budget is cut on a character boundary" do
+    delegate = User.create!(name: "Delegate")
+    allowed = User.create!(name: "Allowed Person")
+    skipped = User.create!(name: "Skipped Person")
+    editor = CurrentScope::Role.create!(name: "Editor")
+    CurrentScope.config.subject_label = ->(user) { user.id == skipped.id ? ("あ" * 600) : user.name }
+    authorizer = lambda do |actor, action:, target: nil, **|
+      next false unless actor == delegate
+      return true if action == :access
+      return true if target == allowed
+
+      "yes"
+    end
+
+    with_management_authorizer(authorizer) do
+      post current_scope.role_assignments_url, headers: as(delegate), params: {
+        role_id: editor.id,
+        subject_gids: [ allowed.to_gid.to_s, skipped.to_gid.to_s ]
+      }
+    end
+
+    assert_redirected_to current_scope.subjects_path
+    notice = flash[:notice].to_s
+    assert notice.valid_encoding?
+    assert_operator notice.bytesize, :<, 2_000
+    clipped = notice[/Skipped (あ+)\./, 1]
+    assert clipped
+    assert_operator clipped.bytesize, :<=, 80
+    assert_equal editor, CurrentScope::RoleAssignment.find_by(subject: allowed)&.role
+    assert_nil CurrentScope::RoleAssignment.find_by(subject: skipped)
+  end
+
+  test "a role change still checks revoke before it applies the allowed subject" do
+    delegate = User.create!(name: "Delegate")
+    kept = User.create!(name: "Kept Person")
+    moved = User.create!(name: "Moved Person")
+    CurrentScope::RoleAssignment.create!(subject: kept, role: @role)
+    editor = CurrentScope::Role.create!(name: "Editor")
+    authorizer = lambda do |actor, action:, target: nil, **|
+      next false unless actor == delegate
+      return true if action == :access
+      return false if action == :revoke_role && target == kept
+
+      true
+    end
+
+    with_management_authorizer(authorizer) do
+      post current_scope.role_assignments_url, headers: as(delegate), params: {
+        role_id: editor.id,
+        subject_gids: [ kept.to_gid.to_s, moved.to_gid.to_s ]
+      }
+    end
+
+    assert_redirected_to current_scope.subjects_path
+    assert_equal "Org-wide role set. Skipped Kept Person.", flash[:notice]
+    assert_equal @role, CurrentScope::RoleAssignment.find_by!(subject: kept).role
+    assert_equal editor, CurrentScope::RoleAssignment.find_by!(subject: moved).role
+    assert_equal 0, CurrentScope::Event.where(event: "org_role.changed").count
+  end
+
+  test "a fully denied org-role batch changes nothing and writes no event" do
+    delegate = User.create!(name: "Delegate")
+    alice = User.create!(name: "Alice")
+    bob = User.create!(name: "Bob")
+    authorizer = ->(actor, action:, **) { actor == delegate && action == :access }
+
+    with_management_authorizer(authorizer) do
+      assert_no_difference -> { CurrentScope::Event.count } do
+        post current_scope.role_assignments_url, headers: as(delegate), params: {
+          role_id: @role.id,
+          subject_gids: [ alice.to_gid.to_s, bob.to_gid.to_s ]
+        }
+      end
+    end
+
+    assert_response :forbidden
+    assert_equal "management_denied", response.headers["X-Current-Scope-Reason"]
+    assert_nil CurrentScope::RoleAssignment.find_by(subject: alice)
+    assert_nil CurrentScope::RoleAssignment.find_by(subject: bob)
+  end
+
+  test "a mixed batch refuses when the allowed recipient is the last full-access holder" do
+    delegate = User.create!(name: "Delegate")
+    colleague = User.create!(name: "Colleague")
+    CurrentScope::RoleAssignment.create!(subject: colleague, role: @role)
+    authorizer = lambda do |actor, action:, target: nil, **|
+      actor == delegate && (action == :access || target == @owner)
+    end
+
+    with_management_authorizer(authorizer) do
+      assert_no_difference -> { CurrentScope::Event.count } do
+        post current_scope.role_assignments_url, headers: as(delegate), params: {
+          role_id: @role.id,
+          subject_gids: [ @owner.to_gid.to_s, colleague.to_gid.to_s ]
+        }
+      end
+    end
+
+    assert_response :redirect
+    assert_match(/last full access/i, flash[:alert].to_s)
+    assert CurrentScope::RoleAssignment.find_by!(subject: @owner).role.full_access?
+    assert_equal @role, CurrentScope::RoleAssignment.find_by!(subject: colleague).role
+  end
+
+  test "a denied last holder does not block a change the subject may make" do
+    delegate = User.create!(name: "Delegate")
+    colleague = User.create!(name: "Colleague")
+    editor = CurrentScope::Role.create!(name: "Editor")
+    authorizer = lambda do |actor, action:, target: nil, **|
+      actor == delegate && (action == :access || target == colleague)
+    end
+
+    with_management_authorizer(authorizer) do
+      assert_difference -> { CurrentScope::Event.where(event: "org_role.assigned").count }, 1 do
+        post current_scope.role_assignments_url, headers: as(delegate), params: {
+          role_id: editor.id,
+          subject_gids: [ @owner.to_gid.to_s, colleague.to_gid.to_s ]
+        }
+      end
+    end
+
+    assert_redirected_to current_scope.subjects_path
+    assert_equal "Org-wide role set. Skipped Owner.", flash[:notice]
+    assert CurrentScope::RoleAssignment.find_by!(subject: @owner).role.full_access?
+    assert_equal editor, CurrentScope::RoleAssignment.find_by!(subject: colleague).role
+  end
+
+  test "a non-authorization error is not treated as a skipped recipient" do
+    delegate = User.create!(name: "Delegate")
+    alice = User.create!(name: "Alice")
+    bob = User.create!(name: "Bob")
+    authorizer = lambda do |actor, action:, target: nil, **|
+      raise RuntimeError, "not an authorization result" if target == alice
+
+      actor == delegate && (action == :access || target == bob)
+    end
+
+    with_management_authorizer(authorizer) do
+      assert_raises(RuntimeError) do
+        post current_scope.role_assignments_url, headers: as(delegate), params: {
+          role_id: @role.id,
+          subject_gids: [ alice.to_gid.to_s, bob.to_gid.to_s ]
+        }
+      end
+    end
+
+    assert_nil CurrentScope::RoleAssignment.find_by(subject: alice)
+    assert_nil CurrentScope::RoleAssignment.find_by(subject: bob)
+  end
+
+  # "Skipped " + 1,489 letters + "." is 1,498 letters. The cookie stores two
+  # extra quote bytes, so the stored sentence is 1,500 bytes.
+  test "a skipped name that fills the notice budget stays whole" do
+    name = "n" * 1_489
+    sentence = CurrentScope::RoleAssignmentsController.new.send(:skipped_names_sentence, [ name ])
+
+    assert_equal "Skipped #{name}.", sentence
+    assert_equal 1_500, ActiveSupport::JSON.encode(sentence).bytesize
+  end
+
+  test "a skipped name of angle brackets stays inside the cookie budget" do
+    name = "<" * 400
+    sentence = CurrentScope::RoleAssignmentsController.new.send(:skipped_names_sentence, [ name ])
+
+    assert_operator ActiveSupport::JSON.encode(sentence).bytesize, :<=, 1_500
+    assert_not_includes sentence, name
+  end
+
+  test "a notice name one byte over the clip keeps eighty bytes" do
+    clipped = CurrentScope::RoleAssignmentsController.new.send(:clipped_notice_name, "a" * 81)
+
+    assert_equal "a" * 80, clipped
+  end
+
+  test "a clear still removes the role when assign would be refused" do
+    delegate = User.create!(name: "Delegate")
+    alice = User.create!(name: "Alice")
+    CurrentScope::RoleAssignment.create!(subject: alice, role: @role)
+    authorizer = lambda do |actor, action:, target: nil, **|
+      next false unless actor == delegate
+      return true if action == :access
+      return true if action == :revoke_role && target == alice
+
+      false
+    end
+
+    with_management_authorizer(authorizer) do
+      post current_scope.role_assignments_url, headers: as(delegate), params: {
+        role_id: "",
+        subject_gids: [ alice.to_gid.to_s ]
+      }
+    end
+
+    assert_redirected_to current_scope.subjects_path
+    assert_equal "Org-wide role cleared.", flash[:notice]
+    assert_nil CurrentScope::RoleAssignment.find_by(subject: alice)
   end
 end

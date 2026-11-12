@@ -409,5 +409,23 @@ module CurrentScope
     ensure
       CurrentScope.define_singleton_method(:polymorphic_class, original)
     end
+
+    test "a nil role and two unsaved targets stay separate manage checks" do
+      first = User.new(name: "One")
+      second = User.new(name: "Two")
+      calls = []
+      original = CurrentScope.method(:can_manage?)
+      CurrentScope.define_singleton_method(:can_manage?) do |_action, role: nil, target: nil|
+        calls << [ role, target ]
+        false
+      end
+
+      assert_equal :none, send(:current_scope_manage_identity, nil)
+      assert_equal false, current_scope_can_manage?(:revoke_role, role: nil, target: first)
+      assert_equal false, current_scope_can_manage?(:revoke_role, role: nil, target: second)
+      assert_equal [ [ nil, first ], [ nil, second ] ], calls
+    ensure
+      CurrentScope.define_singleton_method(:can_manage?, original)
+    end
   end
 end

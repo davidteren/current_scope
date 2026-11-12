@@ -101,14 +101,22 @@
               <% revoke_prompt = orphaned ?
                     "Remove inert scoped grant (#{resource_label})?" :
                     "Revoke #{sra.role.name} on #{resource_label}?" %>
+              <% revoke_allowed = current_scope_can_manage?(:revoke_scoped_role, role: sra.role, target: subject) %>
               <%= button_to "×", scoped_role_assignment_path(sra), method: :delete,
                     class: "cs-chip-remove",
                     id: "scoped_chip_revoke_#{sra.id}",
                     title: (orphaned ? "Remove inert scoped grant" : "Revoke this scoped role"),
+                    disabled: !revoke_allowed,
                     form: { data: { cs_confirm: revoke_prompt } },
-                    aria: { label: (orphaned ? "Remove inert #{sra.role.name} grant on #{resource_label}" : "Revoke #{sra.role.name} on #{resource_label}") },
+                    aria: {
+                      label: (orphaned ? "Remove inert #{sra.role.name} grant on #{resource_label}" : "Revoke #{sra.role.name} on #{resource_label}"),
+                      describedby: (revoke_allowed ? nil : "scoped_chip_revoke_#{sra.id}_limit")
+                    },
                     data: { turbo_confirm: revoke_prompt } %>
             </span>
+            <% unless revoke_allowed %>
+              <span id="scoped_chip_revoke_<%= sra.id %>_limit" class="cs-hint">Your administration permissions do not allow this removal.</span>
+            <% end %>
           <% end %>
           <%= link_to "+ scoped role", new_scoped_role_assignment_path(subject_gid: subject.to_gid),
                 class: "cs-add-scoped" %>

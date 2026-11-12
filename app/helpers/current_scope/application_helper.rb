@@ -22,6 +22,20 @@ module CurrentScope
       "administrator"
     end
 
+    # Enabled only on a literal true from can_manage?. The hash lives on this
+    # render, not on Current, so a later write check asks the authorizer again.
+    def current_scope_can_manage?(action, role: nil, target: nil)
+      memo = current_scope_manage_memo
+      key = [
+        action,
+        current_scope_manage_identity(role),
+        current_scope_manage_identity(target)
+      ]
+      return memo[key] if memo.key?(key)
+
+      memo[key] = CurrentScope.can_manage?(action, role: role, target: target) == true
+    end
+
     # Human label for a subject (user/account), honouring config.subject_label
     # so a host on UUID keys can show email or a full name instead of an
     # opaque id. Falls back to the best-effort current_scope_label.
@@ -167,6 +181,17 @@ module CurrentScope
     end
 
     private
+
+    def current_scope_manage_memo
+      @current_scope_manage_memo ||= {}
+    end
+
+    def current_scope_manage_identity(record)
+      return :none if record.nil?
+      return [ record.class.name, record.id.to_s ] if record.respond_to?(:id) && !record.id.nil?
+
+      [ :object, record.object_id ]
+    end
 
     # ponytail: display fallback only — NEVER a decision path. This rescue makes
     # a label degrade instead of erroring; the resolver, Guard and catalog are

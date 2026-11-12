@@ -68,13 +68,30 @@ private
 # A collection-only controller declares BOTH hooks. current_scope_record = nil
 # is what tells the gate "this action has no record" (a scoped grant can then
 # open it); WITHOUT it the gate assumes nothing and current_scope_model is
-# inert — the grant never opens the gate. current_scope_model then names the
-# TYPE, so the grant opens the record-less gate only for Projects. (A
-# controller with member actions already has current_scope_record; it just
-# adds current_scope_model.)
+# inert, for this instance method and for the class macro below. The grant
+# never opens the gate. current_scope_model then names the TYPE, so the grant
+# opens the record-less gate only for Projects. (A controller with member
+# actions already has current_scope_record; it just adds current_scope_model.
+# Use this instance method when the answer branches on action_name.)
 def current_scope_record = nil
 def current_scope_model = Project
 ```
+
+When the model does not depend on the action, declare it on the class instead.
+The macro defines the instance method the gate calls. Subclasses inherit it
+until they call the macro again. Without `current_scope_record`, the model
+hook is inert for this form too.
+
+```ruby
+current_scope_model Project
+def current_scope_record = nil
+```
+
+Use only the macro, or write the instance method after the macro when it must
+read `action_name`. Macro, then a later `def`: the request uses the `def`, and
+preflight warns. `def`, then the macro: the macro replaces that `def` and does
+not warn, so the `action_name` branch is gone. Declaring both by hand warns
+only when the instance method is not the method the macro defined.
 
 - **full-access or an org-wide grant** of the key → every record (`Project.all`).
 - **scoped grants** → only the specific records that role was granted on, plus

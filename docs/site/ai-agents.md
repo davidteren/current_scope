@@ -214,11 +214,16 @@ migrations (enum column or rolify), and safe mechanical call-site rewrites
 behind an explicit `--write`. The manual path remains the
 [adoption guide](adopting-in-an-existing-app.md).
 
-## Planned agent surfaces
+## Client abilities snapshot
 
-These are tracked but **not shipped** — do not prompt an agent to use them
-yet:
+`CurrentScope.abilities_for(subject, scopes:, limit:)` is the advisory
+snapshot. The [checking permissions](checking-permissions.md#client-snapshot)
+guide shows both recipes: a one-action host JSON controller, and an Inertia
+shared prop for a host that already uses Inertia.
 
-- Exposing the subject's abilities to a separate JS front-end (React/Next):
-  [#96](https://github.com/davidteren/current_scope/issues/96), Inertia
-  props: [#97](https://github.com/davidteren/current_scope/issues/97).
+Do not add `inertia_rails` to this gem. Do not mount an engine route for the
+hash. Do not publish a JavaScript package. Do not add the scenario apps
+`07_react_api` and `08_inertia` in this repo. Issues
+[#96](https://github.com/davidteren/current_scope/issues/96) and
+[#97](https://github.com/davidteren/current_scope/issues/97) stay open. The
+server gate remains the authority. A listed id can still be refused.

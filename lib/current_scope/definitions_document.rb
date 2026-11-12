@@ -330,11 +330,14 @@ module CurrentScope
         begin
           Role.transaction do
             planned_fa = @roles.select(&:full_access).map(&:name)
-            FullAccessLock.lock_console_state!(planned_fa)
+            # One walk locks the console rows and returns the would-lose answer.
+            # It does not raise. The held-role check below still runs, and it
+            # wins when both refusals apply. LastHolderLock is only after that.
+            would_lose = FullAccessLock.would_lose_held_full_access?(planned_fa)
             role_ids = Role.order(:id).pluck(:id)
             RolePermission.where(role_id: role_ids).order(:id).lock.load if role_ids.any?
             refuse_held_deletes!
-            if FullAccessLock.would_lose_held_full_access?(planned_fa)
+            if would_lose
               raise LastHolderLock,
                     "Refusing to apply: this document would leave zero org-wide full-access holders."
             end

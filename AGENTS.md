@@ -78,11 +78,15 @@ of the following are done on the **current** head:
 
 1. **Wait** for remote CI and agentic reviewers to settle on the head SHA
    (cubic, qodo, Devin, and any other required checks). Do not declare ready
-   while a review bot is still pending.
+   while a review bot is still pending. cubic no longer reviews PRs
+   automatically (`reviews.enabled: false` and `reviews.ultrareview: manual`
+   in `cubic.yaml`). Wait for cubic only when a review was requested on that
+   PR.
 2. **Re-review the open PR** with the same three lenses (PR-aware where the
    skill supports it): `/ce-code-review`, `/ie-review`, `/cubic-loop` in
-   **PR mode** (or local cubic on that branch if PR mode cannot run). Fix
-   real findings; commit + push; re-run after material HEAD moves.
+   **local** mode (the free `cubic review` against the PR base). Use
+   `/cubic-loop` PR mode only when cubic reviewed the PR. Fix real findings;
+   commit + push; re-run after material HEAD moves.
 3. **Address every review comment / thread** (human or bot):
    - Fetch unresolved threads (GraphQL `reviewThreads` preferred)
    - Fix when warranted; commit + push; confirm the SHA is on the remote
